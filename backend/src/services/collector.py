@@ -5,6 +5,7 @@ and collection log persistence.
 
 import asyncio
 import hashlib
+import re
 import time
 from datetime import datetime, timezone
 from time import mktime
@@ -50,6 +51,25 @@ def _extract_author(entry) -> Optional[str]:
     if hasattr(entry, "authors") and entry.authors:
         return entry.authors[0].get("name")
     return None
+
+
+def _extract_rss_summary(entry) -> Optional[str]:
+    """Fallback: extract usable text from RSS entry summary/description."""
+    raw = entry.get("summary") or entry.get("description") or ""
+    if not raw:
+        for content_item in entry.get("content", []):
+            if content_item.get("value"):
+                raw = content_item["value"]
+                break
+    if not raw:
+        return None
+
+        text = re.sub(r"<[^>]+>", " ", raw)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    if len(text) < 80:
+        return None
+    return text
 
 
 class RSSCollector:
@@ -166,12 +186,17 @@ class RSSCollector:
                     continue
 
                 full_text = await self._extract_text(article_url)
+
                 if full_text and len(full_text) < settings.min_article_length:
+                    full_text = None
+
+                if not full_text:
+                    full_text = _extract_rss_summary(entry)
+
+                if not full_text:
                     continue
 
-                lang = self._detect_language(
-                    full_text or entry.get("title", ""), source.languages
-                )
+                lang = self._detect_language(full_text, source.languages)
 
                 db.add(
                     Article(
@@ -184,7 +209,7 @@ class RSSCollector:
                         published_at=_parse_date(entry),
                         source_language=lang,
                         status="collected",
-                        word_count=len(full_text.split()) if full_text else None,
+                        word_count=len(full_text.split()),
                     )
                 )
                 new_count += 1

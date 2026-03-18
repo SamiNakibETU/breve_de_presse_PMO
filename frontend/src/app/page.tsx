@@ -54,24 +54,49 @@ export default function DashboardPage() {
         <PipelineStatus status={status} onRefresh={load} />
       </div>
 
-      {stats && Object.keys(stats.by_country).length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-            Articles par pays (24h)
-          </h3>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {Object.entries(stats.by_country)
-              .sort(([, a], [, b]) => b - a)
-              .map(([country, count]) => (
-                <div
-                  key={country}
-                  className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-sm"
-                >
-                  <span>{country}</span>
-                  <span className="font-semibold">{count}</span>
-                </div>
-              ))}
-          </div>
+      {stats && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {Object.keys(stats.by_country).length > 0 && (
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Articles par pays (24h)
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(stats.by_country)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([country, count]) => (
+                    <div
+                      key={country}
+                      className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-sm"
+                    >
+                      <span>{country}</span>
+                      <span className="font-semibold">{count}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {Object.keys(stats.by_language).length > 0 && (
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Articles par langue source (24h)
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(stats.by_language)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([lang, count]) => (
+                    <div
+                      key={lang}
+                      className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-sm"
+                    >
+                      <span className="uppercase">{lang}</span>
+                      <span className="font-semibold">{count}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

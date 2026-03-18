@@ -167,29 +167,25 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     ).scalar() or 0
 
-    translated = (
+    by_status_rows = (
         await db.execute(
-            select(func.count(Article.id)).where(
-                Article.collected_at >= cutoff,
-                Article.status == "translated",
-            )
+            select(Article.status, func.count(Article.id))
+            .where(Article.collected_at >= cutoff)
+            .group_by(Article.status)
         )
-    ).scalar() or 0
+    ).all()
+    by_status = {row[0]: row[1] for row in by_status_rows}
 
-    needs_review = (
+    translated = by_status.get("translated", 0)
+    needs_review = by_status.get("needs_review", 0)
+    errors = by_status.get("error", 0)
+    collected = by_status.get("collected", 0)
+
+    no_content = (
         await db.execute(
             select(func.count(Article.id)).where(
                 Article.collected_at >= cutoff,
-                Article.status == "needs_review",
-            )
-        )
-    ).scalar() or 0
-
-    errors = (
-        await db.execute(
-            select(func.count(Article.id)).where(
-                Article.collected_at >= cutoff,
-                Article.status == "error",
+                Article.content_original.is_(None),
             )
         )
     ).scalar() or 0
@@ -224,7 +220,10 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         "total_translated": translated,
         "total_needs_review": needs_review,
         "total_errors": errors,
+        "total_pending": collected,
+        "total_no_content": no_content,
         "countries_covered": len(by_country_rows),
+        "by_status": by_status,
         "by_country": {row[0]: row[1] for row in by_country_rows},
         "by_type": {row[0]: row[1] for row in by_type_rows},
         "by_language": {row[0]: row[1] for row in by_lang_rows},

@@ -45,7 +45,10 @@ export interface Stats {
   total_translated: number;
   total_needs_review: number;
   total_errors: number;
+  total_pending: number;
+  total_no_content: number;
   countries_covered: number;
+  by_status: Record<string, number>;
   by_country: Record<string, number>;
   by_type: Record<string, number>;
   by_language: Record<string, number>;

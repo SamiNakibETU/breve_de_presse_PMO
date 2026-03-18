@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from src.services.collector import run_collection
 from src.services.scheduler import daily_pipeline
@@ -17,9 +17,11 @@ async def trigger_collect():
 
 
 @router.post("/translate")
-async def trigger_translate():
+async def trigger_translate(
+    limit: int = Query(default=300, ge=1, le=1000),
+):
     try:
-        stats = await run_translation_pipeline()
+        stats = await run_translation_pipeline(limit=limit)
         return {"status": "ok", "stats": stats}
     except Exception as exc:
         raise HTTPException(500, detail=str(exc))

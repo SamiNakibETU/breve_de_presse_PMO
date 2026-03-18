@@ -156,11 +156,11 @@ class TranslationPipeline:
         self._factory = get_session_factory()
         self._semaphore = asyncio.Semaphore(3)
 
-    async def process_pending(self, limit: int = 50) -> dict:
+    async def process_pending(self, limit: int = 300) -> dict:
         async with self._factory() as db:
             result = await db.execute(
                 select(Article)
-                .where(Article.status == "collected")
+                .where(Article.status.in_(["collected", "error"]))
                 .where(Article.content_original.isnot(None))
                 .order_by(Article.collected_at.desc())
                 .limit(limit)
@@ -257,6 +257,6 @@ class TranslationPipeline:
         )
 
 
-async def run_translation_pipeline(limit: int = 50) -> dict:
+async def run_translation_pipeline(limit: int = 300) -> dict:
     pipeline = TranslationPipeline()
     return await pipeline.process_pending(limit=limit)
