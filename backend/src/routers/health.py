@@ -7,6 +7,17 @@ router = APIRouter()
 settings = get_settings()
 
 
+@router.get("/")
+async def root():
+    return {
+        "app": "OLJ Press Review API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+        "status": "/api/status",
+    }
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "environment": settings.environment}
