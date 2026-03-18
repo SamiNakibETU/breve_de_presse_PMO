@@ -1,0 +1,80 @@
+export interface Article {
+  id: string;
+  title_fr: string | null;
+  title_original: string;
+  media_source_id: string;
+  media_name: string;
+  country: string;
+  country_code: string;
+  author: string | null;
+  published_at: string | null;
+  article_type: string | null;
+  source_language: string | null;
+  translation_confidence: number | null;
+  translation_notes: string | null;
+  summary_fr: string | null;
+  thesis_summary_fr: string | null;
+  key_quotes_fr: string[] | null;
+  url: string;
+  status: string;
+  word_count: number | null;
+  collected_at: string;
+}
+
+export interface ArticleListResponse {
+  articles: Article[];
+  total: number;
+}
+
+export interface MediaSource {
+  id: string;
+  name: string;
+  country: string;
+  country_code: string;
+  tier: number;
+  languages: string[];
+  bias: string | null;
+  collection_method: string;
+  paywall: string;
+  is_active: boolean;
+  last_collected_at: string | null;
+}
+
+export interface Stats {
+  total_collected_24h: number;
+  total_translated: number;
+  total_needs_review: number;
+  total_errors: number;
+  countries_covered: number;
+  by_country: Record<string, number>;
+  by_type: Record<string, number>;
+  by_language: Record<string, number>;
+}
+
+export interface SchedulerJob {
+  id: string;
+  name: string;
+  next_run: string | null;
+}
+
+export interface AppStatus {
+  status: string;
+  environment: string;
+  jobs: SchedulerJob[];
+}
+
+export interface ReviewSummary {
+  id: string;
+  title: string | null;
+  review_date: string;
+  status: string;
+  full_text: string | null;
+  article_count: number;
+  created_at: string;
+}
+
+export interface GenerateReviewResult {
+  review_id: string;
+  full_text: string;
+  article_count: number;
+}
