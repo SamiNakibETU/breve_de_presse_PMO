@@ -6,9 +6,24 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/press_review",
     )
+
+    # --- LLM provider keys (set at least one) ---
     anthropic_api_key: str = Field(default="")
-    translation_model: str = Field(default="claude-haiku-4-5-20251001")
-    formatting_model: str = Field(default="claude-sonnet-4-5-20241022")
+    groq_api_key: str = Field(default="")
+    cerebras_api_key: str = Field(default="")
+
+    # --- Anthropic models (fallback / Hebrew) ---
+    anthropic_translation_model: str = Field(default="claude-haiku-4-5-20241022")
+    anthropic_generation_model: str = Field(default="claude-sonnet-4-5-20241022")
+
+    # --- Groq models (EN/FR translation + OLJ generation) ---
+    groq_translation_model: str = Field(
+        default="meta-llama/llama-4-scout-17b-16e-instruct",
+    )
+    groq_generation_model: str = Field(default="llama-3.3-70b-versatile")
+
+    # --- Cerebras models (AR/FA/TR/KU translation) ---
+    cerebras_translation_model: str = Field(default="qwen-3-235b-a22b")
 
     collection_hour_utc: int = Field(default=6)
     max_articles_per_source: int = Field(default=20)

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -78,29 +79,28 @@ async def sample_article(db_session: AsyncSession, sample_source: MediaSource):
     return article
 
 
+MOCK_TRANSLATION_JSON = {
+    "translated_title": "Titre de test traduit",
+    "thesis_summary": "Résumé de la thèse de test",
+    "summary_fr": " ".join(["Ceci est un résumé de test."] * 30),
+    "key_quotes_fr": ["« Citation de test »"],
+    "article_type": "analysis",
+    "entities": [
+        {"name": "Test Person", "type": "PERSON", "name_fr": "Personne Test"}
+    ],
+    "confidence_score": 0.92,
+    "translation_notes": "",
+}
+
+
 @pytest.fixture()
-def mock_anthropic():
-    """Mock AsyncAnthropic that returns a well-formed JSON translation response."""
-    response_json = {
-        "translated_title": "Titre de test traduit",
-        "thesis_summary": "Résumé de la thèse de test",
-        "summary_fr": " ".join(["Ceci est un résumé de test."] * 30),
-        "key_quotes_fr": ["« Citation de test »"],
-        "article_type": "analysis",
-        "entities": [
-            {"name": "Test Person", "type": "PERSON", "name_fr": "Personne Test"}
-        ],
-        "confidence_score": 0.92,
-        "translation_notes": "",
-    }
-
-    mock_content = MagicMock()
-    mock_content.text = __import__("json").dumps(response_json, ensure_ascii=False)
-
-    mock_response = MagicMock()
-    mock_response.content = [mock_content]
-
-    mock_client = AsyncMock()
-    mock_client.messages.create = AsyncMock(return_value=mock_response)
-
-    return mock_client
+def mock_llm_router():
+    """Mock LLMRouter that returns well-formed JSON for both translate and generate."""
+    router = MagicMock()
+    router.translate = AsyncMock(
+        return_value=json.dumps(MOCK_TRANSLATION_JSON, ensure_ascii=False),
+    )
+    router.generate = AsyncMock(
+        return_value="« Titre reformulé — Thèse de l'auteur »\n\nRésumé : ...\n\nFiche : ...",
+    )
+    return router

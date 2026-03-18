@@ -1,6 +1,11 @@
 """
-Translation + summarization pipeline using Claude Haiku 4.5 (async).
+Translation + summarization pipeline using hybrid LLM routing (async).
 Combined: translate, summarize, classify, extract entities in one LLM call.
+
+Routing per source language:
+  ar/fa/tr/ku → Cerebras (Qwen3 235B)
+  en/fr       → Groq (Llama 4 Scout)
+  he          → Anthropic (Claude Haiku)
 """
 
 import asyncio
@@ -8,7 +13,6 @@ import json
 import re
 from datetime import datetime, timezone
 
-import anthropic
 import structlog
 from sqlalchemy import select
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -18,6 +22,7 @@ from src.database import get_session_factory
 from src.models.article import Article
 from src.models.media_source import MediaSource
 from src.services.entity_service import upsert_entities
+from src.services.llm_router import get_llm_router
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -125,7 +130,6 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
 def _parse_llm_json(text: str) -> dict:
     """Parse JSON from LLM response with fallback regex extraction."""
     text = text.strip()
-    # Strip markdown fences if present
     if text.startswith("```"):
         text = re.sub(r"^```\w*\n?", "", text)
         text = re.sub(r"\n?```$", "", text)
@@ -148,7 +152,7 @@ def _parse_llm_json(text: str) -> dict:
 
 class TranslationPipeline:
     def __init__(self) -> None:
-        self._client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self._router = get_llm_router()
         self._factory = get_session_factory()
         self._semaphore = asyncio.Semaphore(3)
 
@@ -198,20 +202,21 @@ class TranslationPipeline:
             media_name = source.name if source else "Unknown"
 
         is_french = article.source_language == "fr"
+        lang = article.source_language or "unknown"
 
         if is_french:
             prompt = _build_french_prompt(article, media_name)
         else:
             prompt = _build_translate_prompt(article, media_name)
 
-        response = await self._client.messages.create(
-            model=settings.translation_model,
-            max_tokens=1500,
+        raw_text = await self._router.translate(
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
+            prompt=prompt,
+            language=lang,
+            max_tokens=1500,
         )
 
-        data = _parse_llm_json(response.content[0].text)
+        data = _parse_llm_json(raw_text)
 
         confidence = float(data.get("confidence_score", 1.0 if is_french else 0.0))
         if confidence < settings.translation_confidence_threshold:

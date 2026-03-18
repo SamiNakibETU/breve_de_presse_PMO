@@ -1,13 +1,13 @@
 """
-OLJ format press review generator using Claude Sonnet 4.5 (async).
+OLJ format press review generator using hybrid LLM routing (async).
+Default: Groq Llama 3.3 70B for generation, falls back to Anthropic if unavailable.
 Generates the final copy-paste-ready block and persists reviews.
 """
 
 import json
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
-import anthropic
 import structlog
 from sqlalchemy import select
 
@@ -16,6 +16,7 @@ from src.database import get_session_factory
 from src.models.article import Article
 from src.models.media_source import MediaSource
 from src.models.review import Review, ReviewItem
+from src.services.llm_router import get_llm_router
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -105,7 +106,7 @@ def _format_date_fr(dt: datetime | None) -> str:
 
 class PressReviewGenerator:
     def __init__(self) -> None:
-        self._client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self._router = get_llm_router()
         self._factory = get_session_factory()
 
     async def generate_block(self, article_id: str | uuid.UUID) -> str:
@@ -143,14 +144,12 @@ INFORMATIONS FICHE :
 Produis le bloc OLJ final, en retravaillant le résumé existant si nécessaire \
 pour qu'il atteigne exactement 150-200 mots et respecte parfaitement le style OLJ."""
 
-        response = await self._client.messages.create(
-            model=settings.formatting_model,
-            max_tokens=1000,
+        formatted_block = await self._router.generate(
             system=OLJ_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
+            prompt=user_prompt,
+            max_tokens=1000,
         )
-
-        formatted_block = response.content[0].text.strip()
+        formatted_block = formatted_block.strip()
 
         async with self._factory() as db:
             art = await db.get(Article, article_id)
