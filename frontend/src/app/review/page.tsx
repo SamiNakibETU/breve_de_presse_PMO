@@ -139,8 +139,8 @@ export default function ReviewPage() {
         >
           {generating ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Génération en cours
-              (Claude Sonnet 4.5)...
+              <Loader2 className="h-4 w-4 animate-spin" /> Génération en
+              cours...
             </>
           ) : (
             <>

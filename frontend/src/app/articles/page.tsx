@@ -17,16 +17,29 @@ export default function ArticlesPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>("all_processed");
   const [filters, setFilters] = useState<Filters>({
     countries: [],
-    types: ["opinion", "editorial", "tribune", "analysis"],
-    minConfidence: 0.5,
+    types: [],
+    minConfidence: 0,
   });
+
+  const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
+    all_processed: {
+      label: "Traduits & formatés",
+      value: "translated,formatted,needs_review",
+    },
+    collected: { label: "Collectés (bruts)", value: "collected" },
+    all: {
+      label: "Tous",
+      value: "collected,translated,formatted,needs_review,error",
+    },
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     const params: Record<string, string> = {
-      status: "translated,formatted,needs_review",
+      status: STATUS_OPTIONS[statusFilter].value,
       limit: "200",
     };
     if (filters.countries.length > 0)
@@ -46,7 +59,7 @@ export default function ArticlesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, statusFilter]);
 
   useEffect(() => {
     load();
@@ -77,6 +90,22 @@ export default function ArticlesPage() {
             {total !== 1 ? "s" : ""}
           </p>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
+          <button
+            key={key}
+            onClick={() => setStatusFilter(key)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              statusFilter === key
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-border"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <ArticleFilters filters={filters} onChange={setFilters} />
