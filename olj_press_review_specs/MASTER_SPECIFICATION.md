@@ -1,7 +1,7 @@
 # OLJ AUTOMATED PRESS REVIEW — COMPLETE SPECIFICATION PACK
 ## Système de Revue de Presse Régionale Automatisée pour L'Orient-Le Jour
 
-**Version**: 1.0.0 | **Date**: 2026-03-18 | **Auteur**: Spécification technique pour agent Cursor
+**Version**: 1.0.0 | **Date**: 2026-03-18 | **Auteur**: Spécification technique projet OLJ Press Review
 
 ---
 
@@ -478,7 +478,7 @@ Calculé par le modèle dans le champ `confidence_score` (0.0-1.0). Seuil d'aler
 
 ---
 
-# STEP 5 — SPÉCIFICATIONS POUR AGENT CURSOR
+# STEP 5 — SPÉCIFICATIONS POUR L’AGENT D’IMPLÉMENTATION
 
 Les documents suivants sont dans des fichiers séparés :
 - **PROJECT_BRIEF.md** → Vue d'ensemble et objectifs
@@ -487,7 +487,7 @@ Les documents suivants sont dans des fichiers séparés :
 - **MEDIA_REGISTRY.json** → Registre des 48 médias
 - **IMPLEMENTATION_ROADMAP.md** → Plan de développement en sprints
 - **RAILWAY_DEPLOYMENT.md** → Guide de déploiement
-- **CURSOR_AGENT_INSTRUCTIONS.md** → Instructions pour l'agent Cursor
+- **AGENT_INSTRUCTIONS.md** → Instructions pour l’agent d’implémentation
 
 ---
 

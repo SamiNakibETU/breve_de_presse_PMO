@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file guides Cursor agents working on this project.
+This file guides AI coding assistants working on this project.
 
 ---
 

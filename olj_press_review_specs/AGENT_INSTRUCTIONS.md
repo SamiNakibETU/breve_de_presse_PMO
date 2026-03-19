@@ -1,5 +1,5 @@
-# CURSOR_AGENT_INSTRUCTIONS.md
-## Instructions pour l'agent Claude Opus 4.6 dans Cursor
+# AGENT_INSTRUCTIONS.md
+## Instructions pour l’agent d’implémentation (LLM)
 
 ---
 

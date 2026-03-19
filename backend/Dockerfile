@@ -1,6 +1,11 @@
+# python:3.11-slim n'inclut pas gcc — hdbscan compile des extensions C (.c) :
+# sans build-essential, pip échoue avec "gcc failed: No such file or directory".
+# PLAYWRIGHT_BROWSERS_PATH ne corrige pas ce problème (c'est pour le runtime, pas le build).
+
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     wget gnupg2 ca-certificates fonts-liberation libnss3 libatk1.0-0 \
     libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
     libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 \
@@ -11,7 +16,10 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    playwright install chromium --with-deps
+    playwright install chromium --with-deps && \
+    apt-get update && apt-get purge -y build-essential && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY . .
 
