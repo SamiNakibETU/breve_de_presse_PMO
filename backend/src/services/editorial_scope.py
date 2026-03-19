@@ -1,0 +1,215 @@
+"""
+Filtre « revue de presse géopolitique » : rejette lifestyle / voyage / cuisine
+qui passaient avant (ex. flux opinion + mot « Turquie » / « turquie » seul).
+
+Utilisé à l’ingestion (RSS, web, Playwright) et pour restreindre le clustering.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+
+# --- Hors-périmètre : si une de ces sous-chaînes est présente, on rejette ---
+# (titres + résumé / début de corps, texte normalisé minuscules)
+LIFESTYLE_TRAVEL_SUBSTRINGS: tuple[str, ...] = (
+    # FR
+    "voyage et cuisine",
+    "voyage en ",
+    "voyages en ",
+    "guide de voyage",
+    "tourisme en ",
+    "gastronomie",
+    "recette de ",
+    "recettes de ",
+    "meilleurs restaurants",
+    "où manger",
+    "hôtels de luxe",
+    "week-end à ",
+    "weekend à ",
+    # EN
+    "travel guide",
+    "travel to ",
+    "tourism in ",
+    "culinary ",
+    "food and travel",
+    "recipe for ",
+    "best restaurants in ",
+    "where to eat",
+    "hotel review",
+    "luxury hotel",
+    "things to do in ",  # listicles voyage
+    "vacation in ",
+    # TR (souvent mélangé dans titres anglais de sites TR)
+    "seyahat",
+    "gezi rehberi",
+    "yemek tarifi",
+    # AR (voyage / loisir)
+    "السياحة في",
+    "وصفة ",
+    "أفضل المطاعم",
+)
+
+# Sports / divertissement pur (hors angle géopolitique)
+LEISURE_SUBSTRINGS: tuple[str, ...] = (
+    "world cup",
+    "champions league",
+    "premier league",
+    "super bowl",
+    "nba finals",
+    "oscar nomination",
+    "grammy ",
+    "met gala",
+    "fashion week",
+    "celebrity ",
+)
+
+# Mots-clés géopolitiques (union EN/FR/AR) — sans pays « seuls » trop ambigus
+_GEO_EN = {
+    "iran", "israel", "hezbollah", "hamas", "gaza", "lebanon", "war",
+    "missile", "strike", "bomb", "sanctions", "ceasefire", "hostage",
+    "military", "pentagon", "idf", "irgc", "hormuz", "gulf", "oil",
+    "nuclear", "drone", "conflict", "escalation", "retaliation",
+    "middle east", "syria", "iraq", "yemen", "houthi", "casualties",
+    "refugee", "displaced", "crisis", "diplomacy", "negotiation",
+    "occupation", "resistance", "netanyahu", "khamenei", "biden",
+    "trump", "un security", "humanitarian", "siege", "blockade",
+    "west bank", "settler", "annexation", "proxy", "axis",
+    "erdogan", "offensive", "invasion", "airstrike", "armed",
+    "troops", "border", "attack", "killed", "deadly", "explosion",
+    "terror", "militant", "regime", "sanction", "embargo",
+}
+_GEO_FR = {
+    "iran", "israël", "hezbollah", "hamas", "gaza", "liban", "guerre",
+    "missile", "frappe", "bombe", "sanctions", "cessez-le-feu", "otage",
+    "militaire", "pentagone", "tsahal", "ormuz", "golfe", "pétrole",
+    "nucléaire", "drone", "conflit", "escalade", "représailles",
+    "moyen-orient", "syrie", "irak", "yémen", "houthi", "victimes",
+    "réfugié", "déplacé", "crise", "diplomatie", "négociation",
+    "occupation", "résistance", "netanyahou", "khamenei",
+    "humanitaire", "siège", "blocus", "cisjordanie", "colon",
+    "annexion", "erdogan", "offensive", "invasion", "attentat",
+    "terrorisme", "combats", "frontière", "frappes",
+}
+_GEO_AR = {
+    "إيران", "إسرائيل", "حزب الله", "حماس", "غزة", "لبنان", "حرب",
+    "صاروخ", "قصف", "عقوبات", "وقف إطلاق النار", "رهينة",
+    "عسكري", "هرمز", "خليج", "نفط", "نووي", "صراع", "تصعيد",
+    "الشرق الأوسط", "سوريا", "العراق", "اليمن", "حوثي",
+    "أزمة", "دبلوماسية", "مفاوضات", "احتلال", "مقاومة",
+    "إنساني", "حصار", "الضفة الغربية", "استيطان",
+}
+
+# Retiré volontairement des déclencheurs « seuls » : turkey/turquie/تركيا/egypt…
+# (sinon « voyage en Turquie » ou seul pays matche encore via d’autres chemins)
+_COUNTRY_ONLY: frozenset[str] = frozenset({
+    "turkey", "turquie", "türkiye", "تركيا",
+    "egypt", "égypte", "egypte", "مصر",
+    "jordan", "jordanie", "الأردن",
+    "qatar", "قطر",
+    "kuwait", "koweït", "الكويت",
+    "uae", "emirates", "émirats", "الإمارات",
+    "saudi", "saoudite", "arabie",
+    "morocco", "maroc", "algérie", "algeria", "tunisia", "tunisie",
+    "peace", "paix", "trêve", "truce",  # trop générique seuls
+})
+
+GEO_KEYWORDS: frozenset[str] = frozenset(_GEO_EN | _GEO_FR | _GEO_AR)
+
+
+def normalize_for_match(text: str) -> str:
+    if not text:
+        return ""
+    t = unicodedata.normalize("NFKC", text).lower()
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def is_out_of_scope_lifestyle(text: str) -> bool:
+    """True = ne pas ingérer / ne pas clusteriser (lifestyle, voyage, sport pur…)."""
+    t = normalize_for_match(text)
+    if not t:
+        return False
+    for needle in LIFESTYLE_TRAVEL_SUBSTRINGS:
+        if needle in t:
+            return True
+    for needle in LEISURE_SUBSTRINGS:
+        if needle in t:
+            return True
+    return False
+
+
+def _kw_in_text(t: str, kw: str) -> bool:
+    """Évite les faux positifs type « war » dans « award » pour mots courts latins."""
+    if len(kw) <= 4 and kw.isascii() and kw.isalpha():
+        return re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?![a-z0-9])", t) is not None
+    return kw in t
+
+
+def _matching_geo_keywords(t: str) -> set[str]:
+    found: set[str] = set()
+    for kw in GEO_KEYWORDS:
+        if _kw_in_text(t, kw):
+            found.add(kw)
+    return found
+
+
+def has_geopolitical_relevance_signal(title: str, summary: str = "") -> bool:
+    """
+    Pour flux RSS non-opinion : au moins un signal géopolitique « fort »,
+    et pas uniquement un nom de pays générique.
+    """
+    t = normalize_for_match(f"{title} {summary}")
+    if not t or is_out_of_scope_lifestyle(t):
+        return False
+
+    found = _matching_geo_keywords(t)
+    if not found:
+        return False
+    if found <= _COUNTRY_ONLY:
+        return False
+    return True
+
+
+def should_ingest_rss_entry(title: str, summary: str, uses_opinion_feed: bool) -> bool:
+    """
+    - Toujours exclure lifestyle/voyage même sur flux « opinion ».
+    - Flux opinion : après filtre lifestyle, on accepte.
+    - Flux généraliste : signal géopolitique requis.
+    """
+    combined = f"{title} {summary}"
+    if is_out_of_scope_lifestyle(combined):
+        return False
+    if uses_opinion_feed:
+        return True
+    return has_geopolitical_relevance_signal(title, summary)
+
+
+def should_ingest_scraped_article(title: str, content_snippet: str) -> bool:
+    """Pages opinion : on filtre quand même le bruit lifestyle évident."""
+    snippet = content_snippet[:2500] if content_snippet else ""
+    combined = f"{title} {snippet}"
+    if is_out_of_scope_lifestyle(combined):
+        return False
+    return True
+
+
+def is_article_eligible_for_clustering(
+    title_fr: str | None,
+    title_original: str,
+    summary_fr: str | None,
+    article_type: str | None,
+    editorial_types: frozenset[str],
+    enforce_editorial_types: bool,
+) -> bool:
+    """Optionnellement restreint aux types éditoriaux ; exclut toujours le lifestyle."""
+    if enforce_editorial_types:
+        if not article_type or article_type not in editorial_types:
+            return False
+
+    title = (title_fr or title_original or "").strip()
+    summ = (summary_fr or "")[:1200]
+    combined = f"{title} {summ}"
+    if is_out_of_scope_lifestyle(combined):
+        return False
+    return True

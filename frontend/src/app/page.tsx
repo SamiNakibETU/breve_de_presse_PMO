@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { AppStatus, ClusterListResponse, Stats } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
@@ -8,37 +8,60 @@ import { StatsCards } from "@/components/dashboard/stats-cards";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 
 const LANG_LABELS: Record<string, string> = {
-  ar: "Arabe", en: "Anglais", fr: "Français",
-  he: "Hébreu", fa: "Persan", tr: "Turc", ku: "Kurde",
+  ar: "Arabe",
+  en: "Anglais",
+  fr: "Français",
+  he: "Hébreu",
+  fa: "Persan",
+  tr: "Turc",
+  ku: "Kurde",
 };
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [status, setStatus] = useState<AppStatus | null>(null);
-  const [clusters, setClusters] = useState<ClusterListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [s, st, c] = await Promise.all([api.stats(), api.status(), api.clusters()]);
-      setStats(s);
-      setStatus(st);
-      setClusters(c);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de contacter le backend");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [statsQ, statusQ, clustersQ] = useQueries({
+    queries: [
+      {
+        queryKey: ["stats"] as const,
+        queryFn: (): Promise<Stats> => api.stats(),
+      },
+      {
+        queryKey: ["status"] as const,
+        queryFn: (): Promise<AppStatus> => api.status(),
+      },
+      {
+        queryKey: ["clusters"] as const,
+        queryFn: (): Promise<ClusterListResponse> => api.clusters(),
+      },
+    ],
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const loading = statsQ.isPending || statusQ.isPending || clustersQ.isPending;
+  const error =
+    statsQ.error?.message ??
+    statusQ.error?.message ??
+    clustersQ.error?.message ??
+    null;
+
+  const stats = statsQ.data ?? null;
+  const status = statusQ.data ?? null;
+  const clusters = clustersQ.data ?? null;
+
+  function invalidateDashboard() {
+    void queryClient.invalidateQueries({ queryKey: ["stats"] });
+    void queryClient.invalidateQueries({ queryKey: ["status"] });
+    void queryClient.invalidateQueries({ queryKey: ["clusters"] });
+    void queryClient.invalidateQueries({ queryKey: ["clusterArticles"] });
+    void queryClient.invalidateQueries({ queryKey: ["articles"] });
+  }
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("fr-FR", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
   const subjectCount = clusters?.total ?? 0;
 
@@ -54,14 +77,16 @@ export default function DashboardPage() {
       </header>
 
       {error && (
-        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">{error}</p>
+        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">
+          {error}
+        </p>
       )}
 
       <section>
         <h2 className="mb-3 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
           Pipeline
         </h2>
-        <PipelineStatus status={status} onRefresh={load} />
+        <PipelineStatus status={status} onRefresh={invalidateDashboard} />
       </section>
 
       <section>
@@ -84,7 +109,10 @@ export default function DashboardPage() {
               {Object.entries(stats.by_country)
                 .sort(([, a], [, b]) => b - a)
                 .map(([country, count]) => (
-                  <div key={country} className="flex items-baseline justify-between border-b border-[#eeede9] py-1.5 text-[13px]">
+                  <div
+                    key={country}
+                    className="flex items-baseline justify-between border-b border-[#eeede9] py-1.5 text-[13px]"
+                  >
                     <span>{country}</span>
                     <span className="tabular-nums font-medium">{count}</span>
                   </div>
@@ -100,7 +128,10 @@ export default function DashboardPage() {
               {Object.entries(stats.by_language)
                 .sort(([, a], [, b]) => b - a)
                 .map(([lang, count]) => (
-                  <div key={lang} className="flex items-baseline justify-between border-b border-[#eeede9] py-1.5 text-[13px]">
+                  <div
+                    key={lang}
+                    className="flex items-baseline justify-between border-b border-[#eeede9] py-1.5 text-[13px]"
+                  >
                     <span>{LANG_LABELS[lang] || lang.toUpperCase()}</span>
                     <span className="tabular-nums font-medium">{count}</span>
                   </div>

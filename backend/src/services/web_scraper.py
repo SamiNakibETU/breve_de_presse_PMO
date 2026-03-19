@@ -22,6 +22,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 
 from src.config import get_settings
+from src.services.editorial_scope import should_ingest_scraped_article
 from src.database import get_session_factory
 from src.models.article import Article
 from src.models.collection_log import CollectionLog
@@ -183,6 +184,7 @@ class WebScraper:
         stats: dict = {
             "total_sources": len(scrapable),
             "total_new": 0,
+            "total_filtered": 0,
             "errors": [],
             "skipped_no_config": len(sources) - len(scrapable),
         }
@@ -190,6 +192,9 @@ class WebScraper:
             if isinstance(res, Exception):
                 stats["errors"].append({"source": source.id, "error": str(res)[:200]})
                 logger.error("web_scraper.source_error", source=source.id, error=str(res)[:200])
+            elif isinstance(res, dict):
+                stats["total_new"] += int(res.get("new", 0))
+                stats["total_filtered"] += int(res.get("filtered", 0))
             elif isinstance(res, int):
                 stats["total_new"] += res
 
@@ -208,11 +213,11 @@ class WebScraper:
             await asyncio.sleep(delay - elapsed)
         self._domain_last_request[domain] = time.monotonic()
 
-    async def _scrape_source(self, source: MediaSource) -> int:
+    async def _scrape_source(self, source: MediaSource) -> dict:
         async with self._semaphore:
             config = SOURCE_CONFIGS.get(source.id)
             if not config:
-                return 0
+                return {"new": 0, "filtered": 0}
 
             domain = urlparse(config["opinion_url"]).netloc
             await self._rate_limit(domain)
@@ -225,12 +230,12 @@ class WebScraper:
             log_id = log.id
 
             try:
-                new_count = await self._do_scrape(source, config)
+                result = await self._do_scrape(source, config)
 
                 async with self._factory() as db:
                     cl = await db.get(CollectionLog, log_id)
                     if cl:
-                        cl.articles_new = new_count
+                        cl.articles_new = result["new"]
                         cl.status = "completed"
                         cl.completed_at = datetime.now(timezone.utc)
                     src = await db.get(MediaSource, source.id)
@@ -238,8 +243,13 @@ class WebScraper:
                         src.last_collected_at = datetime.now(timezone.utc)
                     await db.commit()
 
-                logger.info("web_scraper.source_done", source=source.id, new=new_count)
-                return new_count
+                logger.info(
+                    "web_scraper.source_done",
+                    source=source.id,
+                    new=result["new"],
+                    filtered=result["filtered"],
+                )
+                return result
 
             except Exception as exc:
                 async with self._factory() as db:
@@ -250,9 +260,9 @@ class WebScraper:
                         cl.completed_at = datetime.now(timezone.utc)
                     await db.commit()
                 logger.error("web_scraper.source_failed", source=source.id, error=str(exc)[:200])
-                return 0
+                return {"new": 0, "filtered": 0}
 
-    async def _do_scrape(self, source: MediaSource, config: dict) -> int:
+    async def _do_scrape(self, source: MediaSource, config: dict) -> dict:
         opinion_url = config["opinion_url"]
         base_url = config["base_url"]
 
@@ -290,12 +300,13 @@ class WebScraper:
 
         if not article_urls:
             logger.warning("web_scraper.no_links_found", source=source.id, url=opinion_url)
-            return 0
+            return {"new": 0, "filtered": 0}
 
         article_urls = article_urls[:settings.max_articles_per_source]
         logger.info("web_scraper.links_found", source=source.id, count=len(article_urls))
 
         new_count = 0
+        filtered_count = 0
         async with self._factory() as db:
             for article_url in article_urls:
                 h = _url_hash(article_url)
@@ -310,6 +321,10 @@ class WebScraper:
 
                 text, author, title, pub_date = await self._extract_article(article_url)
                 if not text or len(text) < 80:
+                    continue
+
+                if not should_ingest_scraped_article(title or "", text):
+                    filtered_count += 1
                     continue
 
                 lang = _detect_language(text, source.languages)
@@ -332,7 +347,7 @@ class WebScraper:
 
             await db.commit()
 
-        return new_count
+        return {"new": new_count, "filtered": filtered_count}
 
     def _extract_article_links(
         self,

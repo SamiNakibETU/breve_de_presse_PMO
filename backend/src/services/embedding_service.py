@@ -12,6 +12,8 @@ from src.models.article import Article
 
 logger = structlog.get_logger()
 
+_EDITORIAL_TYPES = ("opinion", "editorial", "tribune", "analysis")
+
 BATCH_SIZE = 96
 MODEL = "embed-multilingual-v3.0"
 INPUT_TYPE = "search_document"
@@ -39,6 +41,7 @@ class EmbeddingService:
         return all_embeddings
 
     async def embed_pending_articles(self, db: AsyncSession) -> int:
+        settings = get_settings()
         stmt = (
             select(Article)
             .where(Article.status == "translated")
@@ -46,6 +49,8 @@ class EmbeddingService:
             .where(Article.embedding.is_(None))
             .limit(500)
         )
+        if settings.embed_only_editorial_types:
+            stmt = stmt.where(Article.article_type.in_(_EDITORIAL_TYPES))
         result = await db.execute(stmt)
         articles = result.scalars().all()
 

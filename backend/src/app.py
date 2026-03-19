@@ -76,9 +76,20 @@ def create_app() -> FastAPI:
     origins = [
         "http://localhost:3000",
         "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
     ]
-    if settings.frontend_url and settings.frontend_url not in origins:
-        origins.append(settings.frontend_url)
+    for raw in (
+        settings.frontend_url,
+        *(
+            o.strip()
+            for o in settings.cors_origins.split(",")
+            if o.strip()
+        ),
+    ):
+        url = (raw or "").strip().rstrip("/")
+        if url and url not in origins:
+            origins.append(url)
 
     app.add_middleware(
         CORSMiddleware,

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -9,6 +10,7 @@ from src.database import get_db
 from src.models.article import Article
 from src.models.media_source import MediaSource
 from src.schemas.articles import (
+    ArticleIdsRequest,
     ArticleListResponse,
     ArticleResponse,
     MediaSourceResponse,
@@ -62,7 +64,7 @@ async def list_articles(
     language: Optional[str] = Query(None, description="Comma-separated language codes"),
     min_confidence: Optional[float] = Query(None, ge=0, le=1),
     days: int = Query(default=7, ge=1, le=30),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     sort: Optional[str] = Query(default="relevance", description="relevance|date|confidence"),
 ):
@@ -112,6 +114,41 @@ async def list_articles(
         articles.sort(key=lambda a: a.translation_confidence or 0, reverse=True)
 
     return ArticleListResponse(articles=articles, total=total)
+
+
+@router.post("/articles/by-ids", response_model=ArticleListResponse)
+async def list_articles_by_ids(
+    body: ArticleIdsRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Retourne uniquement les articles demandés (ordre préservé). Revue de presse sans charger 200 lignes."""
+    if not body.ids:
+        return ArticleListResponse(articles=[], total=0)
+    if len(body.ids) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 ids par requête")
+
+    parsed: list[uuid.UUID] = []
+    order_index: dict[uuid.UUID, int] = {}
+    for i, raw in enumerate(body.ids):
+        try:
+            u = uuid.UUID(str(raw).strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"UUID invalide: {raw!r}")
+        if u not in order_index:
+            order_index[u] = i
+            parsed.append(u)
+
+    stmt = (
+        select(Article, MediaSource)
+        .join(MediaSource, Article.media_source_id == MediaSource.id)
+        .where(Article.id.in_(parsed))
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    responses = [_to_response(art, src) for art, src in rows]
+    responses.sort(key=lambda a: order_index[uuid.UUID(a.id)])
+
+    return ArticleListResponse(articles=responses, total=len(responses))
 
 
 @router.get("/articles/{article_id}", response_model=ArticleResponse)

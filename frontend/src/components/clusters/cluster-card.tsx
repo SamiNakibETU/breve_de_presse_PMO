@@ -1,6 +1,8 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import type { TopicCluster } from "@/lib/types";
 
 const COUNTRY_FLAGS: Record<string, string> = {
@@ -20,8 +22,20 @@ const COUNTRY_FLAGS: Record<string, string> = {
 };
 
 export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
+  const queryClient = useQueryClient();
+  const href = `/clusters/${cluster.id}`;
+
   return (
-    <Link href={`/clusters/${cluster.id}`}>
+    <Link
+      href={href}
+      prefetch
+      onMouseEnter={() => {
+        void queryClient.prefetchQuery({
+          queryKey: ["clusterArticles", cluster.id],
+          queryFn: () => api.clusterArticles(cluster.id),
+        });
+      }}
+    >
       <article className="-mx-4 border-b border-[#e5e5e5] px-4 py-6 transition-colors hover:bg-[#fafafa]">
         <h2 className="mb-2 font-[family-name:var(--font-serif)] text-xl">
           {cluster.label || "Cluster sans label"}

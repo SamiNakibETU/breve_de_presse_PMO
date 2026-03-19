@@ -28,6 +28,10 @@ from src.database import get_session_factory
 from src.models.article import Article
 from src.models.collection_log import CollectionLog
 from src.models.media_source import MediaSource
+from src.services.editorial_scope import (
+    should_ingest_rss_entry,
+    should_ingest_scraped_article,
+)
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -38,42 +42,6 @@ CUSTOM_HEADERS = {
     "Accept-Encoding": "gzip, deflate",
     "Cache-Control": "no-cache",
 }
-
-RELEVANCE_KEYWORDS_EN = {
-    "iran", "israel", "hezbollah", "hamas", "gaza", "lebanon", "war",
-    "missile", "strike", "bomb", "sanctions", "ceasefire", "hostage",
-    "military", "pentagon", "idf", "irgc", "hormuz", "gulf", "oil",
-    "nuclear", "drone", "conflict", "escalation", "retaliation",
-    "middle east", "syria", "iraq", "yemen", "houthi", "casualties",
-    "refugee", "displaced", "crisis", "diplomacy", "negotiation",
-    "occupation", "resistance", "netanyahu", "khamenei", "biden",
-    "trump", "un security", "humanitarian", "siege", "blockade",
-    "west bank", "settler", "annexation", "proxy", "axis",
-    "turkey", "erdogan", "egypt", "saudi", "qatar", "uae", "kuwait",
-    "jordan", "peace", "truce", "offensive", "invasion", "airstrike",
-}
-RELEVANCE_KEYWORDS_FR = {
-    "iran", "israël", "hezbollah", "hamas", "gaza", "liban", "guerre",
-    "missile", "frappe", "bombe", "sanctions", "cessez-le-feu", "otage",
-    "militaire", "pentagone", "tsahal", "ormuz", "golfe", "pétrole",
-    "nucléaire", "drone", "conflit", "escalade", "représailles",
-    "moyen-orient", "syrie", "irak", "yémen", "houthi", "victimes",
-    "réfugié", "déplacé", "crise", "diplomatie", "négociation",
-    "occupation", "résistance", "netanyahou", "khamenei",
-    "humanitaire", "siège", "blocus", "cisjordanie", "colon",
-    "annexion", "turquie", "erdogan", "égypte", "saoudite",
-    "paix", "trêve", "offensive", "invasion",
-}
-RELEVANCE_KEYWORDS_AR = {
-    "إيران", "إسرائيل", "حزب الله", "حماس", "غزة", "لبنان", "حرب",
-    "صاروخ", "قصف", "عقوبات", "وقف إطلاق النار", "رهينة",
-    "عسكري", "هرمز", "خليج", "نفط", "نووي", "صراع", "تصعيد",
-    "الشرق الأوسط", "سوريا", "العراق", "اليمن", "حوثي",
-    "أزمة", "دبلوماسية", "مفاوضات", "احتلال", "مقاومة",
-    "إنساني", "حصار", "الضفة الغربية", "استيطان",
-    "تركيا", "مصر", "سعودية", "قطر", "إمارات", "كويت", "أردن",
-}
-ALL_RELEVANCE_KEYWORDS = RELEVANCE_KEYWORDS_EN | RELEVANCE_KEYWORDS_FR | RELEVANCE_KEYWORDS_AR
 
 GENERIC_AUTHOR_BLACKLIST = {
     "author", "admin", "administrator", "editor", "staff", "desk",
@@ -129,12 +97,6 @@ def _extract_author_from_html(html: str) -> Optional[str]:
             if name.lower() not in GENERIC_AUTHOR_BLACKLIST and 2 < len(name) < 100:
                 return name
     return None
-
-
-def _is_relevant_to_crisis(title: str, summary: str) -> bool:
-    """Check if title or summary contain war/crisis-related keywords."""
-    combined = f"{title} {summary}".lower()
-    return any(kw in combined for kw in ALL_RELEVANCE_KEYWORDS)
 
 
 def _extract_rss_summary(entry) -> Optional[str]:
@@ -329,7 +291,9 @@ class RSSCollector:
                 title = entry.get("title", "")
                 rss_summary_text = _extract_rss_summary(entry) or ""
 
-                if not uses_opinion_feed and not _is_relevant_to_crisis(title, rss_summary_text):
+                if not should_ingest_rss_entry(
+                    title, rss_summary_text, uses_opinion_feed=uses_opinion_feed
+                ):
                     filtered_count += 1
                     logger.debug(
                         "collection.filtered_irrelevant",
@@ -352,6 +316,15 @@ class RSSCollector:
                             full_text = combined
 
                 if not full_text:
+                    continue
+
+                if not should_ingest_scraped_article(title or "", full_text):
+                    filtered_count += 1
+                    logger.debug(
+                        "collection.filtered_lifestyle_body",
+                        source=source.id,
+                        title=(title or "")[:80],
+                    )
                     continue
 
                 author = _extract_author(entry) or html_author

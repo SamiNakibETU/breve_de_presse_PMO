@@ -5,7 +5,8 @@ from src.services.clustering_service import ClusteringService
 
 
 def test_cluster_embeddings_groups_similar():
-    service = ClusteringService()
+    # Paramètres réduits pour forcer des clusters sur petits jeux de tests
+    service = ClusteringService(min_cluster_size=3, min_samples=2)
     np.random.seed(42)
     group1 = [list(np.random.randn(1024) + 10) for _ in range(5)]
     group2 = [list(np.random.randn(1024) - 10) for _ in range(5)]

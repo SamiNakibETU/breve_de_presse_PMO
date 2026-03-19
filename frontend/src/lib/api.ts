@@ -36,6 +36,12 @@ export const api = {
     return request<ArticleListResponse>(`/api/articles${qs}`);
   },
 
+  articlesByIds: (ids: string[]) =>
+    request<ArticleListResponse>("/api/articles/by-ids", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
+
   mediaSources: () => request<MediaSource[]>("/api/media-sources"),
 
   triggerCollect: () =>

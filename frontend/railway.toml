@@ -1,0 +1,5 @@
+# Évite `next start` si la détection Next.js de Railway l’impose alors que le build
+# est en mode standalone (voir package.json : "start": "node .next/standalone/server.js").
+
+[deploy]
+startCommand = "npm run start"

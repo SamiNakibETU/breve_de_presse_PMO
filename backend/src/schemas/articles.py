@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ArticleResponse(BaseModel):
@@ -31,6 +31,10 @@ class ArticleResponse(BaseModel):
 class ArticleListResponse(BaseModel):
     articles: list[ArticleResponse]
     total: int
+
+
+class ArticleIdsRequest(BaseModel):
+    ids: Annotated[list[str], Field(default_factory=list, max_length=100)]
 
 
 class MediaSourceResponse(BaseModel):

@@ -28,4 +28,8 @@ ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Image python : CMD hérité = ["python3"] — on le remplace. Pas d'ENTRYPOINT dédié
+# pour éviter les conflits si la plateforme injecte une commande sans shell.
+# Le shell expand ${PORT:-8000} (Railway définit PORT) ; évite --port '$PORT' littéral.
+ENTRYPOINT []
+CMD ["/bin/sh", "-c", "exec uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}"]

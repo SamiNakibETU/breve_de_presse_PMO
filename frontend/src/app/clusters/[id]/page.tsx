@@ -1,37 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 import { api } from "@/lib/api";
-import type { ClusterArticle, ClusterArticlesResponse } from "@/lib/types";
+import type { ClusterArticlesResponse } from "@/lib/types";
 
 export default function ClusterDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const [data, setData] = useState<ClusterArticlesResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.clusterArticles(id);
-      setData(res);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  const { data, isPending, error: queryError } = useQuery({
+    queryKey: ["clusterArticles", id],
+    queryFn: (): Promise<ClusterArticlesResponse> => api.clusterArticles(id),
+    enabled: Boolean(id),
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const error = queryError instanceof Error ? queryError.message : null;
+  const loading = isPending;
 
   function toggleArticle(articleId: string) {
     setSelectedIds((prev) => {
@@ -48,10 +37,6 @@ export default function ClusterDetailPage() {
     router.push("/review");
   }
 
-  const allArticles: ClusterArticle[] = data
-    ? Object.values(data.articles_by_country).flat()
-    : [];
-
   const clusterLabel = data?.cluster_label ?? "Cluster";
 
   return (
@@ -67,7 +52,9 @@ export default function ClusterDetailPage() {
           {loading ? "Chargement…" : clusterLabel}
         </h1>
         <p className="mt-1 text-[13px] text-[#888]">
-          {data ? `${data.total_articles} articles · ${data.countries.length} pays` : ""}
+          {data
+            ? `${data.total_articles} articles · ${data.countries.length} pays`
+            : ""}
         </p>
       </header>
 

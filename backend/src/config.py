@@ -40,14 +40,36 @@ class Settings(BaseSettings):
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)
 
-    hdbscan_min_cluster_size: int = Field(default=8)
-    hdbscan_min_samples: int = Field(default=4)
+    hdbscan_min_cluster_size: int = Field(default=6)
+    hdbscan_min_samples: int = Field(default=5)
     hdbscan_cluster_method: str = Field(default="leaf")
+    # Fenêtre temporelle et périmètre pour le clustering (revue éditoriale)
+    clustering_window_hours: int = Field(
+        default=48,
+        ge=12,
+        le=168,
+        description="Articles avec embedding pris sur les N dernières heures",
+    )
+    cluster_only_editorial_types: bool = Field(
+        default=True,
+        description="Ne clusteriser que opinion, editorial, tribune, analysis",
+    )
+    cluster_refinement_max_size: int = Field(
+        default=72,
+        ge=24,
+        le=500,
+    )
+    embed_only_editorial_types: bool = Field(
+        default=True,
+        description="N'embedder que opinion/editorial/tribune/analysis (économise Cohere + bruit)",
+    )
 
     port: int = Field(default=8000)
     environment: str = Field(default="development")
     log_level: str = Field(default="INFO")
     frontend_url: str = Field(default="http://localhost:3000")
+    # Origines CORS supplémentaires (séparées par des virgules), ex. staging + previews Vercel
+    cors_origins: str = Field(default="")
 
     @property
     def async_database_url(self) -> str:

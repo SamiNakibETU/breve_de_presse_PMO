@@ -21,6 +21,7 @@ from sqlalchemy import select
 
 from src.config import get_settings
 from src.database import get_session_factory
+from src.services.editorial_scope import should_ingest_scraped_article
 from src.models.article import Article
 from src.models.collection_log import CollectionLog
 from src.models.media_source import MediaSource
@@ -222,8 +223,9 @@ class PlaywrightScraper:
 
             for source in scrapable:
                 try:
-                    new = await self._scrape_source(context, source)
-                    stats["total_new"] += new
+                    res = await self._scrape_source(context, source)
+                    stats["total_new"] += int(res.get("new", 0))
+                    stats["total_filtered"] += int(res.get("filtered", 0))
                 except Exception as exc:
                     stats["errors"].append({"source": source.id, "error": str(exc)[:200]})
                     logger.error("playwright_scraper.source_error", source=source.id, error=str(exc)[:200])
@@ -234,7 +236,7 @@ class PlaywrightScraper:
         logger.info("playwright_scraper.complete", total_new=stats["total_new"], errors=len(stats["errors"]))
         return stats
 
-    async def _scrape_source(self, context, source: MediaSource) -> int:
+    async def _scrape_source(self, context, source: MediaSource) -> dict:
         async with self._semaphore:
             config = PLAYWRIGHT_CONFIGS[source.id]
             opinion_url = config["opinion_url"]
@@ -269,11 +271,12 @@ class PlaywrightScraper:
 
                 if not links:
                     logger.warning("playwright_scraper.no_links", source=source.id, url=opinion_url)
-                    return 0
+                    return {"new": 0, "filtered": 0}
 
                 logger.info("playwright_scraper.links_found", source=source.id, count=len(links))
 
                 new_count = 0
+                filtered_count = 0
                 async with self._factory() as db:
                     for link in links:
                         h = _url_hash(link)
@@ -285,6 +288,10 @@ class PlaywrightScraper:
 
                         text, author, title, pub_date = await self._extract_article(context, link)
                         if not text or len(text) < 100:
+                            continue
+
+                        if not should_ingest_scraped_article(title or "", text):
+                            filtered_count += 1
                             continue
 
                         langs = config.get("languages", ["en"])
@@ -320,8 +327,13 @@ class PlaywrightScraper:
                         src.last_collected_at = datetime.now(timezone.utc)
                     await db.commit()
 
-                logger.info("playwright_scraper.source_done", source=source.id, new=new_count)
-                return new_count
+                logger.info(
+                    "playwright_scraper.source_done",
+                    source=source.id,
+                    new=new_count,
+                    filtered=filtered_count,
+                )
+                return {"new": new_count, "filtered": filtered_count}
 
             except Exception as exc:
                 async with self._factory() as db:

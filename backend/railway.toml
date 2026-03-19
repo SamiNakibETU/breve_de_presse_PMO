@@ -1,0 +1,12 @@
+# Railway : utiliser cette image Docker et une commande qui passe par /bin/sh
+# pour que ${PORT} soit toujours expansé (évite l'erreur littérale '$PORT' avec uvicorn).
+#
+# Si le tableau de bord a encore une « Custom Start Command » du type
+# `uvicorn ... --port $PORT` sans shell, supprimez-la : ce fichier ou le CMD du Dockerfile suffit.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "/bin/sh -c \"exec uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}\""

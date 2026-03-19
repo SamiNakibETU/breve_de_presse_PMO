@@ -2,6 +2,9 @@
 Clusters API: list clusters, get cluster articles, refresh clustering.
 """
 
+from collections import defaultdict
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,32 +39,53 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
     except Exception:
         return ClusterListResponse(clusters=[], total=0, noise_count=0)
 
+    if not clusters:
+        noise_count = 0
+        try:
+            noise_stmt = select(func.count(Article.id)).where(
+                Article.embedding.isnot(None),
+                Article.cluster_id.is_(None),
+            )
+            noise_result = await db.execute(noise_stmt)
+            noise_count = noise_result.scalar() or 0
+        except Exception:
+            pass
+        return ClusterListResponse(clusters=[], total=0, noise_count=noise_count)
+
+    cluster_ids = [c.id for c in clusters]
+
+    # Une seule requête : (cluster_id, country) distincts — évite N+1 chargement d'articles
+    countries_stmt = (
+        select(Article.cluster_id, MediaSource.country)
+        .join(MediaSource, Article.media_source_id == MediaSource.id)
+        .where(Article.cluster_id.in_(cluster_ids))
+        .where(MediaSource.country.isnot(None))
+        .distinct()
+    )
+    countries_result = await db.execute(countries_stmt)
+    by_cluster_all: dict[UUID, set[str]] = defaultdict(set)
+    for cid, country in countries_result.all():
+        if cid is not None and country:
+            by_cluster_all[cid].add(country)
+
     cluster_responses = []
     for cluster in clusters:
-        articles_stmt = (
-            select(Article)
-            .options(selectinload(Article.media_source))
-            .where(Article.cluster_id == cluster.id)
+        all_countries = by_cluster_all.get(cluster.id, set())
+        regional_sorted = sorted(all_countries & REGIONAL_COUNTRIES)
+        country_count = (
+            len(regional_sorted) if regional_sorted else len(all_countries)
         )
-        articles_result = await db.execute(articles_stmt)
-        articles = articles_result.scalars().all()
-        all_countries = set(
-            a.media_source.country
-            for a in articles
-            if a.media_source and a.media_source.country
-        )
-        countries = sorted(all_countries & REGIONAL_COUNTRIES)
 
         cluster_responses.append(
             ClusterResponse(
                 id=cluster.id,
                 label=cluster.label,
                 article_count=cluster.article_count,
-                country_count=len(countries),
+                country_count=country_count,
                 avg_relevance=cluster.avg_relevance,
                 latest_article_at=cluster.latest_article_at,
                 is_active=cluster.is_active,
-                countries=countries,
+                countries=regional_sorted,
             )
         )
 
