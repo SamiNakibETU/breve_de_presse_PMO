@@ -18,6 +18,8 @@ REGISTRY_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_
 
 
 def _english_url(entry: dict) -> str | None:
+    if entry.get("english_version_url"):
+        return entry["english_version_url"]
     ev = entry.get("english_version")
     if isinstance(ev, dict):
         return ev.get("url")
@@ -59,6 +61,7 @@ async def seed() -> None:
                 paywall=m.get("paywall", "free"),
                 translation_quality=m.get("translation_quality_to_fr", "high"),
                 editorial_notes=m.get("editorial_notes"),
+                is_active=m.get("is_active", True),
             )
 
             if existing:
