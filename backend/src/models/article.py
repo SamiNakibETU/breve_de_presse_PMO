@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
     DateTime,
@@ -11,11 +12,13 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
 
 if TYPE_CHECKING:
+    from src.models.cluster import TopicCluster
     from src.models.entity import ArticleEntity
     from src.models.media_source import MediaSource
 
@@ -48,6 +51,11 @@ class Article(Base):
 
     olj_formatted_block: Mapped[Optional[str]] = mapped_column(Text)
 
+    embedding: Mapped[Optional[list]] = mapped_column(Vector(1024), nullable=True)
+    cluster_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topic_clusters.id"), nullable=True
+    )
+
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="raw"
     )
@@ -70,6 +78,9 @@ class Article(Base):
     )
 
     media_source: Mapped["MediaSource"] = relationship(back_populates="articles")
+    cluster: Mapped[Optional["TopicCluster"]] = relationship(
+        "TopicCluster", back_populates="articles"
+    )
     article_entities: Mapped[list["ArticleEntity"]] = relationship(
         back_populates="article", cascade="all, delete-orphan"
     )

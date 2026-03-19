@@ -7,6 +7,9 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/press_review",
     )
 
+    # --- Embedding (Cohere) ---
+    cohere_api_key: str | None = Field(default=None)
+
     # --- LLM provider keys (set at least one) ---
     anthropic_api_key: str = Field(default="")
     groq_api_key: str = Field(default="")

@@ -1,4 +1,5 @@
 from src.models.base import Base
+from src.models.cluster import TopicCluster
 from src.models.media_source import MediaSource
 from src.models.article import Article
 from src.models.entity import Entity, ArticleEntity
@@ -7,6 +8,7 @@ from src.models.collection_log import CollectionLog
 
 __all__ = [
     "Base",
+    "TopicCluster",
     "MediaSource",
     "Article",
     "Entity",
