@@ -13,8 +13,44 @@ from src.schemas.articles import (
     ArticleResponse,
     MediaSourceResponse,
 )
+from src.services.relevance import compute_editorial_relevance
 
 router = APIRouter(prefix="/api")
+
+
+def _to_response(art: Article, src: MediaSource) -> ArticleResponse:
+    relevance = compute_editorial_relevance(
+        country_code=src.country_code,
+        article_type=art.article_type,
+        published_at=art.published_at,
+        source_language=art.source_language,
+        tier=src.tier,
+        has_summary=bool(art.summary_fr),
+        has_quotes=bool(art.key_quotes_fr and len(art.key_quotes_fr) > 0),
+    )
+    return ArticleResponse(
+        id=str(art.id),
+        title_fr=art.title_fr,
+        title_original=art.title_original,
+        media_source_id=art.media_source_id,
+        media_name=src.name,
+        country=src.country,
+        country_code=src.country_code,
+        author=art.author,
+        published_at=art.published_at,
+        article_type=art.article_type,
+        source_language=art.source_language,
+        translation_confidence=art.translation_confidence,
+        translation_notes=art.translation_notes,
+        summary_fr=art.summary_fr,
+        thesis_summary_fr=art.thesis_summary_fr,
+        key_quotes_fr=art.key_quotes_fr,
+        url=art.url,
+        status=art.status,
+        word_count=art.word_count,
+        collected_at=art.collected_at,
+        editorial_relevance=relevance,
+    )
 
 
 @router.get("/articles", response_model=ArticleListResponse)
@@ -25,9 +61,10 @@ async def list_articles(
     article_type: Optional[str] = Query(None, description="Comma-separated types"),
     language: Optional[str] = Query(None, description="Comma-separated language codes"),
     min_confidence: Optional[float] = Query(None, ge=0, le=1),
-    days: int = Query(default=2, ge=1, le=30),
+    days: int = Query(default=7, ge=1, le=30),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    sort: Optional[str] = Query(default="relevance", description="relevance|date|confidence"),
 ):
     query = (
         select(Article, MediaSource)
@@ -67,31 +104,12 @@ async def list_articles(
     result = await db.execute(query)
     rows = result.all()
 
-    articles = [
-        ArticleResponse(
-            id=str(art.id),
-            title_fr=art.title_fr,
-            title_original=art.title_original,
-            media_source_id=art.media_source_id,
-            media_name=src.name,
-            country=src.country,
-            country_code=src.country_code,
-            author=art.author,
-            published_at=art.published_at,
-            article_type=art.article_type,
-            source_language=art.source_language,
-            translation_confidence=art.translation_confidence,
-            translation_notes=art.translation_notes,
-            summary_fr=art.summary_fr,
-            thesis_summary_fr=art.thesis_summary_fr,
-            key_quotes_fr=art.key_quotes_fr,
-            url=art.url,
-            status=art.status,
-            word_count=art.word_count,
-            collected_at=art.collected_at,
-        )
-        for art, src in rows
-    ]
+    articles = [_to_response(art, src) for art, src in rows]
+
+    if sort == "relevance":
+        articles.sort(key=lambda a: a.editorial_relevance or 0, reverse=True)
+    elif sort == "confidence":
+        articles.sort(key=lambda a: a.translation_confidence or 0, reverse=True)
 
     return ArticleListResponse(articles=articles, total=total)
 
@@ -108,28 +126,7 @@ async def get_article(article_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Article not found")
 
     art, src = row
-    return ArticleResponse(
-        id=str(art.id),
-        title_fr=art.title_fr,
-        title_original=art.title_original,
-        media_source_id=art.media_source_id,
-        media_name=src.name,
-        country=src.country,
-        country_code=src.country_code,
-        author=art.author,
-        published_at=art.published_at,
-        article_type=art.article_type,
-        source_language=art.source_language,
-        translation_confidence=art.translation_confidence,
-        translation_notes=art.translation_notes,
-        summary_fr=art.summary_fr,
-        thesis_summary_fr=art.thesis_summary_fr,
-        key_quotes_fr=art.key_quotes_fr,
-        url=art.url,
-        status=art.status,
-        word_count=art.word_count,
-        collected_at=art.collected_at,
-    )
+    return _to_response(art, src)
 
 
 @router.get("/media-sources", response_model=list[MediaSourceResponse])

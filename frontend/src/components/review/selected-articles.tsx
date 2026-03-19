@@ -1,7 +1,7 @@
 "use client";
 
 import type { Article } from "@/lib/types";
-import { ConfidenceBadge } from "@/components/articles/confidence-badge";
+import { RelevanceBadge } from "@/components/articles/confidence-badge";
 
 interface SelectedArticlesProps {
   articles: Article[];
@@ -22,7 +22,7 @@ export function SelectedArticles({ articles, onRemove }: SelectedArticlesProps) 
             <p className="text-[13px] font-medium">{a.title_fr || a.title_original}</p>
             <p className="text-[11px] text-[#888]">{a.media_name} · {a.country}</p>
           </div>
-          <ConfidenceBadge score={a.translation_confidence} />
+          <RelevanceBadge score={a.editorial_relevance} />
           <button onClick={() => onRemove(a.id)} className="text-[11px] text-[#888] hover:text-[#c8102e]" aria-label="Retirer">✕</button>
         </li>
       ))}

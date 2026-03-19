@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Article } from "@/lib/types";
-import { ConfidenceBadge } from "./confidence-badge";
+import { RelevanceBadge, ConfidenceBadge } from "./confidence-badge";
 
 interface ArticleCardProps {
   article: Article;
@@ -76,7 +76,10 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
                 {article.title_fr || article.title_original}
               </h3>
             </div>
-            <ConfidenceBadge score={article.translation_confidence} />
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <RelevanceBadge score={article.editorial_relevance} />
+              <ConfidenceBadge score={article.translation_confidence} />
+            </div>
           </div>
 
           <p className="mt-1 text-[12px] text-[#888]">

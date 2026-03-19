@@ -25,6 +25,7 @@ class ArticleResponse(BaseModel):
     status: str
     word_count: Optional[int] = None
     collected_at: datetime
+    editorial_relevance: Optional[int] = None
 
 
 class ArticleListResponse(BaseModel):

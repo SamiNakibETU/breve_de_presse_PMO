@@ -14,6 +14,11 @@ const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   all: { label: "Tout", value: "collected,translated,formatted,needs_review,error" },
 };
 
+const SORT_OPTIONS: Record<string, { label: string; value: string }> = {
+  relevance: { label: "Pertinence", value: "relevance" },
+  date: { label: "Date", value: "date" },
+};
+
 export default function ArticlesPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<Article[]>([]);
@@ -21,6 +26,7 @@ export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("editorial");
+  const [sortBy, setSortBy] = useState<string>("relevance");
   const [filters, setFilters] = useState<Filters>({
     countries: [],
     types: ["opinion", "editorial", "tribune", "analysis"],
@@ -32,6 +38,8 @@ export default function ArticlesPage() {
     const params: Record<string, string> = {
       status: STATUS_OPTIONS[statusFilter].value,
       limit: "200",
+      sort: sortBy,
+      days: "7",
     };
     if (filters.countries.length > 0) params.country = filters.countries.join(",");
     if (filters.types.length > 0) params.article_type = filters.types.join(",");
@@ -47,7 +55,7 @@ export default function ArticlesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, statusFilter]);
+  }, [filters, statusFilter, sortBy]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -69,23 +77,38 @@ export default function ArticlesPage() {
       <header>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">Articles</h1>
         <p className="mt-0.5 text-[13px] text-[#888]">
-          {total} article{total !== 1 ? "s" : ""} · Sélectionnez pour la revue
+          {total} article{total !== 1 ? "s" : ""} · Triés par pertinence éditoriale
         </p>
       </header>
 
-      <nav className="flex gap-4 border-b border-[#dddcda] pb-2">
-        {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
-          <button
-            key={key}
-            onClick={() => setStatusFilter(key)}
-            className={`text-[13px] transition-colors ${
-              statusFilter === key ? "font-semibold text-[#1a1a1a]" : "text-[#888] hover:text-[#1a1a1a]"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      <div className="flex items-center justify-between border-b border-[#dddcda] pb-2">
+        <nav className="flex gap-4">
+          {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={`text-[13px] transition-colors ${
+                statusFilter === key ? "font-semibold text-[#1a1a1a]" : "text-[#888] hover:text-[#1a1a1a]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex gap-2">
+          {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+            <button
+              key={key}
+              onClick={() => setSortBy(key)}
+              className={`text-[12px] transition-colors ${
+                sortBy === key ? "font-semibold text-[#1a1a1a]" : "text-[#888] hover:text-[#1a1a1a]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <ArticleFilters filters={filters} onChange={setFilters} />
 

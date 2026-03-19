@@ -19,6 +19,7 @@ export interface Article {
   status: string;
   word_count: number | null;
   collected_at: string;
+  editorial_relevance: number | null;
 }
 
 export interface ArticleListResponse {

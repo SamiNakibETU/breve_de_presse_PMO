@@ -1,6 +1,9 @@
 """
 Translation + summarization pipeline using hybrid LLM routing (async).
-Combined: translate, summarize, classify, extract entities in one LLM call.
+Combined: translate, summarize (Chain of Density), classify, extract entities.
+
+Chain of Density: the LLM progressively compresses the summary to maximize
+information density within 150-200 words, following Adams et al. (2023).
 
 Routing per source language:
   ar/fa/tr/ku → Cerebras (Qwen3 235B)
@@ -31,17 +34,24 @@ SYSTEM_PROMPT = """Tu es un traducteur-rédacteur professionnel travaillant pour
 quotidien francophone libanais de référence. Ta tâche est de traduire, résumer et analyser \
 des articles de presse du Moyen-Orient.
 
+MÉTHODE DE RÉSUMÉ — Chain of Density :
+Tu dois produire un résumé DENSE et INFORMATIF de 150-200 mots. Pour cela, suis ce processus mental :
+1. Identifie les 5-7 entités et faits les plus importants de l'article
+2. Rédige un premier résumé qui les contient tous
+3. Compresse mentalement : élimine toute redondance, fusionne les phrases quand c'est possible
+4. Le résumé final doit être AUTONOME (compréhensible sans l'article) et DENSE (chaque phrase apporte une info nouvelle)
+
 RÈGLES DE TRADUCTION :
 1. Traduis fidèlement le sens, pas mot à mot
-2. Résumé en 150-200 mots exactement, en français soutenu mais accessible
+2. Résumé de 150-200 mots EXACTEMENT — français soutenu mais accessible
 3. Ton neutre et restitutif — restitue l'argument de l'auteur sans le juger
 4. Attribution systématique : "L'auteur estime que...", "Selon le chroniqueur..."
 5. Guillemets français « » pour les citations traduites
-6. Translittération simplifiée des noms propres arabes (Hassan Nasrallah, pas Ḥasan Naṣrallāh)
+6. Translittération simplifiée des noms propres arabes
 7. Présent de narration comme temps principal
 8. Structure QQQOCP dans les deux premières phrases (Qui, Quoi, Quand, Où, Comment, Pourquoi)
 9. Pas de superlatifs sauf citation directe
-10. Le résumé doit être autonome (compréhensible sans lire l'article original)
+10. TOUT le texte en français — traduire toutes les citations
 
 RÈGLES DE CLASSIFICATION :
 - opinion : article d'opinion signé par un auteur externe
@@ -79,9 +89,12 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
             },
             "required_output": {
                 "translated_title": "titre traduit en français",
-                "thesis_summary": "résumé de la thèse en une phrase courte (max 15 mots)",
-                "summary_fr": "résumé de 150-200 mots en français, ton neutre restitutif",
-                "key_quotes_fr": ["citation traduite 1", "citation traduite 2"],
+                "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante (max 20 mots), comme si l'auteur la prononçait",
+                "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : chaque phrase apporte une info nouvelle, zéro redondance)",
+                "key_quotes_fr": [
+                    "citation traduite en français 1",
+                    "citation traduite en français 2",
+                ],
                 "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
                 "entities": [
                     {
@@ -90,7 +103,6 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
                         "name_fr": "nom en français",
                     }
                 ],
-                "confidence_score": 0.95,
                 "translation_notes": "difficultés de traduction éventuelles",
             },
         },
@@ -114,8 +126,8 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
                 "content": content,
             },
             "required_output": {
-                "thesis_summary": "thèse en une phrase (max 15 mots)",
-                "summary_fr": "résumé de 150-200 mots, ton neutre restitutif OLJ",
+                "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante",
+                "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : maximise la densité d'information, zéro redondance)",
                 "key_quotes_fr": ["citation 1", "citation 2"],
                 "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
                 "entities": [
@@ -128,7 +140,6 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
 
 
 def _parse_llm_json(text: str) -> dict:
-    """Parse JSON from LLM response with fallback regex extraction."""
     text = text.strip()
     if text.startswith("```"):
         text = re.sub(r"^```\w*\n?", "", text)
@@ -148,6 +159,55 @@ def _parse_llm_json(text: str) -> dict:
             pass
 
     raise ValueError(f"Cannot parse JSON from LLM response: {text[:300]}")
+
+
+def compute_confidence(
+    article: Article,
+    data: dict,
+    is_french: bool,
+    used_rss_fallback: bool,
+) -> float:
+    """Compute a real confidence score from quality signals, not LLM self-report."""
+    score = 1.0
+
+    content = article.content_original or ""
+    word_count = len(content.split())
+    if word_count < 100:
+        score -= 0.3
+    elif word_count < 300:
+        score -= 0.15
+
+    if used_rss_fallback:
+        score -= 0.2
+
+    summary = data.get("summary_fr", "")
+    summary_wc = len(summary.split())
+    if summary_wc < 80:
+        score -= 0.3
+    elif summary_wc < 140:
+        score -= 0.1
+    elif summary_wc > 250:
+        score -= 0.1
+
+    if not data.get("thesis_summary"):
+        score -= 0.1
+
+    quotes = data.get("key_quotes_fr", [])
+    if not quotes or len(quotes) == 0:
+        score -= 0.05
+
+    entities = data.get("entities", [])
+    if not entities or len(entities) == 0:
+        score -= 0.05
+
+    if is_french:
+        score = min(score + 0.05, 1.0)
+
+    lang = article.source_language or ""
+    if lang in ("he", "fa", "ku"):
+        score -= 0.05
+
+    return round(max(0.0, min(1.0, score)), 2)
 
 
 class TranslationPipeline:
@@ -218,7 +278,11 @@ class TranslationPipeline:
 
         data = _parse_llm_json(raw_text)
 
-        confidence = float(data.get("confidence_score", 1.0 if is_french else 0.0))
+        content = article.content_original or ""
+        used_rss_fallback = len(content.split()) < 300
+
+        confidence = compute_confidence(article, data, is_french, used_rss_fallback)
+
         if confidence < settings.translation_confidence_threshold:
             status = "needs_review"
         else:
