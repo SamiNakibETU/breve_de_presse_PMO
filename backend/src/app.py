@@ -64,16 +64,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    origins = ["http://localhost:3000"]
-    if settings.frontend_url:
+    origins = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+    ]
+    if settings.frontend_url and settings.frontend_url not in origins:
         origins.append(settings.frontend_url)
-    if settings.environment == "development":
-        origins.append("*")
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
+        allow_origins=origins if settings.environment != "development" else ["*"],
+        allow_credentials=settings.environment != "development",
         allow_methods=["*"],
         allow_headers=["*"],
     )
