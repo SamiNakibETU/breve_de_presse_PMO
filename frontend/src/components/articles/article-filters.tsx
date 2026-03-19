@@ -46,30 +46,33 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
   }
 
   return (
-    <div className="space-y-4 border-b border-border pb-4">
+    <div className="space-y-4 border-b border-border-light pb-4">
       <div>
         <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
           Pays
         </p>
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(COUNTRIES).map(([code, name]) => (
-            <button
-              key={code}
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  countries: toggleItem(filters.countries, code),
-                })
-              }
-              className={`border px-2 py-1 text-[12px] font-medium transition-colors ${
-                filters.countries.includes(code)
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border-light text-muted-foreground hover:border-foreground hover:text-foreground"
-              }`}
-            >
-              {name}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {Object.entries(COUNTRIES).map(([code, name]) => {
+            const active = filters.countries.includes(code);
+            return (
+              <button
+                key={code}
+                onClick={() =>
+                  onChange({
+                    ...filters,
+                    countries: toggleItem(filters.countries, code),
+                  })
+                }
+                className={`border-b px-0.5 pb-0.5 text-[12px] font-medium transition-colors ${
+                  active
+                    ? "border-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                }`}
+              >
+                {name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -77,25 +80,28 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
         <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
           Type
         </p>
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(ARTICLE_TYPES).map(([type, label]) => (
-            <button
-              key={type}
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  types: toggleItem(filters.types, type),
-                })
-              }
-              className={`border px-2 py-1 text-[12px] font-medium transition-colors ${
-                filters.types.includes(type)
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border-light text-muted-foreground hover:border-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {Object.entries(ARTICLE_TYPES).map(([type, label]) => {
+            const active = filters.types.includes(type);
+            return (
+              <button
+                key={type}
+                onClick={() =>
+                  onChange({
+                    ...filters,
+                    types: toggleItem(filters.types, type),
+                  })
+                }
+                className={`border-b px-0.5 pb-0.5 text-[12px] font-medium transition-colors ${
+                  active
+                    ? "border-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -115,7 +121,7 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
               minConfidence: parseInt(e.target.value, 10) / 100,
             })
           }
-          className="w-32 accent-accent"
+          className="w-28 accent-accent"
         />
         <span className="tabular-nums text-[12px] text-muted-foreground">
           {Math.round(filters.minConfidence * 100)} %

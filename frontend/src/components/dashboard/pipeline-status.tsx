@@ -55,7 +55,7 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
             key={key}
             onClick={() => run(key, fn)}
             disabled={running !== null}
-            className="border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            className="border border-border-light px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:border-foreground/40 disabled:opacity-40"
           >
             {running === key ? "En cours…" : label}
           </button>

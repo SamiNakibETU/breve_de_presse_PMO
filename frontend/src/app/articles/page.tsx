@@ -120,7 +120,7 @@ export default function ArticlesPage() {
       />
 
       {selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-[var(--spacing-page)] py-3 backdrop-blur-sm">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border-light bg-background px-[var(--spacing-page)] py-3">
           <div className="mx-auto flex max-w-[var(--max-width-page)] items-center justify-between">
             <p className="text-[13px]">
               <span className="font-semibold">{selected.size}</span> article
@@ -136,7 +136,7 @@ export default function ArticlesPage() {
             <button
               onClick={goToReview}
               disabled={selected.size < 1 || selected.size > 10}
-              className="border border-foreground bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+              className="border border-foreground px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
             >
               Générer la revue →
             </button>

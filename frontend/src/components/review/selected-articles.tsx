@@ -14,7 +14,7 @@ export function SelectedArticles({
 }: SelectedArticlesProps) {
   if (articles.length === 0) {
     return (
-      <div className="border border-dashed border-border py-8 text-center text-[13px] text-muted-foreground">
+      <div className="border-t border-border-light py-12 text-center text-[13px] text-muted-foreground">
         Aucun article sélectionné. Retournez à l&rsquo;index pour en choisir.
       </div>
     );

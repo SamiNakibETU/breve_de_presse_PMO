@@ -54,7 +54,7 @@ export default function DashboardPage() {
     <div className="space-y-10">
       <header>
         <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-          Tableau de bord
+          Vue d&rsquo;ensemble
         </p>
         <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight">
           Revue de presse régionale
@@ -71,8 +71,8 @@ export default function DashboardPage() {
       )}
 
       <section>
-        <h2 className="mb-4 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-          Statistiques
+        <h2 className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          État du corpus
         </h2>
         <StatsCards stats={stats} loading={loading} />
       </section>

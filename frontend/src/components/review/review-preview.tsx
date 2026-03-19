@@ -39,16 +39,16 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 border-b border-border pb-3">
+      <div className="flex items-center gap-3 border-b border-border-light pb-3">
         <button
           onClick={copyToClipboard}
-          className="border border-foreground bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90"
+          className="border border-foreground px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-foreground hover:text-background"
         >
           {copied ? "Copié ✓" : "Copier le texte"}
         </button>
         <button
           onClick={download}
-          className="border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+          className="border border-border-light px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:border-foreground/40"
         >
           Télécharger .txt
         </button>

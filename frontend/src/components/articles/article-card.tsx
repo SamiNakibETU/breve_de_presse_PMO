@@ -23,18 +23,18 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
 
   return (
     <article
-      className={`border-b border-border-light transition-colors ${
-        selected ? "bg-accent/[0.04]" : ""
+      className={`border-b border-border-light py-3 transition-colors ${
+        selected ? "bg-muted/40" : ""
       }`}
     >
-      <div className="flex items-start gap-3 py-3">
+      <div className="flex items-start gap-3">
         <button
           onClick={() => onToggle(article.id)}
           aria-label={selected ? "Désélectionner" : "Sélectionner"}
-          className={`mt-1 flex h-4 w-4 flex-shrink-0 items-center justify-center border transition-colors ${
+          className={`mt-1 flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center border transition-colors ${
             selected
-              ? "border-accent bg-accent"
-              : "border-border hover:border-foreground"
+              ? "border-foreground bg-foreground"
+              : "border-border-light hover:border-foreground"
           }`}
         >
           {selected && (
@@ -52,7 +52,7 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <h3
-              className="cursor-pointer text-[14px] font-semibold leading-snug text-foreground hover:text-accent"
+              className="cursor-pointer text-[14px] font-medium leading-snug text-foreground hover:underline"
               onClick={() => setExpanded(!expanded)}
             >
               {article.title_fr || article.title_original}
@@ -79,14 +79,14 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
               </>
             )}
             {article.article_type && (
-              <span className="ml-1 border border-border-light px-1.5 py-px text-[11px] uppercase tracking-wider">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 {article.article_type}
               </span>
             )}
           </div>
 
           {expanded && (
-            <div className="mt-3 max-w-[var(--max-width-reading)] space-y-3 border-l-2 border-border pl-4">
+            <div className="mt-3 max-w-[var(--max-width-reading)] space-y-3 border-l border-border-light pl-4">
               {article.thesis_summary_fr && (
                 <p className="text-[13px] font-medium italic text-foreground">
                   {article.thesis_summary_fr}
@@ -114,7 +114,7 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block text-[12px] text-accent underline underline-offset-2"
+                  className="inline-block text-[12px] text-foreground underline underline-offset-2 hover:text-accent"
                 >
                   Article original ↗
                 </a>

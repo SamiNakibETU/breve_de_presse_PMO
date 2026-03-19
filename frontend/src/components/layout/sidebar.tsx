@@ -14,7 +14,7 @@ export function Masthead() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 border-b border-border-light bg-background">
       <div className="mx-auto flex max-w-[var(--max-width-page)] items-baseline justify-between px-[var(--spacing-page)] py-3">
         <Link href="/" className="flex items-baseline gap-2">
           <span className="font-serif text-xl font-bold tracking-tight text-foreground">
@@ -43,7 +43,7 @@ export function Masthead() {
               >
                 {label}
                 {active && (
-                  <span className="mt-0.5 block h-[1.5px] bg-accent" />
+                  <span className="mt-1 block h-px bg-accent" />
                 )}
               </Link>
             );

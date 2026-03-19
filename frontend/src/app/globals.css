@@ -1,22 +1,23 @@
 @import "tailwindcss";
 
+/* Light mode only — fond papier, contrastes fins, accent éditorial retenu */
 @theme {
-  --color-background: #fafaf8;
-  --color-foreground: #1a1a1a;
-  --color-muted: #f0efec;
-  --color-muted-foreground: #6b6b6b;
-  --color-border: #d4d2cc;
-  --color-border-light: #e8e6e1;
-  --color-primary: #1a1a1a;
-  --color-primary-foreground: #fafaf8;
-  --color-accent: #c4261d;
+  --color-background: #f8f7f4;
+  --color-foreground: #1c1c1a;
+  --color-muted: #ebeae6;
+  --color-muted-foreground: #5c5c58;
+  --color-border: #e0dfda;
+  --color-border-light: #ebeae6;
+  --color-primary: #1c1c1a;
+  --color-primary-foreground: #f8f7f4;
+  --color-accent: #9a2720;
   --color-accent-foreground: #ffffff;
-  --color-destructive: #b91c1c;
-  --color-success: #2d6a4f;
-  --color-warning: #92400e;
+  --color-destructive: #8b1515;
+  --color-success: #3d5c52;
+  --color-warning: #6b4f2e;
   --color-card: #ffffff;
-  --color-card-foreground: #1a1a1a;
-  --color-surface: #f5f4f0;
+  --color-card-foreground: #1c1c1a;
+  --color-surface: #f0efeb;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Georgia", "Times New Roman", serif;
@@ -24,22 +25,6 @@
   --spacing-page: 1.5rem;
   --max-width-reading: 42rem;
   --max-width-page: 72rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-background: #111110;
-    --color-foreground: #e8e6e1;
-    --color-muted: #1e1e1c;
-    --color-muted-foreground: #9a9a94;
-    --color-border: #2e2e2a;
-    --color-border-light: #252522;
-    --color-primary: #e8e6e1;
-    --color-primary-foreground: #111110;
-    --color-card: #181816;
-    --color-card-foreground: #e8e6e1;
-    --color-surface: #1a1a18;
-  }
 }
 
 * {
