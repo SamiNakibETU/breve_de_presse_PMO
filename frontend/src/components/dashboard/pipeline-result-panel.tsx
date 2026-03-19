@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type PipelineActionKey =
   | "collect"
@@ -47,6 +47,131 @@ function extractStats(
 function num(r: Record<string, unknown>, k: string): number {
   const v = r[k];
   return typeof v === "number" && !Number.isNaN(v) ? v : 0;
+}
+
+function formatElapsedSeconds(totalSeconds: number): string {
+  if (totalSeconds < 60) {
+    return `${totalSeconds} s`;
+  }
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m} min ${s.toString().padStart(2, "0")} s`;
+}
+
+/** Étapes typiques côté serveur (informatif — pas de signal temps réel aujourd’hui). */
+const TYPICAL_SERVER_STEPS: Record<PipelineActionKey, string[]> = {
+  collect: [
+    "Lecture des flux RSS pour chaque média actif",
+    "Filtrage éditorial (périmètre / titres)",
+    "Enregistrement des articles et journaux de collecte",
+    "Éventuellement : scraping HTTP ou Playwright selon la configuration",
+  ],
+  translate: [
+    "Sélection des articles à traiter (file, jusqu’à 300)",
+    "Appels LLM : titre FR, résumés, type d’article",
+    "Mise à jour des articles en base",
+  ],
+  refreshClusters: [
+    "Embeddings pour les articles sans vecteur (Cohere)",
+    "Regroupement (HDBSCAN) et mise à jour des clusters",
+    "Libellés sujets via LLM pour les clusters sans titre",
+  ],
+  pipeline: [
+    "Collecte RSS / scrapers",
+    "Traduction et résumés (LLM)",
+    "Embeddings et clustering",
+    "Libellés des sujets",
+  ],
+};
+
+function PipelineRunningProgress({
+  label,
+  actionKey,
+  serverLiveStep,
+}: {
+  label: string;
+  actionKey: PipelineActionKey;
+  /** Libellé renvoyé par le serveur (polling) — ex. collecte asynchrone. */
+  serverLiveStep?: string | null;
+}) {
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  useEffect(() => {
+    setElapsedSec(0);
+    const id = setInterval(() => {
+      setElapsedSec((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [actionKey]);
+
+  const steps = TYPICAL_SERVER_STEPS[actionKey];
+
+  return (
+    <div className="space-y-3 border border-[#dddcda] bg-[#fafaf8] p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-[family-name:var(--font-serif)] text-[15px] font-semibold text-[#1a1a1a]">
+          {label} en cours…
+        </p>
+        <p
+          className="tabular-nums text-[13px] font-medium text-[#444]"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          Temps écoulé : {formatElapsedSeconds(elapsedSec)}
+        </p>
+      </div>
+
+      <div className="olj-progress-track" role="progressbar" aria-label="Traitement en cours">
+        <div className="olj-progress-indeterminate" />
+      </div>
+
+      {serverLiveStep ? (
+        <p
+          className="rounded border border-[#c8102e]/20 bg-white px-3 py-2.5 text-[13px] leading-snug text-[#1a1a1a]"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#c8102e]">
+            Étape côté serveur
+          </span>
+          {serverLiveStep}
+        </p>
+      ) : null}
+
+      <p className="text-[11px] leading-relaxed text-[#888]">
+        {serverLiveStep ? (
+          <>
+            Mise à jour des étapes environ <strong>1× par seconde</strong>{" "}
+            (requêtes HTTP). Ce n’est <strong>pas</strong> un pourcentage d’avancement
+            ni une estimation du temps restant — seulement la phase en cours.
+          </>
+        ) : (
+          <>
+            Une seule requête HTTP attend la <strong>fin complète</strong> du travail
+            serveur : pas de flux de progression. Cette barre indique seulement que la
+            connexion est active — <strong>pas de temps restant fiable</strong> sans
+            tâche + polling ou SSE.
+          </>
+        )}
+      </p>
+
+      <p className="text-[12px] leading-relaxed text-[#666]">
+        Le résumé chiffré (statistiques) s’affichera ici à la fin. Les opérations
+        longues peuvent durer plusieurs minutes : gardez cet onglet ouvert.
+      </p>
+
+      <details className="text-[12px] text-[#666]">
+        <summary className="cursor-pointer text-[#1a1a1a] underline decoration-[#ccc] underline-offset-2">
+          Ordre d’exécution typique côté serveur
+        </summary>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[11px] leading-relaxed text-[#666]">
+          {steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      </details>
+    </div>
+  );
 }
 
 function Row({
@@ -270,7 +395,19 @@ function PipelineFullSummary({ stats }: { stats: Record<string, unknown> }) {
   );
 }
 
-export function PipelineResultPanel({ run }: { run: PipelineRunRecord | null }) {
+export function PipelineResultPanel({
+  run,
+  running,
+}: {
+  run: PipelineRunRecord | null;
+  /** Action en cours : le résumé n’existe qu’après la réponse HTTP (souvent longue). */
+  running?: {
+    key: PipelineActionKey;
+    label: string;
+    /** Polling : libellé d’étape renvoyé par l’API (collecte async). */
+    serverLiveStep?: string | null;
+  } | null;
+}) {
   const [showRaw, setShowRaw] = useState(false);
 
   const body = useMemo(() => {
@@ -310,6 +447,16 @@ export function PipelineResultPanel({ run }: { run: PipelineRunRecord | null }) 
         return <PipelineFullSummary stats={stats} />;
     }
   }, [run]);
+
+  if (running) {
+    return (
+      <PipelineRunningProgress
+        label={running.label}
+        actionKey={running.key}
+        serverLiveStep={running.serverLiveStep ?? null}
+      />
+    );
+  }
 
   if (!run) {
     return (

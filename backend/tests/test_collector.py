@@ -28,15 +28,18 @@ class TestParseDate:
 
     def test_parses_published_parsed(self):
         import time
+        from datetime import datetime, timezone
+        from time import mktime
+
+        tpl = (2026, 3, 18, 12, 0, 0, 0, 77, -1)
 
         class FakeEntry:
-            published_parsed = time.strptime("2026-03-18", "%Y-%m-%d")
+            published_parsed = time.struct_time(tpl)
 
         result = _parse_date(FakeEntry())
         assert result is not None
-        assert result.year == 2026
-        assert result.month == 3
-        assert result.day == 18
+        expected = datetime.fromtimestamp(mktime(tpl), tz=timezone.utc)
+        assert result == expected
 
 
 class TestExtractAuthor:

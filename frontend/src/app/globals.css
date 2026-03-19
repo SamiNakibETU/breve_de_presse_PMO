@@ -83,3 +83,28 @@ body {
   background: #c8102e;
   color: white;
 }
+
+/* Barre de progression indéterminée (pipeline : pas d’API de progression serveur) */
+@keyframes olj-indeterminate-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+.olj-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: #e8e8e4;
+}
+
+.olj-progress-indeterminate {
+  width: 35%;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #6b6b68, #1a1a1a);
+  animation: olj-indeterminate-slide 1.35s ease-in-out infinite;
+}

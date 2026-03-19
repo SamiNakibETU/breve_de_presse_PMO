@@ -15,6 +15,7 @@ import asyncio
 import json
 import re
 from datetime import datetime, timezone
+from typing import Callable, Optional
 
 import structlog
 from sqlalchemy import select
@@ -228,7 +229,13 @@ class TranslationPipeline:
         self._factory = get_session_factory()
         self._semaphore = asyncio.Semaphore(2)
 
-    async def process_pending(self, limit: int = 300) -> dict:
+    async def process_pending(
+        self,
+        limit: int = 300,
+        on_progress: Optional[Callable[[str, str], None]] = None,
+    ) -> dict:
+        if on_progress:
+            on_progress("select", "Sélection des articles en file…")
         async with self._factory() as db:
             result = await db.execute(
                 select(Article)
@@ -251,8 +258,18 @@ class TranslationPipeline:
         logger.info("translation.start", article_count=len(to_process), skipped=skipped)
         stats: dict = {"processed": 0, "errors": 0, "needs_review": 0, "skipped": skipped}
 
+        if on_progress:
+            n = len(to_process)
+            on_progress(
+                "llm",
+                f"Traduction LLM ({n} article{'s' if n != 1 else ''}, parallèle limitée)…",
+            )
+
         tasks = [self._process_one(a, stats) for a in to_process]
         await asyncio.gather(*tasks)
+
+        if on_progress:
+            on_progress("done", "Finalisation traduction…")
 
         logger.info("translation.complete", **stats)
         return stats
@@ -352,6 +369,9 @@ class TranslationPipeline:
         )
 
 
-async def run_translation_pipeline(limit: int = 300) -> dict:
+async def run_translation_pipeline(
+    limit: int = 300,
+    on_progress: Optional[Callable[[str, str], None]] = None,
+) -> dict:
     pipeline = TranslationPipeline()
-    return await pipeline.process_pending(limit=limit)
+    return await pipeline.process_pending(limit=limit, on_progress=on_progress)

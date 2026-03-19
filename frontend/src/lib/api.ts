@@ -6,6 +6,9 @@ import type {
   ClusterRefreshResponse,
   GenerateReviewResult,
   MediaSource,
+  PipelineTaskKind,
+  PipelineTaskStartResponse,
+  PipelineTaskStatus,
   ReviewSummary,
   Stats,
 } from "./types";
@@ -48,6 +51,62 @@ export const api = {
     request<{ status: string; stats: unknown }>("/api/collect", {
       method: "POST",
     }),
+
+  /** Démarre une tâche longue (collecte, traduction, clusters, pipeline complet). */
+  startPipelineTask: (body: {
+    kind: PipelineTaskKind;
+    translate_limit?: number;
+  }) =>
+    request<PipelineTaskStartResponse>("/api/pipeline/tasks", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: body.kind,
+        translate_limit: body.translate_limit ?? 300,
+      }),
+    }),
+
+  getPipelineTask: (taskId: string) =>
+    request<PipelineTaskStatus>(`/api/pipeline/tasks/${taskId}`),
+
+  /**
+   * Polling ~900 ms jusqu’à fin. `result` = corps final (forme selon `kind`).
+   */
+  runPipelineTaskWithProgress: async (
+    kind: PipelineTaskKind,
+    onProgress: (s: PipelineTaskStatus) => void,
+    options?: { translateLimit?: number },
+  ): Promise<unknown> => {
+    const { task_id } = await request<PipelineTaskStartResponse>(
+      "/api/pipeline/tasks",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          kind,
+          translate_limit: options?.translateLimit ?? 300,
+        }),
+      },
+    );
+    const pollMs = 900;
+    for (;;) {
+      const s = await request<PipelineTaskStatus>(
+        `/api/pipeline/tasks/${task_id}`,
+      );
+      onProgress(s);
+      if (s.status === "done") {
+        const r = s.result;
+        if (r == null || typeof r !== "object") {
+          throw new Error("Réponse tâche vide");
+        }
+        return r;
+      }
+      if (s.status === "error") {
+        throw new Error(s.error ?? "Erreur tâche pipeline");
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, pollMs);
+      });
+    }
+  },
 
   triggerTranslate: () =>
     request<{ status: string; stats: unknown }>("/api/translate", {

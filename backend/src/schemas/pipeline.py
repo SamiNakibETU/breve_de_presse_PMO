@@ -1,6 +1,7 @@
+from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CollectionStats(BaseModel):
@@ -43,3 +44,21 @@ class StatusResponse(BaseModel):
     status: str
     environment: str
     jobs: list[SchedulerJobResponse]
+
+
+class PipelineTaskKind(str, Enum):
+    collect = "collect"
+    translate = "translate"
+    refresh_clusters = "refresh_clusters"
+    full_pipeline = "full_pipeline"
+
+
+class PipelineTaskStartRequest(BaseModel):
+    """Démarrage d’une tâche longue suivie par GET /api/pipeline/tasks/{id}."""
+
+    kind: PipelineTaskKind
+    translate_limit: int = Field(default=300, ge=1, le=1000)
+
+
+class PipelineTaskStartResponse(BaseModel):
+    task_id: str

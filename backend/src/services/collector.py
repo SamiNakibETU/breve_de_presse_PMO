@@ -12,7 +12,7 @@ import re
 import time
 from datetime import datetime, timezone
 from time import mktime
-from typing import Optional
+from typing import Callable, Optional
 
 import aiohttp
 import feedparser
@@ -463,10 +463,19 @@ class RSSCollector:
         return detected
 
 
-async def run_collection() -> dict:
+async def run_collection(
+    on_progress: Optional[Callable[[str, str], None]] = None,
+) -> dict:
+    """
+    on_progress(step_key, step_label) : appelé aux étapes grossières (UI / polling).
+    """
+    if on_progress:
+        on_progress("rss", "Lecture des flux RSS…")
     collector = RSSCollector()
     rss_stats = await collector.collect_all()
 
+    if on_progress:
+        on_progress("web_scraper", "Scraping HTTP (BeautifulSoup)…")
     try:
         from src.services.web_scraper import run_web_scraping
         scrape_stats = await run_web_scraping()
@@ -479,6 +488,8 @@ async def run_collection() -> dict:
         logger.warning("web_scraper.skipped", error=str(exc)[:200])
         rss_stats["web_scraper"] = {"error": str(exc)[:200]}
 
+    if on_progress:
+        on_progress("playwright", "Scraping Playwright (pages dynamiques)…")
     try:
         from src.services.playwright_scraper import run_playwright_scraping
         pw_stats = await run_playwright_scraping()
@@ -490,5 +501,8 @@ async def run_collection() -> dict:
     except Exception as exc:
         logger.warning("playwright_scraper.skipped", error=str(exc)[:200])
         rss_stats["playwright_scraper"] = {"error": str(exc)[:200]}
+
+    if on_progress:
+        on_progress("done", "Finalisation…")
 
     return rss_stats

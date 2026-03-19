@@ -129,3 +129,27 @@ export interface ClusterRefreshResponse {
   articles_embedded: number;
   clusters_labeled: number;
 }
+
+export type PipelineTaskKind =
+  | "collect"
+  | "translate"
+  | "refresh_clusters"
+  | "full_pipeline";
+
+export interface PipelineTaskStartResponse {
+  task_id: string;
+}
+
+/** Tâche pipeline suivie par polling (ex. collecte avec progression). */
+export interface PipelineTaskStatus {
+  task_id: string;
+  kind: string;
+  status: "pending" | "running" | "done" | "error";
+  step_key: string;
+  step_label: string;
+  /** Objet final : `{ status, stats }` ou réponse clusters à plat selon la tâche. */
+  result: unknown;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
