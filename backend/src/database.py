@@ -46,3 +46,11 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
+        for stmt in [
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS embedding vector(1024)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS cluster_id UUID REFERENCES topic_clusters(id)",
+        ]:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass
