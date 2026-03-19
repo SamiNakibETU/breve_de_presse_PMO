@@ -139,6 +139,15 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
     )
 
 
+def _repair_json(text: str) -> str:
+    """Best-effort repair of common LLM JSON mistakes."""
+    text = re.sub(r",\s*}", "}", text)
+    text = re.sub(r",\s*]", "]", text)
+    text = text.replace("\n", " ")
+    text = re.sub(r'(?<!\\)"(?=\w)', '"', text)
+    return text
+
+
 def _parse_llm_json(text: str) -> dict:
     text = text.strip()
     if text.startswith("```"):
@@ -146,17 +155,20 @@ def _parse_llm_json(text: str) -> dict:
         text = re.sub(r"\n?```$", "", text)
         text = text.strip()
 
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    for candidate in [text, _repair_json(text)]:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
 
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
+        raw = match.group()
+        for candidate in [raw, _repair_json(raw)]:
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                pass
 
     raise ValueError(f"Cannot parse JSON from LLM response: {text[:300]}")
 
@@ -214,7 +226,7 @@ class TranslationPipeline:
     def __init__(self) -> None:
         self._router = get_llm_router()
         self._factory = get_session_factory()
-        self._semaphore = asyncio.Semaphore(3)
+        self._semaphore = asyncio.Semaphore(2)
 
     async def process_pending(self, limit: int = 300) -> dict:
         async with self._factory() as db:
@@ -227,10 +239,19 @@ class TranslationPipeline:
             )
             articles = result.scalars().all()
 
-        logger.info("translation.start", article_count=len(articles))
-        stats: dict = {"processed": 0, "errors": 0, "needs_review": 0}
+        skipped = 0
+        to_process = []
+        for a in articles:
+            content = a.content_original or ""
+            if len(content.split()) < 30 and len((a.title_original or "").split()) < 5:
+                skipped += 1
+                continue
+            to_process.append(a)
 
-        tasks = [self._process_one(a, stats) for a in articles]
+        logger.info("translation.start", article_count=len(to_process), skipped=skipped)
+        stats: dict = {"processed": 0, "errors": 0, "needs_review": 0, "skipped": skipped}
+
+        tasks = [self._process_one(a, stats) for a in to_process]
         await asyncio.gather(*tasks)
 
         logger.info("translation.complete", **stats)
@@ -246,7 +267,7 @@ class TranslationPipeline:
                 logger.error(
                     "translation.article_error",
                     article_id=str(article.id),
-                    error=str(exc),
+                    error=str(exc)[:200],
                 )
                 async with self._factory() as db:
                     art = await db.get(Article, article.id)
@@ -254,6 +275,8 @@ class TranslationPipeline:
                         art.status = "error"
                         art.processing_error = str(exc)[:500]
                         await db.commit()
+            finally:
+                await asyncio.sleep(0.5)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30))
     async def _process_article(self, article: Article) -> None:

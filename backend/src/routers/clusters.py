@@ -17,7 +17,7 @@ from src.schemas.clusters import (
     ClusterResponse,
 )
 from src.services.cluster_labeller import label_clusters
-from src.services.clustering_service import ClusteringService
+from src.services.clustering_service import ClusteringService, REGIONAL_COUNTRIES
 from src.services.embedding_service import EmbeddingService
 
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
@@ -45,20 +45,19 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         )
         articles_result = await db.execute(articles_stmt)
         articles = articles_result.scalars().all()
-        countries = list(
-            set(
-                a.media_source.country
-                for a in articles
-                if a.media_source and a.media_source.country
-            )
+        all_countries = set(
+            a.media_source.country
+            for a in articles
+            if a.media_source and a.media_source.country
         )
+        countries = sorted(all_countries & REGIONAL_COUNTRIES)
 
         cluster_responses.append(
             ClusterResponse(
                 id=cluster.id,
                 label=cluster.label,
                 article_count=cluster.article_count,
-                country_count=cluster.country_count,
+                country_count=len(countries),
                 avg_relevance=cluster.avg_relevance,
                 latest_article_at=cluster.latest_article_at,
                 is_active=cluster.is_active,
@@ -128,12 +127,16 @@ async def get_cluster_articles(
             }
         )
 
+    regional = [c for c in by_country.keys() if c in REGIONAL_COUNTRIES]
+    other = [c for c in by_country.keys() if c not in REGIONAL_COUNTRIES]
+
     return {
         "cluster_id": cluster_id,
         "cluster_label": cluster.label if cluster else None,
         "articles_by_country": by_country,
         "total_articles": len(articles),
-        "countries": list(by_country.keys()),
+        "countries": sorted(regional),
+        "international_sources": sorted(other),
     }
 
 

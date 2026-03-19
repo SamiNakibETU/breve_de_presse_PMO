@@ -252,12 +252,12 @@
       "rss_url": null,
       "rss_opinion_url": null,
       "english_version_url": "https://www.khaleejtimes.com",
-      "collection_method": "scraping",
+      "collection_method": "playwright",
       "paywall": "free",
       "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Phase v3 - nécessite Playwright headless. SPA.",
-      "is_active": false
+      "editorial_notes": "Playwright headless — SPA nécessitant JS rendering.",
+      "is_active": true
     },
     {
       "id": "sa_asharq",
@@ -315,12 +315,12 @@
       "rss_url": null,
       "rss_opinion_url": null,
       "english_version_url": "https://www.arabnews.com",
-      "collection_method": "scraping",
+      "collection_method": "playwright",
       "paywall": "free",
       "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Phase v3 - nécessite Playwright headless. WAF.",
-      "is_active": false
+      "editorial_notes": "Playwright headless — WAF bloque aiohttp.",
+      "is_active": true
     },
     {
       "id": "tr_dailysabah",
@@ -546,12 +546,12 @@
       "rss_url": null,
       "rss_opinion_url": null,
       "english_version_url": "https://thepeninsulaqatar.com",
-      "collection_method": "scraping",
+      "collection_method": "playwright",
       "paywall": "free",
       "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Phase v3 - SPA, nécessite Playwright headless.",
-      "is_active": false
+      "editorial_notes": "Playwright headless — SPA nécessitant JS rendering.",
+      "is_active": true
     },
     {
       "id": "qa_aljazeera",
@@ -651,12 +651,12 @@
       "rss_url": null,
       "rss_opinion_url": null,
       "english_version_url": "https://www.jordantimes.com",
-      "collection_method": "scraping",
+      "collection_method": "playwright",
       "paywall": "free",
       "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Phase v3 - nécessite Playwright headless. SPA.",
-      "is_active": false
+      "editorial_notes": "Playwright headless — SPA nécessitant JS rendering.",
+      "is_active": true
     },
     {
       "id": "jo_alghad",
@@ -756,12 +756,12 @@
       "rss_url": null,
       "rss_opinion_url": null,
       "english_version_url": "https://english.ahram.org.eg",
-      "collection_method": "scraping",
+      "collection_method": "playwright",
       "paywall": "free",
       "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Phase v3 - retourne 403, nécessite rotation headers ou Playwright.",
-      "is_active": false
+      "editorial_notes": "Playwright headless — retournait 403 sans JS rendering.",
+      "is_active": true
     },
     {
       "id": "int_almonitor",

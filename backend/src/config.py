@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)
 
+    hdbscan_min_cluster_size: int = Field(default=8)
+    hdbscan_min_samples: int = Field(default=4)
+    hdbscan_cluster_method: str = Field(default="leaf")
+
     port: int = Field(default=8000)
     environment: str = Field(default="development")
     log_level: str = Field(default="INFO")

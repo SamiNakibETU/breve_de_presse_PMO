@@ -506,4 +506,16 @@ async def run_collection() -> dict:
         logger.warning("web_scraper.skipped", error=str(exc)[:200])
         rss_stats["web_scraper"] = {"error": str(exc)[:200]}
 
+    try:
+        from src.services.playwright_scraper import run_playwright_scraping
+        pw_stats = await run_playwright_scraping()
+        rss_stats["playwright_scraper"] = pw_stats
+        rss_stats["total_new"] = rss_stats.get("total_new", 0) + pw_stats.get("total_new", 0)
+        rss_stats["total_sources"] = rss_stats.get("total_sources", 0) + pw_stats.get("total_sources", 0)
+        if pw_stats.get("errors"):
+            rss_stats["errors"].extend(pw_stats["errors"])
+    except Exception as exc:
+        logger.warning("playwright_scraper.skipped", error=str(exc)[:200])
+        rss_stats["playwright_scraper"] = {"error": str(exc)[:200]}
+
     return rss_stats

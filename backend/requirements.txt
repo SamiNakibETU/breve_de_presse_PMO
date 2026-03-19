@@ -17,6 +17,7 @@ feedparser==6.0.11
 trafilatura==2.0.0
 aiohttp==3.11.11
 beautifulsoup4>=4.12
+playwright>=1.49
 
 # NLP
 py3langid==0.2.2

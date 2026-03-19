@@ -47,6 +47,13 @@ async def lifespan(app: FastAPI):
     await init_db()
     log.info("app.db_ready")
 
+    try:
+        from src.scripts.seed_media import seed
+        await seed()
+        log.info("app.media_sources_seeded")
+    except Exception as exc:
+        log.warning("app.seed_failed", error=str(exc)[:200])
+
     scheduler = create_scheduler()
     scheduler.start()
     app.state.scheduler = scheduler

@@ -17,9 +17,6 @@ const COUNTRY_FLAGS: Record<string, string> = {
   Koweït: "🇰🇼",
   Jordanie: "🇯🇴",
   Égypte: "🇪🇬",
-  "États-Unis": "🇺🇸",
-  "Royaume-Uni": "🇬🇧",
-  France: "🇫🇷",
 };
 
 export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
@@ -30,7 +27,8 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
           {cluster.label || "Cluster sans label"}
         </h2>
         <p className="mb-3 text-sm text-[#666]">
-          {cluster.article_count} articles · {cluster.country_count} pays · pertinence {Math.round(cluster.avg_relevance)}
+          {cluster.article_count} articles · {cluster.country_count} pays
+          {cluster.avg_relevance > 0 && ` · pertinence ${Math.round(cluster.avg_relevance * 100)}%`}
         </p>
         <div className="flex flex-wrap gap-2">
           {cluster.countries.map((country) => (
