@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "L'Orient-Le Jour — Revue de presse régionale",
   description:
-    "Revue de presse régionale automatisée — L'Orient-Le Jour",
+    "Revue de presse régionale — L'Orient-Le Jour",
 };
 
 export default function RootLayout({
@@ -17,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
-      <body className={`${inter.className} antialiased`}>
+    <html lang="fr" className="light">
+      <body className={`${inter.className} bg-white text-[#1a1a1a] antialiased`}>
         <Masthead />
         <main className="mx-auto max-w-5xl px-5 py-8">
           {children}

@@ -41,7 +41,7 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
             key={key}
             onClick={() => run(key, fn)}
             disabled={running !== null}
-            className="border border-border px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            className="border border-[#dddcda] bg-white px-4 py-1.5 text-[12px] font-medium text-[#1a1a1a] transition-colors hover:bg-[#f7f7f5] disabled:opacity-40"
           >
             {running === key ? "…" : label}
           </button>
@@ -49,7 +49,7 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
       </div>
 
       {status?.jobs && status.jobs.length > 0 && (
-        <div className="space-y-1 text-[12px] text-muted-foreground">
+        <div className="space-y-1 text-[12px] text-[#888]">
           {status.jobs.map((job) => (
             <div key={job.id} className="flex justify-between">
               <span>{job.name}</span>
@@ -60,7 +60,7 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
       )}
 
       {result && (
-        <pre className="border border-border-light bg-surface p-3 text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="border border-[#eeede9] bg-[#f9f8f5] p-3 text-[11px] leading-relaxed text-[#888]">
           {result}
         </pre>
       )}

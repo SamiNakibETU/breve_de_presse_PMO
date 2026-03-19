@@ -1,0 +1,194 @@
+
+Emilie Sueur
+mar. 17 mars 12:08 (il y a 2 jours)
+À moi, Iva, Emily
+
+Bonjour Sami,
+J'espère que tu vas bien et que ta famille, au Liban, aussi. Je te contacte aujourd'hui parce nous aurions besoin de tes lumières, si tu es dispo évidemment.
+Nous voulons monter, via des processus automatisés et un peu d'IA, une revue de presse régionale en ces temps compliqués, pour offrir à nos lecteurs les points de vue de la région sur les guerres en cours.
+
+Tu trouveras la description de notre projet ci-dessous. Si tu es dispo et intéressé, nous aimerions travailler avec toi sur ce projet, contre rémunération cette fois-ci. Dis-nous ce que tu en penses et si tu as envie, nous calerons un call.
+Merci!
+Emilie
+
+Objectif
+
+Produire une revue de presse régionale sur la guerre dans la région, avec deux formats possibles :
+
+Format : un article rassemblant une série de résumés de plusieurs publications issues de médias régionaux
+Périmètre
+
+Médias régionaux (notamment en Iran, Israël, émirats, Irak, etc.)
+Thématique
+
+La guerre au Moyen-Orient en général et au Liban
+Typologie des contenus
+
+Opinions
+Éditoriaux
+Tribunes
+Commentaires
+Process
+
+1. Collecte des contenus automatisée
+
+Scraper (de manière éthique) les catégories définies
+S’appuyer sur une liste de médias fournie en amont
+2. Construction d’une base de données automatisée
+
+Pour chaque article collecté :
+
+Titre de l’article
+Nom du média
+Pays du media
+Langue de l’article
+Date de publication
+Nom de l’auteur
+Résumé
+Texte intégral dans la langue originale
+Texte intégral traduit en français
+3. Quelqu’un de l’équipe procède à la sélection éditoriale - humain
+
+Sélection d’un ou plusieurs articles à partir de la base
+4. Production de la revue de presse : automatisée
+
+Chaque article retenu doit être :
+
+Résumé
+Traduit en français
+Contextualisé
+Avec les informations suivantes clairement indiquées :
+
+Nom du media
+Langue du média
+Pays du média
+Date de publication
+Nom de l’auteur
+Format de la revue de presse
+
+Titre 1
+
+Un titre synthétique qui résume l’angle ou le propos principal de l’article résumé.
+
+Résumé
+
+Un résumé clair et structuré du ou des articles
+
+Encadré “À savoir”
+
+Média :
+Pays :
+Date de publication :
+Langue originale :
+Auteur :
+Titre 2
+
+Même format que ci-dessus
+
+Titre 3
+
+Même format que ci-dessus
+
+ 
+
+
+
+
+
+Sami Nakib <samivincent.nakib@gmail.com>
+mar. 17 mars 17:03 (il y a 2 jours)
+À Emilie
+
+Bonjour Emilie,
+
+Merci beaucoup pour ton message. J'espère que vous allez bien aussi.
+
+Le projet m'intéresse, d'autant plus que je travaillais récemment sur des projets personnels assez similaires concernant le traitement et la hiérarchisation de l'information.
+
+Je suis disponible jeudi toute la journée pour un appel sauf entre 14h30 et 15h30 (heure française), et vendredi toute la journée.
+
+J'ai regardé un peu ce qui était possible et ai commencé à réfléchir à la manière de faire. Pour l'instant, je pense qu'il y a plusieurs points à préciser pour avancer :
+- Les sources
+- Fréquence de publication cible (quotidienne, hebdomadaire ?)
+- Rôle exact de l'humain dans le processus
+- Format de sortie attendu et intégration prévue
+Je me permets de préparer quelques éléments concrets d'ici le call (une liste de médias candidats avec leurs métadonnées éditoriales, et un premier test de collecte) pour voir ce qui est réalisable.
+
+Merci à vous pour votre confiance, et bon courage à toi et à l'équipe.
+
+Sami
+
+Emilie Sueur
+Pièces jointes
+mer. 18 mars 09:46 (il y a 21 heures)
+À Iva, Emily, moi
+
+Bonjour Sami,
+Merci beaucoup pour ta réponse ! j'ai répondu à tes questions en rouge ci-dessous.
+Et j'ai mis en doc attaché un exemple du format de texte que nous souhaiterions avoir à la fin.
+L'idée est de faire le plus simple possible.
+Pour le call de jeudi, on peut dire 10h chez toi si ca te convient.
+Merci beaucoup
+Emilie
+
+
+J'ai regardé un peu ce qui était possible et ai commencé à réfléchir à la manière de faire. Pour l'instant, je pense qu'il y a plusieurs points à préciser pour avancer :
+- Les sources : on va te préparer la liste aujourd'hui, mais ca va prendre un peu de temps. l'idée ne sera pas de scanner l'intégralité des contenus de ces médias, mais certaines catégories éditoriales que nous allons également te donner.
+- Fréquence de publication cible (quotidienne, hebdomadaire ?) : a priori quotidienne.
+- Rôle exact de l'humain dans le processus : 
+temps 1 : Sélection humaine après retour du scrapping de la base de médias qu'on va te donner. Un journaliste choisit le ou les articles qu'on va traiter pour la revue de presse.
+Temps 2 : relecture de la revue de presse produite par l'IA avant publication.
+
+- Format de sortie attendu et intégration prévue : 
+nos formats articles normaux : un titre principal qu'un humain va faire. l'iA produit la chose, et nous, nous copions collons la chose dans le back office. donc  on n'a pas besoin de développer un template d'article. Juste le contenu de l'article.
+et dans le corps de l'article , plusiuers entrées avec les résumés dse articles sélectionnés. Pour chaque entrée, il y aura un titre, le résumé, puis une capusle avec les infos pratiques (nom du média d'où l'article est tiré, date de publication, langue  originale, pays du média, et nom de l'auteur. je te mets un exemple : "Titre général de l’article : blablablabal
+Chapo : voici la revue de presse régionale de ce mercredi 18 mars 2026. On y parle de XXXX (fait
+par un humain)
+
+« La guerre contre les pays du Golfe est une hérésie »
+
+Résumé : Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem
+Ipsum has been the industry&#39;s standard dummy text ever since the 1500s, when an unknown
+printer took a galley of type and scrambled it to make a type specimen book. It has survived not
+only five centuries, but also the leap into electronic typesetting, remaining essentially
+unchanged. It was popularised in the 1960s with the release of Letraset sheets containing
+Lorem Ipsum passages, and more recently with desktop publishing software like Aldus
+PageMaker including versions of Lorem Ipsum
+Fiche :
+Article publié dans al-Majalla
+Le 17 mars 2026
+Langue originale : arabe
+Pays du média : Arabie saoudite
+Nom de l’auteur : Hussein Farhat
+
+« Le régime iranien sortira encore plus radicalisé de cette guerre »
+
+Résumé : Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem
+Ipsum has been the industry&#39;s standard dummy text ever since the 1500s, when an unknown
+printer took a galley of type and scrambled it to make a type specimen book. It has survived not
+only five centuries, but also the leap into electronic typesetting, remaining essentially
+unchanged. It was popularised in the 1960s with the release of Letraset sheets containing
+Lorem Ipsum passages, and more recently with desktop publishing software like Aldus
+PageMaker including versions of Lorem Ipsum
+Fiche :
+Article publié dans al-Akhbar
+Le 17 mars 2026
+Langue originale : arabe
+Pays du média : Irak
+Nom de l’auteur : Nour Hussein
+
+« Le gouvernement israélien veut rétablir le Grand Issraël, et voilà tout »
+
+Résumé : Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem
+Ipsum has been the industry&#39;s standard dummy text ever since the 1500s, when an unknown
+printer took a galley of type and scrambled it to make a type specimen book. It has survived not
+only five centuries, but also the leap into electronic typesetting, remaining essentially
+unchanged. It was popularised in the 1960s with the release of Letraset sheets containing
+Lorem Ipsum passages, and more recently with desktop publishing software like Aldus
+PageMaker including versions of Lorem Ipsum
+Fiche :
+Article publié dans Haaretz
+Le 17 mars 2026
+Langue originale : hébreu
+Pays du média : Israël
+Nom de l’auteur : Dov Cohen"

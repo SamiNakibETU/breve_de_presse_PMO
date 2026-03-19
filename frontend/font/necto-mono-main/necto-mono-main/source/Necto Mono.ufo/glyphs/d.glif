@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="d" format="2">
+  <advance width="610"/>
+  <unicode hex="0064"/>
+  <anchor x="310" y="0" name="bottom"/>
+  <anchor x="490" y="591" name="center"/>
+  <anchor x="280" y="580" name="top"/>
+  <anchor x="600" y="500" name="topright"/>
+  <outline>
+  </outline>
+</glyph>

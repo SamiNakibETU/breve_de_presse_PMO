@@ -12,6 +12,16 @@ interface ArticleCardProps {
 
 const EDITORIAL_TYPES = new Set(["opinion", "editorial", "tribune"]);
 
+const TYPE_LABELS: Record<string, string> = {
+  opinion: "Opinion",
+  editorial: "Éditorial",
+  tribune: "Tribune",
+  analysis: "Analyse",
+  news: "News",
+  interview: "Interview",
+  reportage: "Reportage",
+};
+
 export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isEditorial = EDITORIAL_TYPES.has(article.article_type || "");
@@ -25,29 +35,23 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
     : null;
 
   const summaryPreview = article.summary_fr
-    ? article.summary_fr.length > 180
-      ? article.summary_fr.slice(0, 180) + "…"
+    ? article.summary_fr.length > 200
+      ? article.summary_fr.slice(0, 200) + "…"
       : article.summary_fr
     : null;
 
   return (
-    <article
-      className={`border-b border-border-light py-4 transition-colors ${
-        selected ? "bg-accent/[0.03]" : ""
-      } ${isEditorial ? "pl-0" : "pl-0"}`}
-    >
+    <article className={`border-b border-[#eeede9] py-4 ${selected ? "bg-[#fef8f8]" : ""}`}>
       <div className="flex gap-3">
         <button
           onClick={() => onToggle(article.id)}
           aria-label={selected ? "Désélectionner" : "Sélectionner"}
-          className={`mt-1.5 flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center border transition-colors ${
-            selected
-              ? "border-accent bg-accent"
-              : "border-muted-foreground/40 hover:border-foreground"
+          className={`mt-1.5 flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center border transition-colors ${
+            selected ? "border-[#c8102e] bg-[#c8102e]" : "border-[#ccc] hover:border-[#1a1a1a]"
           }`}
         >
           {selected && (
-            <svg viewBox="0 0 12 12" className="h-2 w-2 text-white">
+            <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-white">
               <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" fill="none" />
             </svg>
           )}
@@ -56,15 +60,15 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             <div className="flex-1">
-              {isEditorial && (
-                <span className="mb-0.5 inline-block text-[10px] font-bold uppercase tracking-[0.15em] text-accent">
-                  {article.article_type}
+              {isEditorial && article.article_type && (
+                <span className="mb-0.5 inline-block text-[10px] font-bold uppercase tracking-[0.12em] text-[#c8102e]">
+                  {TYPE_LABELS[article.article_type] || article.article_type}
                 </span>
               )}
               <h3
-                className={`cursor-pointer leading-snug ${
+                className={`cursor-pointer leading-snug hover:text-[#c8102e] ${
                   isEditorial
-                    ? "font-[family-name:var(--font-serif)] text-[17px] font-semibold"
+                    ? "font-[family-name:var(--font-serif)] text-[17px]"
                     : "text-[14px] font-medium"
                 }`}
                 onClick={() => setExpanded(!expanded)}
@@ -75,31 +79,24 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
             <ConfidenceBadge score={article.translation_confidence} />
           </div>
 
-          <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-[12px] text-muted-foreground">
-            <span className="font-medium text-foreground/70">{article.media_name}</span>
-            <span>·</span>
-            <span>{article.country}</span>
-            {article.author && (
-              <>
-                <span>·</span>
-                <span>{article.author}</span>
-              </>
-            )}
-            {date && (
-              <>
-                <span>·</span>
-                <span>{date}</span>
-              </>
-            )}
+          <p className="mt-1 text-[12px] text-[#888]">
+            {article.media_name}
+            <span className="mx-1">·</span>
+            {article.country}
+            {article.author && <><span className="mx-1">·</span>{article.author}</>}
+            {date && <><span className="mx-1">·</span>{date}</>}
             {!isEditorial && article.article_type && (
-              <span className="ml-1 border border-border-light px-1 py-px text-[10px] uppercase tracking-wider text-muted-foreground">
-                {article.article_type}
+              <span className="ml-2 border border-[#eeede9] px-1 py-px text-[10px] uppercase tracking-wider text-[#aaa]">
+                {TYPE_LABELS[article.article_type] || article.article_type}
               </span>
             )}
-          </div>
+          </p>
 
           {summaryPreview && !expanded && (
-            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+            <p
+              className="mt-2 cursor-pointer text-[13px] leading-relaxed text-[#555]"
+              onClick={() => setExpanded(true)}
+            >
               {summaryPreview}
             </p>
           )}
@@ -107,19 +104,19 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
           {expanded && (
             <div className="mt-3 space-y-2">
               {article.thesis_summary_fr && (
-                <p className="font-[family-name:var(--font-serif)] text-[14px] italic text-foreground">
+                <p className="font-[family-name:var(--font-serif)] text-[14px] italic text-[#333]">
                   {article.thesis_summary_fr}
                 </p>
               )}
               {article.summary_fr && (
-                <p className="max-w-xl text-[13px] leading-[1.7] text-muted-foreground">
+                <p className="max-w-2xl text-[13px] leading-[1.7] text-[#555]">
                   {article.summary_fr}
                 </p>
               )}
               {article.key_quotes_fr && article.key_quotes_fr.length > 0 && (
-                <div className="space-y-1 border-l-2 border-accent/30 pl-3">
+                <div className="space-y-1 border-l-2 border-[#c8102e]/20 pl-3">
                   {article.key_quotes_fr.map((q, i) => (
-                    <p key={i} className="font-[family-name:var(--font-serif)] text-[13px] italic text-foreground/80">
+                    <p key={i} className="font-[family-name:var(--font-serif)] text-[13px] italic text-[#444]">
                       «&nbsp;{q}&nbsp;»
                     </p>
                   ))}
@@ -130,21 +127,18 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-accent underline underline-offset-2"
+                  className="text-[11px] text-[#888] underline decoration-[#ddd] underline-offset-2 hover:text-[#1a1a1a]"
                 >
                   Article original ↗
                 </a>
               )}
+              <button
+                onClick={() => setExpanded(false)}
+                className="block text-[11px] text-[#888] hover:text-[#1a1a1a]"
+              >
+                Réduire
+              </button>
             </div>
-          )}
-
-          {!expanded && summaryPreview && (
-            <button
-              onClick={() => setExpanded(true)}
-              className="mt-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              Lire plus
-            </button>
           )}
         </div>
       </div>

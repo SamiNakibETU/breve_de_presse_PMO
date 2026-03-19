@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -14,20 +15,25 @@ export function Masthead() {
   const pathname = usePathname();
 
   return (
-    <header className="border-b border-border bg-background">
+    <header className="bg-white">
       <div className="mx-auto max-w-5xl px-5">
-        <div className="flex items-baseline justify-between py-4">
-          <Link href="/" className="flex items-baseline gap-3">
-            <span className="font-[family-name:var(--font-narrow)] text-2xl font-semibold tracking-tight text-foreground">
-              L&rsquo;Orient-Le Jour
-            </span>
-            <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-accent sm:inline">
-              Revue de presse
-            </span>
+        <div className="flex items-center justify-between border-b border-[#dddcda] py-4">
+          <Link href="/">
+            <Image
+              src="/logo_olj.svg"
+              alt="L'Orient-Le Jour"
+              width={200}
+              height={30}
+              priority
+              className="h-[28px] w-auto"
+            />
           </Link>
+          <span className="text-[11px] font-medium text-[#888]">
+            Revue de presse régionale
+          </span>
         </div>
 
-        <nav className="-mb-px flex gap-0">
+        <nav className="flex gap-6 py-2.5">
           {NAV_ITEMS.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -37,10 +43,10 @@ export function Masthead() {
                 key={href}
                 href={href}
                 className={cn(
-                  "border-b-2 px-4 pb-2.5 text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors",
+                  "text-[13px] transition-colors",
                   active
-                    ? "border-accent text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "font-semibold text-[#1a1a1a]"
+                    : "text-[#888] hover:text-[#1a1a1a]"
                 )}
               >
                 {label}
@@ -49,6 +55,7 @@ export function Masthead() {
           })}
         </nav>
       </div>
+      <div className="h-px bg-[#dddcda]" />
     </header>
   );
 }

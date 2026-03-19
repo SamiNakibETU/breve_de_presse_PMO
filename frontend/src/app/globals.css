@@ -40,26 +40,18 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Aktiv Grotesk";
-  src: url("/fonts/AKTIVGROTESK-HAIRLINE.OTF") format("opentype");
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
-}
-
 @theme {
   --color-background: #ffffff;
   --color-foreground: #1a1a1a;
-  --color-muted: #f6f5f3;
-  --color-muted-foreground: #757575;
-  --color-border: #e0dfdb;
+  --color-muted: #f7f7f5;
+  --color-muted-foreground: #888888;
+  --color-border: #dddcda;
   --color-border-light: #eeede9;
   --color-primary: #1a1a1a;
   --color-primary-foreground: #ffffff;
   --color-accent: #c8102e;
   --color-accent-foreground: #ffffff;
-  --color-destructive: #b91c1c;
+  --color-destructive: #c8102e;
   --color-success: #2d6a4f;
   --color-warning: #92400e;
   --color-card: #ffffff;
@@ -71,35 +63,23 @@
   --font-narrow: "Poynter Narrow", "Georgia", serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-background: #111110;
-    --color-foreground: #e8e6e1;
-    --color-muted: #1e1e1c;
-    --color-muted-foreground: #9a9a94;
-    --color-border: #2e2e2a;
-    --color-border-light: #252522;
-    --color-primary: #e8e6e1;
-    --color-primary-foreground: #111110;
-    --color-card: #181816;
-    --color-card-foreground: #e8e6e1;
-    --color-surface: #1a1a18;
-  }
-}
-
 * {
   border-color: var(--color-border-light);
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
   font-family: var(--font-sans);
-  background: var(--color-background);
-  color: var(--color-foreground);
+  background: #ffffff;
+  color: #1a1a1a;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: var(--color-accent);
+  background: #c8102e;
   color: white;
 }

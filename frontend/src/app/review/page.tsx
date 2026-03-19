@@ -17,35 +17,19 @@ export default function ReviewPage() {
 
   useEffect(() => {
     const stored = sessionStorage.getItem("review_article_ids");
-    if (stored) {
-      try {
-        setArticleIds(JSON.parse(stored) as string[]);
-      } catch {
-        /* ignore */
-      }
-    }
+    if (stored) { try { setArticleIds(JSON.parse(stored)); } catch { /* */ } }
     api.reviews().then((r) => setHistory(r.reviews)).catch(() => {});
   }, []);
 
   const loadArticles = useCallback(async () => {
-    if (articleIds.length === 0) {
-      setArticles([]);
-      return;
-    }
+    if (articleIds.length === 0) { setArticles([]); return; }
     try {
-      const data = await api.articles({
-        status: "translated,formatted,needs_review",
-        limit: "200",
-      });
+      const data = await api.articles({ status: "translated,formatted,needs_review", limit: "200" });
       setArticles(data.articles.filter((a) => articleIds.includes(a.id)));
-    } catch {
-      /* ignore */
-    }
+    } catch { /* */ }
   }, [articleIds]);
 
-  useEffect(() => {
-    loadArticles();
-  }, [loadArticles]);
+  useEffect(() => { loadArticles(); }, [loadArticles]);
 
   function removeArticle(id: string) {
     const next = articleIds.filter((i) => i !== id);
@@ -54,9 +38,7 @@ export default function ReviewPage() {
   }
 
   async function generate() {
-    setGenerating(true);
-    setError(null);
-    setReviewText(null);
+    setGenerating(true); setError(null); setReviewText(null);
     try {
       const result = await api.generateReview(articleIds);
       setReviewText(result.full_text);
@@ -64,31 +46,20 @@ export default function ReviewPage() {
       setHistory(h.reviews);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la génération");
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  function loadHistoryItem(item: ReviewSummary) {
-    setReviewText(item.full_text);
-    setShowHistory(false);
+    } finally { setGenerating(false); }
   }
 
   return (
     <div className="space-y-8">
       <header className="flex items-end justify-between">
         <div>
-          <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight">
-            Revue de presse
-          </h1>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Générer le bloc texte prêt à copier-coller dans le CMS
-          </p>
+          <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">Revue de presse</h1>
+          <p className="mt-0.5 text-[13px] text-[#888]">Texte prêt à copier-coller dans le CMS</p>
         </div>
         {history.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="border border-border px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted"
+            className="border border-[#dddcda] bg-white px-3 py-1.5 text-[12px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5]"
           >
             Historique ({history.length})
           </button>
@@ -96,29 +67,22 @@ export default function ReviewPage() {
       </header>
 
       {showHistory && (
-        <section className="border border-border">
-          <div className="border-b border-border px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-              Revues précédentes
-            </p>
-          </div>
+        <section className="border border-[#dddcda]">
           {history.map((r) => (
             <button
               key={r.id}
-              onClick={() => loadHistoryItem(r)}
-              className="flex w-full items-baseline justify-between border-b border-border-light px-3 py-2 text-left text-[13px] hover:bg-muted"
+              onClick={() => { setReviewText(r.full_text); setShowHistory(false); }}
+              className="flex w-full items-baseline justify-between border-b border-[#eeede9] px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f5]"
             >
               <span className="font-medium">{r.title || r.review_date}</span>
-              <span className="tabular-nums text-[11px] text-muted-foreground">
-                {r.article_count}
-              </span>
+              <span className="tabular-nums text-[11px] text-[#888]">{r.article_count}</span>
             </button>
           ))}
         </section>
       )}
 
       <section>
-        <h2 className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+        <h2 className="mb-2 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
           Sélection — {articles.length} article{articles.length > 1 ? "s" : ""}
         </h2>
         <SelectedArticles articles={articles} onRemove={removeArticle} />
@@ -128,19 +92,17 @@ export default function ReviewPage() {
         <button
           onClick={generate}
           disabled={generating}
-          className="bg-accent px-6 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white hover:bg-accent/90 disabled:opacity-40"
+          className="bg-[#c8102e] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#a50d25] disabled:opacity-40"
         >
           {generating ? "Génération en cours…" : "Générer la revue →"}
         </button>
       )}
 
-      {error && (
-        <p className="border-l-2 border-accent pl-3 text-[13px] text-accent">{error}</p>
-      )}
+      {error && <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">{error}</p>}
 
       {reviewText && (
         <section>
-          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+          <h2 className="mb-3 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
             Texte généré
           </h2>
           <ReviewPreview text={reviewText} />

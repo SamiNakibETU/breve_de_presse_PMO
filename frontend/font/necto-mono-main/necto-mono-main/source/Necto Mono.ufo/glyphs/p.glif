@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="p" format="2">
+  <advance width="610"/>
+  <unicode hex="0070"/>
+  <anchor x="305" y="0" name="bottom"/>
+  <anchor x="305" y="580" name="top"/>
+  <outline>
+  </outline>
+</glyph>

@@ -29,31 +29,24 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const date = new Date().toISOString().slice(0, 10);
-    a.download = `revue_presse_olj_${date}.txt`;
+    a.download = `revue_presse_olj_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-2">
-        <button
-          onClick={copyToClipboard}
-          className="bg-accent px-4 py-2 text-[12px] font-bold uppercase tracking-wider text-white hover:bg-accent/90"
-        >
-          {copied ? "Copié ✓" : "Copier"}
+      <div className="flex gap-3">
+        <button onClick={copyToClipboard} className="bg-[#c8102e] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#a50d25]">
+          {copied ? "Copié ✓" : "Copier le texte"}
         </button>
-        <button
-          onClick={download}
-          className="border border-border px-4 py-2 text-[12px] font-bold uppercase tracking-wider text-foreground hover:bg-muted"
-        >
-          Télécharger
+        <button onClick={download} className="border border-[#dddcda] bg-white px-4 py-2 text-[13px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5]">
+          Télécharger .txt
         </button>
       </div>
 
-      <article className="mx-auto max-w-xl border-t border-b border-border py-6">
-        <div className="whitespace-pre-wrap font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-foreground">
+      <article className="mx-auto max-w-2xl border-t border-[#dddcda] pt-6">
+        <div className="whitespace-pre-wrap font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-[#1a1a1a]">
           {text}
         </div>
       </article>
