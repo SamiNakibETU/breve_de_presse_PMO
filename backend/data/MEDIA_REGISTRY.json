@@ -548,10 +548,10 @@
       "english_version_url": "https://thepeninsulaqatar.com",
       "collection_method": "scraping",
       "paywall": "free",
-      "scraping_difficulty": "easy",
+      "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Section opinion à scraper. HTML SSR.",
-      "is_active": true
+      "editorial_notes": "Phase v3 - SPA, nécessite Playwright headless.",
+      "is_active": false
     },
     {
       "id": "qa_aljazeera",
@@ -564,14 +564,14 @@
       "bias": "pro-qatar-progressive",
       "content_types": ["news", "opinions", "analyses", "reportages"],
       "url": "https://www.aljazeera.com",
-      "rss_url": null,
+      "rss_url": "https://www.aljazeera.com/xml/rss/all.xml",
       "rss_opinion_url": null,
       "english_version_url": "https://www.aljazeera.com",
-      "collection_method": "scraping",
+      "collection_method": "rss",
       "paywall": "free",
-      "scraping_difficulty": "medium",
+      "scraping_difficulty": "easy",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "RSS cassé. Section opinion: https://www.aljazeera.com/opinions. HTML scraping.",
+      "editorial_notes": "RSS général all.xml fonctionnel. Pas de RSS opinion dédié.",
       "is_active": true
     },
     {
@@ -758,10 +758,10 @@
       "english_version_url": "https://english.ahram.org.eg",
       "collection_method": "scraping",
       "paywall": "free",
-      "scraping_difficulty": "medium",
+      "scraping_difficulty": "hard",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Section opinion à scraper. ASP.NET. Perspective officielle Le Caire.",
-      "is_active": true
+      "editorial_notes": "Phase v3 - retourne 403, nécessite rotation headers ou Playwright.",
+      "is_active": false
     },
     {
       "id": "int_almonitor",

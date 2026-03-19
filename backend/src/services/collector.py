@@ -492,4 +492,18 @@ class RSSCollector:
 
 async def run_collection() -> dict:
     collector = RSSCollector()
-    return await collector.collect_all()
+    rss_stats = await collector.collect_all()
+
+    try:
+        from src.services.web_scraper import run_web_scraping
+        scrape_stats = await run_web_scraping()
+        rss_stats["web_scraper"] = scrape_stats
+        rss_stats["total_new"] = rss_stats.get("total_new", 0) + scrape_stats.get("total_new", 0)
+        rss_stats["total_sources"] = rss_stats.get("total_sources", 0) + scrape_stats.get("total_sources", 0)
+        if scrape_stats.get("errors"):
+            rss_stats["errors"].extend(scrape_stats["errors"])
+    except Exception as exc:
+        logger.warning("web_scraper.skipped", error=str(exc)[:200])
+        rss_stats["web_scraper"] = {"error": str(exc)[:200]}
+
+    return rss_stats
