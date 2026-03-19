@@ -20,6 +20,12 @@ aiohttp==3.11.11
 # NLP
 py3langid==0.2.2
 
+# Embedding & Clustering
+cohere>=5.0
+hdbscan>=0.8.33
+scikit-learn>=1.4
+numpy>=1.26
+
 # Scheduling
 apscheduler==3.10.4
 
