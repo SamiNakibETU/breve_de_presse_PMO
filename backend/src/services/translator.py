@@ -242,12 +242,20 @@ class TranslationPipeline:
             art.translation_notes = data.get("translation_notes", "")
             art.status = status
             art.processed_at = datetime.now(timezone.utc)
-
-            entities_raw = data.get("entities", [])
-            if entities_raw:
-                await upsert_entities(db, article.id, entities_raw)
-
             await db.commit()
+
+        entities_raw = data.get("entities", [])
+        if entities_raw:
+            try:
+                async with self._factory() as db:
+                    await upsert_entities(db, article.id, entities_raw)
+                    await db.commit()
+            except Exception as ent_exc:
+                logger.warning(
+                    "translation.entity_upsert_failed",
+                    article_id=str(article.id),
+                    error=str(ent_exc),
+                )
 
         logger.info(
             "translation.done",

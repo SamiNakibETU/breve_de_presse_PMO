@@ -6,6 +6,16 @@ import type { AppStatus, Stats } from "@/lib/types";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 
+const LANG_LABELS: Record<string, string> = {
+  ar: "Arabe",
+  en: "Anglais",
+  fr: "Français",
+  he: "Hébreu",
+  fa: "Persan",
+  tr: "Turc",
+  ku: "Kurde",
+};
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
@@ -32,70 +42,90 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Vue d&apos;ensemble du système de revue de presse
+    <div className="space-y-10">
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Tableau de bord
         </p>
-      </div>
+        <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight">
+          Revue de presse régionale
+        </h1>
+        <p className="mt-1 text-[14px] capitalize text-muted-foreground">
+          {dateStr}
+        </p>
+      </header>
 
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <p className="border-l-2 border-accent pl-4 text-[13px] text-accent">
           {error}
-        </div>
+        </p>
       )}
 
-      <StatsCards stats={stats} loading={loading} />
+      <section>
+        <h2 className="mb-4 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Statistiques
+        </h2>
+        <StatsCards stats={stats} loading={loading} />
+      </section>
 
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Actions pipeline</h2>
+      <section>
+        <h2 className="mb-4 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Actions pipeline
+        </h2>
         <PipelineStatus status={status} onRefresh={load} />
-      </div>
+      </section>
 
       {stats && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-10 lg:grid-cols-2">
           {Object.keys(stats.by_country).length > 0 && (
-            <div className="rounded-lg border border-border bg-card p-5">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Articles par pays (24h)
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
+            <section>
+              <h2 className="mb-3 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                Par pays
+              </h2>
+              <div className="border-t border-border">
                 {Object.entries(stats.by_country)
                   .sort(([, a], [, b]) => b - a)
                   .map(([country, count]) => (
                     <div
                       key={country}
-                      className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-sm"
+                      className="flex items-baseline justify-between border-b border-border-light px-0 py-2 text-[13px]"
                     >
                       <span>{country}</span>
-                      <span className="font-semibold">{count}</span>
+                      <span className="tabular-nums font-medium">{count}</span>
                     </div>
                   ))}
               </div>
-            </div>
+            </section>
           )}
 
           {Object.keys(stats.by_language).length > 0 && (
-            <div className="rounded-lg border border-border bg-card p-5">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Articles par langue source (24h)
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
+            <section>
+              <h2 className="mb-3 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                Par langue source
+              </h2>
+              <div className="border-t border-border">
                 {Object.entries(stats.by_language)
                   .sort(([, a], [, b]) => b - a)
                   .map(([lang, count]) => (
                     <div
                       key={lang}
-                      className="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-sm"
+                      className="flex items-baseline justify-between border-b border-border-light px-0 py-2 text-[13px]"
                     >
-                      <span className="uppercase">{lang}</span>
-                      <span className="font-semibold">{count}</span>
+                      <span>{LANG_LABELS[lang] || lang.toUpperCase()}</span>
+                      <span className="tabular-nums font-medium">{count}</span>
                     </div>
                   ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
       )}

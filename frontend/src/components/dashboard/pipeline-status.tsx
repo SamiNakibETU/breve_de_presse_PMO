@@ -1,78 +1,81 @@
 "use client";
 
 import { useState } from "react";
-import type { AppStatus } from "@/lib/types";
 import { api } from "@/lib/api";
-import { Play, Loader2 } from "lucide-react";
+import type { AppStatus } from "@/lib/types";
 
 interface PipelineStatusProps {
   status: AppStatus | null;
   onRefresh: () => void;
 }
 
-type Action = "collect" | "translate" | "pipeline";
+const ACTIONS = [
+  {
+    key: "collect",
+    label: "Collecte RSS",
+    fn: () => api.triggerCollect(),
+  },
+  {
+    key: "translate",
+    label: "Traduction",
+    fn: () => api.triggerTranslate(),
+  },
+  {
+    key: "pipeline",
+    label: "Pipeline complet",
+    fn: () => api.triggerPipeline(),
+  },
+] as const;
 
 export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
-  const [running, setRunning] = useState<Action | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
-  async function run(action: Action) {
-    setRunning(action);
+  async function run(key: string, fn: () => Promise<unknown>) {
+    setRunning(key);
     setResult(null);
     try {
-      const fn =
-        action === "collect"
-          ? api.triggerCollect
-          : action === "translate"
-            ? api.triggerTranslate
-            : api.triggerPipeline;
       const data = await fn();
-      setResult(JSON.stringify(data.stats, null, 2));
+      setResult(JSON.stringify(data, null, 2));
       onRefresh();
     } catch (err) {
-      setResult(`Erreur : ${err instanceof Error ? err.message : String(err)}`);
+      setResult(
+        err instanceof Error ? err.message : "Erreur"
+      );
     } finally {
       setRunning(null);
     }
   }
 
-  const ACTIONS: { id: Action; label: string }[] = [
-    { id: "collect", label: "Collecte RSS" },
-    { id: "translate", label: "Traduction" },
-    { id: "pipeline", label: "Pipeline complet" },
-  ];
-
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        {ACTIONS.map(({ id, label }) => (
+      <div className="flex flex-wrap gap-2">
+        {ACTIONS.map(({ key, label, fn }) => (
           <button
-            key={id}
+            key={key}
+            onClick={() => run(key, fn)}
             disabled={running !== null}
-            onClick={() => run(id)}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
-            {running === id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            {label}
+            {running === key ? "En cours…" : label}
           </button>
         ))}
       </div>
 
       {status?.jobs && status.jobs.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
-            Jobs programmés
-          </h3>
-          <div className="space-y-1 text-sm">
+        <div className="border-t border-border-light pt-4">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+            Tâches programmées
+          </p>
+          <div className="space-y-1">
             {status.jobs.map((job) => (
-              <div key={job.id} className="flex justify-between">
-                <span>{job.name}</span>
-                <span className="text-muted-foreground">
-                  {job.next_run ?? "—"}
+              <div
+                key={job.id}
+                className="flex items-baseline justify-between text-[13px]"
+              >
+                <span className="text-foreground">{job.name}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {job.next_run}
                 </span>
               </div>
             ))}
@@ -81,7 +84,7 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
       )}
 
       {result && (
-        <pre className="max-h-60 overflow-auto rounded-lg border border-border bg-muted p-4 text-xs">
+        <pre className="overflow-x-auto border border-border-light bg-surface p-4 text-[12px] leading-relaxed text-muted-foreground">
           {result}
         </pre>
       )}

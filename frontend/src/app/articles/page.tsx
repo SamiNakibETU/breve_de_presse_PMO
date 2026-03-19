@@ -9,7 +9,18 @@ import {
   type Filters,
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
-import { FileText, X } from "lucide-react";
+
+const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
+  all_processed: {
+    label: "Traduits & formatés",
+    value: "translated,formatted,needs_review",
+  },
+  collected: { label: "Collectés (bruts)", value: "collected" },
+  all: {
+    label: "Tous",
+    value: "collected,translated,formatted,needs_review,error",
+  },
+};
 
 export default function ArticlesPage() {
   const router = useRouter();
@@ -23,18 +34,6 @@ export default function ArticlesPage() {
     types: [],
     minConfidence: 0,
   });
-
-  const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
-    all_processed: {
-      label: "Traduits & formatés",
-      value: "translated,formatted,needs_review",
-    },
-    collected: { label: "Collectés (bruts)", value: "collected" },
-    all: {
-      label: "Tous",
-      value: "collected,translated,formatted,needs_review,error",
-    },
-  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,25 +81,28 @@ export default function ArticlesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Articles</h1>
-          <p className="text-muted-foreground">
-            {total} article{total !== 1 ? "s" : ""} disponible
-            {total !== 1 ? "s" : ""}
-          </p>
-        </div>
-      </div>
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Index
+        </p>
+        <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight">
+          Articles
+        </h1>
+        <p className="mt-1 text-[14px] text-muted-foreground">
+          {total} article{total !== 1 ? "s" : ""} disponible
+          {total !== 1 ? "s" : ""}
+        </p>
+      </header>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex items-center gap-1">
         {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
           <button
             key={key}
             onClick={() => setStatusFilter(key)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
               statusFilter === key
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-border"
+                ? "border-accent text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {label}
@@ -118,27 +120,25 @@ export default function ArticlesPage() {
       />
 
       {selected.size > 0 && (
-        <div className="fixed bottom-0 left-60 right-0 z-20 border-t border-border bg-card p-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">
-                {selected.size} article{selected.size > 1 ? "s" : ""}{" "}
-                sélectionné{selected.size > 1 ? "s" : ""}
-              </span>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-[var(--spacing-page)] py-3 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-[var(--max-width-page)] items-center justify-between">
+            <p className="text-[13px]">
+              <span className="font-semibold">{selected.size}</span> article
+              {selected.size > 1 ? "s" : ""} sélectionné
+              {selected.size > 1 ? "s" : ""}
               <button
                 onClick={() => setSelected(new Set())}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="ml-3 text-[12px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                Effacer
               </button>
-            </div>
+            </p>
             <button
               onClick={goToReview}
               disabled={selected.size < 1 || selected.size > 10}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              className="border border-foreground bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
             >
-              <FileText className="h-4 w-4" />
-              Générer la revue
+              Générer la revue →
             </button>
           </div>
         </div>

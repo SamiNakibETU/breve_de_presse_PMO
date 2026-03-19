@@ -5,7 +5,6 @@ import { api } from "@/lib/api";
 import type { Article, ReviewSummary } from "@/lib/types";
 import { SelectedArticles } from "@/components/review/selected-articles";
 import { ReviewPreview } from "@/components/review/review-preview";
-import { Loader2, Sparkles, History } from "lucide-react";
 
 export default function ReviewPage() {
   const [articleIds, setArticleIds] = useState<string[]>([]);
@@ -80,83 +79,84 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      <header className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+            Génération
+          </p>
+          <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight">
             Revue de presse
           </h1>
-          <p className="text-muted-foreground">
-            Générer et exporter la revue au format OLJ
+          <p className="mt-1 text-[14px] text-muted-foreground">
+            Sélectionner, générer et exporter au format OLJ
           </p>
         </div>
         {history.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
+            className="border border-border px-3 py-2 text-[13px] font-medium transition-colors hover:bg-muted"
           >
-            <History className="h-4 w-4" />
             Historique ({history.length})
           </button>
         )}
-      </div>
+      </header>
 
       {showHistory && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h3 className="mb-3 text-sm font-semibold">Revues précédentes</h3>
-          <div className="space-y-2">
-            {history.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => loadHistoryItem(r)}
-                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-              >
-                <span>{r.title || r.review_date}</span>
-                <span className="text-xs text-muted-foreground">
-                  {r.article_count} articles
-                </span>
-              </button>
-            ))}
+        <section className="border border-border">
+          <div className="border-b border-border px-4 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+              Revues précédentes
+            </p>
           </div>
-        </div>
+          {history.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => loadHistoryItem(r)}
+              className="flex w-full items-baseline justify-between border-b border-border-light px-4 py-2.5 text-left text-[13px] transition-colors hover:bg-muted"
+            >
+              <span className="font-medium">
+                {r.title || r.review_date}
+              </span>
+              <span className="text-[12px] tabular-nums text-muted-foreground">
+                {r.article_count} article{r.article_count > 1 ? "s" : ""}
+              </span>
+            </button>
+          ))}
+        </section>
       )}
 
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">
-          Articles sélectionnés ({articles.length})
+      <section>
+        <h2 className="mb-3 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Articles sélectionnés — {articles.length}
         </h2>
-        <SelectedArticles
-          articles={articles}
-          onRemove={removeArticle}
-        />
-      </div>
+        <SelectedArticles articles={articles} onRemove={removeArticle} />
+      </section>
 
       {articles.length > 0 && (
         <button
           onClick={generate}
           disabled={generating || articles.length === 0}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="border border-foreground bg-foreground px-6 py-3 text-[14px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
         >
-          {generating ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Génération en
-              cours...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" /> Générer la revue de presse
-            </>
-          )}
+          {generating ? "Génération en cours…" : "Générer la revue de presse →"}
         </button>
       )}
 
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <p className="border-l-2 border-accent pl-4 text-[13px] text-accent">
           {error}
-        </div>
+        </p>
       )}
 
-      {reviewText && <ReviewPreview text={reviewText} />}
+      {reviewText && (
+        <section>
+          <h2 className="mb-4 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+            Résultat
+          </h2>
+          <ReviewPreview text={reviewText} />
+        </section>
+      )}
     </div>
   );
 }

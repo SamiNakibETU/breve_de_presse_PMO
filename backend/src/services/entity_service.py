@@ -1,12 +1,13 @@
 """
 Named Entity upsert service.
-Handles deduplication on (name, entity_type) and article linking.
+Uses PostgreSQL ON CONFLICT for safe concurrent access.
 """
 
 import uuid
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.entity import ArticleEntity, Entity
@@ -20,10 +21,13 @@ async def upsert_entities(
     entities_raw: list[dict],
 ) -> int:
     """
-    Upsert entities from LLM output and link them to the article.
-    Returns count of entities processed.
+    Upsert entities and link them to the article using ON CONFLICT
+    to avoid deadlocks and duplicate-key errors under concurrency.
     """
     count = 0
+    valid_types = frozenset(
+        {"PERSON", "ORG", "GPE", "EVENT", "WEAPON_SYSTEM", "TREATY", "OTHER"}
+    )
 
     for raw in entities_raw:
         name = raw.get("name", "").strip()
@@ -33,42 +37,43 @@ async def upsert_entities(
         if not name:
             continue
 
-        valid_types = {"PERSON", "ORG", "GPE", "EVENT", "WEAPON_SYSTEM", "TREATY", "OTHER"}
         if entity_type not in valid_types:
             entity_type = "OTHER"
 
-        result = await db.execute(
-            select(Entity).where(Entity.name == name, Entity.entity_type == entity_type)
-        )
-        entity = result.scalar_one_or_none()
-
-        if entity:
-            entity.mention_count += 1
-            if name_fr and not entity.name_fr:
-                entity.name_fr = name_fr
-        else:
-            entity = Entity(
+        stmt = (
+            pg_insert(Entity)
+            .values(
+                id=uuid.uuid4(),
                 name=name,
                 name_fr=name_fr,
                 entity_type=entity_type,
+                mention_count=1,
             )
-            db.add(entity)
-            await db.flush()
-
-        existing_link = await db.execute(
-            select(ArticleEntity).where(
-                ArticleEntity.article_id == article_id,
-                ArticleEntity.entity_id == entity.id,
+            .on_conflict_do_update(
+                constraint="uq_entity_name_type",
+                set_={
+                    "mention_count": Entity.mention_count + 1,
+                    "name_fr": text(
+                        "COALESCE(NULLIF(entities.name_fr, ''), EXCLUDED.name_fr)"
+                    ),
+                },
             )
+            .returning(Entity.id)
         )
-        if not existing_link.scalar_one_or_none():
-            db.add(
-                ArticleEntity(
-                    article_id=article_id,
-                    entity_id=entity.id,
-                    context=raw.get("context"),
-                )
+
+        result = await db.execute(stmt)
+        entity_id = result.scalar_one()
+
+        link_stmt = (
+            pg_insert(ArticleEntity)
+            .values(
+                article_id=article_id,
+                entity_id=entity_id,
+                context=raw.get("context"),
             )
+            .on_conflict_do_nothing()
+        )
+        await db.execute(link_stmt)
 
         count += 1
 

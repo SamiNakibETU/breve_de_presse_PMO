@@ -3,13 +3,6 @@
 import { useState } from "react";
 import type { Article } from "@/lib/types";
 import { ConfidenceBadge } from "./confidence-badge";
-import {
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Check,
-  Plus,
-} from "lucide-react";
 
 interface ArticleCardProps {
   article: Article;
@@ -23,106 +16,113 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
   const date = article.published_at
     ? new Date(article.published_at).toLocaleDateString("fr-FR", {
         day: "numeric",
-        month: "short",
+        month: "long",
         year: "numeric",
       })
     : null;
 
   return (
-    <div
-      className={`rounded-lg border bg-card transition-colors ${
-        selected ? "border-primary/50 bg-primary/5" : "border-border"
+    <article
+      className={`border-b border-border-light transition-colors ${
+        selected ? "bg-accent/[0.04]" : ""
       }`}
     >
-      <div className="flex items-start gap-3 p-4">
+      <div className="flex items-start gap-3 py-3">
         <button
           onClick={() => onToggle(article.id)}
-          className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border transition-colors ${
+          aria-label={selected ? "Désélectionner" : "Sélectionner"}
+          className={`mt-1 flex h-4 w-4 flex-shrink-0 items-center justify-center border transition-colors ${
             selected
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border hover:border-primary"
+              ? "border-accent bg-accent"
+              : "border-border hover:border-foreground"
           }`}
         >
-          {selected && <Check className="h-3 w-3" />}
+          {selected && (
+            <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-white">
+              <path
+                d="M2 6l3 3 5-5"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+              />
+            </svg>
+          )}
         </button>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-semibold leading-snug">
+          <div className="flex items-start justify-between gap-4">
+            <h3
+              className="cursor-pointer text-[14px] font-semibold leading-snug text-foreground hover:text-accent"
+              onClick={() => setExpanded(!expanded)}
+            >
               {article.title_fr || article.title_original}
             </h3>
             <ConfidenceBadge score={article.translation_confidence} />
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground/70">
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[12px] text-muted-foreground">
+            <span className="font-medium text-foreground/80">
               {article.media_name}
             </span>
+            <span className="text-border">&mdash;</span>
             <span>{article.country}</span>
-            {article.author && <span>{article.author}</span>}
-            {date && <span>{date}</span>}
+            {article.author && (
+              <>
+                <span className="text-border">&mdash;</span>
+                <span>{article.author}</span>
+              </>
+            )}
+            {date && (
+              <>
+                <span className="text-border">&mdash;</span>
+                <span>{date}</span>
+              </>
+            )}
             {article.article_type && (
-              <span className="rounded bg-muted px-1.5 py-0.5 capitalize">
+              <span className="ml-1 border border-border-light px-1.5 py-px text-[11px] uppercase tracking-wider">
                 {article.article_type}
               </span>
             )}
           </div>
 
           {expanded && (
-            <div className="mt-3 space-y-2 text-sm">
+            <div className="mt-3 max-w-[var(--max-width-reading)] space-y-3 border-l-2 border-border pl-4">
               {article.thesis_summary_fr && (
-                <p>
-                  <span className="font-medium">Thèse :</span>{" "}
+                <p className="text-[13px] font-medium italic text-foreground">
                   {article.thesis_summary_fr}
                 </p>
               )}
               {article.summary_fr && (
-                <p className="text-muted-foreground">{article.summary_fr}</p>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  {article.summary_fr}
+                </p>
               )}
               {article.key_quotes_fr && article.key_quotes_fr.length > 0 && (
-                <div>
-                  <span className="text-xs font-medium">Citations :</span>
+                <div className="space-y-1">
                   {article.key_quotes_fr.map((q, i) => (
-                    <p key={i} className="ml-2 italic text-muted-foreground">
+                    <p
+                      key={i}
+                      className="text-[13px] italic text-muted-foreground before:content-['«\00a0'] after:content-['\00a0»']"
+                    >
                       {q}
                     </p>
                   ))}
                 </div>
               )}
-              {article.translation_notes && (
-                <p className="text-xs text-warning">
-                  Note : {article.translation_notes}
-                </p>
+              {article.url && (
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-[12px] text-accent underline underline-offset-2"
+                >
+                  Article original ↗
+                </a>
               )}
             </div>
           )}
-
-          <div className="mt-2 flex items-center gap-3">
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="h-3 w-3" /> Réduire
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-3 w-3" /> Détails
-                </>
-              )}
-            </button>
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-            >
-              <ExternalLink className="h-3 w-3" /> Original
-            </a>
-          </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

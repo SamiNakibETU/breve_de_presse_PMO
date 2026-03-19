@@ -5,7 +5,7 @@ const COUNTRIES: Record<string, string> = {
   IL: "Israël",
   IR: "Iran",
   AE: "EAU",
-  SA: "Arabie Saoudite",
+  SA: "Arabie saoudite",
   TR: "Turquie",
   IQ: "Irak",
   SY: "Syrie",
@@ -46,12 +46,12 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
+    <div className="space-y-4 border-b border-border pb-4">
       <div>
-        <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
           Pays
-        </label>
-        <div className="flex flex-wrap gap-1.5">
+        </p>
+        <div className="flex flex-wrap gap-1">
           {Object.entries(COUNTRIES).map(([code, name]) => (
             <button
               key={code}
@@ -61,10 +61,10 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
                   countries: toggleItem(filters.countries, code),
                 })
               }
-              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`border px-2 py-1 text-[12px] font-medium transition-colors ${
                 filters.countries.includes(code)
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-border"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border-light text-muted-foreground hover:border-foreground hover:text-foreground"
               }`}
             >
               {name}
@@ -74,10 +74,10 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
       </div>
 
       <div>
-        <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
-          Type d&apos;article
-        </label>
-        <div className="flex flex-wrap gap-1.5">
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+          Type
+        </p>
+        <div className="flex flex-wrap gap-1">
           {Object.entries(ARTICLE_TYPES).map(([type, label]) => (
             <button
               key={type}
@@ -87,10 +87,10 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
                   types: toggleItem(filters.types, type),
                 })
               }
-              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`border px-2 py-1 text-[12px] font-medium transition-colors ${
                 filters.types.includes(type)
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-border"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border-light text-muted-foreground hover:border-foreground hover:text-foreground"
               }`}
             >
               {label}
@@ -99,10 +99,10 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
         </div>
       </div>
 
-      <div>
-        <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
-          Confiance min. : {Math.round(filters.minConfidence * 100)}%
-        </label>
+      <div className="flex items-center gap-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+          Confiance min.
+        </p>
         <input
           type="range"
           min={0}
@@ -115,8 +115,11 @@ export function ArticleFilters({ filters, onChange }: ArticleFiltersProps) {
               minConfidence: parseInt(e.target.value, 10) / 100,
             })
           }
-          className="w-full accent-primary"
+          className="w-32 accent-accent"
         />
+        <span className="tabular-nums text-[12px] text-muted-foreground">
+          {Math.round(filters.minConfidence * 100)} %
+        </span>
       </div>
     </div>
   );
