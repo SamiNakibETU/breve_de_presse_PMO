@@ -3,11 +3,13 @@ FastAPI application factory with lifespan, CORS, structured logging, and schedul
 """
 
 import logging
+import traceback
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.config import get_settings
 from src.database import init_db
@@ -78,6 +80,19 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        structlog.get_logger().error(
+            "unhandled_error",
+            path=str(request.url),
+            error=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(exc)},
+        )
 
     app.include_router(health.router)
     app.include_router(articles.router)

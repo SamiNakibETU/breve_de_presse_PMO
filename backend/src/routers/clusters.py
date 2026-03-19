@@ -25,13 +25,16 @@ router = APIRouter(prefix="/api/clusters", tags=["clusters"])
 
 @router.get("", response_model=ClusterListResponse)
 async def list_clusters(db: AsyncSession = Depends(get_db)):
-    stmt = (
-        select(TopicCluster)
-        .where(TopicCluster.is_active == True)
-        .order_by(TopicCluster.avg_relevance.desc())
-    )
-    result = await db.execute(stmt)
-    clusters = result.scalars().all()
+    try:
+        stmt = (
+            select(TopicCluster)
+            .where(TopicCluster.is_active == True)
+            .order_by(TopicCluster.avg_relevance.desc())
+        )
+        result = await db.execute(stmt)
+        clusters = result.scalars().all()
+    except Exception:
+        return ClusterListResponse(clusters=[], total=0, noise_count=0)
 
     cluster_responses = []
     for cluster in clusters:
@@ -63,12 +66,16 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
             )
         )
 
-    noise_stmt = select(func.count(Article.id)).where(
-        Article.embedding.isnot(None),
-        Article.cluster_id.is_(None),
-    )
-    noise_result = await db.execute(noise_stmt)
-    noise_count = noise_result.scalar() or 0
+    noise_count = 0
+    try:
+        noise_stmt = select(func.count(Article.id)).where(
+            Article.embedding.isnot(None),
+            Article.cluster_id.is_(None),
+        )
+        noise_result = await db.execute(noise_stmt)
+        noise_count = noise_result.scalar() or 0
+    except Exception:
+        pass
 
     return ClusterListResponse(
         clusters=cluster_responses,
