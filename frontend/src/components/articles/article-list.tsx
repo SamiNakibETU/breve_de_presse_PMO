@@ -18,11 +18,11 @@ export function ArticleList({
 }: ArticleListProps) {
   if (loading) {
     return (
-      <div className="space-y-0 border-t border-border">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="border-t border-border-light/60">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="h-16 animate-pulse border-b border-border-light bg-muted/30"
+            className="h-20 animate-pulse border-b border-border-light/40"
           />
         ))}
       </div>
@@ -31,14 +31,14 @@ export function ArticleList({
 
   if (articles.length === 0) {
     return (
-      <div className="border-t border-border py-12 text-center text-[13px] text-muted-foreground">
-        Aucun article avec ces critères.
+      <div className="border-t border-border-light/60 py-16 font-mono text-center text-[12px] text-muted-foreground">
+        Aucun article avec ces critères
       </div>
     );
   }
 
   return (
-    <div className="border-t border-border">
+    <div className="border-t border-border-light/60">
       {articles.map((a) => (
         <ArticleCard
           key={a.id}

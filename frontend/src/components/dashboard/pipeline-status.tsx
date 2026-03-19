@@ -10,21 +10,9 @@ interface PipelineStatusProps {
 }
 
 const ACTIONS = [
-  {
-    key: "collect",
-    label: "Collecte RSS",
-    fn: () => api.triggerCollect(),
-  },
-  {
-    key: "translate",
-    label: "Traduction",
-    fn: () => api.triggerTranslate(),
-  },
-  {
-    key: "pipeline",
-    label: "Pipeline complet",
-    fn: () => api.triggerPipeline(),
-  },
+  { key: "collect", label: "Collecte", fn: () => api.triggerCollect() },
+  { key: "translate", label: "Traduction", fn: () => api.triggerTranslate() },
+  { key: "pipeline", label: "Pipeline", fn: () => api.triggerPipeline() },
 ] as const;
 
 export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
@@ -39,44 +27,43 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
       setResult(JSON.stringify(data, null, 2));
       onRefresh();
     } catch (err) {
-      setResult(
-        err instanceof Error ? err.message : "Erreur"
-      );
+      setResult(err instanceof Error ? err.message : "Erreur");
     } finally {
       setRunning(null);
     }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+    <div>
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+        Actions
+      </p>
+      <div className="mt-3 flex flex-col gap-1">
         {ACTIONS.map(({ key, label, fn }) => (
           <button
             key={key}
             onClick={() => run(key, fn)}
             disabled={running !== null}
-            className="border border-border-light px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:border-foreground/40 disabled:opacity-40"
+            className="w-full text-left font-mono text-[11px] tracking-wider text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
-            {running === key ? "En cours…" : label}
+            {running === key ? "…" : label}
           </button>
         ))}
       </div>
 
       {status?.jobs && status.jobs.length > 0 && (
-        <div className="border-t border-border-light pt-4">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Tâches programmées
+        <div className="mt-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            Tâches
           </p>
-          <div className="space-y-1">
+          <div className="mt-2 space-y-1">
             {status.jobs.map((job) => (
               <div
                 key={job.id}
-                className="flex items-baseline justify-between text-[13px]"
+                className="flex justify-between font-mono text-[11px] text-muted-foreground"
               >
-                <span className="text-foreground">{job.name}</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {job.next_run}
-                </span>
+                <span>{job.name}</span>
+                <span className="tabular-nums">{job.next_run}</span>
               </div>
             ))}
           </div>
@@ -84,7 +71,7 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
       )}
 
       {result && (
-        <pre className="overflow-x-auto border border-border-light bg-surface p-4 text-[12px] leading-relaxed text-muted-foreground">
+        <pre className="mt-6 overflow-x-auto font-mono text-[10px] leading-relaxed text-muted-foreground">
           {result}
         </pre>
       )}

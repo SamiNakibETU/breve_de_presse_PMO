@@ -79,23 +79,23 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <header className="flex items-end justify-between">
+    <div className="mx-auto max-w-[var(--max-width-page)] px-[var(--spacing-page)] pt-12 pb-32">
+      <header className="mb-14 flex items-end justify-between gap-8">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             Génération
           </p>
-          <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight">
+          <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-[1.2] tracking-tight text-foreground">
             Revue de presse
           </h1>
-          <p className="mt-1 text-[14px] text-muted-foreground">
+          <p className="mt-1.5 font-mono text-[12px] text-muted-foreground">
             Sélectionner, générer et exporter au format OLJ
           </p>
         </div>
         {history.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="border-b border-transparent px-0 pb-0.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
             Historique ({history.length})
           </button>
@@ -103,33 +103,31 @@ export default function ReviewPage() {
       </header>
 
       {showHistory && (
-        <section className="border-t border-border-light pt-6">
-          <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+        <section className="mb-12 border-t border-border-light/60 pt-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             Revues précédentes
           </p>
-          <div className="space-y-0">
+          <div className="mt-3">
             {history.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => loadHistoryItem(r)}
-              className="flex w-full items-baseline justify-between border-b border-border-light py-2.5 text-left text-[13px] transition-colors hover:text-foreground"
-            >
-              <span className="font-medium">
-                {r.title || r.review_date}
-              </span>
-              <span className="text-[12px] tabular-nums text-muted-foreground">
-                {r.article_count} article{r.article_count > 1 ? "s" : ""}
-              </span>
-            </button>
-          ))}
+              <button
+                key={r.id}
+                onClick={() => loadHistoryItem(r)}
+                className="flex w-full items-baseline justify-between border-b border-border-light/50 py-2.5 text-left font-mono text-[12px] transition-colors hover:text-foreground"
+              >
+                <span className="font-medium text-foreground">{r.title || r.review_date}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {r.article_count} art.
+                </span>
+              </button>
+            ))}
           </div>
         </section>
       )}
 
-      <section>
-        <h2 className="mb-3 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-          Articles sélectionnés — {articles.length}
-        </h2>
+      <section className="mb-12">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          Sélection — {articles.length} article{articles.length !== 1 ? "s" : ""}
+        </p>
         <SelectedArticles articles={articles} onRemove={removeArticle} />
       </section>
 
@@ -137,23 +135,20 @@ export default function ReviewPage() {
         <button
           onClick={generate}
           disabled={generating || articles.length === 0}
-          className="border border-foreground bg-foreground px-6 py-3 text-[14px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+          className="font-mono text-[11px] tracking-wider text-foreground underline decoration-accent underline-offset-2 hover:text-accent disabled:opacity-40 disabled:no-underline"
         >
-          {generating ? "Génération en cours…" : "Générer la revue de presse →"}
+          {generating ? "Génération…" : "Générer la revue →"}
         </button>
       )}
 
       {error && (
-        <p className="border-l-2 border-accent pl-4 text-[13px] text-accent">
+        <p className="mt-10 border-l-2 border-accent pl-4 font-mono text-[12px] text-accent">
           {error}
         </p>
       )}
 
       {reviewText && (
-        <section>
-          <h2 className="mb-4 text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-            Résultat
-          </h2>
+        <section className="mt-20">
           <ReviewPreview text={reviewText} />
         </section>
       )}

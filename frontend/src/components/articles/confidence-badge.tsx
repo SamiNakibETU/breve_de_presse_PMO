@@ -7,8 +7,8 @@ export function ConfidenceBadge({ score }: ConfidenceBadgeProps) {
 
   const pct = Math.round(score * 100);
   return (
-    <span className="tabular-nums text-[12px] font-medium text-muted-foreground">
-      {pct} %
+    <span className="font-mono tabular-nums text-[11px] text-muted-foreground">
+      {pct}%
     </span>
   );
 }

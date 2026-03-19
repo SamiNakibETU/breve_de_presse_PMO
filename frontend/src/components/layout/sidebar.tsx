@@ -14,19 +14,19 @@ export function Masthead() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border-light bg-background">
-      <div className="mx-auto flex max-w-[var(--max-width-page)] items-baseline justify-between px-[var(--spacing-page)] py-3">
-        <Link href="/" className="flex items-baseline gap-2">
-          <span className="font-serif text-xl font-bold tracking-tight text-foreground">
+    <header className="sticky top-0 z-30 border-b border-border-light/80 bg-background/98">
+      <div className="mx-auto flex max-w-[var(--max-width-page)] items-end justify-between gap-8 px-[var(--spacing-page)] pt-4 pb-2.5">
+        <Link href="/" className="flex flex-col gap-0.5">
+          <span className="font-serif text-[1.35rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
             L&rsquo;Orient-Le Jour
           </span>
-          <span className="hidden text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground sm:inline">
+          <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">
             Revue de presse
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1">
-          {NAV_ITEMS.map(({ href, label }) => {
+        <nav className="flex items-baseline gap-0">
+          {NAV_ITEMS.map(({ href, label }, i) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -35,10 +35,11 @@ export function Masthead() {
                 key={href}
                 href={href}
                 className={cn(
-                  "px-3 py-1.5 text-[13px] font-medium tracking-wide transition-colors",
+                  "inline-block font-mono text-[11px] tracking-[0.12em] transition-colors",
+                  i > 0 && "border-l border-border-light/70 pl-4 ml-4",
                   active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground/80"
                 )}
               >
                 {label}

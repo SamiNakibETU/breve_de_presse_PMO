@@ -38,24 +38,27 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3 border-b border-border-light pb-3">
+    <div>
+      <div className="mb-10 flex items-baseline gap-6 border-b border-border-light/60 pb-4">
         <button
           onClick={copyToClipboard}
-          className="border border-foreground px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-foreground hover:text-background"
+          className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground underline underline-offset-2 hover:text-foreground"
         >
-          {copied ? "Copié ✓" : "Copier le texte"}
+          {copied ? "Copié" : "Copier"}
         </button>
         <button
           onClick={download}
-          className="border border-border-light px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:border-foreground/40"
+          className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground underline underline-offset-2 hover:text-foreground"
         >
           Télécharger .txt
         </button>
       </div>
 
-      <article className="mx-auto max-w-[var(--max-width-reading)] font-serif">
-        <div className="whitespace-pre-wrap text-[15px] leading-[1.75] text-foreground">
+      <article
+        className="mx-auto max-w-[var(--max-width-reading)] font-serif"
+        style={{ fontFamily: "var(--font-editorial, Georgia), serif" }}
+      >
+        <div className="whitespace-pre-wrap text-[16px] leading-[1.85] tracking-tight text-foreground">
           {text}
         </div>
       </article>

@@ -13,12 +13,12 @@ type StatKey = keyof Pick<
 >;
 
 const STATS: { key: StatKey; label: string }[] = [
-  { key: "total_collected_24h", label: "Collectés (24 h)" },
+  { key: "total_collected_24h", label: "Collectés (24h)" },
   { key: "total_translated", label: "Traduits" },
   { key: "total_pending", label: "En attente" },
   { key: "total_errors", label: "Erreurs" },
   { key: "total_needs_review", label: "À relire" },
-  { key: "countries_covered", label: "Pays couverts" },
+  { key: "countries_covered", label: "Pays" },
 ];
 
 interface StatsCardsProps {
@@ -28,15 +28,15 @@ interface StatsCardsProps {
 
 export function StatsCards({ stats, loading }: StatsCardsProps) {
   return (
-    <div className="border-t border-border-light pt-2">
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-[13px]">
-        {STATS.map(({ key, label }) => (
-          <div key={key} className="flex items-baseline gap-1.5">
-            <span className="text-muted-foreground">{label}</span>
-            <span className="tabular-nums font-medium text-foreground">
+    <div className="font-mono text-[12px]">
+      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
+        {STATS.map(({ key, label }, i) => (
+          <span key={key} className={i > 0 ? "text-muted-foreground" : ""}>
+            <span className="text-foreground/70">{label}</span>
+            <span className="ml-1 tabular-nums font-medium text-foreground">
               {loading ? "—" : (stats?.[key] ?? 0)}
             </span>
-          </div>
+          </span>
         ))}
       </div>
     </div>
