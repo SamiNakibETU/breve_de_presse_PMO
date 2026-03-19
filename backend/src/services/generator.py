@@ -1,7 +1,6 @@
 """
 OLJ format press review generator using hybrid LLM routing (async).
-Default: Groq Llama 3.3 70B for generation, falls back to Anthropic if unavailable.
-Generates the final copy-paste-ready block and persists reviews.
+Generates copy-paste-ready blocks matching Emilie's exact format.
 """
 
 import json
@@ -67,46 +66,51 @@ COUNTRY_MAP = {
 }
 
 OLJ_SYSTEM_PROMPT = """Tu es rédacteur en chef adjoint à L'Orient-Le Jour, quotidien \
-francophone libanais de référence. Tu produis le bloc texte final de la revue de presse \
+francophone libanais de référence. Tu produis un bloc texte pour la revue de presse \
 régionale quotidienne.
 
-FORMAT EXACT à produire (respecte-le à la lettre) :
+FORMAT EXACT à produire — respecte-le à la lettre, sans rien ajouter :
 
-« [Titre synthétique reformulé — Thèse de l'auteur en une phrase] »
+« [Phrase-thèse percutante qui capture la conviction de l'auteur] »
 
-Résumé : [Résumé de 150-200 mots exactement. Ton neutre, restitution fidèle de l'argument \
-de l'auteur. Français soutenu mais accessible. Présent de narration. Attribution systématique.]
+Résumé : [Résumé de 150 à 200 mots EXACTEMENT. Ton neutre, restitution fidèle. \
+Français soutenu mais accessible. Présent de narration. Attribution systématique.]
 
 Fiche :
 Article publié dans [nom exact du média]
-Le [date au format : JJ mois AAAA, ex: 18 mars 2026]
-Langue originale : [langue en toutes lettres : arabe/anglais/hébreu/persan/turc/français/kurde]
-Pays du média : [pays en français]
+Le [JJ mois AAAA]
+Langue originale : [langue]
+Pays du média : [pays]
 Nom de l'auteur : [auteur ou "Éditorial non signé"]
 
 RÈGLES ABSOLUES :
-1. Le titre entre « » DOIT être reformulé en français, JAMAIS traduit littéralement
-2. La thèse après le tiret résume la position de l'auteur en max 10 mots
-3. Le résumé DOIT faire entre 150 et 200 mots — compte précisément
-4. Aucun jugement de valeur — restitution strictement fidèle
-5. Guillemets français « » pour toute citation
-6. Translittération simplifiée des noms propres arabes
-7. Si l'article est une opinion/tribune : "L'auteur estime que...", "Selon le chroniqueur..."
-8. Si l'article est une analyse factuelle : "L'analyste rapporte que...", "Selon les sources citées..."
-9. Le format de date dans la Fiche est TOUJOURS "JJ mois AAAA" en français
-10. TOUT le texte doit être en français. AUCUN mot anglais, arabe, hébreu ou autre langue \
-étrangère ne doit apparaître dans le bloc final, SAUF les noms propres (personnes, lieux, \
-organisations). Les citations DOIVENT être traduites en français entre guillemets « ».
-11. Si une citation originale est en anglais ou autre langue, traduis-la en français. \
-Ne reproduis JAMAIS une citation en langue étrangère.
+1. Le titre entre « » est UNE PHRASE assertive qui capture la conviction de l'auteur, \
+comme s'il la prononçait. PAS un résumé en deux parties avec tiret. PAS un titre \
+d'article. UNE PHRASE-THÈSE percutante. Exemples corrects : \
+« La guerre contre les pays du Golfe est une hérésie » \
+« Le régime iranien sortira encore plus radicalisé de cette guerre » \
+« Le gouvernement israélien veut rétablir le Grand Israël, et voilà tout »
+2. Le résumé fait STRICTEMENT entre 150 et 200 mots — COMPTE PRÉCISÉMENT
+3. Restitution strictement fidèle, aucun jugement de valeur
+4. Guillemets français « » pour toute citation
+5. Si opinion/tribune : "L'auteur estime que...", "Selon le chroniqueur..."
+6. Si analyse factuelle : "L'analyste rapporte que...", "Selon les sources citées..."
+7. TOUT le texte en français. Traduire TOUTES les citations. AUCUN texte en langue \
+étrangère sauf noms propres.
+8. Translittération simplifiée des noms propres arabes
 
-Produis UNIQUEMENT le bloc formaté, sans commentaire ni explication."""
+Produis UNIQUEMENT le bloc formaté. PAS de commentaire. PAS de "Voici le bloc". \
+PAS de séparateur. RIEN d'autre que le bloc."""
 
 
 def _format_date_fr(dt: datetime | None) -> str:
     if not dt:
         return "Date inconnue"
     return f"{dt.day} {MOIS_FR.get(dt.month, '')} {dt.year}"
+
+
+def _count_words(text: str) -> int:
+    return len(text.split())
 
 
 class PressReviewGenerator:
@@ -134,7 +138,7 @@ class PressReviewGenerator:
 
 TITRE ORIGINAL : {article.title_original}
 TITRE TRADUIT : {article.title_fr or article.title_original}
-THÈSE RÉSUMÉE : {article.thesis_summary_fr or 'Non disponible'}
+THÈSE DE L'AUTEUR : {article.thesis_summary_fr or 'Non disponible'}
 RÉSUMÉ EXISTANT : {article.summary_fr or 'Non disponible'}
 CITATIONS CLÉS : {json.dumps(article.key_quotes_fr or [], ensure_ascii=False)}
 TYPE D'ARTICLE : {article.article_type or 'opinion'}
@@ -146,8 +150,9 @@ INFORMATIONS FICHE :
 - Pays du média : {pays}
 - Auteur : {article.author or 'Éditorial non signé'}
 
-Produis le bloc OLJ final, en retravaillant le résumé existant si nécessaire \
-pour qu'il atteigne exactement 150-200 mots et respecte parfaitement le style OLJ."""
+RAPPEL : le titre entre « » doit être UNE PHRASE-THÈSE assertive et percutante \
+qui capture la conviction de l'auteur. PAS un résumé avec tiret. \
+Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
 
         formatted_block = await self._router.generate(
             system=OLJ_SYSTEM_PROMPT,
@@ -155,6 +160,16 @@ pour qu'il atteigne exactement 150-200 mots et respecte parfaitement le style OL
             max_tokens=1000,
         )
         formatted_block = formatted_block.strip()
+
+        summary_section = self._extract_summary(formatted_block)
+        if summary_section:
+            wc = _count_words(summary_section)
+            if wc < 140 or wc > 220:
+                logger.warning(
+                    "generator.word_count_off",
+                    article_id=str(article_id),
+                    word_count=wc,
+                )
 
         async with self._factory() as db:
             art = await db.get(Article, article_id)
@@ -166,8 +181,20 @@ pour qu'il atteigne exactement 150-200 mots et respecte parfaitement le style OL
         logger.info("generator.block_done", article_id=str(article_id))
         return formatted_block
 
+    @staticmethod
+    def _extract_summary(block: str) -> str | None:
+        lines = block.split("\n")
+        for i, line in enumerate(lines):
+            if line.strip().startswith("Résumé"):
+                text = line.split(":", 1)[-1].strip()
+                for j in range(i + 1, len(lines)):
+                    if lines[j].strip().startswith("Fiche"):
+                        break
+                    text += " " + lines[j].strip()
+                return text.strip()
+        return None
+
     async def generate_full_review(self, article_ids: list[str]) -> dict:
-        """Generate complete review, persist it, and return the result."""
         blocks: list[str] = []
         for aid in article_ids:
             try:
@@ -179,12 +206,9 @@ pour qu'il atteigne exactement 150-200 mots et respecte parfaitement le style OL
                     f"[ERREUR : impossible de générer le bloc pour l'article {aid}]"
                 )
 
-        separator = "\n\n" + "\u2500" * 60 + "\n\n"
-        today = datetime.now(timezone.utc)
-        date_fr = f"{today.day} {MOIS_FR[today.month]} {today.year}"
-        header = f"REVUE DE PRESSE RÉGIONALE — {date_fr}\n\n"
-        full_text = header + separator.join(blocks)
+        full_text = "\n\n".join(blocks)
 
+        today = datetime.now(timezone.utc)
         review_id = await self._persist_review(article_ids, full_text, today)
 
         return {

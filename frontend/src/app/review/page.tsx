@@ -19,8 +19,7 @@ export default function ReviewPage() {
     const stored = sessionStorage.getItem("review_article_ids");
     if (stored) {
       try {
-        const ids = JSON.parse(stored) as string[];
-        setArticleIds(ids);
+        setArticleIds(JSON.parse(stored) as string[]);
       } catch {
         /* ignore */
       }
@@ -38,8 +37,7 @@ export default function ReviewPage() {
         status: "translated,formatted,needs_review",
         limit: "200",
       });
-      const selected = data.articles.filter((a) => articleIds.includes(a.id));
-      setArticles(selected);
+      setArticles(data.articles.filter((a) => articleIds.includes(a.id)));
     } catch {
       /* ignore */
     }
@@ -65,9 +63,7 @@ export default function ReviewPage() {
       const h = await api.reviews();
       setHistory(h.reviews);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Erreur lors de la génération"
-      );
+      setError(err instanceof Error ? err.message : "Erreur lors de la génération");
     } finally {
       setGenerating(false);
     }
@@ -79,23 +75,20 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[var(--max-width-page)] px-[var(--spacing-page)] pt-12 pb-32">
-      <header className="mb-14 flex items-end justify-between gap-8">
+    <div className="space-y-8">
+      <header className="flex items-end justify-between">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-            Génération
-          </p>
-          <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-[1.2] tracking-tight text-foreground">
+          <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight">
             Revue de presse
           </h1>
-          <p className="mt-1.5 font-mono text-[12px] text-muted-foreground">
-            Sélectionner, générer et exporter au format OLJ
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            Générer le bloc texte prêt à copier-coller dans le CMS
           </p>
         </div>
         {history.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            className="border border-border px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted"
           >
             Historique ({history.length})
           </button>
@@ -103,52 +96,53 @@ export default function ReviewPage() {
       </header>
 
       {showHistory && (
-        <section className="mb-12 border-t border-border-light/60 pt-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            Revues précédentes
-          </p>
-          <div className="mt-3">
-            {history.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => loadHistoryItem(r)}
-                className="flex w-full items-baseline justify-between border-b border-border-light/50 py-2.5 text-left font-mono text-[12px] transition-colors hover:text-foreground"
-              >
-                <span className="font-medium text-foreground">{r.title || r.review_date}</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {r.article_count} art.
-                </span>
-              </button>
-            ))}
+        <section className="border border-border">
+          <div className="border-b border-border px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+              Revues précédentes
+            </p>
           </div>
+          {history.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => loadHistoryItem(r)}
+              className="flex w-full items-baseline justify-between border-b border-border-light px-3 py-2 text-left text-[13px] hover:bg-muted"
+            >
+              <span className="font-medium">{r.title || r.review_date}</span>
+              <span className="tabular-nums text-[11px] text-muted-foreground">
+                {r.article_count}
+              </span>
+            </button>
+          ))}
         </section>
       )}
 
-      <section className="mb-12">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          Sélection — {articles.length} article{articles.length !== 1 ? "s" : ""}
-        </p>
+      <section>
+        <h2 className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+          Sélection — {articles.length} article{articles.length > 1 ? "s" : ""}
+        </h2>
         <SelectedArticles articles={articles} onRemove={removeArticle} />
       </section>
 
       {articles.length > 0 && (
         <button
           onClick={generate}
-          disabled={generating || articles.length === 0}
-          className="font-mono text-[11px] tracking-wider text-foreground underline decoration-accent underline-offset-2 hover:text-accent disabled:opacity-40 disabled:no-underline"
+          disabled={generating}
+          className="bg-accent px-6 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white hover:bg-accent/90 disabled:opacity-40"
         >
-          {generating ? "Génération…" : "Générer la revue →"}
+          {generating ? "Génération en cours…" : "Générer la revue →"}
         </button>
       )}
 
       {error && (
-        <p className="mt-10 border-l-2 border-accent pl-4 font-mono text-[12px] text-accent">
-          {error}
-        </p>
+        <p className="border-l-2 border-accent pl-3 text-[13px] text-accent">{error}</p>
       )}
 
       {reviewText && (
-        <section className="mt-20">
+        <section>
+          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+            Texte généré
+          </h2>
           <ReviewPreview text={reviewText} />
         </section>
       )}

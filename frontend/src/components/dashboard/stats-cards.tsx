@@ -13,11 +13,11 @@ type StatKey = keyof Pick<
 >;
 
 const STATS: { key: StatKey; label: string }[] = [
-  { key: "total_collected_24h", label: "Collectés (24h)" },
+  { key: "total_collected_24h", label: "Collectés" },
   { key: "total_translated", label: "Traduits" },
   { key: "total_pending", label: "En attente" },
-  { key: "total_errors", label: "Erreurs" },
   { key: "total_needs_review", label: "À relire" },
+  { key: "total_errors", label: "Erreurs" },
   { key: "countries_covered", label: "Pays" },
 ];
 
@@ -28,17 +28,17 @@ interface StatsCardsProps {
 
 export function StatsCards({ stats, loading }: StatsCardsProps) {
   return (
-    <div className="font-mono text-[12px]">
-      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
-        {STATS.map(({ key, label }, i) => (
-          <span key={key} className={i > 0 ? "text-muted-foreground" : ""}>
-            <span className="text-foreground/70">{label}</span>
-            <span className="ml-1 tabular-nums font-medium text-foreground">
-              {loading ? "—" : (stats?.[key] ?? 0)}
-            </span>
-          </span>
-        ))}
-      </div>
+    <div className="grid grid-cols-3 border-t border-l border-border sm:grid-cols-6">
+      {STATS.map(({ key, label }) => (
+        <div key={key} className="border-r border-b border-border px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-0.5 font-[family-name:var(--font-serif)] text-[22px] font-semibold tabular-nums">
+            {loading ? "—" : (stats?.[key] ?? 0)}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

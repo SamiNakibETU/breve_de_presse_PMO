@@ -14,19 +14,21 @@ export function Masthead() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border-light/80 bg-background/98">
-      <div className="mx-auto flex max-w-[var(--max-width-page)] items-end justify-between gap-8 px-[var(--spacing-page)] pt-4 pb-2.5">
-        <Link href="/" className="flex flex-col gap-0.5">
-          <span className="font-serif text-[1.35rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
-            L&rsquo;Orient-Le Jour
-          </span>
-          <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">
-            Revue de presse
-          </span>
-        </Link>
+    <header className="border-b border-border bg-background">
+      <div className="mx-auto max-w-5xl px-5">
+        <div className="flex items-baseline justify-between py-4">
+          <Link href="/" className="flex items-baseline gap-3">
+            <span className="font-[family-name:var(--font-narrow)] text-2xl font-semibold tracking-tight text-foreground">
+              L&rsquo;Orient-Le Jour
+            </span>
+            <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-accent sm:inline">
+              Revue de presse
+            </span>
+          </Link>
+        </div>
 
-        <nav className="flex items-baseline gap-0">
-          {NAV_ITEMS.map(({ href, label }, i) => {
+        <nav className="-mb-px flex gap-0">
+          {NAV_ITEMS.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -35,17 +37,13 @@ export function Masthead() {
                 key={href}
                 href={href}
                 className={cn(
-                  "inline-block font-mono text-[11px] tracking-[0.12em] transition-colors",
-                  i > 0 && "border-l border-border-light/70 pl-4 ml-4",
+                  "border-b-2 px-4 pb-2.5 text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors",
                   active
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground/80"
+                    ? "border-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 {label}
-                {active && (
-                  <span className="mt-1 block h-px bg-accent" />
-                )}
               </Link>
             );
           })}

@@ -45,94 +45,82 @@ export default function DashboardPage() {
   const today = new Date();
   const dateStr = today.toLocaleDateString("fr-FR", {
     weekday: "long",
-    year: "numeric",
-    month: "long",
     day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 
   return (
-    <div className="mx-auto max-w-[var(--max-width-page)] px-[var(--spacing-page)] pt-12 pb-20">
-      <header className="mb-16">
-        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-          Vue d&rsquo;ensemble
-        </p>
-        <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-[1.2] tracking-tight text-foreground">
+    <div className="space-y-10">
+      <header>
+        <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight">
           Revue de presse régionale
         </h1>
-        <p className="mt-1.5 text-[14px] text-muted-foreground">
+        <p className="mt-1 text-[13px] capitalize text-muted-foreground">
           {dateStr}
         </p>
       </header>
 
       {error && (
-        <p className="mb-10 border-l-2 border-accent pl-4 font-mono text-[12px] text-accent">
+        <p className="border-l-2 border-accent pl-3 text-[13px] text-accent">
           {error}
         </p>
       )}
 
-      <div className="grid gap-16 lg:grid-cols-[1fr_280px]">
-        <div>
-          <section className="mb-14">
-            <StatsCards stats={stats} loading={loading} />
-          </section>
+      <StatsCards stats={stats} loading={loading} />
 
-          {stats && (Object.keys(stats.by_country).length > 0 || Object.keys(stats.by_language).length > 0) && (
-            <div className="grid gap-12 sm:grid-cols-2">
-              {Object.keys(stats.by_country).length > 0 && (
-                <section>
-                  <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                    Par pays
-                  </h2>
-                  <div className="mt-3 space-y-0">
-                    {Object.entries(stats.by_country)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([country, count]) => (
-                        <div
-                          key={country}
-                          className="flex items-baseline justify-between py-1.5 font-mono text-[12px]"
-                        >
-                          <span className="text-foreground">{country}</span>
-                          <span className="tabular-nums text-muted-foreground">
-                            {count}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-              )}
+      <section>
+        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+          Pipeline
+        </h2>
+        <PipelineStatus status={status} onRefresh={load} />
+      </section>
 
-              {Object.keys(stats.by_language).length > 0 && (
-                <section>
-                  <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                    Par langue
-                  </h2>
-                  <div className="mt-3 space-y-0">
-                    {Object.entries(stats.by_language)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([lang, count]) => (
-                        <div
-                          key={lang}
-                          className="flex items-baseline justify-between py-1.5 font-mono text-[12px]"
-                        >
-                          <span className="text-foreground">
-                            {LANG_LABELS[lang] || lang}
-                          </span>
-                          <span className="tabular-nums text-muted-foreground">
-                            {count}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-              )}
-            </div>
+      {stats && (
+        <div className="grid gap-8 sm:grid-cols-2">
+          {Object.keys(stats.by_country).length > 0 && (
+            <section>
+              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                Par pays
+              </h2>
+              <div className="border-t border-border">
+                {Object.entries(stats.by_country)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([country, count]) => (
+                    <div
+                      key={country}
+                      className="flex items-baseline justify-between border-b border-border-light py-1.5 text-[13px]"
+                    >
+                      <span>{country}</span>
+                      <span className="tabular-nums font-medium">{count}</span>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )}
+
+          {Object.keys(stats.by_language).length > 0 && (
+            <section>
+              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                Par langue
+              </h2>
+              <div className="border-t border-border">
+                {Object.entries(stats.by_language)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([lang, count]) => (
+                    <div
+                      key={lang}
+                      className="flex items-baseline justify-between border-b border-border-light py-1.5 text-[13px]"
+                    >
+                      <span>{LANG_LABELS[lang] || lang.toUpperCase()}</span>
+                      <span className="tabular-nums font-medium">{count}</span>
+                    </div>
+                  ))}
+              </div>
+            </section>
           )}
         </div>
-
-        <aside className="lg:pl-8 lg:border-l lg:border-border-light/60">
-          <PipelineStatus status={status} onRefresh={load} />
-        </aside>
-      </div>
+      )}
     </div>
   );
 }

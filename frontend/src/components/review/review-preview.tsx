@@ -12,8 +12,6 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
   async function copyToClipboard() {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
       const textarea = document.createElement("textarea");
       textarea.value = text;
@@ -21,9 +19,9 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
       textarea.select();
       document.execCommand("copy");
       document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   function download() {
@@ -38,27 +36,24 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
   }
 
   return (
-    <div>
-      <div className="mb-10 flex items-baseline gap-6 border-b border-border-light/60 pb-4">
+    <div className="space-y-5">
+      <div className="flex gap-2">
         <button
           onClick={copyToClipboard}
-          className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          className="bg-accent px-4 py-2 text-[12px] font-bold uppercase tracking-wider text-white hover:bg-accent/90"
         >
-          {copied ? "Copié" : "Copier"}
+          {copied ? "Copié ✓" : "Copier"}
         </button>
         <button
           onClick={download}
-          className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          className="border border-border px-4 py-2 text-[12px] font-bold uppercase tracking-wider text-foreground hover:bg-muted"
         >
-          Télécharger .txt
+          Télécharger
         </button>
       </div>
 
-      <article
-        className="mx-auto max-w-[var(--max-width-reading)] font-serif"
-        style={{ fontFamily: "var(--font-editorial, Georgia), serif" }}
-      >
-        <div className="whitespace-pre-wrap text-[16px] leading-[1.85] tracking-tight text-foreground">
+      <article className="mx-auto max-w-xl border-t border-b border-border py-6">
+        <div className="whitespace-pre-wrap font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-foreground">
           {text}
         </div>
       </article>

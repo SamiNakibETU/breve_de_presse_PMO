@@ -64,7 +64,7 @@ def _extract_rss_summary(entry) -> Optional[str]:
     if not raw:
         return None
 
-        text = re.sub(r"<[^>]+>", " ", raw)
+    text = re.sub(r"<[^>]+>", " ", raw)
     text = re.sub(r"\s+", " ", text).strip()
 
     if len(text) < 80:
@@ -238,10 +238,30 @@ class RSSCollector:
     @staticmethod
     def _detect_language(text: str, source_languages: list[str]) -> str:
         try:
-            lang, _ = py3langid.classify(text)
-            return lang
+            detected, _ = py3langid.classify(text)
         except Exception:
             return source_languages[0] if source_languages else "unknown"
+
+        if not source_languages:
+            return detected
+
+        if detected in source_languages:
+            return detected
+
+        CONFUSED_PAIRS = {
+            frozenset({"ar", "fa"}),
+            frozenset({"ar", "ur"}),
+        }
+        for pair in CONFUSED_PAIRS:
+            if detected in pair:
+                overlap = pair & set(source_languages)
+                if overlap and detected not in set(source_languages):
+                    return next(iter(overlap))
+
+        if detected not in source_languages and len(source_languages) == 1:
+            return source_languages[0]
+
+        return detected
 
 
 async def run_collection() -> dict:

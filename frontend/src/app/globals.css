@@ -1,41 +1,90 @@
 @import "tailwindcss";
 
-/* Necto Mono — utilitaire, index, métadonnées, labels */
 @font-face {
-  font-family: "Necto Mono";
-  src: url("/fonts/NectoMono-Regular.woff2") format("woff2");
+  font-family: "Poynter";
+  src: url("/fonts/POYNTEROSDISP-ROMAN.TTF") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
-/* Light mode — fond papier, contrastes fins, pas de symétrie forcée */
+@font-face {
+  font-family: "Poynter";
+  src: url("/fonts/POYNTEROSDISP-SEMIBOLD.TTF") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Poynter";
+  src: url("/fonts/POYNTEROSDISP-ITALIC.TTF") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Poynter Narrow";
+  src: url("/fonts/POYNTEROSDISPNARROW-ROMAN.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Poynter Narrow";
+  src: url("/fonts/POYNTEROSDISPNARROW-SEMIBOLD.TTF") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Aktiv Grotesk";
+  src: url("/fonts/AKTIVGROTESK-HAIRLINE.OTF") format("opentype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
-  --color-background: #f6f5f2;
-  --color-foreground: #1a1917;
-  --color-muted: #e8e7e3;
-  --color-muted-foreground: #4a4946;
-  --color-border: #dddcd8;
-  --color-border-light: #e6e5e1;
-  --color-primary: #1a1917;
-  --color-primary-foreground: #f6f5f2;
-  --color-accent: #8b231c;
+  --color-background: #ffffff;
+  --color-foreground: #1a1a1a;
+  --color-muted: #f6f5f3;
+  --color-muted-foreground: #757575;
+  --color-border: #e0dfdb;
+  --color-border-light: #eeede9;
+  --color-primary: #1a1a1a;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #c8102e;
   --color-accent-foreground: #ffffff;
-  --color-destructive: #7a1510;
-  --color-success: #3a5148;
-  --color-warning: #5c4328;
+  --color-destructive: #b91c1c;
+  --color-success: #2d6a4f;
+  --color-warning: #92400e;
   --color-card: #ffffff;
-  --color-card-foreground: #1a1917;
-  --color-surface: #eeedea;
+  --color-card-foreground: #1a1a1a;
+  --color-surface: #f9f8f5;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Georgia", "Times New Roman", serif;
-  --font-mono: "Necto Mono", ui-monospace, monospace;
+  --font-serif: "Poynter", "Georgia", serif;
+  --font-narrow: "Poynter Narrow", "Georgia", serif;
+}
 
-  --spacing-page: 1.25rem;
-  --max-width-reading: 38rem;
-  --max-width-page: 68rem;
-  --max-width-narrow: 28rem;
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-background: #111110;
+    --color-foreground: #e8e6e1;
+    --color-muted: #1e1e1c;
+    --color-muted-foreground: #9a9a94;
+    --color-border: #2e2e2a;
+    --color-border-light: #252522;
+    --color-primary: #e8e6e1;
+    --color-primary-foreground: #111110;
+    --color-card: #181816;
+    --color-card-foreground: #e8e6e1;
+    --color-surface: #1a1a18;
+  }
 }
 
 * {
@@ -47,16 +96,10 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
   background: var(--color-accent);
   color: white;
-}
-
-/* Classes utilitaires éditoriales */
-.font-mono {
-  font-family: var(--font-mono);
 }

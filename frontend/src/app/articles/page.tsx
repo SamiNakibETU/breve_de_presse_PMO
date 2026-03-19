@@ -11,13 +11,17 @@ import {
 import { ArticleList } from "@/components/articles/article-list";
 
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
-  all_processed: {
-    label: "Traduits & formatés",
+  editorial: {
+    label: "Éditorial",
     value: "translated,formatted,needs_review",
   },
-  collected: { label: "Collectés (bruts)", value: "collected" },
+  all_processed: {
+    label: "Tous traduits",
+    value: "translated,formatted,needs_review",
+  },
+  collected: { label: "Bruts", value: "collected" },
   all: {
-    label: "Tous",
+    label: "Tout",
     value: "collected,translated,formatted,needs_review,error",
   },
 };
@@ -28,11 +32,11 @@ export default function ArticlesPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<string>("all_processed");
+  const [statusFilter, setStatusFilter] = useState<string>("editorial");
   const [filters, setFilters] = useState<Filters>({
     countries: [],
-    types: [],
-    minConfidence: 0,
+    types: ["opinion", "editorial", "tribune", "analysis"],
+    minConfidence: 0.7,
   });
 
   const load = useCallback(async () => {
@@ -80,30 +84,25 @@ export default function ArticlesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[var(--max-width-page)] px-[var(--spacing-page)] pt-12 pb-32">
-      <header className="mb-12">
-        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-          Index
-        </p>
-        <h1 className="mt-2 font-serif text-[2rem] font-semibold leading-[1.2] tracking-tight text-foreground">
+    <div className="space-y-5">
+      <header>
+        <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight">
           Articles
         </h1>
-        <p className="mt-1.5 font-mono text-[12px] text-muted-foreground">
-          {total} article{total !== 1 ? "s" : ""} disponible{total !== 1 ? "s" : ""}
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          {total} article{total !== 1 ? "s" : ""} &middot; Sélectionnez pour la revue
         </p>
       </header>
 
-      <div className="mb-8 flex items-baseline gap-0 border-b border-border-light/60 pb-1">
-        {Object.entries(STATUS_OPTIONS).map(([key, { label }], i) => (
+      <div className="flex items-center gap-0 border-b border-border">
+        {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
           <button
             key={key}
             onClick={() => setStatusFilter(key)}
-            className={`font-mono text-[11px] tracking-[0.12em] transition-colors ${
-              i > 0 ? "ml-6 pl-6 border-l border-border-light/60" : ""
-            } ${
+            className={`border-b-2 px-3 pb-2 text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors ${
               statusFilter === key
-                ? "text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground/80"
+                ? "border-accent text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {label}
@@ -121,24 +120,28 @@ export default function ArticlesPage() {
       />
 
       {selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border-light/80 bg-background/98 px-[var(--spacing-page)] py-3">
-          <div className="mx-auto flex max-w-[var(--max-width-page)] items-center justify-between">
-            <p className="font-mono text-[12px]">
-              <span className="font-medium text-foreground">{selected.size}</span>
-              <span className="text-muted-foreground"> sélectionné</span>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/97 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
+            <div className="flex items-center gap-3 text-[13px]">
+              <span className="font-[family-name:var(--font-serif)] text-[18px] font-semibold tabular-nums">
+                {selected.size}
+              </span>
+              <span className="text-muted-foreground">
+                article{selected.size > 1 ? "s" : ""} sélectionné{selected.size > 1 ? "s" : ""}
+              </span>
               <button
                 onClick={() => setSelected(new Set())}
-                className="ml-3 text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
               >
                 Effacer
               </button>
-            </p>
+            </div>
             <button
               onClick={goToReview}
               disabled={selected.size < 1 || selected.size > 10}
-              className="font-mono text-[11px] tracking-wider text-foreground underline decoration-accent underline-offset-2 hover:text-accent disabled:opacity-40 disabled:no-underline"
+              className="bg-accent px-5 py-2 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-accent/90 disabled:opacity-40"
             >
-              Générer la revue →
+              Générer la revue ({selected.size})
             </button>
           </div>
         </div>
