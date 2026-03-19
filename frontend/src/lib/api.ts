@@ -1,6 +1,9 @@
 import type {
   AppStatus,
   ArticleListResponse,
+  ClusterArticlesResponse,
+  ClusterListResponse,
+  ClusterRefreshResponse,
   GenerateReviewResult,
   MediaSource,
   ReviewSummary,
@@ -60,4 +63,14 @@ export const api = {
     request<{ reviews: ReviewSummary[] }>("/api/reviews"),
 
   review: (id: string) => request<ReviewSummary>(`/api/reviews/${id}`),
+
+  clusters: () => request<ClusterListResponse>("/api/clusters"),
+
+  clusterArticles: (clusterId: string) =>
+    request<ClusterArticlesResponse>(`/api/clusters/${clusterId}/articles`),
+
+  refreshClusters: () =>
+    request<ClusterRefreshResponse>("/api/clusters/refresh", {
+      method: "POST",
+    }),
 };

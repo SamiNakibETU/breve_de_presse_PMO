@@ -12,6 +12,7 @@ interface PipelineStatusProps {
 const ACTIONS = [
   { key: "collect", label: "Collecte", fn: () => api.triggerCollect() },
   { key: "translate", label: "Traduction", fn: () => api.triggerTranslate() },
+  { key: "refreshClusters", label: "Refresh clusters", fn: () => api.refreshClusters() },
   { key: "pipeline", label: "Pipeline complet", fn: () => api.triggerPipeline() },
 ] as const;
 

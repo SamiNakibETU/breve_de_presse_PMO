@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import get_settings
 from src.database import init_db
-from src.routers import articles, health, pipeline, reviews
+from src.routers import articles, clusters, health, pipeline, reviews
 from src.services.scheduler import create_scheduler
 
 settings = get_settings()
@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(articles.router)
+    app.include_router(clusters.router)
     app.include_router(pipeline.router)
     app.include_router(reviews.router)
 

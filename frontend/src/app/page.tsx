@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { AppStatus, Stats } from "@/lib/types";
+import type { AppStatus, ClusterListResponse, Stats } from "@/lib/types";
+import { ClusterList } from "@/components/clusters/cluster-list";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 
@@ -14,6 +15,7 @@ const LANG_LABELS: Record<string, string> = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
+  const [clusters, setClusters] = useState<ClusterListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,9 +23,10 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [s, st] = await Promise.all([api.stats(), api.status()]);
+      const [s, st, c] = await Promise.all([api.stats(), api.status(), api.clusters()]);
       setStats(s);
       setStatus(st);
+      setClusters(c);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de contacter le backend");
     } finally {
@@ -37,21 +40,22 @@ export default function DashboardPage() {
   const dateStr = today.toLocaleDateString("fr-FR", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
+  const subjectCount = clusters?.total ?? 0;
 
   return (
     <div className="space-y-10">
       <header>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
-          Revue de presse régionale
+          Sujets du jour
         </h1>
-        <p className="mt-1 text-[13px] capitalize text-[#888]">{dateStr}</p>
+        <p className="mt-1 text-[13px] capitalize text-[#888]">
+          {dateStr} · {subjectCount} sujet{subjectCount !== 1 ? "s" : ""}
+        </p>
       </header>
 
       {error && (
         <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">{error}</p>
       )}
-
-      <StatsCards stats={stats} loading={loading} />
 
       <section>
         <h2 className="mb-3 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
@@ -59,6 +63,16 @@ export default function DashboardPage() {
         </h2>
         <PipelineStatus status={status} onRefresh={load} />
       </section>
+
+      <section>
+        <ClusterList
+          clusters={clusters?.clusters ?? []}
+          noiseCount={clusters?.noise_count ?? 0}
+          loading={loading}
+        />
+      </section>
+
+      <StatsCards stats={stats} loading={loading} />
 
       {stats && (
         <div className="grid gap-8 sm:grid-cols-2">

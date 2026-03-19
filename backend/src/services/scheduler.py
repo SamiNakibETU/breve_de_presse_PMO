@@ -1,6 +1,6 @@
 """
 Daily pipeline scheduler using APScheduler AsyncIOScheduler.
-Runs collection + translation at 06:00 and 14:00 UTC.
+Runs collection + translation + embedding + clustering at 06:00 and 14:00 UTC.
 """
 
 from datetime import datetime, timezone
@@ -10,6 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from src.config import get_settings
+from src.database import get_session_factory
 from src.services.collector import run_collection
 from src.services.translator import run_translation_pipeline
 
@@ -27,14 +28,37 @@ async def daily_pipeline() -> dict:
     logger.info("pipeline.step", step="translate")
     translation_stats = await run_translation_pipeline()
 
-    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
-    logger.info("pipeline.complete", elapsed_seconds=elapsed)
-
-    return {
+    pipeline_result = {
         "collection": collection_stats,
         "translation": translation_stats,
-        "elapsed_seconds": elapsed,
     }
+
+    try:
+        from src.services.embedding_service import EmbeddingService
+        from src.services.clustering_service import ClusteringService
+        from src.services.cluster_labeller import label_clusters
+
+        factory = get_session_factory()
+        async with factory() as db:
+            embedding_service = EmbeddingService()
+            embedded = await embedding_service.embed_pending_articles(db)
+            pipeline_result["embedding"] = {"embedded": embedded}
+
+            clustering_service = ClusteringService()
+            clustering_result = await clustering_service.run_clustering(db)
+            pipeline_result["clustering"] = clustering_result
+
+            labeled = await label_clusters(db)
+            pipeline_result["labelling"] = {"labeled": labeled}
+    except Exception as e:
+        logger.warning("embedding_clustering_skipped", error=str(e))
+        pipeline_result["embedding"] = {"error": str(e)}
+
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+    pipeline_result["elapsed_seconds"] = elapsed
+    logger.info("pipeline.complete", elapsed_seconds=elapsed)
+
+    return pipeline_result
 
 
 def create_scheduler() -> AsyncIOScheduler:

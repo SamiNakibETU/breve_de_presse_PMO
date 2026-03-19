@@ -82,3 +82,50 @@ export interface GenerateReviewResult {
   full_text: string;
   article_count: number;
 }
+
+export interface TopicCluster {
+  id: string;
+  label: string | null;
+  article_count: number;
+  country_count: number;
+  avg_relevance: number;
+  latest_article_at: string | null;
+  is_active: boolean;
+  countries: string[];
+}
+
+export interface ClusterListResponse {
+  clusters: TopicCluster[];
+  total: number;
+  noise_count: number;
+}
+
+export interface ClusterArticle {
+  id: string;
+  title_fr: string | null;
+  title_original: string;
+  summary_fr: string | null;
+  source_name: string | null;
+  country: string;
+  published_at: string | null;
+  article_type: string | null;
+  author: string | null;
+  url: string;
+  source_language: string | null;
+  translation_confidence: number | null;
+}
+
+export interface ClusterArticlesResponse {
+  cluster_id: string;
+  cluster_label: string | null;
+  articles_by_country: Record<string, ClusterArticle[]>;
+  total_articles: number;
+  countries: string[];
+}
+
+export interface ClusterRefreshResponse {
+  clusters_created: number;
+  articles_clustered: number;
+  articles_embedded: number;
+  clusters_labeled: number;
+}
