@@ -49,6 +49,7 @@ async def init_db() -> None:
         for stmt in [
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS embedding vector(1024)",
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS cluster_id UUID REFERENCES topic_clusters(id)",
+            "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS rss_opinion_url VARCHAR(500)",
         ]:
             try:
                 await conn.execute(text(stmt))

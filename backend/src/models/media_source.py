@@ -25,6 +25,7 @@ class MediaSource(Base):
     content_types: Mapped[Optional[list[str]]] = mapped_column(ARRAY(Text))
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     rss_url: Mapped[Optional[str]] = mapped_column(String(500))
+    rss_opinion_url: Mapped[Optional[str]] = mapped_column(String(500))
     english_version_url: Mapped[Optional[str]] = mapped_column(String(500))
     collection_method: Mapped[str] = mapped_column(
         String(20), nullable=False, default="rss"

@@ -1,8 +1,9 @@
 """
 Async RSS collector with per-domain rate limiting, robust extraction pipeline,
-and collection log persistence.
+collection log persistence, and editorial relevance filtering.
 
 Extraction chain: trafilatura (recall) → trafilatura (precision) → RSS summary.
+Feed priority: rss_opinion_url (if available) → rss_url (fallback).
 """
 
 import asyncio
@@ -12,7 +13,6 @@ import time
 from datetime import datetime, timezone
 from time import mktime
 from typing import Optional
-from urllib.parse import urlparse
 
 import aiohttp
 import feedparser
@@ -39,6 +39,48 @@ CUSTOM_HEADERS = {
     "Cache-Control": "no-cache",
 }
 
+RELEVANCE_KEYWORDS_EN = {
+    "iran", "israel", "hezbollah", "hamas", "gaza", "lebanon", "war",
+    "missile", "strike", "bomb", "sanctions", "ceasefire", "hostage",
+    "military", "pentagon", "idf", "irgc", "hormuz", "gulf", "oil",
+    "nuclear", "drone", "conflict", "escalation", "retaliation",
+    "middle east", "syria", "iraq", "yemen", "houthi", "casualties",
+    "refugee", "displaced", "crisis", "diplomacy", "negotiation",
+    "occupation", "resistance", "netanyahu", "khamenei", "biden",
+    "trump", "un security", "humanitarian", "siege", "blockade",
+    "west bank", "settler", "annexation", "proxy", "axis",
+    "turkey", "erdogan", "egypt", "saudi", "qatar", "uae", "kuwait",
+    "jordan", "peace", "truce", "offensive", "invasion", "airstrike",
+}
+RELEVANCE_KEYWORDS_FR = {
+    "iran", "israël", "hezbollah", "hamas", "gaza", "liban", "guerre",
+    "missile", "frappe", "bombe", "sanctions", "cessez-le-feu", "otage",
+    "militaire", "pentagone", "tsahal", "ormuz", "golfe", "pétrole",
+    "nucléaire", "drone", "conflit", "escalade", "représailles",
+    "moyen-orient", "syrie", "irak", "yémen", "houthi", "victimes",
+    "réfugié", "déplacé", "crise", "diplomatie", "négociation",
+    "occupation", "résistance", "netanyahou", "khamenei",
+    "humanitaire", "siège", "blocus", "cisjordanie", "colon",
+    "annexion", "turquie", "erdogan", "égypte", "saoudite",
+    "paix", "trêve", "offensive", "invasion",
+}
+RELEVANCE_KEYWORDS_AR = {
+    "إيران", "إسرائيل", "حزب الله", "حماس", "غزة", "لبنان", "حرب",
+    "صاروخ", "قصف", "عقوبات", "وقف إطلاق النار", "رهينة",
+    "عسكري", "هرمز", "خليج", "نفط", "نووي", "صراع", "تصعيد",
+    "الشرق الأوسط", "سوريا", "العراق", "اليمن", "حوثي",
+    "أزمة", "دبلوماسية", "مفاوضات", "احتلال", "مقاومة",
+    "إنساني", "حصار", "الضفة الغربية", "استيطان",
+    "تركيا", "مصر", "سعودية", "قطر", "إمارات", "كويت", "أردن",
+}
+ALL_RELEVANCE_KEYWORDS = RELEVANCE_KEYWORDS_EN | RELEVANCE_KEYWORDS_FR | RELEVANCE_KEYWORDS_AR
+
+GENERIC_AUTHOR_BLACKLIST = {
+    "author", "admin", "administrator", "editor", "staff", "desk",
+    "news desk", "editorial", "web editor", "correspondent",
+    "staff reporter", "online editor", "agency",
+}
+
 
 def _url_hash(url: str) -> str:
     return hashlib.sha256(url.strip().encode()).hexdigest()
@@ -56,11 +98,43 @@ def _parse_date(entry) -> Optional[datetime]:
 
 
 def _extract_author(entry) -> Optional[str]:
+    author = None
     if hasattr(entry, "author") and entry.author:
-        return entry.author
-    if hasattr(entry, "authors") and entry.authors:
-        return entry.authors[0].get("name")
+        author = entry.author.strip()
+    elif hasattr(entry, "authors") and entry.authors:
+        author = (entry.authors[0].get("name") or "").strip()
+
+    if author and author.lower() in GENERIC_AUTHOR_BLACKLIST:
+        return None
+    if author and len(author) < 2:
+        return None
+    return author or None
+
+
+def _extract_author_from_html(html: str) -> Optional[str]:
+    """Try to extract author from common HTML meta tags and schema markup."""
+    patterns = [
+        r'<meta\s+name="author"\s+content="([^"]+)"',
+        r'<meta\s+property="article:author"\s+content="([^"]+)"',
+        r'"author"\s*:\s*\{\s*"name"\s*:\s*"([^"]+)"',
+        r'"author"\s*:\s*"([^"]+)"',
+        r'<span[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)</span>',
+        r'<a[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)</a>',
+        r'<a[^>]+rel="author"[^>]*>([^<]+)</a>',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, html, re.IGNORECASE)
+        if match:
+            name = match.group(1).strip()
+            if name.lower() not in GENERIC_AUTHOR_BLACKLIST and 2 < len(name) < 100:
+                return name
     return None
+
+
+def _is_relevant_to_crisis(title: str, summary: str) -> bool:
+    """Check if title or summary contain war/crisis-related keywords."""
+    combined = f"{title} {summary}".lower()
+    return any(kw in combined for kw in ALL_RELEVANCE_KEYWORDS)
 
 
 def _extract_rss_summary(entry) -> Optional[str]:
@@ -114,11 +188,15 @@ class RSSCollector:
 
     async def collect_all(self) -> dict:
         async with self._factory() as db:
+            from sqlalchemy import or_
             result = await db.execute(
                 select(MediaSource).where(
                     MediaSource.is_active.is_(True),
                     MediaSource.collection_method == "rss",
-                    MediaSource.rss_url.isnot(None),
+                    or_(
+                        MediaSource.rss_url.isnot(None),
+                        MediaSource.rss_opinion_url.isnot(None),
+                    ),
                 )
             )
             sources = result.scalars().all()
@@ -127,17 +205,21 @@ class RSSCollector:
         tasks = [self._collect_source(s) for s in sources]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        stats: dict = {"total_sources": len(sources), "total_new": 0, "errors": []}
+        stats: dict = {"total_sources": len(sources), "total_new": 0, "total_filtered": 0, "errors": []}
         for source, res in zip(sources, results):
             if isinstance(res, Exception):
                 stats["errors"].append({"source": source.id, "error": str(res)})
                 logger.error("collection.source_error", source=source.id, error=str(res))
+            elif isinstance(res, dict):
+                stats["total_new"] += res.get("new", 0)
+                stats["total_filtered"] += res.get("filtered", 0)
             else:
                 stats["total_new"] += res
 
         logger.info(
             "collection.complete",
             total_new=stats["total_new"],
+            total_filtered=stats["total_filtered"],
             error_count=len(stats["errors"]),
         )
         return stats
@@ -150,10 +232,20 @@ class RSSCollector:
             await asyncio.sleep(delay - elapsed)
         self._domain_last_request[domain] = time.monotonic()
 
+    def _get_feed_url(self, source: MediaSource) -> str:
+        """Prefer opinion-specific RSS feed when available."""
+        opinion_url = getattr(source, "rss_opinion_url", None)
+        if opinion_url:
+            return opinion_url
+        return source.rss_url
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30))
-    async def _collect_source(self, source: MediaSource) -> int:
+    async def _collect_source(self, source: MediaSource) -> dict:
         async with self._semaphore:
-            domain = source.rss_url.split("/")[2] if source.rss_url else ""
+            feed_url = self._get_feed_url(source)
+            if not feed_url:
+                return {"new": 0, "filtered": 0}
+            domain = feed_url.split("/")[2] if feed_url else ""
             await self._rate_limit(domain)
 
             log = CollectionLog(media_source_id=source.id, status="running")
@@ -164,12 +256,12 @@ class RSSCollector:
             log_id = log.id
 
             try:
-                new_count = await self._do_collect(source)
+                result = await self._do_collect(source, feed_url)
 
                 async with self._factory() as db:
                     cl = await db.get(CollectionLog, log_id)
                     if cl:
-                        cl.articles_new = new_count
+                        cl.articles_new = result["new"]
                         cl.status = "completed"
                         cl.completed_at = datetime.now(timezone.utc)
                     src = await db.get(MediaSource, source.id)
@@ -177,8 +269,14 @@ class RSSCollector:
                         src.last_collected_at = datetime.now(timezone.utc)
                     await db.commit()
 
-                logger.info("collection.source_done", source=source.id, new=new_count)
-                return new_count
+                logger.info(
+                    "collection.source_done",
+                    source=source.id,
+                    new=result["new"],
+                    filtered=result["filtered"],
+                    feed_type="opinion" if getattr(source, "rss_opinion_url", None) else "general",
+                )
+                return result
 
             except Exception as exc:
                 async with self._factory() as db:
@@ -190,7 +288,7 @@ class RSSCollector:
                     await db.commit()
                 raise
 
-    async def _do_collect(self, source: MediaSource) -> int:
+    async def _do_collect(self, source: MediaSource, feed_url: str) -> dict:
         headers = {
             "User-Agent": settings.user_agent,
             **CUSTOM_HEADERS,
@@ -198,7 +296,7 @@ class RSSCollector:
 
         async with aiohttp.ClientSession(headers=headers) as http:
             async with http.get(
-                source.rss_url,
+                feed_url,
                 timeout=aiohttp.ClientTimeout(total=45),
                 allow_redirects=True,
                 max_redirects=5,
@@ -207,11 +305,13 @@ class RSSCollector:
 
         feed = feedparser.parse(content)
         if feed.bozo and not feed.entries:
-            logger.warning("collection.bad_feed", source=source.id)
-            return 0
+            logger.warning("collection.bad_feed", source=source.id, feed_url=feed_url)
+            return {"new": 0, "filtered": 0}
 
         entries = feed.entries[: settings.max_articles_per_source]
         new_count = 0
+        filtered_count = 0
+        uses_opinion_feed = bool(getattr(source, "rss_opinion_url", None))
 
         async with self._factory() as db:
             for entry in entries:
@@ -226,16 +326,26 @@ class RSSCollector:
                 if exists.scalar_one_or_none():
                     continue
 
-                full_text = await self._extract_text_robust(article_url)
+                title = entry.get("title", "")
+                rss_summary_text = _extract_rss_summary(entry) or ""
+
+                if not uses_opinion_feed and not _is_relevant_to_crisis(title, rss_summary_text):
+                    filtered_count += 1
+                    logger.debug(
+                        "collection.filtered_irrelevant",
+                        source=source.id,
+                        title=title[:80],
+                    )
+                    continue
+
+                full_text, html_author = await self._extract_text_and_author(article_url)
 
                 if not full_text:
-                    full_text = _extract_rss_summary(entry)
+                    full_text = rss_summary_text if len(rss_summary_text) >= 80 else None
 
                 if not full_text:
-                    rss_title = entry.get("title", "")
-                    rss_summary = entry.get("summary", "")
-                    if rss_title and len(rss_title) > 20:
-                        combined = f"{rss_title}. {rss_summary}" if rss_summary else rss_title
+                    if title and len(title) > 20:
+                        combined = f"{title}. {rss_summary_text}" if rss_summary_text else title
                         combined = re.sub(r"<[^>]+>", " ", combined)
                         combined = re.sub(r"\s+", " ", combined).strip()
                         if len(combined) >= 80:
@@ -244,6 +354,7 @@ class RSSCollector:
                 if not full_text:
                     continue
 
+                author = _extract_author(entry) or html_author
                 lang = self._detect_language(full_text, source.languages)
 
                 db.add(
@@ -251,9 +362,9 @@ class RSSCollector:
                         media_source_id=source.id,
                         url=article_url,
                         url_hash=h,
-                        title_original=entry.get("title", "Untitled"),
+                        title_original=title or "Untitled",
                         content_original=full_text,
-                        author=_extract_author(entry),
+                        author=author,
                         published_at=_parse_date(entry),
                         source_language=lang,
                         status="collected",
@@ -264,22 +375,22 @@ class RSSCollector:
 
             await db.commit()
 
-        return new_count
+        return {"new": new_count, "filtered": filtered_count}
 
-    async def _extract_text_robust(self, url: str) -> Optional[str]:
-        """Multi-strategy extraction: recall mode → precision mode → direct fetch."""
-        text = await self._extract_trafilatura(url, favor_recall=True)
+    async def _extract_text_and_author(self, url: str) -> tuple[Optional[str], Optional[str]]:
+        """Extract text and author. Returns (text, author)."""
+        text, author = await self._extract_trafilatura_with_meta(url, favor_recall=True)
         if text:
-            return text
+            return text, author
 
-        text = await self._extract_trafilatura(url, favor_recall=False)
+        text, author = await self._extract_trafilatura_with_meta(url, favor_recall=False)
         if text:
-            return text
+            return text, author
 
-        text = await self._extract_direct_fetch(url)
-        return text
+        text, author = await self._extract_direct_fetch(url)
+        return text, author
 
-    async def _extract_trafilatura(self, url: str, favor_recall: bool) -> Optional[str]:
+    async def _extract_trafilatura_with_meta(self, url: str, favor_recall: bool) -> tuple[Optional[str], Optional[str]]:
         try:
             downloaded = await asyncio.to_thread(
                 trafilatura.fetch_url,
@@ -287,7 +398,10 @@ class RSSCollector:
                 no_ssl=True,
             )
             if not downloaded:
-                return None
+                return None, None
+
+            author = _extract_author_from_html(downloaded)
+
             raw = await asyncio.to_thread(
                 trafilatura.extract,
                 downloaded,
@@ -299,16 +413,16 @@ class RSSCollector:
                 deduplicate=True,
             )
             if not raw:
-                return None
+                return None, author
             text = _clean_extracted_text(raw)
             if text and len(text) >= settings.min_article_length:
-                return text
-            return None
+                return text, author
+            return None, author
         except Exception as exc:
             logger.debug("collection.trafilatura_fail", url=url, mode="recall" if favor_recall else "precision", error=str(exc))
-            return None
+            return None, None
 
-    async def _extract_direct_fetch(self, url: str) -> Optional[str]:
+    async def _extract_direct_fetch(self, url: str) -> tuple[Optional[str], Optional[str]]:
         """Fallback: fetch HTML directly with aiohttp and extract with trafilatura."""
         try:
             headers = {
@@ -323,11 +437,13 @@ class RSSCollector:
                     max_redirects=5,
                 ) as resp:
                     if resp.status != 200:
-                        return None
+                        return None, None
                     html = await resp.text()
 
             if not html or len(html) < 500:
-                return None
+                return None, None
+
+            author = _extract_author_from_html(html)
 
             raw = await asyncio.to_thread(
                 trafilatura.extract,
@@ -339,11 +455,11 @@ class RSSCollector:
             )
             text = _clean_extracted_text(raw) if raw else None
             if text and len(text) >= settings.min_article_length:
-                return text
-            return None
+                return text, author
+            return None, author
         except Exception as exc:
             logger.debug("collection.direct_fetch_fail", url=url, error=str(exc))
-            return None
+            return None, None
 
     @staticmethod
     def _detect_language(text: str, source_languages: list[str]) -> str:

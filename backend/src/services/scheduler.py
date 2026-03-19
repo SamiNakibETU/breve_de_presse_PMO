@@ -33,26 +33,38 @@ async def daily_pipeline() -> dict:
         "translation": translation_stats,
     }
 
-    try:
-        from src.services.embedding_service import EmbeddingService
-        from src.services.clustering_service import ClusteringService
-        from src.services.cluster_labeller import label_clusters
+    cohere_key = settings.cohere_api_key
+    if not cohere_key:
+        logger.error(
+            "pipeline.cohere_key_missing",
+            message="COHERE_API_KEY not set — embedding and clustering SKIPPED. "
+            "Set it in Railway environment variables.",
+        )
+        pipeline_result["embedding"] = {"error": "COHERE_API_KEY not configured"}
+    else:
+        try:
+            from src.services.embedding_service import EmbeddingService
+            from src.services.clustering_service import ClusteringService
+            from src.services.cluster_labeller import label_clusters
 
-        factory = get_session_factory()
-        async with factory() as db:
-            embedding_service = EmbeddingService()
-            embedded = await embedding_service.embed_pending_articles(db)
-            pipeline_result["embedding"] = {"embedded": embedded}
+            factory = get_session_factory()
+            async with factory() as db:
+                embedding_service = EmbeddingService()
+                embedded = await embedding_service.embed_pending_articles(db)
+                pipeline_result["embedding"] = {"embedded": embedded}
+                logger.info("pipeline.embedding_done", embedded=embedded)
 
-            clustering_service = ClusteringService()
-            clustering_result = await clustering_service.run_clustering(db)
-            pipeline_result["clustering"] = clustering_result
+                clustering_service = ClusteringService()
+                clustering_result = await clustering_service.run_clustering(db)
+                pipeline_result["clustering"] = clustering_result
+                logger.info("pipeline.clustering_done", **clustering_result)
 
-            labeled = await label_clusters(db)
-            pipeline_result["labelling"] = {"labeled": labeled}
-    except Exception as e:
-        logger.warning("embedding_clustering_skipped", error=str(e))
-        pipeline_result["embedding"] = {"error": str(e)}
+                labeled = await label_clusters(db)
+                pipeline_result["labelling"] = {"labeled": labeled}
+                logger.info("pipeline.labelling_done", labeled=labeled)
+        except Exception as e:
+            logger.error("pipeline.embedding_clustering_failed", error=str(e))
+            pipeline_result["embedding"] = {"error": str(e)}
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     pipeline_result["elapsed_seconds"] = elapsed

@@ -56,6 +56,7 @@ async def seed() -> None:
                 content_types=m.get("content_types"),
                 url=m["url"],
                 rss_url=m.get("rss_url"),
+                rss_opinion_url=m.get("rss_opinion_url"),
                 english_version_url=_english_url(m),
                 collection_method=m.get("collection_method", "rss"),
                 paywall=m.get("paywall", "free"),
