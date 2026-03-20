@@ -789,8 +789,13 @@ class TranslationPipeline:
 
 
 async def run_translation_pipeline(
-    limit: int = 300,
+    limit: int | None = None,
     on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> dict:
+    lim = (
+        limit
+        if limit is not None
+        else get_settings().translation_pipeline_batch_limit
+    )
     pipeline = TranslationPipeline()
-    return await pipeline.process_pending(limit=limit, on_progress=on_progress)
+    return await pipeline.process_pending(limit=lim, on_progress=on_progress)

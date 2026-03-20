@@ -67,6 +67,33 @@ async def init_db() -> None:
             "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS health_metrics_json JSONB",
             "ALTER TABLE collection_logs ADD COLUMN IF NOT EXISTS duration_seconds INTEGER",
             "ALTER TABLE collection_logs ADD COLUMN IF NOT EXISTS articles_filtered INTEGER",
+            (
+                "ALTER TABLE collection_logs ADD COLUMN IF NOT EXISTS "
+                "extraction_attempts INTEGER NOT NULL DEFAULT 0"
+            ),
+            (
+                "ALTER TABLE collection_logs ADD COLUMN IF NOT EXISTS "
+                "extraction_primary_success INTEGER NOT NULL DEFAULT 0"
+            ),
+            # Articles MEMW / clustering (Alembic 20260324–20260328) — évite 500 sur /health, /clusters/…/articles
+            (
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "cluster_soft_assigned BOOLEAN NOT NULL DEFAULT false"
+            ),
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS framing_json JSON",
+            (
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "is_syndicated BOOLEAN NOT NULL DEFAULT false"
+            ),
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS canonical_article_id UUID",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS framing_actor VARCHAR(500)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS framing_tone VARCHAR(120)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS framing_prescription TEXT",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS content_translated_fr TEXT",
+            (
+                "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
+                "en_translation_summary_only BOOLEAN NOT NULL DEFAULT false"
+            ),
         ]:
             try:
                 await conn.execute(text(stmt))

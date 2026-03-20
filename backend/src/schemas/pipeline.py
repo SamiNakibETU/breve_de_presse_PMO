@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class CollectionStats(BaseModel):
@@ -61,7 +61,17 @@ class PipelineTaskStartRequest(BaseModel):
     """Démarrage d’une tâche longue suivie par GET /api/pipeline/tasks/{id}."""
 
     kind: PipelineTaskKind
-    translate_limit: int = Field(default=300, ge=1, le=1000)
+    translate_limit: int | None = Field(
+        default=None,
+        description="Pour kind=translate : plafond articles (1–1000) ; null = TRANSLATION_PIPELINE_BATCH_LIMIT",
+    )
+
+    @field_validator("translate_limit")
+    @classmethod
+    def _translate_limit_bounds(cls, v: int | None) -> int | None:
+        if v is not None and not (1 <= v <= 1000):
+            raise ValueError("translate_limit must be between 1 and 1000")
+        return v
 
 
 class PipelineTaskStartResponse(BaseModel):

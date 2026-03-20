@@ -76,7 +76,7 @@ async def test_get_missing_returns_none(pipeline_store_sqlite):
 def test_pipeline_task_start_request_defaults():
     r = PipelineTaskStartRequest(kind=PipelineTaskKind.collect)
     assert r.kind == PipelineTaskKind.collect
-    assert r.translate_limit == 300
+    assert r.translate_limit is None
 
 
 def test_pipeline_task_start_request_translate_limit():

@@ -83,6 +83,12 @@ class Settings(BaseSettings):
         description="Collecte RSS : ignorer une entrée si sa date publiée / MAJ est plus vieille que N jours ; "
         "0 = pas de filtre (sauf limite items du flux)",
     )
+    translation_pipeline_batch_limit: int = Field(
+        default=300,
+        ge=1,
+        le=2000,
+        description="Plafond d’articles traduits par passage (après filtre fraîcheur) : coût / durée, pas définition du périmètre",
+    )
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)
 

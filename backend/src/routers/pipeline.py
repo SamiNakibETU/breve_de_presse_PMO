@@ -1,5 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 
+from typing import Optional
+
+from src.config import get_settings
 from src.deps.auth import require_internal_key
 from src.limiter import limiter
 from src.schemas.pipeline import (
@@ -32,11 +35,17 @@ async def trigger_collect(
 @limiter.limit("8/minute")
 async def trigger_translate(
     request: Request,
-    limit: int = Query(default=300, ge=1, le=1000),
+    limit: Optional[int] = Query(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Plafond par passage ; omis = TRANSLATION_PIPELINE_BATCH_LIMIT",
+    ),
     _: None = Depends(require_internal_key),
 ):
     try:
-        stats = await run_translation_pipeline(limit=limit)
+        lim = limit if limit is not None else get_settings().translation_pipeline_batch_limit
+        stats = await run_translation_pipeline(limit=lim)
         return {"status": "ok", "stats": stats}
     except Exception as exc:
         raise HTTPException(500, detail=str(exc))

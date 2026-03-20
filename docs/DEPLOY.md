@@ -48,6 +48,7 @@ Optionnel :
 - **`MEE_RSS_FR_URL`** — réservé : flux RSS FR Middle East Eye si l’OLJ le fournit (pas de branchement collecte sans URL validée).
 - **`TRANSLATION_AUTO_MAX_AGE_DAYS`** — traduction auto : articles hors fenêtre (parution ou collecte) ignorés ; `0` = pas de filtre.
 - **`INGESTION_RSS_ENTRY_MAX_AGE_DAYS`** — RSS : entrées plus vieilles que N jours ignorées ; `0` = pas de filtre.
+- **`TRANSLATION_PIPELINE_BATCH_LIMIT`** — plafond d’articles traduits **par passage** après les filtres ci-dessus (débit / coût).
 
 Au démarrage, `init_db()` ajoute aussi les colonnes **`media_sources.health_*`** et champs **`collection_logs`** si elles manquent (déploiement sans Alembic complet).
 

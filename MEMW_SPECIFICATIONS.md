@@ -123,6 +123,20 @@ Récupérer quotidiennement les contenus éditoriaux (opinions, éditoriaux, tri
 - Dernière collecte réussie
 - Temps moyen d'extraction
 
+#### 2.1.8 Fenêtre de fraîcheur (périmètre rédactionnel) et plafond de débit
+
+**Principe produit** : une revue de presse quotidienne se pilote par une **fenêtre de temps explicite** (« cet article entre-t-il dans la veille ? »), pas par un plafond numérique seul.
+
+| Règle | Rôle | Implémentation (config / env) |
+|--------|------|-------------------------------|
+| **A — Profondeur du flux** | Ne traiter que les **N derniers items** du RSS par source (ce que le média expose dans le flux). | `MAX_ARTICLES_PER_SOURCE` (`max_articles_per_source`) |
+| **B — Âge max. d’une entrée RSS** | N’ingérer une entrée que si sa date publiée / MAJ parsée est **récente** ; évite vieux republiés ou bruit. | `INGESTION_RSS_ENTRY_MAX_AGE_DAYS` (`ingestion_rss_entry_max_age_days`, **0** = désactivé) |
+| **C — Âge max. pour la traduction auto** | Ne prendre en file automatique que les articles `collected` / `error` dont **COALESCE(published_at, collected_at)** est dans les **Y** derniers jours. Les articles plus vieux **restent** `collected` (hors file auto) — pas de statut `stale` dédié pour l’instant. | `TRANSLATION_AUTO_MAX_AGE_DAYS` (`translation_auto_max_age_days`, **0** = désactivé) |
+| **D — Plafond par passage** | Après **B** et **C**, traiter **au plus N** articles par run (coût / durée LLM) — **ce n’est pas** la définition du périmètre. | `TRANSLATION_PIPELINE_BATCH_LIMIT` (`translation_pipeline_batch_limit`) ; `POST /api/translate?limit=` ou `translate_limit` sur les tâches async si renseigné |
+| **E — Ordre** | Toujours les **plus récents d’abord** (parution ou, à défaut, collecte). | `translator.py` → `ORDER BY coalesce(published_at, collected_at) DESC` |
+
+**Évolutions possibles (non implémentées)** : statut explicite `stale` / `skipped_out_of_window`, filtre UI « hors fenêtre » pour traitement manuel, ou séparation fin collecte vs parution (deux paramètres Y).
+
 ---
 
 ### 2.2 COUCHE 2 — Traduction & Enrichissement

@@ -13,6 +13,7 @@ from src.services.clustering_service import ClusteringService
 from src.services.collector import run_collection
 from src.services.embedding_service import EmbeddingService
 from src.services.scheduler import daily_pipeline
+from src.config import get_settings
 from src.services.translator import run_translation_pipeline
 
 
@@ -93,7 +94,7 @@ async def execute_full_pipeline_task(task_id: str) -> None:
 async def execute_pipeline_task(
     task_id: str,
     kind: str,
-    translate_limit: int,
+    translate_limit: int | None,
 ) -> None:
     structlog.contextvars.bind_contextvars(
         pipeline_task_id=task_id,
