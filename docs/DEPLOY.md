@@ -46,6 +46,10 @@ Optionnel :
 - **Alertes e-mail (phase 4)** : `ALERT_EMAIL_WEBHOOK_URL` (POST JSON, même schéma que `ALERT_WEBHOOK_URL`) ; ou **`RESEND_API_KEY`** + **`ALERT_EMAIL_TO`** (destinataires, virgules) + optionnel **`ALERT_EMAIL_FROM`**.
 - **PDF revue Unicode** : `PDF_EXPORT_ENABLED=true` ; placer **DejaVuSans.ttf** sur l’image ou définir **`PDF_UNICODE_FONT_PATH`** / **`MEMW_PDF_FONT_PATH`** (sinon repli ASCII).
 - **`MEE_RSS_FR_URL`** — réservé : flux RSS FR Middle East Eye si l’OLJ le fournit (pas de branchement collecte sans URL validée).
+- **`TRANSLATION_AUTO_MAX_AGE_DAYS`** — traduction auto : articles hors fenêtre (parution ou collecte) ignorés ; `0` = pas de filtre.
+- **`INGESTION_RSS_ENTRY_MAX_AGE_DAYS`** — RSS : entrées plus vieilles que N jours ignorées ; `0` = pas de filtre.
+
+Au démarrage, `init_db()` ajoute aussi les colonnes **`media_sources.health_*`** et champs **`collection_logs`** si elles manquent (déploiement sans Alembic complet).
 
 ### Front Next.js : mode BFF (recommandé si API exposée)
 

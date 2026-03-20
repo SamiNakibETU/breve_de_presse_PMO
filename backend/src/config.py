@@ -69,6 +69,20 @@ class Settings(BaseSettings):
         le=50,
         description="Après N échecs LLM/parsing, l’article n’est plus repris en file traduction",
     )
+    translation_auto_max_age_days: int = Field(
+        default=14,
+        ge=0,
+        le=365,
+        description="File traduction auto : seulement articles avec "
+        "COALESCE(published_at, collected_at) dans les N derniers jours ; 0 = pas de filtre date",
+    )
+    ingestion_rss_entry_max_age_days: int = Field(
+        default=7,
+        ge=0,
+        le=365,
+        description="Collecte RSS : ignorer une entrée si sa date publiée / MAJ est plus vieille que N jours ; "
+        "0 = pas de filtre (sauf limite items du flux)",
+    )
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)
 

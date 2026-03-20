@@ -38,10 +38,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
+    import structlog
     from sqlalchemy import text
 
     from src.models import Base
 
+    log = structlog.get_logger(__name__)
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
@@ -52,11 +54,28 @@ async def init_db() -> None:
             "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS rss_opinion_url VARCHAR(500)",
             "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS opinion_hub_urls_json TEXT",
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS translation_failure_count INTEGER DEFAULT 0",
+            # Santé sources (aligné Alembic 20260325) — évite 500 si migrations non jouées (ex. Railway)
+            "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS health_status VARCHAR(20)",
+            (
+                "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS "
+                "consecutive_empty_collection_runs INTEGER NOT NULL DEFAULT 0"
+            ),
+            (
+                "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS "
+                "last_article_ingested_at TIMESTAMP WITH TIME ZONE"
+            ),
+            "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS health_metrics_json JSONB",
+            "ALTER TABLE collection_logs ADD COLUMN IF NOT EXISTS duration_seconds INTEGER",
+            "ALTER TABLE collection_logs ADD COLUMN IF NOT EXISTS articles_filtered INTEGER",
         ]:
             try:
                 await conn.execute(text(stmt))
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning(
+                    "init_db.alter_skipped",
+                    snippet=stmt[:72],
+                    error=str(exc)[:160],
+                )
         for idx_stmt in [
             "CREATE INDEX IF NOT EXISTS ix_articles_status_collected_at ON articles (status, collected_at)",
             "CREATE INDEX IF NOT EXISTS ix_articles_translation_failure_count ON articles (translation_failure_count)",

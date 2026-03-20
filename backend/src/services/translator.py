@@ -12,11 +12,11 @@ Routing per source language (voir llm_router) :
 import asyncio
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Literal, Optional
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from src.config import get_settings
@@ -449,7 +449,7 @@ class TranslationPipeline:
         if on_progress:
             on_progress("select", "Sélection des articles en file…")
         async with self._factory() as db:
-            result = await db.execute(
+            q = (
                 select(Article)
                 .where(Article.status.in_(["collected", "error"]))
                 .where(Article.content_original.isnot(None))
@@ -457,8 +457,29 @@ class TranslationPipeline:
                     Article.translation_failure_count
                     < settings.max_translation_failures,
                 )
-                .order_by(Article.collected_at.desc())
-                .limit(limit)
+            )
+            if settings.translation_auto_max_age_days > 0:
+                cutoff = datetime.now(timezone.utc) - timedelta(
+                    days=settings.translation_auto_max_age_days,
+                )
+                q = q.where(
+                    func.coalesce(Article.published_at, Article.collected_at) >= cutoff,
+                )
+                logger.info(
+                    "translation.age_filter_active",
+                    cutoff_utc=cutoff.isoformat(),
+                    max_age_days=settings.translation_auto_max_age_days,
+                    batch_limit=limit,
+                )
+            else:
+                logger.debug("translation.age_filter_off")
+            result = await db.execute(
+                q.order_by(
+                    func.coalesce(
+                        Article.published_at,
+                        Article.collected_at,
+                    ).desc(),
+                ).limit(limit)
             )
             articles = result.scalars().all()
 

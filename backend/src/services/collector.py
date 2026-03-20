@@ -16,7 +16,7 @@ import hashlib
 import re
 import socket
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from time import mktime
 from typing import Callable, Optional
 
@@ -424,6 +424,12 @@ class RSSCollector:
         extraction_attempts = 0
         extraction_primary_success = 0
         uses_opinion_feed = bool(getattr(source, "rss_opinion_url", None))
+        if settings.ingestion_rss_entry_max_age_days > 0:
+            logger.info(
+                "collection.rss_age_filter_active",
+                source_id=source.id,
+                max_age_days=settings.ingestion_rss_entry_max_age_days,
+            )
 
         async with self._factory() as db:
             for entry in entries:
@@ -440,6 +446,20 @@ class RSSCollector:
 
                 title = entry.get("title", "")
                 rss_summary_text = _extract_rss_summary(entry) or ""
+                entry_published = _parse_date(entry)
+                if settings.ingestion_rss_entry_max_age_days > 0 and entry_published:
+                    age_cutoff = datetime.now(timezone.utc) - timedelta(
+                        days=settings.ingestion_rss_entry_max_age_days,
+                    )
+                    if entry_published < age_cutoff:
+                        filtered_count += 1
+                        logger.debug(
+                            "collection.filtered_rss_entry_too_old",
+                            source=source.id,
+                            published=entry_published.isoformat(),
+                            title=(title or "")[:72],
+                        )
+                        continue
 
                 if not should_ingest_rss_entry(
                     title, rss_summary_text, uses_opinion_feed=uses_opinion_feed
@@ -523,7 +543,7 @@ class RSSCollector:
                         title_original=title or "Untitled",
                         content_original=full_text,
                         author=author,
-                        published_at=_parse_date(entry),
+                        published_at=entry_published,
                         source_language=lang,
                         status="collected",
                         word_count=len(full_text.split()),
