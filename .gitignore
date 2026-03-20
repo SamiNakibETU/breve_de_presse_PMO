@@ -40,6 +40,9 @@ out/
 htmlcov/
 .coverage
 coverage/
+frontend/test-results/
+**/playwright-report/
+*.tsbuildinfo
 
 # Alembic
 alembic/versions/__pycache__/

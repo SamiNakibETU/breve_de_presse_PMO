@@ -1,7 +1,11 @@
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 from pydantic import BaseModel, Field
+
+
+class ArticleIdBatchRequest(BaseModel):
+    ids: list[str] = Field(..., min_length=1, max_length=100)
 
 
 class ArticleResponse(BaseModel):
@@ -26,6 +30,15 @@ class ArticleResponse(BaseModel):
     word_count: Optional[int] = None
     collected_at: datetime
     editorial_relevance: Optional[int] = None
+    why_ranked: Optional[dict[str, Any]] = None
+    olj_topic_ids: Optional[list[str]] = None
+    article_family: Optional[str] = None
+    paywall_observed: Optional[bool] = None
+    published_at_source: Optional[str] = None
+    stance_summary: Optional[str] = None
+    primary_editorial_event_id: Optional[str] = None
+    processing_error: Optional[str] = None
+    translation_failure_count: Optional[int] = None
 
 
 class ArticleListResponse(BaseModel):

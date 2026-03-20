@@ -20,6 +20,15 @@ export interface Article {
   word_count: number | null;
   collected_at: string;
   editorial_relevance: number | null;
+  why_ranked?: Record<string, unknown> | null;
+  olj_topic_ids?: string[] | null;
+  article_family?: string | null;
+  paywall_observed?: boolean | null;
+  published_at_source?: string | null;
+  stance_summary?: string | null;
+  primary_editorial_event_id?: string | null;
+  processing_error?: string | null;
+  translation_failure_count?: number | null;
 }
 
 export interface ArticleListResponse {
@@ -46,13 +55,17 @@ export interface Stats {
   total_translated: number;
   total_needs_review: number;
   total_errors: number;
+  total_translation_abandoned?: number;
   total_pending: number;
   total_no_content: number;
+  articles_with_embedding_24h?: number;
+  articles_with_olj_topics_24h?: number;
   countries_covered: number;
   by_status: Record<string, number>;
   by_country: Record<string, number>;
   by_type: Record<string, number>;
   by_language: Record<string, number>;
+  by_media_source_top?: { media_source_id: string; count: number }[];
 }
 
 export interface SchedulerJob {
@@ -75,6 +88,10 @@ export interface ReviewSummary {
   full_text: string | null;
   article_count: number;
   created_at: string;
+  created_by?: string | null;
+  supersedes_id?: string | null;
+  content_snapshot_hash?: string | null;
+  generation_prompt_hash?: string | null;
 }
 
 export interface GenerateReviewResult {
@@ -128,6 +145,7 @@ export interface ClusterRefreshResponse {
   articles_clustered: number;
   articles_embedded: number;
   clusters_labeled: number;
+  insights_updated?: number;
 }
 
 export type PipelineTaskKind =

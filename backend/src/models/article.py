@@ -1,14 +1,16 @@
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
 )
@@ -19,8 +21,10 @@ from src.models.base import Base
 
 if TYPE_CHECKING:
     from src.models.cluster import TopicCluster
+    from src.models.editorial_event import EditorialEvent
     from src.models.entity import ArticleEntity
     from src.models.media_source import MediaSource
+    from src.models.translation_review import TranslationReview
 
 
 class Article(Base):
@@ -45,6 +49,25 @@ class Article(Base):
     key_quotes_fr: Mapped[Optional[list[str]]] = mapped_column(ARRAY(Text))
 
     article_type: Mapped[Optional[str]] = mapped_column(String(30))
+    article_family: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    olj_topic_ids: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
+    paywall_observed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    published_at_source: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    dedupe_group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    primary_editorial_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("editorial_events.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    stance_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    event_extraction_json: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    source_spans_json: Mapped[Optional[list[Any]]] = mapped_column(JSON, nullable=True)
 
     translation_confidence: Mapped[Optional[float]] = mapped_column(Float)
     translation_notes: Mapped[Optional[str]] = mapped_column(Text)
@@ -60,6 +83,9 @@ class Article(Base):
         String(20), nullable=False, default="raw"
     )
     processing_error: Mapped[Optional[str]] = mapped_column(Text)
+    translation_failure_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     word_count: Mapped[Optional[int]] = mapped_column(Integer)
     collected_at: Mapped[datetime] = mapped_column(
@@ -83,4 +109,14 @@ class Article(Base):
     )
     article_entities: Mapped[list["ArticleEntity"]] = relationship(
         back_populates="article", cascade="all, delete-orphan"
+    )
+    primary_editorial_event: Mapped[Optional["EditorialEvent"]] = relationship(
+        "EditorialEvent",
+        back_populates="articles",
+        foreign_keys=[primary_editorial_event_id],
+    )
+    translation_reviews: Mapped[list["TranslationReview"]] = relationship(
+        "TranslationReview",
+        back_populates="article",
+        cascade="all, delete-orphan",
     )

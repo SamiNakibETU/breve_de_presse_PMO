@@ -5,12 +5,14 @@ Clusters API: list clusters, get cluster articles, refresh clustering.
 from collections import defaultdict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.database import get_db
+from src.deps.auth import require_internal_key
+from src.limiter import limiter
 from src.models.article import Article
 from src.models.cluster import TopicCluster
 from src.models.media_source import MediaSource
@@ -19,6 +21,7 @@ from src.schemas.clusters import (
     ClusterRefreshResponse,
     ClusterResponse,
 )
+from src.services.cluster_insights import enrich_cluster_insights
 from src.services.cluster_labeller import label_clusters
 from src.services.clustering_service import ClusteringService, REGIONAL_COUNTRIES
 from src.services.embedding_service import EmbeddingService
@@ -165,17 +168,24 @@ async def get_cluster_articles(
 
 
 @router.post("/refresh", response_model=ClusterRefreshResponse)
-async def refresh_clusters(db: AsyncSession = Depends(get_db)):
+@limiter.limit("6/minute")
+async def refresh_clusters(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+):
     embedding_service = EmbeddingService()
     clustering_service = ClusteringService()
 
     embedded = await embedding_service.embed_pending_articles(db)
     clustering_result = await clustering_service.run_clustering(db)
     labeled = await label_clusters(db)
+    insights = await enrich_cluster_insights(db)
 
     return ClusterRefreshResponse(
         clusters_created=clustering_result["clusters_created"],
         articles_clustered=clustering_result["articles_clustered"],
         articles_embedded=embedded,
         clusters_labeled=labeled,
+        insights_updated=insights,
     )

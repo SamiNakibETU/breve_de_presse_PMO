@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-03-20T10:05:02.866164+00:00",
+  "source_registry": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\backend\\data\\MEDIA_REVUE_REGISTRY.json",
+  "summary": {
+    "hubs_total": 4,
+    "hubs_fetch_ok": 0,
+    "hubs_with_links": 0,
+    "hubs_meeting_min_links": 0,
+    "min_links_target": 3,
+    "article_sample_ok": 0,
+    "article_sample_tried": 0
+  },
+  "media": [
+    {
+      "id": "bh_al_watan",
+      "name": "Al-Watan",
+      "country": "Bahreïn",
+      "is_active": true,
+      "hubs": [
+        {
+          "hub_url": "https://alwatannews.net/opinion",
+          "fetch_ok": false,
+          "fetch_error": "rss:http_403|cffi:http_403|tf:trafilatura_fetch_empty|http_403|cffi:http_403|tf:trafilatura_fetch_empty|pw:cloudflare_interstitial",
+          "strategy": "",
+          "link_count": 0,
+          "meets_min_links": false,
+          "sample_links": [],
+          "article_sample": null,
+          "elapsed_ms": 48322
+        }
+      ]
+    },
+    {
+      "id": "iq_al_sabah",
+      "name": "al-Sabah",
+      "country": "Irak",
+      "is_active": true,
+      "hubs": [
+        {
+          "hub_url": "https://alsabaah.iq/%D8%A2%D8%B1%D8%A7%D8%A1/",
+          "fetch_ok": false,
+          "fetch_error": "rss:http_403|cffi:http_403|tf:trafilatura_fetch_empty|http_403|cffi:http_403|tf:trafilatura_fetch_empty|pw:cloudflare_interstitial",
+          "strategy": "",
+          "link_count": 0,
+          "meets_min_links": false,
+          "sample_links": [],
+          "article_sample": null,
+          "elapsed_ms": 48217
+        }
+      ]
+    },
+    {
+      "id": "jo_al_ghad",
+      "name": "Al Ghad",
+      "country": "Jordanie",
+      "is_active": true,
+      "hubs": [
+        {
+          "hub_url": "https://alghad.com/Section-114/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA-%D8%A7%D9%84%D9%8A%D9%88%D9%85",
+          "fetch_ok": false,
+          "fetch_error": "rss:http_403|cffi:http_403|tf:trafilatura_fetch_empty|http_403|cffi:http_403|tf:trafilatura_fetch_empty|pw:cloudflare_interstitial",
+          "strategy": "",
+          "link_count": 0,
+          "meets_min_links": false,
+          "sample_links": [],
+          "article_sample": null,
+          "elapsed_ms": 49831
+        }
+      ]
+    },
+    {
+      "id": "jo_jordan_times",
+      "name": "Jordan Times",
+      "country": "Jordanie",
+      "is_active": true,
+      "hubs": [
+        {
+          "hub_url": "https://jordantimes.com/opinion",
+          "fetch_ok": false,
+          "fetch_error": "rss:http_403|cffi:http_403|tf:trafilatura_fetch_empty|http_403|cffi:http_403|tf:trafilatura_fetch_empty|pw:cloudflare_interstitial",
+          "strategy": "",
+          "link_count": 0,
+          "meets_min_links": false,
+          "sample_links": [],
+          "article_sample": null,
+          "elapsed_ms": 48623
+        }
+      ]
+    }
+  ]
+}

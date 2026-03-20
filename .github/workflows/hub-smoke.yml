@@ -1,0 +1,32 @@
+# Smoke tests hubs (réseau) — optionnel ; échoue sans bloquer si médias injoignables.
+name: hub-smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+
+jobs:
+  validate-hubs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install chromium
+      - name: Validate hubs (échantillon)
+        run: |
+          python -m src.scripts.validate_media_hubs --no-article-sample --max-media 8 || true
+        continue-on-error: true
+      - name: Verify content (2 médias)
+        run: |
+          python -m src.scripts.verify_opinion_hub_content --per-source 1 --max-media 2 --output data/CI_CONTENT_VERIFY.json || true
+        continue-on-error: true

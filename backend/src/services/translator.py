@@ -15,18 +15,22 @@ import asyncio
 import json
 import re
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Any, Callable, Literal, Optional
 
 import structlog
 from sqlalchemy import select
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from src.config import get_settings
 from src.database import get_session_factory
 from src.models.article import Article
 from src.models.media_source import MediaSource
+from src.services import metrics as app_metrics
+from src.services.editorial_event_service import resolve_or_create_event_for_article
 from src.services.entity_service import upsert_entities
 from src.services.llm_router import get_llm_router
+from src.services.olj_glossary import glossary_prompt_block_for_topics
+from src.services.olj_taxonomy import taxonomy_prompt_block, validate_olj_topic_ids
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -66,6 +70,24 @@ RÈGLES DE CLASSIFICATION :
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks."""
 
 
+def _augmented_system_prompt() -> str:
+    """Taxonomie + glossaire OLJ pour classification contrainte."""
+    try:
+        tax_block = taxonomy_prompt_block()
+        gloss = glossary_prompt_block_for_topics([])
+    except Exception:
+        return SYSTEM_PROMPT
+    gloss_part = f"\n{gloss}\n" if gloss else ""
+    return (
+        SYSTEM_PROMPT
+        + "\n\nTHÉMATIQUES OLJ — renseigner olj_topic_ids : liste de 1 à 5 identifiants "
+        "parmi la taxonomie ci-dessous (sinon [\"other\"]).\n"
+        + tax_block
+        + "\n"
+        + gloss_part
+    )
+
+
 def _build_translate_prompt(article: Article, media_name: str) -> str:
     content = article.content_original or article.title_original
     words = content.split()
@@ -97,6 +119,23 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
                     "citation traduite en français 2",
                 ],
                 "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
+                "article_family": "même valeur que article_type (rédaction / famille éditoriale)",
+                "olj_topic_ids": ["mena.geopolitics", "other"],
+                "stance_summary": "UNE phrase neutre restitutive : ligne argumentaire de l'auteur",
+                "event_extraction": {
+                    "who": "acteur principal ou ?",
+                    "what": "fait ou enjeu central",
+                    "where": "lieu ou région ou ?",
+                    "when": "période ou ?",
+                    "canonical_event_label_fr": "libellé court factuel pour indexation",
+                    "completeness_0_1": 0.5,
+                },
+                "source_spans": [
+                    {
+                        "text_excerpt": "extrait source représentatif (≤200 car.)",
+                        "role": "quote",
+                    }
+                ],
                 "entities": [
                     {
                         "name": "nom original",
@@ -131,6 +170,18 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
                 "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : maximise la densité d'information, zéro redondance)",
                 "key_quotes_fr": ["citation 1", "citation 2"],
                 "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
+                "article_family": "même valeur que article_type",
+                "olj_topic_ids": ["mena.geopolitics", "other"],
+                "stance_summary": "UNE phrase neutre restitutive",
+                "event_extraction": {
+                    "who": "?",
+                    "what": "?",
+                    "where": "?",
+                    "when": "?",
+                    "canonical_event_label_fr": "libellé court",
+                    "completeness_0_1": 0.5,
+                },
+                "source_spans": [{"text_excerpt": "extrait", "role": "quote"}],
                 "entities": [
                     {"name": "nom", "type": "PERSON|ORG|GPE|EVENT", "name_fr": "nom"}
                 ],
@@ -172,6 +223,81 @@ def _parse_llm_json(text: str) -> dict:
                 pass
 
     raise ValueError(f"Cannot parse JSON from LLM response: {text[:300]}")
+
+
+REPAIR_JSON_SYSTEM = """Tu renvoies UNIQUEMENT un objet JSON valide (UTF-8), sans markdown, sans backticks.
+Corrige guillemets, virgules finales et accolades pour que json.loads() réussisse.
+Conserve les clés et le sens du contenu s'ils sont reconnaissables."""
+
+
+async def _parse_translation_llm_json(
+    router: Any,
+    raw_text: str,
+    language: str,
+) -> dict:
+    """Parse la réponse traduction ; une seule passe LLM de réparation si activée."""
+    try:
+        return _parse_llm_json(raw_text)
+    except ValueError as first_err:
+        if not settings.translation_json_repair:
+            raise
+        snippet = (raw_text or "")[:12000]
+        repair_prompt = (
+            "Le bloc suivant devait être un JSON unique mais est syntaxiquement invalide. "
+            "Renvoie uniquement le JSON corrigé.\n\n"
+            f"{snippet}"
+        )
+        app_metrics.inc("translation.json_repair_attempts")
+        logger.info("translation.json_repair_attempt", snippet_chars=len(snippet))
+        repaired = await router.translate(
+            system=REPAIR_JSON_SYSTEM,
+            prompt=repair_prompt,
+            language=language,
+            max_tokens=2000,
+        )
+        try:
+            data = _parse_llm_json(repaired)
+        except ValueError:
+            app_metrics.inc("translation.json_repair_failed")
+            raise first_err from None
+        app_metrics.inc("translation.json_repair_success")
+        logger.info("translation.json_repair_success")
+        return data
+
+
+def _classify_translation_error(exc: Exception) -> str:
+    """Catégorie courte pour agréger les échecs (logs + réponse pipeline)."""
+    if isinstance(exc, RetryError):
+        return "retry_exhausted"
+
+    if isinstance(exc, ValueError):
+        msg = str(exc)
+        if "Cannot parse JSON" in msg:
+            return "json_parse"
+        return "value_error"
+
+    mod = type(exc).__module__
+    name = type(exc).__name__
+
+    if "openai" in mod:
+        if "RateLimit" in name or "429" in str(exc):
+            return "rate_limit"
+        if "Authentication" in name or "PermissionDenied" in name:
+            return "auth"
+        if "APIConnection" in name or "ConnectError" in name or "APITimeout" in name:
+            return "connection"
+        if "API" in name and "Error" in name:
+            return "llm_api"
+
+    if "anthropic" in mod:
+        if "RateLimit" in name:
+            return "rate_limit"
+        if "Authentication" in name:
+            return "auth"
+        if "API" in name and "Error" in name:
+            return "llm_api"
+
+    return "other"
 
 
 def compute_confidence(
@@ -228,6 +354,7 @@ class TranslationPipeline:
         self._router = get_llm_router()
         self._factory = get_session_factory()
         self._semaphore = asyncio.Semaphore(2)
+        self._stats_lock = asyncio.Lock()
 
     async def process_pending(
         self,
@@ -241,6 +368,10 @@ class TranslationPipeline:
                 select(Article)
                 .where(Article.status.in_(["collected", "error"]))
                 .where(Article.content_original.isnot(None))
+                .where(
+                    Article.translation_failure_count
+                    < settings.max_translation_failures,
+                )
                 .order_by(Article.collected_at.desc())
                 .limit(limit)
             )
@@ -256,7 +387,14 @@ class TranslationPipeline:
             to_process.append(a)
 
         logger.info("translation.start", article_count=len(to_process), skipped=skipped)
-        stats: dict = {"processed": 0, "errors": 0, "needs_review": 0, "skipped": skipped}
+        stats: dict = {
+            "processed": 0,
+            "errors": 0,
+            "needs_review": 0,
+            "skipped": skipped,
+            "error_breakdown": {},
+            "error_samples": [],
+        }
 
         if on_progress:
             n = len(to_process)
@@ -271,32 +409,73 @@ class TranslationPipeline:
         if on_progress:
             on_progress("done", "Finalisation traduction…")
 
-        logger.info("translation.complete", **stats)
+        logger.info(
+            "translation.complete",
+            processed=stats["processed"],
+            errors=stats["errors"],
+            needs_review=stats["needs_review"],
+            skipped=stats["skipped"],
+            error_breakdown=stats["error_breakdown"],
+        )
         return stats
 
     async def _process_one(self, article: Article, stats: dict) -> None:
+        structlog.contextvars.bind_contextvars(article_id=str(article.id))
         async with self._semaphore:
             try:
-                await self._process_article(article)
-                stats["processed"] += 1
+                outcome = await self._process_article(article)
+                async with self._stats_lock:
+                    if outcome is not None:
+                        stats["processed"] += 1
+                        if outcome == "needs_review":
+                            stats["needs_review"] += 1
+                        app_metrics.inc("translation.article.success")
             except Exception as exc:
-                stats["errors"] += 1
+                reason = _classify_translation_error(exc)
+                app_metrics.inc(f"translation.article_error.{reason}")
+                async with self._stats_lock:
+                    stats["errors"] += 1
+                    bd = stats["error_breakdown"]
+                    bd[reason] = bd.get(reason, 0) + 1
+                    samples: list = stats["error_samples"]
+                    if len(samples) < 8:
+                        samples.append(
+                            {
+                                "article_id": str(article.id),
+                                "reason": reason,
+                                "message": str(exc)[:200],
+                            }
+                        )
                 logger.error(
                     "translation.article_error",
                     article_id=str(article.id),
+                    reason=reason,
                     error=str(exc)[:200],
                 )
                 async with self._factory() as db:
                     art = await db.get(Article, article.id)
                     if art:
-                        art.status = "error"
                         art.processing_error = str(exc)[:500]
+                        art.translation_failure_count = (
+                            art.translation_failure_count + 1
+                        )
+                        if (
+                            art.translation_failure_count
+                            >= settings.max_translation_failures
+                        ):
+                            art.status = "translation_abandoned"
+                        else:
+                            art.status = "error"
                         await db.commit()
             finally:
+                structlog.contextvars.unbind_contextvars("article_id")
                 await asyncio.sleep(0.5)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30))
-    async def _process_article(self, article: Article) -> None:
+    async def _process_article(
+        self,
+        article: Article,
+    ) -> Optional[Literal["translated", "needs_review"]]:
         async with self._factory() as db:
             source = await db.get(MediaSource, article.media_source_id)
             media_name = source.name if source else "Unknown"
@@ -310,13 +489,13 @@ class TranslationPipeline:
             prompt = _build_translate_prompt(article, media_name)
 
         raw_text = await self._router.translate(
-            system=SYSTEM_PROMPT,
+            system=_augmented_system_prompt(),
             prompt=prompt,
             language=lang,
-            max_tokens=1500,
+            max_tokens=2000,
         )
 
-        data = _parse_llm_json(raw_text)
+        data = await _parse_translation_llm_json(self._router, raw_text, lang)
 
         content = article.content_original or ""
         used_rss_fallback = len(content.split()) < 300
@@ -324,14 +503,14 @@ class TranslationPipeline:
         confidence = compute_confidence(article, data, is_french, used_rss_fallback)
 
         if confidence < settings.translation_confidence_threshold:
-            status = "needs_review"
+            status: Literal["translated", "needs_review"] = "needs_review"
         else:
             status = "translated"
 
         async with self._factory() as db:
             art = await db.get(Article, article.id)
             if not art:
-                return
+                return None
 
             if is_french:
                 art.title_fr = article.title_original
@@ -342,10 +521,29 @@ class TranslationPipeline:
             art.summary_fr = data.get("summary_fr", "")
             art.key_quotes_fr = data.get("key_quotes_fr", [])
             art.article_type = data.get("article_type", "other")
+            olj_ids = validate_olj_topic_ids(data.get("olj_topic_ids"))
+            if not olj_ids:
+                olj_ids = validate_olj_topic_ids(["other"])
+            art.olj_topic_ids = olj_ids
+            fam = data.get("article_family") or art.article_type or "other"
+            art.article_family = str(fam)[:30]
+            stance = data.get("stance_summary")
+            art.stance_summary = stance.strip()[:2000] if isinstance(stance, str) else None
+            ev = data.get("event_extraction")
+            art.event_extraction_json = ev if isinstance(ev, dict) else None
+            spans = data.get("source_spans")
+            art.source_spans_json = spans if isinstance(spans, list) else None
+            eid = await resolve_or_create_event_for_article(
+                db,
+                extraction=art.event_extraction_json,
+            )
+            art.primary_editorial_event_id = eid
             art.translation_confidence = confidence
             art.translation_notes = data.get("translation_notes", "")
             art.status = status
             art.processed_at = datetime.now(timezone.utc)
+            art.translation_failure_count = 0
+            art.processing_error = None
             await db.commit()
 
         entities_raw = data.get("entities", [])
@@ -367,6 +565,7 @@ class TranslationPipeline:
             status=status,
             confidence=confidence,
         )
+        return status
 
 
 async def run_translation_pipeline(

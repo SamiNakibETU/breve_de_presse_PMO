@@ -26,6 +26,8 @@ class MediaSource(Base):
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     rss_url: Mapped[Optional[str]] = mapped_column(String(500))
     rss_opinion_url: Mapped[Optional[str]] = mapped_column(String(500))
+    # JSON array d’URLs de listes / rubriques « opinion » (import CSV revue).
+    opinion_hub_urls_json: Mapped[Optional[str]] = mapped_column(Text)
     english_version_url: Mapped[Optional[str]] = mapped_column(String(500))
     collection_method: Mapped[str] = mapped_column(
         String(20), nullable=False, default="rss"

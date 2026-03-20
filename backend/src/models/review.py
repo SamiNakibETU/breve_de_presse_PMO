@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
@@ -26,6 +27,13 @@ class Review(Base):
     full_text: Mapped[Optional[str]] = mapped_column(Text)
     journalist_notes: Mapped[Optional[str]] = mapped_column(Text)
     created_by: Mapped[Optional[str]] = mapped_column(String(255))
+    supersedes_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reviews.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    content_snapshot_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    generation_prompt_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

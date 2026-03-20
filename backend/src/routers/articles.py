@@ -1,27 +1,31 @@
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.media_source import MediaSource
 from src.schemas.articles import (
+    ArticleIdBatchRequest,
     ArticleIdsRequest,
     ArticleListResponse,
     ArticleResponse,
     MediaSourceResponse,
 )
-from src.services.relevance import compute_editorial_relevance
+from src.services.olj_taxonomy import load_topics_of_day
+from src.services.relevance import explain_editorial_relevance
 
 router = APIRouter(prefix="/api")
 
 
 def _to_response(art: Article, src: MediaSource) -> ArticleResponse:
-    relevance = compute_editorial_relevance(
+    topics_day = load_topics_of_day()
+    expl = explain_editorial_relevance(
         country_code=src.country_code,
         article_type=art.article_type,
         published_at=art.published_at,
@@ -29,7 +33,10 @@ def _to_response(art: Article, src: MediaSource) -> ArticleResponse:
         tier=src.tier,
         has_summary=bool(art.summary_fr),
         has_quotes=bool(art.key_quotes_fr and len(art.key_quotes_fr) > 0),
+        olj_topic_ids=art.olj_topic_ids if isinstance(art.olj_topic_ids, list) else None,
+        topics_of_day=topics_day,
     )
+    olj_ids = art.olj_topic_ids if isinstance(art.olj_topic_ids, list) else None
     return ArticleResponse(
         id=str(art.id),
         title_fr=art.title_fr,
@@ -51,7 +58,20 @@ def _to_response(art: Article, src: MediaSource) -> ArticleResponse:
         status=art.status,
         word_count=art.word_count,
         collected_at=art.collected_at,
-        editorial_relevance=relevance,
+        editorial_relevance=expl["score"],
+        why_ranked=expl,
+        olj_topic_ids=olj_ids,
+        article_family=art.article_family,
+        paywall_observed=getattr(art, "paywall_observed", False),
+        published_at_source=art.published_at_source,
+        stance_summary=art.stance_summary,
+        primary_editorial_event_id=(
+            str(art.primary_editorial_event_id)
+            if art.primary_editorial_event_id
+            else None
+        ),
+        processing_error=art.processing_error,
+        translation_failure_count=art.translation_failure_count,
     )
 
 
@@ -66,7 +86,10 @@ async def list_articles(
     days: int = Query(default=7, ge=1, le=30),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    sort: Optional[str] = Query(default="relevance", description="relevance|date|confidence"),
+    sort: Optional[str] = Query(
+        default="relevance",
+        description="relevance|date|confidence|confidence_asc",
+    ),
 ):
     query = (
         select(Article, MediaSource)
@@ -102,7 +125,16 @@ async def list_articles(
     count_q = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_q)).scalar() or 0
 
-    query = query.order_by(Article.published_at.desc().nullslast()).limit(limit).offset(offset)
+    if sort == "date":
+        query = query.order_by(Article.collected_at.desc())
+    elif sort == "confidence":
+        query = query.order_by(Article.translation_confidence.desc().nullslast())
+    elif sort == "confidence_asc":
+        query = query.order_by(Article.translation_confidence.asc().nullslast())
+    else:
+        query = query.order_by(Article.published_at.desc().nullslast())
+
+    query = query.limit(limit).offset(offset)
     result = await db.execute(query)
     rows = result.all()
 
@@ -110,8 +142,6 @@ async def list_articles(
 
     if sort == "relevance":
         articles.sort(key=lambda a: a.editorial_relevance or 0, reverse=True)
-    elif sort == "confidence":
-        articles.sort(key=lambda a: a.translation_confidence or 0, reverse=True)
 
     return ArticleListResponse(articles=articles, total=total)
 
@@ -151,12 +181,84 @@ async def list_articles_by_ids(
     return ArticleListResponse(articles=responses, total=len(responses))
 
 
+def _parse_uuid_batch(ids: list[str]) -> list[uuid.UUID]:
+    out: list[uuid.UUID] = []
+    for raw in ids:
+        try:
+            out.append(uuid.UUID(str(raw).strip()))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"UUID invalide: {raw!r}",
+            ) from exc
+    return out
+
+
+@router.post("/articles/batch-retry-translation")
+async def batch_retry_translation(
+    body: ArticleIdBatchRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+):
+    """Remet les articles en file traduction (dead letter / erreurs)."""
+    ids = _parse_uuid_batch(body.ids)
+    res = await db.execute(
+        update(Article)
+        .where(Article.id.in_(ids))
+        .values(
+            status="collected",
+            translation_failure_count=0,
+            processing_error=None,
+        )
+    )
+    await db.commit()
+    return {"status": "ok", "updated": res.rowcount}
+
+
+@router.post("/articles/batch-abandon-translation")
+async def batch_abandon_translation(
+    body: ArticleIdBatchRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+):
+    """Marque les articles comme abandonnés côté traduction automatique."""
+    ids = _parse_uuid_batch(body.ids)
+    res = await db.execute(
+        update(Article)
+        .where(Article.id.in_(ids))
+        .values(status="translation_abandoned")
+    )
+    await db.commit()
+    return {"status": "ok", "updated": res.rowcount}
+
+
+@router.post("/articles/batch-mark-reviewed", response_model=dict)
+async def batch_mark_reviewed(
+    body: ArticleIdBatchRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+):
+    """Passe needs_review → translated (validation éditoriale)."""
+    ids = _parse_uuid_batch(body.ids)
+    res = await db.execute(
+        update(Article)
+        .where(Article.id.in_(ids), Article.status == "needs_review")
+        .values(status="translated")
+    )
+    await db.commit()
+    return {"status": "ok", "updated": res.rowcount}
+
+
 @router.get("/articles/{article_id}", response_model=ArticleResponse)
 async def get_article(article_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        aid = uuid.UUID(article_id)
+    except ValueError:
+        raise HTTPException(404, "Article not found") from None
     result = await db.execute(
         select(Article, MediaSource)
         .join(MediaSource, Article.media_source_id == MediaSource.id)
-        .where(Article.id == article_id)
+        .where(Article.id == aid)
     )
     row = result.one_or_none()
     if not row:
@@ -213,6 +315,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     translated = by_status.get("translated", 0)
     needs_review = by_status.get("needs_review", 0)
     errors = by_status.get("error", 0)
+    abandoned = by_status.get("translation_abandoned", 0)
     collected = by_status.get("collected", 0)
 
     no_content = (
@@ -249,16 +352,50 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     ).all()
 
+    with_embedding = (
+        await db.execute(
+            select(func.count(Article.id)).where(
+                Article.collected_at >= cutoff,
+                Article.embedding.isnot(None),
+            )
+        )
+    ).scalar() or 0
+
+    with_olj_topics = (
+        await db.execute(
+            select(func.count(Article.id)).where(
+                Article.collected_at >= cutoff,
+                Article.olj_topic_ids.isnot(None),
+            )
+        )
+    ).scalar() or 0
+
+    by_source_rows = (
+        await db.execute(
+            select(Article.media_source_id, func.count(Article.id))
+            .where(Article.collected_at >= cutoff)
+            .group_by(Article.media_source_id)
+            .order_by(func.count(Article.id).desc())
+            .limit(25)
+        )
+    ).all()
+
     return {
         "total_collected_24h": total_24h,
         "total_translated": translated,
         "total_needs_review": needs_review,
         "total_errors": errors,
+        "total_translation_abandoned": abandoned,
         "total_pending": collected,
         "total_no_content": no_content,
+        "articles_with_embedding_24h": with_embedding,
+        "articles_with_olj_topics_24h": with_olj_topics,
         "countries_covered": len(by_country_rows),
         "by_status": by_status,
         "by_country": {row[0]: row[1] for row in by_country_rows},
         "by_type": {row[0]: row[1] for row in by_type_rows},
         "by_language": {row[0]: row[1] for row in by_lang_rows},
+        "by_media_source_top": [
+            {"media_source_id": row[0], "count": row[1]} for row in by_source_rows
+        ],
     }

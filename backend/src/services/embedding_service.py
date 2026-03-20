@@ -16,7 +16,8 @@ _EDITORIAL_TYPES = ("opinion", "editorial", "tribune", "analysis")
 
 BATCH_SIZE = 96
 MODEL = "embed-multilingual-v3.0"
-INPUT_TYPE = "search_document"
+INPUT_TYPE_DOCUMENT = "search_document"
+INPUT_TYPE_QUERY = "search_query"
 
 
 class EmbeddingService:
@@ -33,12 +34,23 @@ class EmbeddingService:
             response = self.client.embed(
                 texts=batch,
                 model=MODEL,
-                input_type=INPUT_TYPE,
+                input_type=INPUT_TYPE_DOCUMENT,
                 embedding_types=["float"],
             )
             emb = getattr(response.embeddings, "float_", None) or response.embeddings
             all_embeddings.extend(emb)
         return all_embeddings
+
+    def embed_query(self, text: str) -> list[float]:
+        """Vecteur pour recherche sémantique (asymétrique vs search_document)."""
+        response = self.client.embed(
+            texts=[text[:8000]],
+            model=MODEL,
+            input_type=INPUT_TYPE_QUERY,
+            embedding_types=["float"],
+        )
+        emb = getattr(response.embeddings, "float_", None) or response.embeddings
+        return list(emb[0])
 
     async def embed_pending_articles(self, db: AsyncSession) -> int:
         settings = get_settings()

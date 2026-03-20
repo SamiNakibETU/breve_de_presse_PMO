@@ -1,5 +1,7 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 
+from src.deps.auth import require_internal_key
+from src.limiter import limiter
 from src.schemas.pipeline import (
     PipelineTaskStartRequest,
     PipelineTaskStartResponse,
@@ -14,7 +16,11 @@ router = APIRouter(prefix="/api")
 
 
 @router.post("/collect")
-async def trigger_collect():
+@limiter.limit("12/minute")
+async def trigger_collect(
+    request: Request,
+    _: None = Depends(require_internal_key),
+):
     try:
         stats = await run_collection()
         return {"status": "ok", "stats": stats}
@@ -23,8 +29,11 @@ async def trigger_collect():
 
 
 @router.post("/translate")
+@limiter.limit("8/minute")
 async def trigger_translate(
+    request: Request,
     limit: int = Query(default=300, ge=1, le=1000),
+    _: None = Depends(require_internal_key),
 ):
     try:
         stats = await run_translation_pipeline(limit=limit)
@@ -34,7 +43,11 @@ async def trigger_translate(
 
 
 @router.post("/pipeline")
-async def trigger_pipeline():
+@limiter.limit("4/minute")
+async def trigger_pipeline(
+    request: Request,
+    _: None = Depends(require_internal_key),
+):
     try:
         stats = await daily_pipeline()
         return {"status": "ok", "stats": stats}
@@ -43,15 +56,18 @@ async def trigger_pipeline():
 
 
 @router.post("/pipeline/tasks", response_model=PipelineTaskStartResponse)
+@limiter.limit("15/minute")
 async def start_pipeline_task(
+    request: Request,
     body: PipelineTaskStartRequest,
     background_tasks: BackgroundTasks,
+    _: None = Depends(require_internal_key),
 ):
     """
     Lance une tâche pipeline en arrière-plan. Suivi : **GET /api/pipeline/tasks/{task_id}**
     (polling client ~1 s). Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`.
     """
-    task_id = pipeline_task_store.create_task(body.kind.value)
+    task_id = await pipeline_task_store.create_task(body.kind.value)
     background_tasks.add_task(
         execute_pipeline_task,
         task_id,
@@ -63,7 +79,7 @@ async def start_pipeline_task(
 
 @router.get("/pipeline/tasks/{task_id}")
 async def get_pipeline_task(task_id: str):
-    t = pipeline_task_store.get_task(task_id)
+    t = await pipeline_task_store.get_task(task_id)
     if not t:
         raise HTTPException(status_code=404, detail="Tâche inconnue ou expirée")
     return t

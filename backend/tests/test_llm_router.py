@@ -13,10 +13,12 @@ def _make_settings(**overrides):
         "cerebras_api_key": "csk_test",
         "anthropic_api_key": "sk-ant-test",
         "groq_translation_model": "llama-4-scout",
+        "groq_translation_model_fallback": "llama-small",
         "groq_generation_model": "llama-3.3-70b",
         "cerebras_translation_model": "qwen-3-235b",
         "anthropic_translation_model": "claude-haiku",
         "anthropic_generation_model": "claude-sonnet",
+        "llm_use_json_object_mode": True,
     }
     defaults.update(overrides)
     s = MagicMock()
@@ -94,6 +96,24 @@ class TestFallbackRouting:
         )
         with pytest.raises(RuntimeError, match="No LLM provider configured"):
             LLMRouter()
+
+
+class TestCandidateOrdering:
+    @patch("src.services.llm_router.get_settings")
+    def test_translation_candidates_include_groq_fallback_for_en(self, mock_gs):
+        mock_gs.return_value = _make_settings()
+        router = LLMRouter()
+        pairs = router._translation_candidates("en")
+        groq_models = [m for p, m in pairs if p == Provider.GROQ]
+        assert "llama-4-scout" in groq_models
+        assert "llama-small" in groq_models
+
+    @patch("src.services.llm_router.get_settings")
+    def test_generation_candidates_order(self, mock_gs):
+        mock_gs.return_value = _make_settings()
+        router = LLMRouter()
+        pairs = router._generation_candidates()
+        assert pairs[0][0] == Provider.GROQ
 
 
 class TestGenerationRouting:

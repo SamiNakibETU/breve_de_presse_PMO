@@ -3,12 +3,13 @@ OLJ format press review generator using hybrid LLM routing (async).
 Generates copy-paste-ready blocks matching Emilie's exact format.
 """
 
+import hashlib
 import json
 import uuid
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from src.config import get_settings
 from src.database import get_session_factory
@@ -16,6 +17,7 @@ from src.models.article import Article
 from src.models.media_source import MediaSource
 from src.models.review import Review, ReviewItem
 from src.services.llm_router import get_llm_router
+from src.services.olj_glossary import glossary_prompt_block_for_topics
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -134,8 +136,18 @@ class PressReviewGenerator:
         )
         pays = COUNTRY_MAP.get(source.country_code, source.country)
 
-        user_prompt = f"""Produis le bloc revue de presse OLJ pour cet article :
+        tids = (
+            article.olj_topic_ids
+            if isinstance(article.olj_topic_ids, list)
+            else None
+        )
+        gloss = glossary_prompt_block_for_topics(
+            [str(x) for x in tids if isinstance(x, str)] if tids else [],
+        )
+        gloss_block = f"\n{gloss}\n" if gloss else ""
 
+        user_prompt = f"""Produis le bloc revue de presse OLJ pour cet article :
+{gloss_block}
 TITRE ORIGINAL : {article.title_original}
 TITRE TRADUIT : {article.title_fr or article.title_original}
 THÈSE DE L'AUTEUR : {article.thesis_summary_fr or 'Non disponible'}
@@ -194,7 +206,11 @@ Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
                 return text.strip()
         return None
 
-    async def generate_full_review(self, article_ids: list[str]) -> dict:
+    async def generate_full_review(
+        self,
+        article_ids: list[str],
+        created_by: str | None = None,
+    ) -> dict:
         blocks: list[str] = []
         for aid in article_ids:
             try:
@@ -209,12 +225,25 @@ Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
         full_text = "\n\n".join(blocks)
 
         today = datetime.now(timezone.utc)
-        review_id = await self._persist_review(article_ids, full_text, today)
+        snap_hash = hashlib.sha256(
+            (json.dumps(article_ids, sort_keys=True) + "|" + full_text[:8000]).encode(),
+        ).hexdigest()
+        gen_hash = hashlib.sha256(OLJ_SYSTEM_PROMPT.encode()).hexdigest()
+        review_id = await self._persist_review(
+            article_ids,
+            full_text,
+            today,
+            created_by=created_by,
+            content_snapshot_hash=snap_hash,
+            generation_prompt_hash=gen_hash,
+        )
 
         return {
             "review_id": str(review_id),
             "full_text": full_text,
             "article_count": len(article_ids),
+            "content_snapshot_hash": snap_hash,
+            "generation_prompt_hash": gen_hash,
         }
 
     async def _persist_review(
@@ -222,6 +251,10 @@ Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
         article_ids: list[str],
         full_text: str,
         now: datetime,
+        *,
+        created_by: str | None = None,
+        content_snapshot_hash: str | None = None,
+        generation_prompt_hash: str | None = None,
     ) -> uuid.UUID:
         async with self._factory() as db:
             existing = await db.execute(
@@ -232,12 +265,24 @@ Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
             if review:
                 review.full_text = full_text
                 review.status = "ready"
+                if created_by:
+                    review.created_by = created_by
+                if content_snapshot_hash:
+                    review.content_snapshot_hash = content_snapshot_hash
+                if generation_prompt_hash:
+                    review.generation_prompt_hash = generation_prompt_hash
+                await db.execute(
+                    delete(ReviewItem).where(ReviewItem.review_id == review.id)
+                )
             else:
                 review = Review(
                     title=f"Revue de presse régionale — {_format_date_fr(now)}",
                     review_date=now.date(),
                     status="ready",
                     full_text=full_text,
+                    created_by=created_by,
+                    content_snapshot_hash=content_snapshot_hash,
+                    generation_prompt_hash=generation_prompt_hash,
                 )
                 db.add(review)
                 await db.flush()

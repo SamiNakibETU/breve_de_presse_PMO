@@ -7,15 +7,21 @@ Routing strategy:
   - Hebrew                        → Anthropic (Claude Haiku, only reliable option)
   - OLJ generation                → Groq (Llama 3.3 70B, quality writing)
   - Fallback                      → any available provider
+  - 429 / quota                   → modèle Groq secondaire puis autres providers
 """
 
+from __future__ import annotations
+
+import time
 from enum import Enum
 
 import anthropic
 import structlog
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError
 
 from src.config import get_settings
+from src.services import llm_cache
+from src.services import metrics as app_metrics
 
 logger = structlog.get_logger(__name__)
 
@@ -28,6 +34,23 @@ class Provider(str, Enum):
 
 _CEREBRAS_LANGS = frozenset(("ar", "fa", "tr", "ku"))
 _GROQ_LANGS = frozenset(("en", "fr"))
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    if isinstance(exc, RateLimitError):
+        return True
+    if isinstance(exc, anthropic.RateLimitError):
+        return True
+    status = getattr(exc, "status_code", None)
+    if status == 429:
+        return True
+    msg = str(exc).lower()
+    return (
+        "429" in msg
+        or "rate_limit" in msg
+        or "rate limit" in msg
+        or "too many requests" in msg
+    )
 
 
 class LLMRouter:
@@ -86,6 +109,42 @@ class LLMRouter:
 
         raise RuntimeError("No LLM provider available for translation.")
 
+    def _translation_candidates(self, language: str) -> list[tuple[Provider, str]]:
+        """Ordre de tentative : priorité langue, puis Groq fallback, puis file générale."""
+        s = get_settings()
+        ordered: list[tuple[Provider, str]] = []
+        seen: set[tuple[Provider, str]] = set()
+
+        def push(prov: Provider, model: str) -> None:
+            if not self._has(prov) or not (model or "").strip():
+                return
+            pair = (prov, model.strip())
+            if pair in seen:
+                return
+            seen.add(pair)
+            ordered.append(pair)
+
+        if language == "he":
+            push(Provider.ANTHROPIC, s.anthropic_translation_model)
+        if language in _CEREBRAS_LANGS:
+            push(Provider.CEREBRAS, s.cerebras_translation_model)
+        if language in _GROQ_LANGS:
+            push(Provider.GROQ, s.groq_translation_model)
+            fb = (s.groq_translation_model_fallback or "").strip()
+            if fb and fb != s.groq_translation_model:
+                push(Provider.GROQ, fb)
+
+        push(Provider.CEREBRAS, s.cerebras_translation_model)
+        push(Provider.GROQ, s.groq_translation_model)
+        fb2 = (s.groq_translation_model_fallback or "").strip()
+        if fb2 and fb2 != s.groq_translation_model:
+            push(Provider.GROQ, fb2)
+        push(Provider.ANTHROPIC, s.anthropic_translation_model)
+
+        if not ordered:
+            raise RuntimeError("No LLM provider available for translation.")
+        return ordered
+
     def _pick_generation(self) -> tuple[Provider, str]:
         s = get_settings()
 
@@ -99,6 +158,27 @@ class LLMRouter:
 
         raise RuntimeError("No LLM provider available for generation.")
 
+    def _generation_candidates(self) -> list[tuple[Provider, str]]:
+        s = get_settings()
+        ordered: list[tuple[Provider, str]] = []
+        seen: set[tuple[Provider, str]] = set()
+
+        def push(prov: Provider, model: str) -> None:
+            if not self._has(prov) or not (model or "").strip():
+                return
+            pair = (prov, model.strip())
+            if pair in seen:
+                return
+            seen.add(pair)
+            ordered.append(pair)
+
+        push(Provider.GROQ, s.groq_generation_model)
+        push(Provider.ANTHROPIC, s.anthropic_generation_model)
+        push(Provider.CEREBRAS, s.cerebras_translation_model)
+        if not ordered:
+            raise RuntimeError("No LLM provider available for generation.")
+        return ordered
+
     async def translate(
         self,
         system: str,
@@ -106,8 +186,60 @@ class LLMRouter:
         language: str,
         max_tokens: int = 1500,
     ) -> str:
-        provider, model = self._pick_translation(language)
-        return await self._call(provider, model, system, prompt, max_tokens)
+        s = get_settings()
+        use_json = bool(s.llm_use_json_object_mode)
+        primary = self._pick_translation(language)
+        cached = llm_cache.get_cached(system, prompt, primary[1])
+        if cached is not None:
+            logger.info("llm.cache_hit", model=primary[1])
+            return cached
+
+        candidates = self._translation_candidates(language)
+        last_exc: BaseException | None = None
+        for prov, model in candidates:
+            t0 = time.perf_counter()
+            try:
+                text = await self._call(
+                    prov,
+                    model,
+                    system,
+                    prompt,
+                    max_tokens,
+                    json_object_mode=use_json,
+                )
+                dur = time.perf_counter() - t0
+                app_metrics.record_llm_request(
+                    provider=prov.value,
+                    outcome="ok",
+                    duration_seconds=dur,
+                )
+                llm_cache.set_cached(system, prompt, model, text)
+                return text
+            except Exception as exc:
+                dur = time.perf_counter() - t0
+                if _is_rate_limit(exc):
+                    app_metrics.record_llm_request(
+                        provider=prov.value,
+                        outcome="rate_limited",
+                        duration_seconds=dur,
+                    )
+                    logger.warning(
+                        "llm.translate_rate_limited",
+                        provider=prov.value,
+                        model=model,
+                        error=str(exc)[:200],
+                    )
+                    last_exc = exc
+                    continue
+                app_metrics.record_llm_request(
+                    provider=prov.value,
+                    outcome="error",
+                    duration_seconds=dur,
+                )
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("No translation candidate succeeded")
 
     async def generate(
         self,
@@ -115,8 +247,51 @@ class LLMRouter:
         prompt: str,
         max_tokens: int = 1000,
     ) -> str:
-        provider, model = self._pick_generation()
-        return await self._call(provider, model, system, prompt, max_tokens)
+        candidates = self._generation_candidates()
+        last_exc: BaseException | None = None
+        for prov, model in candidates:
+            t0 = time.perf_counter()
+            try:
+                text = await self._call(
+                    prov,
+                    model,
+                    system,
+                    prompt,
+                    max_tokens,
+                    json_object_mode=False,
+                )
+                dur = time.perf_counter() - t0
+                app_metrics.record_llm_request(
+                    provider=prov.value,
+                    outcome="ok",
+                    duration_seconds=dur,
+                )
+                return text
+            except Exception as exc:
+                dur = time.perf_counter() - t0
+                if _is_rate_limit(exc):
+                    app_metrics.record_llm_request(
+                        provider=prov.value,
+                        outcome="rate_limited",
+                        duration_seconds=dur,
+                    )
+                    logger.warning(
+                        "llm.generate_rate_limited",
+                        provider=prov.value,
+                        model=model,
+                        error=str(exc)[:200],
+                    )
+                    last_exc = exc
+                    continue
+                app_metrics.record_llm_request(
+                    provider=prov.value,
+                    outcome="error",
+                    duration_seconds=dur,
+                )
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("No generation candidate succeeded")
 
     async def _call(
         self,
@@ -125,10 +300,17 @@ class LLMRouter:
         system: str,
         prompt: str,
         max_tokens: int,
+        *,
+        json_object_mode: bool = False,
     ) -> str:
         client = self._clients[provider]
 
-        logger.info("llm.call", provider=provider.value, model=model)
+        logger.info(
+            "llm.call",
+            provider=provider.value,
+            model=model,
+            json_object_mode=json_object_mode,
+        )
 
         if provider == Provider.ANTHROPIC:
             response = await client.messages.create(
@@ -139,14 +321,29 @@ class LLMRouter:
             )
             text = response.content[0].text
         else:
-            response = await client.chat.completions.create(
-                model=model,
-                max_tokens=max_tokens,
-                messages=[
+            kwargs: dict = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": prompt},
                 ],
-            )
+            }
+            if json_object_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+            try:
+                response = await client.chat.completions.create(**kwargs)
+            except Exception as exc:
+                if json_object_mode and "response_format" in kwargs:
+                    del kwargs["response_format"]
+                    logger.warning(
+                        "llm.json_object_rejected",
+                        provider=provider.value,
+                        error=str(exc)[:200],
+                    )
+                    response = await client.chat.completions.create(**kwargs)
+                else:
+                    raise
             text = response.choices[0].message.content
 
         logger.info(

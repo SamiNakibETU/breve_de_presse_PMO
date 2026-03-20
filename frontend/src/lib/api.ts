@@ -13,12 +13,40 @@ import type {
   Stats,
 } from "./types";
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+/** `direct` = navigateur → API FastAPI. `proxy` = BFF Next (`/api/proxy/...`, clé serveur uniquement). */
+const API_MODE = process.env.NEXT_PUBLIC_API_MODE ?? "direct";
+
+function resolveUrl(path: string): string {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  if (API_MODE === "proxy") {
+    return `/api/proxy${p}`;
+  }
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(
+    /\/+$/,
+    "",
+  );
+  return `${base}${p}`;
+}
+
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (API_MODE !== "proxy") {
+    const key = process.env.NEXT_PUBLIC_INTERNAL_API_KEY;
+    if (key) h["X-Internal-Key"] = key;
+  }
+  const editor = process.env.NEXT_PUBLIC_EDITOR_ID;
+  if (editor) h["X-Editor-ID"] = editor;
+  return h;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(resolveUrl(path), {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -138,4 +166,22 @@ export const api = {
     request<ClusterRefreshResponse>("/api/clusters/refresh", {
       method: "POST",
     }),
+
+  batchRetryTranslation: (ids: string[]) =>
+    request<{ status: string; updated: number }>(
+      "/api/articles/batch-retry-translation",
+      { method: "POST", body: JSON.stringify({ ids }) },
+    ),
+
+  batchAbandonTranslation: (ids: string[]) =>
+    request<{ status: string; updated: number }>(
+      "/api/articles/batch-abandon-translation",
+      { method: "POST", body: JSON.stringify({ ids }) },
+    ),
+
+  batchMarkReviewed: (ids: string[]) =>
+    request<{ status: string; updated: number }>(
+      "/api/articles/batch-mark-reviewed",
+      { method: "POST", body: JSON.stringify({ ids }) },
+    ),
 };

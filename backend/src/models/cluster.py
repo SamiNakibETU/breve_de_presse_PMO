@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,9 @@ class TopicCluster(Base):
     avg_relevance: Mapped[float] = mapped_column(Float, default=0.0)
     latest_article_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    insight_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Article, ReviewSummary } from "@/lib/types";
+import { REVIEW_ARTICLE_IDS_KEY } from "@/lib/review-selection-storage";
 import { SelectedArticles } from "@/components/review/selected-articles";
 import { ReviewPreview } from "@/components/review/review-preview";
 
@@ -16,7 +17,7 @@ export default function ReviewPage() {
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("review_article_ids");
+    const stored = sessionStorage.getItem(REVIEW_ARTICLE_IDS_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as unknown;
@@ -53,7 +54,7 @@ export default function ReviewPage() {
   function removeArticle(id: string) {
     const next = articleIds.filter((i) => i !== id);
     setArticleIds(next);
-    sessionStorage.setItem("review_article_ids", JSON.stringify(next));
+    sessionStorage.setItem(REVIEW_ARTICLE_IDS_KEY, JSON.stringify(next));
   }
 
   async function generate() {
@@ -108,6 +109,7 @@ export default function ReviewPage() {
               <span className="font-medium">{r.title || r.review_date}</span>
               <span className="tabular-nums text-[11px] text-[#888]">
                 {r.article_count}
+                {r.created_by ? ` · ${r.created_by}` : ""}
               </span>
             </button>
           ))}

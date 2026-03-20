@@ -85,6 +85,18 @@ MOCK_TRANSLATION_JSON = {
     "summary_fr": " ".join(["Ceci est un résumé de test."] * 30),
     "key_quotes_fr": ["« Citation de test »"],
     "article_type": "analysis",
+    "article_family": "analysis",
+    "olj_topic_ids": ["mena.geopolitics", "other"],
+    "stance_summary": "L'auteur souligne un enjeu géopolitique régional.",
+    "event_extraction": {
+        "who": "Acteurs régionaux",
+        "what": "Tensions",
+        "where": "Moyen-Orient",
+        "when": "2026",
+        "canonical_event_label_fr": "Tensions régionales",
+        "completeness_0_1": 0.4,
+    },
+    "source_spans": [{"text_excerpt": "extrait", "role": "quote"}],
     "entities": [
         {"name": "Test Person", "type": "PERSON", "name_fr": "Personne Test"}
     ],

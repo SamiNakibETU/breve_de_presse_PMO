@@ -14,8 +14,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Chemin fixe dans l'image : évite les décalages si la plateforme définit
+# PLAYWRIGHT_BROWSERS_PATH (ex. /tmp/...) sans y avoir installé les binaires au build.
+# Sur Railway : ne pas surcharger cette variable dans les variables d'environnement.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
+    mkdir -p /ms-playwright && \
     playwright install chromium --with-deps && \
     apt-get update && apt-get purge -y build-essential && \
     apt-get autoremove -y && \

@@ -33,3 +33,4 @@ class ClusterRefreshResponse(BaseModel):
     articles_clustered: int
     articles_embedded: int
     clusters_labeled: int
+    insights_updated: int = 0

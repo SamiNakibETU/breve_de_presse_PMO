@@ -110,3 +110,63 @@ def compute_editorial_relevance(
     )
 
     return min(100, max(0, round(raw * 100)))
+
+
+def compute_topic_overlap_bonus(
+    article_topic_ids: list[str] | None,
+    topics_of_day: list[str] | None,
+    *,
+    max_bonus: int = 12,
+) -> tuple[int, list[str]]:
+    """Bonus si l’article partage des thèmes avec OLJ_TOPICS_OF_DAY.json."""
+    if not article_topic_ids or not topics_of_day:
+        return 0, []
+    want = set(topics_of_day)
+    overlap = [t for t in article_topic_ids if t in want]
+    if not overlap:
+        return 0, []
+    # Plafonner : 4 points par topic en overlap, max max_bonus
+    bonus = min(max_bonus, len(overlap) * 4)
+    return bonus, overlap
+
+
+def explain_editorial_relevance(
+    country_code: str,
+    article_type: str | None,
+    published_at,
+    source_language: str | None,
+    tier: int = 2,
+    has_summary: bool = False,
+    has_quotes: bool = False,
+    olj_topic_ids: list[str] | None = None,
+    topics_of_day: list[str] | None = None,
+) -> dict:
+    """
+    Score final + décomposition pour l’API (why_ranked).
+    Le bonus « topics du jour » s’ajoute après normalisation du score de base.
+    """
+    base = compute_editorial_relevance(
+        country_code=country_code,
+        article_type=article_type,
+        published_at=published_at,
+        source_language=source_language,
+        tier=tier,
+        has_summary=has_summary,
+        has_quotes=has_quotes,
+    )
+    bonus, overlap = compute_topic_overlap_bonus(olj_topic_ids, topics_of_day)
+    final = min(100, base + bonus)
+    return {
+        "score": final,
+        "base_score": base,
+        "topic_of_day_bonus": bonus,
+        "topics_of_day_overlap": overlap,
+        "factors": {
+            "country_code": country_code,
+            "article_type": article_type or "news",
+            "tier": tier,
+            "has_summary": has_summary,
+            "has_quotes": has_quotes,
+            "source_language": source_language,
+        },
+    }

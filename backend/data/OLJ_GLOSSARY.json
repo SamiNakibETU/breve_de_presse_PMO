@@ -1,0 +1,35 @@
+{
+  "version": "1.0.0",
+  "entries": [
+    {
+      "term_ar": "المقاومة",
+      "term_fr": "résistance",
+      "context_fr": "En contexte régional, préciser l'acteur visé (ex. Hezbollah, factions armées) pour éviter l'ambiguïté.",
+      "topic_ids": ["mena.levant", "mena.israel_palestine"]
+    },
+    {
+      "term_ar": "الشعب الفلسطيني",
+      "term_fr": "le peuple palestinien",
+      "context_fr": "Formulation neutre usuelle en français de presse.",
+      "topic_ids": ["mena.israel_palestine"]
+    },
+    {
+      "term_en": "settlements",
+      "term_fr": "colonies (israéliennes)",
+      "context_fr": "Vocabulaire courant dans la presse francophone sur le conflit.",
+      "topic_ids": ["mena.israel_palestine"]
+    },
+    {
+      "term_en": "Gulf states",
+      "term_fr": "monarchies du Golfe",
+      "context_fr": "Regroupement géopolitique ; préciser le pays si l'article le permet.",
+      "topic_ids": ["mena.iran_gulf", "mena.economy"]
+    },
+    {
+      "term_en": "JCPOA",
+      "term_fr": "accord sur le nucléaire iranien (JCPOA)",
+      "context_fr": "Conserver l'acronyme entre parenthèses si première mention.",
+      "topic_ids": ["mena.iran_gulf"]
+    }
+  ]
+}

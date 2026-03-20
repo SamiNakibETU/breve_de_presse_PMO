@@ -10,27 +10,49 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import structlog.contextvars
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from src.config import get_settings
+from src.limiter import limiter
+from src.middleware.correlation import CorrelationIdMiddleware
 from src.database import init_db
-from src.routers import articles, clusters, health, pipeline, reviews
+from src.routers import articles, clusters, health, olj_watch, pipeline, reviews
 from src.services.scheduler import create_scheduler
+from src.otel_setup import instrument_fastapi_app
 
 settings = get_settings()
 
 
+def _log_level_int(name: str) -> int:
+    lvl = getattr(logging, name.upper(), None)
+    return lvl if isinstance(lvl, int) else logging.INFO
+
+
 def _configure_logging() -> None:
-    structlog.configure(
-        processors=[
+    if settings.log_json:
+        processors: list = [
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.format_exc_info,
+            structlog.processors.JSONRenderer(),
+        ]
+    else:
+        processors = [
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.StackInfoRenderer(),
             structlog.dev.set_exc_info,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.dev.ConsoleRenderer(),
-        ],
+        ]
+    structlog.configure(
+        processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelName(settings.log_level)
+            _log_level_int(settings.log_level),
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
@@ -72,6 +94,9 @@ def create_app() -> FastAPI:
         version="1.0.0",
         lifespan=lifespan,
     )
+    app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     origins = [
         "http://localhost:3000",
@@ -91,6 +116,7 @@ def create_app() -> FastAPI:
         if url and url not in origins:
             origins.append(url)
 
+    app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins if settings.environment != "development" else ["*"],
@@ -101,11 +127,13 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
+        ctx = structlog.contextvars.get_contextvars()
         structlog.get_logger().error(
             "unhandled_error",
             path=str(request.url),
             error=str(exc),
             traceback=traceback.format_exc(),
+            **ctx,
         )
         return JSONResponse(
             status_code=500,
@@ -117,6 +145,9 @@ def create_app() -> FastAPI:
     app.include_router(clusters.router)
     app.include_router(pipeline.router)
     app.include_router(reviews.router)
+    app.include_router(olj_watch.router)
+
+    instrument_fastapi_app(app)
 
     return app
 

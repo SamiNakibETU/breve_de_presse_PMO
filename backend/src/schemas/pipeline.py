@@ -8,12 +8,16 @@ class CollectionStats(BaseModel):
     total_sources: int
     total_new: int
     errors: list[dict]
+    error_breakdown: dict[str, int] | None = None
 
 
 class TranslationStats(BaseModel):
     processed: int
     errors: int
     needs_review: int = 0
+    skipped: int = 0
+    error_breakdown: dict[str, int] | None = None
+    error_samples: list[dict] | None = None
 
 
 class PipelineResponse(BaseModel):

@@ -77,10 +77,40 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
               </h3>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
-              <RelevanceBadge score={article.editorial_relevance} />
+              <span
+                title={
+                  article.why_ranked
+                    ? `Pertinence : base ${(article.why_ranked as { base_score?: number }).base_score ?? "—"} + bonus thèmes du jour ${(article.why_ranked as { topic_of_day_bonus?: number }).topic_of_day_bonus ?? 0}. Pays : ${(article.why_ranked as { factors?: { country_code?: string } }).factors?.country_code ?? "—"}`
+                    : "Score éditorial OLJ"
+                }
+                className="cursor-help"
+              >
+                <RelevanceBadge score={article.editorial_relevance} />
+              </span>
               <ConfidenceBadge score={article.translation_confidence} />
             </div>
           </div>
+
+          {(article.status === "error" ||
+            article.status === "translation_abandoned") &&
+            article.processing_error && (
+              <p className="mt-1 line-clamp-2 font-mono text-[10px] text-[#c8102e]">
+                {article.processing_error}
+              </p>
+            )}
+
+          {article.olj_topic_ids && article.olj_topic_ids.length > 0 && (
+            <p className="mt-1 flex flex-wrap gap-1">
+              {article.olj_topic_ids.map((tid) => (
+                <span
+                  key={tid}
+                  className="rounded border border-[#e8e4df] bg-[#faf9f7] px-1.5 py-px font-mono text-[9px] text-[#666]"
+                >
+                  {tid}
+                </span>
+              ))}
+            </p>
+          )}
 
           <p className="mt-1 text-[12px] text-[#888]">
             {article.media_name}

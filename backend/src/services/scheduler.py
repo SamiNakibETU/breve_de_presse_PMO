@@ -3,6 +3,7 @@ Daily pipeline scheduler using APScheduler AsyncIOScheduler.
 Runs collection + translation + embedding + clustering at 06:00 and 14:00 UTC.
 """
 
+import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
@@ -35,9 +36,13 @@ async def daily_pipeline(
     def collect_pb(k: str, lbl: str) -> None:
         p(f"collection.{k}", f"Collecte · {lbl}")
 
+    step_timings: dict[str, float] = {}
+
+    t0 = time.monotonic()
     collection_stats = await run_collection(
         on_progress=collect_pb if on_progress else None,
     )
+    step_timings["collection_s"] = round(time.monotonic() - t0, 2)
 
     logger.info("pipeline.step", step="translate")
     p("translation", "Traduction et résumés (LLM)…")
@@ -45,13 +50,16 @@ async def daily_pipeline(
     def translate_pb(k: str, lbl: str) -> None:
         p(f"translation.{k}", f"Traduction · {lbl}")
 
+    t1 = time.monotonic()
     translation_stats = await run_translation_pipeline(
         on_progress=translate_pb if on_progress else None,
     )
+    step_timings["translation_s"] = round(time.monotonic() - t1, 2)
 
     pipeline_result = {
         "collection": collection_stats,
         "translation": translation_stats,
+        "step_timings": step_timings,
     }
 
     cohere_key = settings.cohere_api_key
@@ -71,21 +79,27 @@ async def daily_pipeline(
 
             factory = get_session_factory()
             async with factory() as db:
+                t_emb = time.monotonic()
                 p("embedding", "Embeddings articles en attente (Cohere)…")
                 embedding_service = EmbeddingService()
                 embedded = await embedding_service.embed_pending_articles(db)
                 pipeline_result["embedding"] = {"embedded": embedded}
+                step_timings["embedding_s"] = round(time.monotonic() - t_emb, 2)
                 logger.info("pipeline.embedding_done", embedded=embedded)
 
+                t_cl = time.monotonic()
                 p("clustering", "Regroupement thématique (HDBSCAN)…")
                 clustering_service = ClusteringService()
                 clustering_result = await clustering_service.run_clustering(db)
                 pipeline_result["clustering"] = clustering_result
+                step_timings["clustering_s"] = round(time.monotonic() - t_cl, 2)
                 logger.info("pipeline.clustering_done", **clustering_result)
 
+                t_lb = time.monotonic()
                 p("labelling", "Libellés sujets (LLM)…")
                 labeled = await label_clusters(db)
                 pipeline_result["labelling"] = {"labeled": labeled}
+                step_timings["labelling_s"] = round(time.monotonic() - t_lb, 2)
                 logger.info("pipeline.labelling_done", labeled=labeled)
         except Exception as e:
             logger.error("pipeline.embedding_clustering_failed", error=str(e))

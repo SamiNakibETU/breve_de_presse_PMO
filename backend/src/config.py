@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     groq_translation_model: str = Field(
         default="meta-llama/llama-4-scout-17b-16e-instruct",
     )
+    groq_translation_model_fallback: str = Field(
+        default="llama-3.1-8b-instant",
+        description="Modèle Groq plus petit si 429 / quota sur le modèle principal (EN/FR)",
+    )
     groq_generation_model: str = Field(default="llama-3.3-70b-versatile")
 
     # --- Cerebras models (AR/FA/TR/KU translation) ---
@@ -30,6 +34,24 @@ class Settings(BaseSettings):
 
     collection_hour_utc: int = Field(default=6)
     max_articles_per_source: int = Field(default=20)
+    opinion_hub_min_articles_saved: int = Field(
+        default=3,
+        ge=1,
+        le=30,
+        description="Objectif minimum d’articles nouveaux bien formatés par source (hubs opinion)",
+    )
+    opinion_hub_max_article_url_attempts: int = Field(
+        default=60,
+        ge=10,
+        le=200,
+        description="Nombre max d’URLs article à tester pour atteindre l’objectif ci-dessus",
+    )
+    opinion_hub_min_article_words: int = Field(
+        default=45,
+        ge=25,
+        le=150,
+        description="Nombre minimum de mots pour accepter un corps d’article (hubs)",
+    )
     request_delay_seconds: float = Field(default=1.5)
     user_agent: str = Field(
         default="OLJ-PressReview/1.0 (editorial-research; contact@lorientlejour.com)",
@@ -37,6 +59,12 @@ class Settings(BaseSettings):
 
     min_article_length: int = Field(default=200)
     translation_confidence_threshold: float = Field(default=0.7)
+    max_translation_failures: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Après N échecs LLM/parsing, l’article n’est plus repris en file traduction",
+    )
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)
 
@@ -67,9 +95,41 @@ class Settings(BaseSettings):
     port: int = Field(default=8000)
     environment: str = Field(default="development")
     log_level: str = Field(default="INFO")
+    log_json: bool = Field(
+        default=False,
+        description="Logs structlog au format JSON (recommandé avec LOG_JSON=true en prod)",
+    )
+    expose_metrics: bool = Field(
+        default=True,
+        description="Expose GET /api/metrics (désactiver si endpoint public non souhaité)",
+    )
+    translation_json_repair: bool = Field(
+        default=True,
+        description="Une 2ᵉ passe LLM si le JSON de traduction est invalide (coût latence + tokens)",
+    )
+    internal_api_key: str | None = Field(
+        default=None,
+        description="Si défini, endpoints sensibles exigent le header X-Internal-Key",
+    )
+    llm_use_json_object_mode: bool = Field(
+        default=True,
+        description="Groq/Cerebras : response_format json_object pour la traduction (repli auto si refus API)",
+    )
+    llm_translation_cache_max_entries: int = Field(
+        default=0,
+        ge=0,
+        le=10_000,
+        description="Cache LRU mémoire des réponses traduction ; 0 = désactivé",
+    )
     frontend_url: str = Field(default="http://localhost:3000")
     # Origines CORS supplémentaires (séparées par des virgules), ex. staging + previews Vercel
     cors_origins: str = Field(default="")
+    hub_html_cache_ttl_seconds: int = Field(
+        default=0,
+        ge=0,
+        le=86400,
+        description="TTL cache disque HTML hubs (0 = désactivé). Ex. 900 = 15 min.",
+    )
 
     @property
     def async_database_url(self) -> str:

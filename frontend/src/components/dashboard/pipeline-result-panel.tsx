@@ -239,6 +239,9 @@ function formatScraperStats(
 function CollectSummary({ stats }: { stats: Record<string, unknown> }) {
   const errors = stats.errors;
   const errList = Array.isArray(errors) ? errors : [];
+  const collBreakdown = stats.error_breakdown;
+  const hasCollBreakdown =
+    isRecord(collBreakdown) && Object.keys(collBreakdown).length > 0;
 
   return (
     <div className="space-y-1">
@@ -257,6 +260,23 @@ function CollectSummary({ stats }: { stats: Record<string, unknown> }) {
       />
       <Row label="Sources RSS lancées" value={num(stats, "total_sources")} />
       <Row label="Erreurs source" value={errList.length} />
+
+      {hasCollBreakdown && (
+        <div className="mt-2 border-t border-[#eee] pt-2">
+          <p className="mb-1 text-[11px] font-medium text-[#444]">
+            Répartition erreurs collecte
+          </p>
+          <ul className="list-inside list-disc text-[11px] text-[#555]">
+            {Object.entries(collBreakdown as Record<string, number>).map(
+              ([k, v]) => (
+                <li key={k}>
+                  <span className="font-mono">{k}</span> : {v}
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+      )}
 
       {formatScraperStats("Scraping HTTP (BeautifulSoup)", stats.web_scraper)}
       {formatScraperStats("Playwright (pages dynamiques)", stats.playwright_scraper)}
@@ -288,18 +308,62 @@ function CollectSummary({ stats }: { stats: Record<string, unknown> }) {
 }
 
 function TranslateSummary({ stats }: { stats: Record<string, unknown> }) {
+  const breakdown = stats.error_breakdown;
+  const samples = stats.error_samples;
+  const hasBreakdown =
+    isRecord(breakdown) && Object.keys(breakdown).length > 0;
+  const hasSamples = Array.isArray(samples) && samples.length > 0;
+
   return (
     <div className="space-y-1">
       <p className="mb-2 text-[12px] text-[#666]">
         Traduction + résumé + classification (LLM), jusqu’à 300 articles en file
-        (file d’attente : statuts « collected » ou « error » avec contenu).
+        (statuts « collected » ou « error » ; exclus après plusieurs échecs — variable
+        d’environnement{" "}
+        <code className="font-mono text-[10px]">MAX_TRANSLATION_FAILURES</code>
+        ).
       </p>
       <Row label="Traités avec succès" value={num(stats, "processed")} />
+      <Row label="À relire (confiance basse)" value={num(stats, "needs_review")} />
       <Row label="Échecs LLM / parsing" value={num(stats, "errors")} />
       <Row
         label="Ignorés (trop courts)"
         value={num(stats, "skipped")}
       />
+      {hasBreakdown && (
+        <div className="mt-2 border-t border-[#eee] pt-2">
+          <p className="mb-1 text-[11px] font-medium text-[#444]">
+            Répartition des échecs
+          </p>
+          <ul className="list-inside list-disc text-[11px] text-[#555]">
+            {Object.entries(breakdown as Record<string, number>).map(
+              ([k, v]) => (
+                <li key={k}>
+                  <span className="font-mono">{k}</span> : {v}
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+      )}
+      {hasSamples && (
+        <div className="mt-2 border-t border-[#eee] pt-2">
+          <p className="mb-1 text-[11px] font-medium text-[#444]">
+            Exemples (max. 8)
+          </p>
+          <ul className="space-y-1 text-[10px] text-[#666]">
+            {(samples as Record<string, string>[]).map((s, i) => (
+              <li key={i} className="break-words border-l-2 border-[#ddd] pl-2">
+                <span className="font-mono text-[#333]">{s.reason}</span>
+                {s.article_id ? ` · ${s.article_id}` : ""}
+                {s.message ? (
+                  <span className="block text-[#888]">{s.message}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -321,6 +385,8 @@ function RefreshClustersSummary({ stats }: { stats: Record<string, unknown> }) {
 
 function PipelineFullSummary({ stats }: { stats: Record<string, unknown> }) {
   const elapsed = num(stats, "elapsed_seconds");
+  const timings = stats.step_timings;
+  const hasTimings = isRecord(timings) && Object.keys(timings).length > 0;
 
   return (
     <div className="space-y-2">
@@ -329,6 +395,19 @@ function PipelineFullSummary({ stats }: { stats: Record<string, unknown> }) {
         clustering → libellés. Durée totale côté serveur :{" "}
         <strong>{elapsed > 0 ? `${elapsed.toFixed(1)} s` : "—"}</strong>.
       </p>
+
+      {hasTimings && (
+        <div className="rounded border border-[#eee] bg-[#fafaf8] p-2 text-[11px] text-[#555]">
+          <p className="mb-1 font-medium text-[#444]">Durées par étape (s)</p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 font-mono">
+            {Object.entries(timings as Record<string, number>).map(([k, v]) => (
+              <li key={k}>
+                {k}: {typeof v === "number" ? v.toFixed(2) : String(v)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {isRecord(stats.collection) && (
         <SubBlock title="1. Collecte">

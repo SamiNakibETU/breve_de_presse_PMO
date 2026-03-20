@@ -9,6 +9,7 @@ Feed priority: rss_opinion_url (if available) → rss_url (fallback).
 import asyncio
 import hashlib
 import re
+import socket
 import time
 from datetime import datetime, timezone
 from time import mktime
@@ -28,6 +29,7 @@ from src.database import get_session_factory
 from src.models.article import Article
 from src.models.collection_log import CollectionLog
 from src.models.media_source import MediaSource
+from src.services import metrics as app_metrics
 from src.services.editorial_scope import (
     should_ingest_rss_entry,
     should_ingest_scraped_article,
@@ -35,6 +37,42 @@ from src.services.editorial_scope import (
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
+
+
+def _classify_collection_error(exc: BaseException) -> str:
+    """Catégorie courte pour agréger les erreurs collecte (RSS / réseau)."""
+    if isinstance(exc, asyncio.TimeoutError):
+        return "timeout"
+    msg = str(exc).lower()
+    name = type(exc).__name__
+    if isinstance(exc, socket.gaierror) or "getaddrinfo failed" in msg:
+        return "dns"
+    if "timeout" in msg or "timed out" in msg:
+        return "timeout"
+    if "certificate" in msg or "ssl" in msg:
+        return "tls"
+    if "403" in msg or "forbidden" in msg:
+        return "http_403"
+    if "404" in msg or "not found" in msg:
+        return "http_404"
+    if "401" in msg or "unauthorized" in msg:
+        return "http_401"
+    if "429" in msg or "rate limit" in msg:
+        return "rate_limit"
+    if "connector" in name.lower() or "connection refused" in msg:
+        return "connection"
+    if "bozo" in msg or "parse" in msg or "xml" in msg:
+        return "parse"
+    return "other"
+
+
+def _aggregate_error_breakdown(errors: list) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for e in errors:
+        if isinstance(e, dict):
+            r = str(e.get("reason") or "other")
+            out[r] = out.get(r, 0) + 1
+    return out
 
 CUSTOM_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -170,19 +208,39 @@ class RSSCollector:
         stats: dict = {"total_sources": len(sources), "total_new": 0, "total_filtered": 0, "errors": []}
         for source, res in zip(sources, results):
             if isinstance(res, Exception):
-                stats["errors"].append({"source": source.id, "error": str(res)})
-                logger.error("collection.source_error", source=source.id, error=str(res))
+                reason = _classify_collection_error(res)
+                stats["errors"].append(
+                    {"source": source.id, "error": str(res), "reason": reason},
+                )
+                logger.error(
+                    "collection.source_error",
+                    source=source.id,
+                    reason=reason,
+                    error=str(res),
+                )
             elif isinstance(res, dict):
                 stats["total_new"] += res.get("new", 0)
                 stats["total_filtered"] += res.get("filtered", 0)
             else:
                 stats["total_new"] += res
 
+        stats["error_breakdown"] = _aggregate_error_breakdown(stats["errors"])
+
+        app_metrics.inc("collection.runs")
+        for e in stats["errors"]:
+            r = (
+                e.get("reason", "other")
+                if isinstance(e, dict)
+                else "other"
+            )
+            app_metrics.inc(f"collection.source_error.{r}")
+
         logger.info(
             "collection.complete",
             total_new=stats["total_new"],
             total_filtered=stats["total_filtered"],
             error_count=len(stats["errors"]),
+            error_breakdown=stats["error_breakdown"],
         )
         return stats
 
@@ -501,6 +559,23 @@ async def run_collection(
     except Exception as exc:
         logger.warning("playwright_scraper.skipped", error=str(exc)[:200])
         rss_stats["playwright_scraper"] = {"error": str(exc)[:200]}
+
+    if on_progress:
+        on_progress("opinion_hub", "Collecte hubs opinion (liste revue CSV)…")
+    try:
+        from src.services.opinion_hub_scraper import run_opinion_hub_scraping
+
+        hub_stats = await run_opinion_hub_scraping()
+        rss_stats["opinion_hub"] = hub_stats
+        rss_stats["total_new"] = rss_stats.get("total_new", 0) + hub_stats.get("total_new", 0)
+        rss_stats["total_sources"] = rss_stats.get("total_sources", 0) + hub_stats.get(
+            "total_sources", 0
+        )
+        if hub_stats.get("errors"):
+            rss_stats["errors"].extend(hub_stats["errors"])
+    except Exception as exc:
+        logger.warning("opinion_hub.skipped", error=str(exc)[:200])
+        rss_stats["opinion_hub"] = {"error": str(exc)[:200]}
 
     if on_progress:
         on_progress("done", "Finalisation…")

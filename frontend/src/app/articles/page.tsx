@@ -1,25 +1,38 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Article } from "@/lib/types";
 import { ArticleFilters, type Filters } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
+import { saveReviewArticleIds } from "@/lib/review-selection-storage";
+import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
 
 const PAGE_SIZE = 40;
 
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   editorial: { label: "Éditorial", value: "translated,formatted,needs_review" },
   all_processed: { label: "Tous traduits", value: "translated,formatted,needs_review" },
+  needs_review: { label: "À relire", value: "needs_review" },
+  dead_letter: {
+    label: "Traduction (erreurs)",
+    value: "error,translation_abandoned",
+  },
   collected: { label: "Bruts", value: "collected" },
-  all: { label: "Tout", value: "collected,translated,formatted,needs_review,error" },
+  all: {
+    label: "Tout",
+    value:
+      "collected,translated,formatted,needs_review,error,translation_abandoned",
+  },
 };
 
 const SORT_OPTIONS: Record<string, { label: string; value: string }> = {
   relevance: { label: "Pertinence", value: "relevance" },
-  date: { label: "Date", value: "date" },
+  date: { label: "Date (collecte)", value: "date" },
+  confidence: { label: "Confiance ↓", value: "confidence" },
+  confidence_asc: { label: "Confiance ↑", value: "confidence_asc" },
 };
 
 function buildArticleParams(
@@ -44,7 +57,13 @@ function buildArticleParams(
 
 export default function ArticlesPage() {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
+  const {
+    selectedIds: selected,
+    toggleArticle: toggle,
+    clearSelection,
+    ready: selectionReady,
+  } = useReviewArticleSelection();
   const [statusFilter, setStatusFilter] = useState<string>("editorial");
   const [sortBy, setSortBy] = useState<string>("relevance");
   const [filters, setFilters] = useState<Filters>({
@@ -52,6 +71,7 @@ export default function ArticlesPage() {
     types: ["opinion", "editorial", "tribune", "analysis"],
     minConfidence: 0.7,
   });
+  const [batchBusy, setBatchBusy] = useState(false);
 
   const queryKey = useMemo(
     () =>
@@ -99,21 +119,34 @@ export default function ArticlesPage() {
 
   const total = data?.pages[0]?.total ?? 0;
 
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  function goToReview() {
+    saveReviewArticleIds(selected);
+    router.push("/review");
   }
 
-  function goToReview() {
-    sessionStorage.setItem(
-      "review_article_ids",
-      JSON.stringify(Array.from(selected)),
-    );
-    router.push("/review");
+  async function runBatch(
+    fn: (ids: string[]) => Promise<{ updated: number }>,
+  ) {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    setBatchBusy(true);
+    try {
+      const r = await fn(ids);
+      await queryClient.invalidateQueries({ queryKey: ["articles"] });
+      await queryClient.invalidateQueries({ queryKey: ["stats"] });
+      clearSelection();
+      if (typeof window !== "undefined") {
+        window.alert(`Mis à jour : ${r.updated} article(s).`);
+      }
+    } catch (e) {
+      if (typeof window !== "undefined") {
+        window.alert(
+          e instanceof Error ? e.message : "Erreur lors de l’action groupée",
+        );
+      }
+    } finally {
+      setBatchBusy(false);
+    }
   }
 
   return (
@@ -127,6 +160,9 @@ export default function ArticlesPage() {
           {articles.length !== 1 ? "s" : ""}
           {sortBy === "relevance"
             ? " · Tri partiel par pertinence (par page)"
+            : ""}
+          {statusFilter === "needs_review"
+            ? " · Tri confiance / date disponibles ci-dessous"
             : ""}
         </p>
       </header>
@@ -192,10 +228,10 @@ export default function ArticlesPage() {
         </div>
       )}
 
-      {selected.size > 0 && (
+      {selectionReady && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#dddcda] bg-white/97 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
-            <div className="flex items-center gap-3">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="font-[family-name:var(--font-serif)] text-[20px] font-semibold tabular-nums">
                 {selected.size}
               </span>
@@ -204,19 +240,53 @@ export default function ArticlesPage() {
                 {selected.size > 1 ? "s" : ""}
               </span>
               <button
-                onClick={() => setSelected(new Set())}
+                type="button"
+                onClick={() => clearSelection()}
                 className="text-[11px] text-[#888] underline hover:text-[#1a1a1a]"
               >
                 Effacer
               </button>
             </div>
-            <button
-              onClick={goToReview}
-              disabled={selected.size < 1 || selected.size > 10}
-              className="bg-[#c8102e] px-5 py-2 text-[13px] font-semibold text-white hover:bg-[#a50d25] disabled:opacity-40"
-            >
-              Générer la revue ({selected.size})
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {statusFilter === "needs_review" && (
+                <button
+                  type="button"
+                  disabled={batchBusy}
+                  onClick={() => void runBatch(api.batchMarkReviewed)}
+                  className="border border-[#1a1a1a] bg-white px-3 py-2 text-[12px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5] disabled:opacity-40"
+                >
+                  Marquer relus (translated)
+                </button>
+              )}
+              {statusFilter === "dead_letter" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={batchBusy}
+                    onClick={() => void runBatch(api.batchRetryTranslation)}
+                    className="border border-[#1a1a1a] bg-white px-3 py-2 text-[12px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5] disabled:opacity-40"
+                  >
+                    Réessayer traduction
+                  </button>
+                  <button
+                    type="button"
+                    disabled={batchBusy}
+                    onClick={() => void runBatch(api.batchAbandonTranslation)}
+                    className="border border-[#dddcda] px-3 py-2 text-[12px] text-[#666] hover:bg-[#fafaf8] disabled:opacity-40"
+                  >
+                    Abandonner
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={goToReview}
+                disabled={selected.size < 1 || selected.size > 10}
+                className="bg-[#c8102e] px-5 py-2 text-[13px] font-semibold text-white hover:bg-[#a50d25] disabled:opacity-40"
+              >
+                Générer la revue ({selected.size})
+              </button>
+            </div>
           </div>
         </div>
       )}

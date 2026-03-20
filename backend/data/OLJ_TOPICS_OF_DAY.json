@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "topic_ids": [
+    "mena.geopolitics",
+    "mena.iran_gulf",
+    "mena.israel_palestine"
+  ],
+  "notes": "Surcharge manuelle pour bonus de pertinence (rotation rédaction). Laisser vide [] pour désactiver."
+}

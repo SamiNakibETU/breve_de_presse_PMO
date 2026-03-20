@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "topics": [
+    {
+      "id": "mena.geopolitics",
+      "label_fr": "Géopolitique Proche-Orient",
+      "parent_id": null,
+      "description": "Enjeux stratégiques régionaux, alliances, conflits interétatiques.",
+      "keywords": ["géopolitique", "Moyen-Orient", "région", "stratégie"]
+    },
+    {
+      "id": "mena.israel_palestine",
+      "label_fr": "Israël / Palestine",
+      "parent_id": "mena.geopolitics",
+      "description": "Conflit, sécurité, diplomatie israélo-palestinienne.",
+      "keywords": ["Israël", "Palestine", "Gaza", "Cisjordanie"]
+    },
+    {
+      "id": "mena.iran_gulf",
+      "label_fr": "Iran et Golfe",
+      "parent_id": "mena.geopolitics",
+      "description": "Iran, monarchies du Golfe, détroit d'Ormuz, sécurité énergétique.",
+      "keywords": ["Iran", "Golfe", "Ormuz", "pétrole", "missiles"]
+    },
+    {
+      "id": "mena.syria_iraq",
+      "label_fr": "Syrie et Irak",
+      "parent_id": "mena.geopolitics",
+      "description": "Stabilité, acteurs armés, ingérences régionales.",
+      "keywords": ["Syrie", "Irak", "Daech", "Kurdes"]
+    },
+    {
+      "id": "mena.levant",
+      "label_fr": "Liban et Levant",
+      "parent_id": "mena.geopolitics",
+      "description": "Liban, Jordanie, dynamiques levantines.",
+      "keywords": ["Liban", "Beyrouth", "Hezbollah", "Jordanie"]
+    },
+    {
+      "id": "mena.north_africa",
+      "label_fr": "Maghreb et Égypte",
+      "parent_id": "mena.geopolitics",
+      "description": "Égypte, Maghreb, transitions politiques.",
+      "keywords": ["Égypte", "Maghreb", "Tunisie", "Algérie", "Maroc"]
+    },
+    {
+      "id": "mena.economy",
+      "label_fr": "Économie régionale",
+      "parent_id": null,
+      "description": "Marchés, énergie, investissement, dette.",
+      "keywords": ["économie", "investissement", "pétrole", "gaz"]
+    },
+    {
+      "id": "mena.security",
+      "label_fr": "Sécurité et défense",
+      "parent_id": null,
+      "description": "Armées, drones, cyber, terrorisme.",
+      "keywords": ["défense", "armée", "drones", "sécurité"]
+    },
+    {
+      "id": "mena.society",
+      "label_fr": "Société et droits",
+      "parent_id": null,
+      "description": "Droits humains, femmes, minorités, migrations.",
+      "keywords": ["droits", "société", "femmes", "réfugiés"]
+    },
+    {
+      "id": "mena.media",
+      "label_fr": "Médias et opinion publique",
+      "parent_id": null,
+      "description": "Discours médiatique, censure, narratifs.",
+      "keywords": ["médias", "presse", "censure", "narratif"]
+    },
+    {
+      "id": "global.us_china",
+      "label_fr": "Grands jeux USA / Chine",
+      "parent_id": null,
+      "description": "Influence américaine ou chinoise sur la région.",
+      "keywords": ["États-Unis", "Chine", "rivalité", "sanctions"]
+    },
+    {
+      "id": "global.europe_mena",
+      "label_fr": "Europe et MENA",
+      "parent_id": null,
+      "description": "UE, Royaume-Uni, diplomatie européenne vers la région.",
+      "keywords": ["Europe", "UE", "diplomatie"]
+    },
+    {
+      "id": "other",
+      "label_fr": "Autre / transversal",
+      "parent_id": null,
+      "description": "Hors taxonomie principale ou sujet mixte.",
+      "keywords": []
+    }
+  ]
+}

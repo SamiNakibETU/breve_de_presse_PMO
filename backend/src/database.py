@@ -50,8 +50,19 @@ async def init_db() -> None:
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS embedding vector(1024)",
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS cluster_id UUID REFERENCES topic_clusters(id)",
             "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS rss_opinion_url VARCHAR(500)",
+            "ALTER TABLE media_sources ADD COLUMN IF NOT EXISTS opinion_hub_urls_json TEXT",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS translation_failure_count INTEGER DEFAULT 0",
         ]:
             try:
                 await conn.execute(text(stmt))
+            except Exception:
+                pass
+        for idx_stmt in [
+            "CREATE INDEX IF NOT EXISTS ix_articles_status_collected_at ON articles (status, collected_at)",
+            "CREATE INDEX IF NOT EXISTS ix_articles_translation_failure_count ON articles (translation_failure_count)",
+            "CREATE INDEX IF NOT EXISTS ix_pipeline_jobs_status_created_at ON pipeline_jobs (status, created_at)",
+        ]:
+            try:
+                await conn.execute(text(idx_stmt))
             except Exception:
                 pass

@@ -1,5 +1,12 @@
 import asyncio
+import sys
 from logging.config import fileConfig
+from pathlib import Path
+
+# Permet `import src` quand on lance Alembic depuis backend/ (ex. `railway run alembic upgrade head`).
+_backend_root = Path(__file__).resolve().parent.parent
+if str(_backend_root) not in sys.path:
+    sys.path.insert(0, str(_backend_root))
 
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine

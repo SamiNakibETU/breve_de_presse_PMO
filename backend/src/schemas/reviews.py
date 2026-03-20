@@ -4,6 +4,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class GenerateReviewResponse(BaseModel):
+    review_id: str
+    full_text: str
+    article_count: int
+    content_snapshot_hash: Optional[str] = None
+    generation_prompt_hash: Optional[str] = None
+
+
 class GenerateReviewRequest(BaseModel):
     article_ids: list[str] = Field(..., min_length=1, max_length=10)
 
@@ -23,13 +31,11 @@ class ReviewResponse(BaseModel):
     full_text: Optional[str] = None
     article_count: int
     created_at: datetime
+    created_by: Optional[str] = None
+    supersedes_id: Optional[str] = None
+    content_snapshot_hash: Optional[str] = None
+    generation_prompt_hash: Optional[str] = None
 
 
 class ReviewListResponse(BaseModel):
     reviews: list[ReviewResponse]
-
-
-class GenerateReviewResponse(BaseModel):
-    review_id: str
-    full_text: str
-    article_count: int

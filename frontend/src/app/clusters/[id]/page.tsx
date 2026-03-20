@@ -3,15 +3,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
 import { api } from "@/lib/api";
 import type { ClusterArticlesResponse } from "@/lib/types";
+import { saveReviewArticleIds } from "@/lib/review-selection-storage";
+import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
 
 export default function ClusterDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { selectedIds, toggleArticle, clearSelection, ready } =
+    useReviewArticleSelection(id);
 
   const { data, isPending, error: queryError } = useQuery({
     queryKey: ["clusterArticles", id],
@@ -22,18 +24,8 @@ export default function ClusterDetailPage() {
   const error = queryError instanceof Error ? queryError.message : null;
   const loading = isPending;
 
-  function toggleArticle(articleId: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(articleId)) next.delete(articleId);
-      else next.add(articleId);
-      return next;
-    });
-  }
-
   function goToReview() {
-    const ids = Array.from(selectedIds);
-    sessionStorage.setItem("review_article_ids", JSON.stringify(ids));
+    saveReviewArticleIds(selectedIds);
     router.push("/review");
   }
 
@@ -79,7 +71,9 @@ export default function ClusterDetailPage() {
                       <input
                         type="checkbox"
                         checked={selectedIds.has(a.id)}
-                        onChange={() => toggleArticle(a.id)}
+                        onChange={() => {
+                          toggleArticle(a.id);
+                        }}
                         className="h-4 w-4 border-[#dddcda]"
                       />
                     </label>
@@ -112,16 +106,29 @@ export default function ClusterDetailPage() {
           );
         })}
 
-      {selectedIds.size > 0 && (
+      {ready && selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-[#dddcda] bg-white px-5 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
-          <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <span className="text-[13px] text-[#666]">
-              {selectedIds.size} article{selectedIds.size > 1 ? "s" : ""} sélectionné
-              {selectedIds.size > 1 ? "s" : ""}
-            </span>
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[13px] text-[#666]">
+                {selectedIds.size} article{selectedIds.size > 1 ? "s" : ""} sélectionné
+                {selectedIds.size > 1 ? "s" : ""}
+                <span className="ml-1 text-[11px] text-[#aaa]">
+                  (plusieurs clusters possibles)
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => clearSelection()}
+                className="text-[11px] text-[#888] underline hover:text-[#1a1a1a]"
+              >
+                Tout effacer
+              </button>
+            </div>
             <button
+              type="button"
               onClick={goToReview}
-              className="bg-[#c8102e] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#a50d25]"
+              className="shrink-0 bg-[#c8102e] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#a50d25]"
             >
               Générer la revue →
             </button>
