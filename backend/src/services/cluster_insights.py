@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.config import get_settings
 from src.models.article import Article
 from src.models.cluster import TopicCluster
 from src.models.media_source import MediaSource
+from src.services.alerts import post_cluster_hot_alert
 from src.services.relevance import compute_editorial_relevance
 
 
@@ -61,15 +64,30 @@ async def enrich_cluster_insights(db: AsyncSession) -> int:
         avg_score = round(sum(scores) / len(scores), 2) if scores else 0.0
         top_topics = sorted(topic_hits.items(), key=lambda x: -x[1])[:5]
 
-        cluster.insight_metadata = {
-            "articles_total": total,
-            "articles_last_7d": recent,
-            "distinct_country_codes": sorted(c for c in countries if c),
-            "avg_editorial_relevance": avg_score,
-            "top_olj_topics": [{"id": k, "count": v} for k, v in top_topics],
-            "computed_at": now.isoformat(),
-        }
+        base = dict(cluster.insight_metadata or {})
+        base.update(
+            {
+                "articles_total": total,
+                "articles_last_7d": recent,
+                "distinct_country_codes": sorted(c for c in countries if c),
+                "avg_editorial_relevance": avg_score,
+                "top_olj_topics": [{"id": k, "count": v} for k, v in top_topics],
+                "computed_at": now.isoformat(),
+            }
+        )
+        cluster.insight_metadata = base
         updated += 1
+
+        if thr is not None and thr > 0:
+            hot = total >= thr or recent >= thr
+            was_hot = prev_total >= thr or prev_7 >= thr
+            if hot and not was_hot:
+                await post_cluster_hot_alert(
+                    cluster_id=str(cluster.id),
+                    label=cluster.label,
+                    articles_total=total,
+                    articles_last_7d=recent,
+                )
 
     if updated:
         await db.commit()

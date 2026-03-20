@@ -20,7 +20,7 @@ const LANG_LABELS: Record<string, string> = {
 export default function DashboardPage() {
   const queryClient = useQueryClient();
 
-  const [statsQ, statusQ, clustersQ] = useQueries({
+  const [statsQ, statusQ, clustersQ, healthQ] = useQueries({
     queries: [
       {
         queryKey: ["stats"] as const,
@@ -34,14 +34,20 @@ export default function DashboardPage() {
         queryKey: ["clusters"] as const,
         queryFn: (): Promise<ClusterListResponse> => api.clusters(),
       },
+      {
+        queryKey: ["mediaSourcesHealth"] as const,
+        queryFn: () => api.mediaSourcesHealth(),
+      },
     ],
   });
 
-  const loading = statsQ.isPending || statusQ.isPending || clustersQ.isPending;
+  const loading =
+    statsQ.isPending || statusQ.isPending || clustersQ.isPending || healthQ.isPending;
   const error =
     statsQ.error?.message ??
     statusQ.error?.message ??
     clustersQ.error?.message ??
+    healthQ.error?.message ??
     null;
 
   const stats = statsQ.data ?? null;
@@ -54,6 +60,7 @@ export default function DashboardPage() {
     void queryClient.invalidateQueries({ queryKey: ["clusters"] });
     void queryClient.invalidateQueries({ queryKey: ["clusterArticles"] });
     void queryClient.invalidateQueries({ queryKey: ["articles"] });
+    void queryClient.invalidateQueries({ queryKey: ["mediaSourcesHealth"] });
   }
 
   const today = new Date();
@@ -86,7 +93,11 @@ export default function DashboardPage() {
         <h2 className="mb-3 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
           Pipeline
         </h2>
-        <PipelineStatus status={status} onRefresh={invalidateDashboard} />
+        <PipelineStatus
+          status={status}
+          onRefresh={invalidateDashboard}
+          sourceHealth={healthQ.data ?? null}
+        />
       </section>
 
       <section>

@@ -1,0 +1,12 @@
+{
+  "ae_gulf_news": "https://gulfnews.com/feed",
+  "il_jerusalem_post": "https://www.jpost.com/rss/rssfeedsopinion.aspx",
+  "il_haaretz": "https://www.haaretz.com/srv/opinion-rss",
+  "tr_daily_sabah": "https://www.dailysabah.com/rss/opinion/op-ed",
+  "tr_hurriyet": "https://www.hurriyetdailynews.com/rss/opinion",
+  "qa_al_jazeera": "https://www.aljazeera.com/xml/rss/all/opinion.xml",
+  "kw_kuwait_times": "https://kuwaittimes.com/rssFeed/13",
+  "kw_arab_times": "https://www.arabtimesonline.com/rssFeed/75/",
+  "me_middle_east_eye": "https://www.middleeasteye.net/rss/opinion",
+  "eg_madam_masr": "https://www.madamasr.com/en/feed/"
+}

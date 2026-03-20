@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -31,6 +32,20 @@ export default function ClusterDetailPage() {
 
   const clusterLabel = data?.cluster_label ?? "Cluster";
 
+  const matrixRows = useMemo(() => {
+    if (!data) return [];
+    return data.countries.map((country) => {
+      const arts = data.articles_by_country[country] ?? [];
+      const top = arts[0];
+      return {
+        country,
+        thesis: top?.thesis_summary_fr ?? null,
+        media: top?.source_name ?? null,
+        type: top?.article_type ?? null,
+      };
+    });
+  }, [data]);
+
   return (
     <div className="space-y-8 pb-24">
       <header>
@@ -56,6 +71,44 @@ export default function ClusterDetailPage() {
         </p>
       )}
 
+      {matrixRows.length > 0 && (
+        <section className="border border-[#eeede9]">
+          <h2 className="border-b border-[#eeede9] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
+            Matrice pays (aperçu)
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-left text-[12px]">
+              <thead>
+                <tr className="border-b border-[#eeede9] text-[10px] uppercase tracking-[0.1em] text-[#888]">
+                  <th className="px-3 py-2 font-medium">Pays</th>
+                  <th className="px-3 py-2 font-medium">Thèse</th>
+                  <th className="px-3 py-2 font-medium">Média</th>
+                  <th className="px-3 py-2 font-medium">Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matrixRows.map((row) => (
+                  <tr key={row.country} className="border-b border-[#f5f4f1]">
+                    <td className="px-3 py-2 align-top text-[#1a1a1a]">
+                      {row.country}
+                    </td>
+                    <td className="px-3 py-2 align-top font-[family-name:var(--font-serif)] italic text-[#333]">
+                      {row.thesis ? `« ${row.thesis} »` : "—"}
+                    </td>
+                    <td className="px-3 py-2 align-top text-[#666]">
+                      {row.media ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 align-top text-[#888]">
+                      {row.type ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {data &&
         data.countries.map((country) => {
           const articles = data.articles_by_country[country] ?? [];
@@ -78,6 +131,11 @@ export default function ClusterDetailPage() {
                       />
                     </label>
                     <div className="min-w-0 flex-1">
+                      {a.thesis_summary_fr && (
+                        <p className="mb-1 font-[family-name:var(--font-serif)] text-[14px] font-medium italic text-[#1a1a1a]">
+                          «&nbsp;{a.thesis_summary_fr}&nbsp;»
+                        </p>
+                      )}
                       <a
                         href={a.url}
                         target="_blank"
@@ -92,9 +150,13 @@ export default function ClusterDetailPage() {
                           ? ` · ${new Date(a.published_at).toLocaleDateString("fr-FR")}`
                           : ""}
                         {a.article_type ? ` · ${a.article_type}` : ""}
+                        {a.cluster_soft_assigned ? " · rattaché au sujet" : ""}
                       </p>
+                      {a.framing_line && (
+                        <p className="mt-1 text-[12px] text-[#666]">{a.framing_line}</p>
+                      )}
                       {a.summary_fr && (
-                        <p className="mt-1 line-clamp-2 text-[13px] text-[#666]">
+                        <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-[#666]">
                           {a.summary_fr}
                         </p>
                       )}

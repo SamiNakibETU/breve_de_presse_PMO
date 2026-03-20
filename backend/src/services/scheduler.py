@@ -61,6 +61,20 @@ async def daily_pipeline(
         "translation": translation_stats,
         "step_timings": step_timings,
     }
+    try:
+        from src.services.source_health_metrics import refresh_translation_metrics_24h
+
+        factory = get_session_factory()
+        async with factory() as db:
+            n_touch = await refresh_translation_metrics_24h(db)
+            await db.commit()
+        pipeline_result["translation_health_metrics"] = {"sources_updated": n_touch}
+    except Exception as e:
+        logger.warning(
+            "pipeline.translation_health_metrics_failed",
+            error=str(e)[:200],
+        )
+        pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
 
     cohere_key = settings.cohere_api_key
     if not cohere_key:
@@ -87,6 +101,20 @@ async def daily_pipeline(
                 step_timings["embedding_s"] = round(time.monotonic() - t_emb, 2)
                 logger.info("pipeline.embedding_done", embedded=embedded)
 
+                from src.services.simhash_dedupe import (
+                    mark_syndicated_from_bodies,
+                    mark_syndicated_from_summaries,
+                )
+
+                t_sy = time.monotonic()
+                syndicated_sum = await mark_syndicated_from_summaries(db)
+                syndicated_body = await mark_syndicated_from_bodies(db)
+                pipeline_result["syndication"] = {
+                    "marked_syndicated_summaries": syndicated_sum,
+                    "marked_syndicated_bodies": syndicated_body,
+                }
+                step_timings["syndication_s"] = round(time.monotonic() - t_sy, 2)
+
                 t_cl = time.monotonic()
                 p("clustering", "Regroupement thématique (HDBSCAN)…")
                 clustering_service = ClusteringService()
@@ -110,6 +138,22 @@ async def daily_pipeline(
     pipeline_result["elapsed_seconds"] = elapsed
     p("done", "Pipeline terminé")
     logger.info("pipeline.complete", elapsed_seconds=elapsed)
+
+    hou = datetime.now(timezone.utc).hour
+    if (
+        settings.anthropic_batch_enabled
+        and (settings.anthropic_api_key or "").strip()
+        and hou == settings.collection_hour_utc
+    ):
+        try:
+            from src.services.anthropic_batch import run_batch_hook
+
+            factory = get_session_factory()
+            async with factory() as db:
+                pipeline_result["anthropic_batch"] = await run_batch_hook(db)
+        except Exception as e:
+            logger.warning("pipeline.anthropic_batch_failed", error=str(e)[:200])
+            pipeline_result["anthropic_batch"] = {"error": str(e)[:200]}
 
     return pipeline_result
 

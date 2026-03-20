@@ -5,10 +5,8 @@ Combined: translate, summarize (Chain of Density), classify, extract entities.
 Chain of Density: the LLM progressively compresses the summary to maximize
 information density within 150-200 words, following Adams et al. (2023).
 
-Routing per source language:
-  ar/fa/tr/ku → Cerebras (Qwen3 235B)
-  en/fr       → Groq (Llama 4 Scout)
-  he          → Anthropic (Claude Haiku)
+Routing per source language (voir llm_router) :
+  ar/fa/tr → Cerebras ; he/ku → Anthropic Haiku en priorité ; en/fr → Groq.
 """
 
 import asyncio
@@ -30,7 +28,12 @@ from src.services.editorial_event_service import resolve_or_create_event_for_art
 from src.services.entity_service import upsert_entities
 from src.services.llm_router import get_llm_router
 from src.services.olj_glossary import glossary_prompt_block_for_topics
-from src.services.olj_taxonomy import taxonomy_prompt_block, validate_olj_topic_ids
+from src.services.olj_taxonomy import (
+    load_topics_of_day,
+    taxonomy_prompt_block,
+    validate_olj_topic_ids,
+)
+from src.services.relevance import explain_editorial_relevance
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -67,6 +70,8 @@ RÈGLES DE CLASSIFICATION :
 - interview : entretien avec une personnalité
 - reportage : reportage de terrain
 
+Inclure narrative_framing (cadrage narratif) dans le JSON comme demandé dans la tâche.
+
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks."""
 
 
@@ -88,15 +93,106 @@ def _augmented_system_prompt() -> str:
     )
 
 
+def _denormalize_framing_columns(art: Article, nf: Any) -> None:
+    """MEMW §3.2 : champs dénormalisés depuis narrative_framing (JSON reste la source)."""
+    if not isinstance(nf, dict):
+        art.framing_actor = None
+        art.framing_tone = None
+        art.framing_prescription = None
+        return
+
+    def clip(val: Any, max_len: int) -> str | None:
+        if not isinstance(val, str):
+            return None
+        t = val.strip()
+        if not t:
+            return None
+        return t[:max_len]
+
+    art.framing_actor = clip(nf.get("main_actor"), 500)
+    art.framing_tone = clip(nf.get("evaluative_tone"), 120)
+    art.framing_prescription = clip(nf.get("prescription"), 100_000)
+
+
 def _build_translate_prompt(article: Article, media_name: str) -> str:
+    cfg = get_settings()
+    en_summary_only = (
+        cfg.translation_english_summary_only
+        and (article.source_language or "").lower() == "en"
+    )
+
     content = article.content_original or article.title_original
     words = content.split()
-    if len(words) > 4000:
-        content = " ".join(words[:4000]) + "\n[... article tronqué]"
+    max_words = 1200 if en_summary_only else 4000
+    if len(words) > max_words:
+        content = " ".join(words[:max_words]) + "\n[... article tronqué]"
+
+    required_output: dict[str, Any] = {
+        "translated_title": "titre traduit en français",
+        "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante (max 20 mots), comme si l'auteur la prononçait",
+        "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : chaque phrase apporte une info nouvelle, zéro redondance)",
+        "key_quotes_fr": [
+            "citation traduite en français 1",
+            "citation traduite en français 2",
+        ],
+        "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
+        "article_family": "même valeur que article_type (rédaction / famille éditoriale)",
+        "olj_topic_ids": ["mena.geopolitics", "other"],
+        "stance_summary": "UNE phrase neutre restitutive : ligne argumentaire de l'auteur",
+        "event_extraction": {
+            "who": "acteur principal ou ?",
+            "what": "fait ou enjeu central",
+            "where": "lieu ou région ou ?",
+            "when": "période ou ?",
+            "canonical_event_label_fr": "libellé court factuel pour indexation",
+            "completeness_0_1": 0.5,
+        },
+        "source_spans": [
+            {
+                "text_excerpt": "extrait source représentatif (≤200 car.)",
+                "role": "quote",
+            }
+        ],
+        "entities": [
+            {
+                "name": "nom original",
+                "type": "PERSON|ORG|GPE|EVENT",
+                "name_fr": "nom en français",
+            }
+        ],
+        "translation_notes": "difficultés de traduction éventuelles",
+        "narrative_framing": {
+            "main_actor": "acteur présenté comme central (ex. l'Iran, les États-Unis)",
+            "causal_framing": "cause attribuée par l'auteur",
+            "evaluative_tone": "approbation|condamnation|neutre",
+            "victim_framing": "qui est présenté comme victime",
+            "prescription": "ce que l'auteur recommande",
+            "one_line_fr": "UNE phrase cadrage pour mise en regard pays (français)",
+        },
+    }
+    if cfg.store_full_translation_fr and not en_summary_only:
+        required_output["content_translated_fr"] = (
+            "traduction intégrale du corps en français (texte continu ; si l'entrée était "
+            "tronquée, traduire uniquement la portion fournie)"
+        )
+
+    task = (
+        "summarize_classify_fr_metadata_preserve_en_body"
+        if en_summary_only
+        else "translate_summarize_classify"
+    )
+    memw_note = ""
+    if en_summary_only:
+        memw_note = (
+            "MODE MEMW : source anglaise. Le corps complet reste en anglais en base. "
+            "Produire uniquement les champs required_output (titre FR, résumé FR, etc.) ; "
+            "ne pas inclure de traduction intégrale du corps dans le JSON."
+        )
 
     return json.dumps(
         {
-            "task": "translate_summarize_classify",
+            "task": task,
+            "memw_instruction": memw_note,
             "source_language": article.source_language or "auto",
             "target_language": "fr",
             "article": {
@@ -110,41 +206,7 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
                 ),
                 "content": content,
             },
-            "required_output": {
-                "translated_title": "titre traduit en français",
-                "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante (max 20 mots), comme si l'auteur la prononçait",
-                "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : chaque phrase apporte une info nouvelle, zéro redondance)",
-                "key_quotes_fr": [
-                    "citation traduite en français 1",
-                    "citation traduite en français 2",
-                ],
-                "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
-                "article_family": "même valeur que article_type (rédaction / famille éditoriale)",
-                "olj_topic_ids": ["mena.geopolitics", "other"],
-                "stance_summary": "UNE phrase neutre restitutive : ligne argumentaire de l'auteur",
-                "event_extraction": {
-                    "who": "acteur principal ou ?",
-                    "what": "fait ou enjeu central",
-                    "where": "lieu ou région ou ?",
-                    "when": "période ou ?",
-                    "canonical_event_label_fr": "libellé court factuel pour indexation",
-                    "completeness_0_1": 0.5,
-                },
-                "source_spans": [
-                    {
-                        "text_excerpt": "extrait source représentatif (≤200 car.)",
-                        "role": "quote",
-                    }
-                ],
-                "entities": [
-                    {
-                        "name": "nom original",
-                        "type": "PERSON|ORG|GPE|EVENT",
-                        "name_fr": "nom en français",
-                    }
-                ],
-                "translation_notes": "difficultés de traduction éventuelles",
-            },
+            "required_output": required_output,
         },
         ensure_ascii=False,
     )
@@ -156,6 +218,41 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
     if len(words) > 4000:
         content = " ".join(words[:4000])
 
+    required_output: dict[str, Any] = {
+        "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante",
+        "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : maximise la densité d'information, zéro redondance)",
+        "key_quotes_fr": ["citation 1", "citation 2"],
+        "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
+        "article_family": "même valeur que article_type",
+        "olj_topic_ids": ["mena.geopolitics", "other"],
+        "stance_summary": "UNE phrase neutre restitutive",
+        "event_extraction": {
+            "who": "?",
+            "what": "?",
+            "where": "?",
+            "when": "?",
+            "canonical_event_label_fr": "libellé court",
+            "completeness_0_1": 0.5,
+        },
+        "source_spans": [{"text_excerpt": "extrait", "role": "quote"}],
+        "entities": [
+            {"name": "nom", "type": "PERSON|ORG|GPE|EVENT", "name_fr": "nom"}
+        ],
+        "narrative_framing": {
+            "main_actor": "acteur central selon l'auteur",
+            "causal_framing": "cause attribuée",
+            "evaluative_tone": "approbation|condamnation|neutre",
+            "victim_framing": "victimisation narrative",
+            "prescription": "recommandation",
+            "one_line_fr": "UNE phrase cadrage (français)",
+        },
+    }
+    if get_settings().store_full_translation_fr:
+        required_output["content_translated_fr"] = (
+            "texte intégral du corps en français (reprendre le contenu source tel quel, "
+            "corrections mineures de forme seulement si nécessaire)"
+        )
+
     return json.dumps(
         {
             "task": "summarize_and_classify_french",
@@ -165,27 +262,7 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
                 "media": media_name,
                 "content": content,
             },
-            "required_output": {
-                "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante",
-                "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : maximise la densité d'information, zéro redondance)",
-                "key_quotes_fr": ["citation 1", "citation 2"],
-                "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
-                "article_family": "même valeur que article_type",
-                "olj_topic_ids": ["mena.geopolitics", "other"],
-                "stance_summary": "UNE phrase neutre restitutive",
-                "event_extraction": {
-                    "who": "?",
-                    "what": "?",
-                    "where": "?",
-                    "when": "?",
-                    "canonical_event_label_fr": "libellé court",
-                    "completeness_0_1": 0.5,
-                },
-                "source_spans": [{"text_excerpt": "extrait", "role": "quote"}],
-                "entities": [
-                    {"name": "nom", "type": "PERSON|ORG|GPE|EVENT", "name_fr": "nom"}
-                ],
-            },
+            "required_output": required_output,
         },
         ensure_ascii=False,
     )
@@ -298,6 +375,14 @@ def _classify_translation_error(exc: Exception) -> str:
             return "llm_api"
 
     return "other"
+
+
+def _is_middleeasteye_french_url(url: str) -> bool:
+    """Middle East Eye : version FR native, éviter EN→FR inutile (MEMW §2.2.5)."""
+    u = (url or "").lower()
+    if "middleeasteye.net" not in u:
+        return False
+    return "/french/" in u or "/fr/" in u
 
 
 def compute_confidence(
@@ -419,6 +504,15 @@ class TranslationPipeline:
         )
         return stats
 
+    async def _cod_dense_pass(self, summary_fr: str, language: str) -> str:
+        system = (
+            "Tu es rédacteur à L'Orient-Le Jour. Réécris le résumé en français : "
+            "150-200 mots, densité d'information maximale, sans ajouter de faits nouveaux. "
+            "Texte seul, pas de JSON ni de markdown."
+        )
+        user = f"Résumé à densifier :\n\n{summary_fr}"
+        return (await self._router.completion_plain(system, user, max_tokens=900)).strip()
+
     async def _process_one(self, article: Article, stats: dict) -> None:
         structlog.contextvars.bind_contextvars(article_id=str(article.id))
         async with self._semaphore:
@@ -475,12 +569,15 @@ class TranslationPipeline:
     async def _process_article(
         self,
         article: Article,
-    ) -> Optional[Literal["translated", "needs_review"]]:
+    ) -> Optional[Literal["translated", "needs_review", "low_quality"]]:
         async with self._factory() as db:
             source = await db.get(MediaSource, article.media_source_id)
             media_name = source.name if source else "Unknown"
 
-        is_french = article.source_language == "fr"
+        is_french = (
+            article.source_language == "fr"
+            or _is_middleeasteye_french_url(article.url)
+        )
         lang = article.source_language or "unknown"
 
         if is_french:
@@ -488,22 +585,80 @@ class TranslationPipeline:
         else:
             prompt = _build_translate_prompt(article, media_name)
 
+        en_summary_only = (
+            settings.translation_english_summary_only
+            and (article.source_language or "").lower() == "en"
+            and not is_french
+        )
+        if settings.store_full_translation_fr and not en_summary_only:
+            tok_budget = 8000
+        elif en_summary_only:
+            tok_budget = 3500
+        else:
+            tok_budget = 2000
         raw_text = await self._router.translate(
             system=_augmented_system_prompt(),
             prompt=prompt,
             language=lang,
-            max_tokens=2000,
+            max_tokens=tok_budget,
         )
 
         data = await _parse_translation_llm_json(self._router, raw_text, lang)
+
+        return await self.persist_from_parsed_translation(
+            article,
+            source,
+            data,
+            lang=lang,
+            is_french=is_french,
+            en_summary_only=en_summary_only,
+            run_cod=True,
+        )
+
+    async def persist_from_parsed_translation(
+        self,
+        article: Article,
+        source: MediaSource | None,
+        data: dict,
+        *,
+        lang: str,
+        is_french: bool,
+        en_summary_only: bool,
+        run_cod: bool,
+    ) -> Optional[Literal["translated", "needs_review", "low_quality"]]:
+        topics_day = load_topics_of_day()
+        expl = explain_editorial_relevance(
+            country_code=source.country_code if source else "XX",
+            article_type=data.get("article_type"),
+            published_at=article.published_at,
+            source_language=article.source_language,
+            tier=source.tier if source else 2,
+            has_summary=bool((data.get("summary_fr") or "").strip()),
+            has_quotes=bool(data.get("key_quotes_fr")),
+            olj_topic_ids=validate_olj_topic_ids(data.get("olj_topic_ids")),
+            topics_of_day=topics_day,
+        )
+        if run_cod and (
+            settings.cod_multi_pass_enabled
+            and expl["score"] >= settings.cod_multi_pass_min_relevance
+        ):
+            summary = data.get("summary_fr") or ""
+            if len(summary.split()) > 40:
+                for _ in range(2):
+                    summary = await self._cod_dense_pass(summary, lang)
+                data["summary_fr"] = summary
 
         content = article.content_original or ""
         used_rss_fallback = len(content.split()) < 300
 
         confidence = compute_confidence(article, data, is_french, used_rss_fallback)
 
-        if confidence < settings.translation_confidence_threshold:
-            status: Literal["translated", "needs_review"] = "needs_review"
+        low_thr = settings.low_quality_confidence_threshold
+        th = settings.translation_confidence_threshold
+        if confidence < low_thr:
+            status: Literal["translated", "needs_review", "low_quality"] = "low_quality"
+        elif confidence < th:
+            status = "needs_review"
         else:
             status = "translated"
 
@@ -533,6 +688,20 @@ class TranslationPipeline:
             art.event_extraction_json = ev if isinstance(ev, dict) else None
             spans = data.get("source_spans")
             art.source_spans_json = spans if isinstance(spans, list) else None
+            nf = data.get("narrative_framing")
+            art.framing_json = nf if isinstance(nf, dict) else None
+            _denormalize_framing_columns(art, nf)
+            cfg = get_settings()
+            art.en_translation_summary_only = bool(en_summary_only)
+            if cfg.store_full_translation_fr and not en_summary_only:
+                body_fr = data.get("content_translated_fr")
+                art.content_translated_fr = (
+                    body_fr.strip()
+                    if isinstance(body_fr, str) and body_fr.strip()
+                    else None
+                )
+            else:
+                art.content_translated_fr = None
             eid = await resolve_or_create_event_for_article(
                 db,
                 extraction=art.event_extraction_json,
@@ -566,6 +735,36 @@ class TranslationPipeline:
             confidence=confidence,
         )
         return status
+
+    async def persist_from_llm_json_string(
+        self,
+        article: Article,
+        source: MediaSource | None,
+        raw_llm_text: str,
+        *,
+        run_cod: bool = False,
+    ) -> Optional[Literal["translated", "needs_review", "low_quality"]]:
+        """Applique une réponse LLM déjà obtenue (ex. batch Anthropic)."""
+        is_french = (
+            article.source_language == "fr"
+            or _is_middleeasteye_french_url(article.url)
+        )
+        lang = article.source_language or "unknown"
+        en_summary_only = (
+            settings.translation_english_summary_only
+            and (article.source_language or "").lower() == "en"
+            and not is_french
+        )
+        data = await _parse_translation_llm_json(self._router, raw_llm_text, lang)
+        return await self.persist_from_parsed_translation(
+            article,
+            source,
+            data,
+            lang=lang,
+            is_french=is_french,
+            en_summary_only=en_summary_only,
+            run_cod=run_cod,
+        )
 
 
 async def run_translation_pipeline(

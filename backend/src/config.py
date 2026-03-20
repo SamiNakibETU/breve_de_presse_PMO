@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # --- Anthropic models (fallback / Hebrew) ---
     anthropic_translation_model: str = Field(default="claude-haiku-4-5-20241022")
     anthropic_generation_model: str = Field(default="claude-sonnet-4-5-20241022")
+    anthropic_use_prompt_cache: bool = Field(
+        default=True,
+        description="Anthropic : cache éphémère sur le bloc system (réduction coût)",
+    )
 
     # --- Groq models (EN/FR translation + OLJ generation) ---
     groq_translation_model: str = Field(
@@ -87,6 +91,26 @@ class Settings(BaseSettings):
         ge=24,
         le=500,
     )
+    clustering_use_umap: bool = Field(
+        default=True,
+        description="UMAP 5D avant HDBSCAN (recommandé MEMW)",
+    )
+    umap_n_neighbors: int = Field(default=15, ge=2, le=200)
+    umap_n_components: int = Field(default=5, ge=2, le=50)
+    umap_min_dist: float = Field(default=0.0, ge=0.0, le=0.99)
+    clustering_soft_assign_min_cosine: float = Field(
+        default=0.65,
+        ge=0.3,
+        le=0.95,
+        description="Similarité cosinus minimale (vecteurs normalisés) pour soft-assign ; "
+        "le MEMW cite parfois 0.35 en « distance » — voir MEMW §2.3.6 et note dans le doc.",
+    )
+    memw_compat_soft_cosine: float | None = Field(
+        default=None,
+        ge=0.1,
+        le=0.95,
+        description="Non utilisé par défaut ; réservé à des expérimentations de seuil type MEMW.",
+    )
     embed_only_editorial_types: bool = Field(
         default=True,
         description="N'embedder que opinion/editorial/tribune/analysis (économise Cohere + bruit)",
@@ -129,6 +153,115 @@ class Settings(BaseSettings):
         ge=0,
         le=86400,
         description="TTL cache disque HTML hubs (0 = désactivé). Ex. 900 = 15 min.",
+    )
+
+    ingestion_llm_gate_enabled: bool = Field(
+        default=True,
+        description="Gate LLM (Haiku/Groq) pour titres à signal géopolitique ambigu",
+    )
+    ingestion_llm_gate_post_body_enabled: bool = Field(
+        default=False,
+        description="Après extraction page : second passage gate LLM titre+extrait corps (coût suppl.)",
+    )
+    ingestion_llm_gate_summary_max_chars: int = Field(
+        default=1100,
+        ge=200,
+        le=4000,
+        description="Longueur max. texte envoyée au gate (résumé RSS ou extrait corps), ~150–200 mots",
+    )
+    low_quality_confidence_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="En dessous : statut low_quality (masqué par défaut en liste)",
+    )
+    olj_generation_anthropic_only: bool = Field(
+        default=False,
+        description="Revue OLJ : uniquement Claude Sonnet, échec si pas de clé Anthropic",
+    )
+    olj_generation_thesis_sonnet_summary_groq: bool = Field(
+        default=False,
+        description="Thèse « » via Sonnet, paragraphe Résumé via Groq (variante coût)",
+    )
+    cod_multi_pass_enabled: bool = Field(
+        default=True,
+        description="Chain of Density : 3 passes LLM pour articles à forte pertinence",
+    )
+    cod_multi_pass_min_relevance: int = Field(
+        default=80,
+        ge=0,
+        le=100,
+        description="Seuil score editorial_relevance (expliqué) pour activer les 3 passes",
+    )
+    emergence_max_cosine_previous: float = Field(
+        default=0.4,
+        ge=0.1,
+        le=0.95,
+        description="MEMW J/J-1 : émergent si aucun centroïde veille > ce cosinus",
+    )
+    emergence_min_distinct_countries: int = Field(
+        default=3,
+        ge=2,
+        le=20,
+        description="Nombre minimum de pays distincts pour marquer un cluster émergent",
+    )
+    body_simhash_max_hamming: int = Field(
+        default=13,
+        ge=1,
+        le=32,
+        description="Seuil Hamming 64 bits (~80 % similarité SimHash corps)",
+    )
+    alert_webhook_url: str | None = Field(
+        default=None,
+        description="POST JSON si source health dead (optionnel)",
+    )
+    alert_email_webhook_url: str | None = Field(
+        default=None,
+        description="POST JSON additionnel (même schéma que alert_webhook_url), ex. Zapier e-mail",
+    )
+    resend_api_key: str | None = Field(
+        default=None,
+        description="Clé Resend pour alertes e-mail (optionnel, avec alert_email_to)",
+    )
+    alert_email_to: str | None = Field(
+        default=None,
+        description="Destinataires alertes e-mail, virgules (ex. a@x.com,b@y.com)",
+    )
+    alert_email_from: str | None = Field(
+        default="MEMW Alerts <onboarding@resend.dev>",
+        description="Expéditeur Resend (domaine vérifié en prod)",
+    )
+    pdf_unicode_font_path: str | None = Field(
+        default=None,
+        description="Chemin .ttf Unicode (ex. DejaVuSans.ttf) ; sinon recherche chemins système puis repli ASCII",
+    )
+    alert_cluster_article_threshold: int | None = Field(
+        default=None,
+        ge=1,
+        description="Si défini : webhook type cluster_hot quand un sujet dépasse ce seuil "
+        "(articles_total ou articles_last_7d), une fois à la montée",
+    )
+    anthropic_batch_enabled: bool = Field(
+        default=False,
+        description="File batch Anthropic nocturne (non bloquant si false)",
+    )
+    anthropic_batch_max_requests: int = Field(
+        default=24,
+        ge=1,
+        le=100,
+        description="Nombre max de messages par batch Anthropic",
+    )
+    pdf_export_enabled: bool = Field(
+        default=False,
+        description="Export PDF revue (nécessite fpdf2) ; false → 501 explicite",
+    )
+    store_full_translation_fr: bool = Field(
+        default=False,
+        description="Si true : demander et persister content_translated_fr (corps FR complet, coût tokens)",
+    )
+    translation_english_summary_only: bool = Field(
+        default=False,
+        description="Articles EN : métadonnées + résumé FR uniquement ; corps inchangé (content_original)",
     )
 
     @property

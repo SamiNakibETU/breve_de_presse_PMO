@@ -121,3 +121,5 @@ pytest tests/ -v
 ## Specs
 
 Les spécifications complètes sont dans `olj_press_review_specs/`.
+
+Liste de médias (CSV OLJ, import) : voir [`docs/MEDIA_SOURCE_CSV.md`](docs/MEDIA_SOURCE_CSV.md).

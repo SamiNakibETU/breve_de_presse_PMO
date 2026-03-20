@@ -2,10 +2,11 @@
 Hybrid LLM router: picks the cheapest capable provider per task and language.
 
 Routing strategy:
-  - Arabic/Persian/Turkish/Kurdish → Cerebras (Qwen3 235B, excellent multilingual)
-  - English/French                 → Groq (Llama 4 Scout, fast & cheap)
-  - Hebrew                        → Anthropic (Claude Haiku, only reliable option)
-  - OLJ generation                → Groq (Llama 3.3 70B, quality writing)
+  - Arabic/Persian/Turkish → Cerebras (Qwen3 235B, excellent multilingual)
+  - Kurdish                 → Anthropic Haiku first (MEMW §2.2.2), then Cerebras/Groq
+  - English/French          → Groq (Llama 4 Scout, fast & cheap)
+  - Hebrew                  → Anthropic (Claude Haiku, only reliable option)
+  - OLJ generation                → Anthropic Sonnet (priorité), puis Groq
   - Fallback                      → any available provider
   - 429 / quota                   → modèle Groq secondaire puis autres providers
 """
@@ -32,7 +33,7 @@ class Provider(str, Enum):
     ANTHROPIC = "anthropic"
 
 
-_CEREBRAS_LANGS = frozenset(("ar", "fa", "tr", "ku"))
+_CEREBRAS_LANGS = frozenset(("ar", "fa", "tr"))
 _GROQ_LANGS = frozenset(("en", "fr"))
 
 
@@ -93,6 +94,9 @@ class LLMRouter:
         if language == "he" and self._has(Provider.ANTHROPIC):
             return Provider.ANTHROPIC, s.anthropic_translation_model
 
+        if language == "ku" and self._has(Provider.ANTHROPIC):
+            return Provider.ANTHROPIC, s.anthropic_translation_model
+
         if language in _CEREBRAS_LANGS and self._has(Provider.CEREBRAS):
             return Provider.CEREBRAS, s.cerebras_translation_model
 
@@ -126,6 +130,8 @@ class LLMRouter:
 
         if language == "he":
             push(Provider.ANTHROPIC, s.anthropic_translation_model)
+        if language == "ku":
+            push(Provider.ANTHROPIC, s.anthropic_translation_model)
         if language in _CEREBRAS_LANGS:
             push(Provider.CEREBRAS, s.cerebras_translation_model)
         if language in _GROQ_LANGS:
@@ -149,8 +155,8 @@ class LLMRouter:
         s = get_settings()
 
         for prov, model in (
-            (Provider.GROQ, s.groq_generation_model),
             (Provider.ANTHROPIC, s.anthropic_generation_model),
+            (Provider.GROQ, s.groq_generation_model),
             (Provider.CEREBRAS, s.cerebras_translation_model),
         ):
             if self._has(prov):
@@ -172,8 +178,8 @@ class LLMRouter:
             seen.add(pair)
             ordered.append(pair)
 
-        push(Provider.GROQ, s.groq_generation_model)
         push(Provider.ANTHROPIC, s.anthropic_generation_model)
+        push(Provider.GROQ, s.groq_generation_model)
         push(Provider.CEREBRAS, s.cerebras_translation_model)
         if not ordered:
             raise RuntimeError("No LLM provider available for generation.")
@@ -293,6 +299,124 @@ class LLMRouter:
             raise last_exc
         raise RuntimeError("No generation candidate succeeded")
 
+    async def small_json_classify(self, system: str, user: str, max_tokens: int = 256) -> str:
+        """
+        Appel court pour classif JSON (gate ingestion, heuristiques).
+        Préfère Anthropic (Haiku), puis Groq avec json_object.
+        """
+        s = get_settings()
+        last_exc: BaseException | None = None
+        prompt = (
+            f"{user}\n\nRéponds uniquement par un objet JSON, sans markdown ni texte autour."
+        )
+        if self._has(Provider.ANTHROPIC):
+            try:
+                return await self._call(
+                    Provider.ANTHROPIC,
+                    s.anthropic_translation_model,
+                    system,
+                    prompt,
+                    max_tokens,
+                    json_object_mode=False,
+                )
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "llm.small_json_classify_anthropic_failed",
+                    error=str(exc)[:200],
+                )
+        if self._has(Provider.GROQ):
+            model = (s.groq_translation_model_fallback or s.groq_translation_model).strip()
+            return await self._call(
+                Provider.GROQ,
+                model,
+                system,
+                prompt,
+                max_tokens,
+                json_object_mode=bool(s.llm_use_json_object_mode),
+            )
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("No LLM provider available for small_json_classify")
+
+    async def completion_plain(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int = 900,
+    ) -> str:
+        """Texte libre (pas de JSON forcé) — passes Chain of Density, etc."""
+        s = get_settings()
+        last_exc: BaseException | None = None
+        candidates: list[tuple[Provider, str]] = []
+        if self._has(Provider.ANTHROPIC):
+            candidates.append((Provider.ANTHROPIC, s.anthropic_translation_model))
+        if self._has(Provider.GROQ):
+            candidates.append((Provider.GROQ, s.groq_translation_model))
+            fb = (s.groq_translation_model_fallback or "").strip()
+            if fb and fb != s.groq_translation_model:
+                candidates.append((Provider.GROQ, fb))
+        for prov, model in candidates:
+            try:
+                return await self._call(
+                    prov,
+                    model,
+                    system,
+                    user,
+                    max_tokens,
+                    json_object_mode=False,
+                )
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "llm.completion_plain_failed",
+                    provider=prov.value,
+                    error=str(exc)[:160],
+                )
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("No LLM provider available for completion_plain")
+
+    async def generate_anthropic_only(
+        self,
+        system: str,
+        prompt: str,
+        max_tokens: int = 1200,
+    ) -> str:
+        """Génération revue : option stricte Sonnet uniquement (MEMW §2.4.3)."""
+        s = get_settings()
+        if not self._has(Provider.ANTHROPIC):
+            raise RuntimeError(
+                "Anthropic requis (OLJ_GENERATION_ANTHROPIC_ONLY) mais clé absente.",
+            )
+        return await self._call(
+            Provider.ANTHROPIC,
+            s.anthropic_generation_model,
+            system,
+            prompt,
+            max_tokens,
+            json_object_mode=False,
+        )
+
+    async def generate_groq_only(
+        self,
+        system: str,
+        prompt: str,
+        max_tokens: int = 1200,
+    ) -> str:
+        """Second appel : résumé bloc via Groq (variante coût MEMW §2.4.3)."""
+        s = get_settings()
+        if not self._has(Provider.GROQ):
+            raise RuntimeError("Groq requis pour la variante thèse Sonnet / résumé Groq.")
+        return await self._call(
+            Provider.GROQ,
+            s.groq_generation_model,
+            system,
+            prompt,
+            max_tokens,
+            json_object_mode=False,
+        )
+
     async def _call(
         self,
         provider: Provider,
@@ -313,10 +437,24 @@ class LLMRouter:
         )
 
         if provider == Provider.ANTHROPIC:
+            s = get_settings()
+            sys_param: object = system
+            if (
+                getattr(s, "anthropic_use_prompt_cache", False)
+                and system
+                and not json_object_mode
+            ):
+                sys_param = [
+                    {
+                        "type": "text",
+                        "text": system,
+                        "cache_control": {"type": "ephemeral"},
+                    },
+                ]
             response = await client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
-                system=system,
+                system=sys_param,
                 messages=[{"role": "user", "content": prompt}],
             )
             text = response.content[0].text

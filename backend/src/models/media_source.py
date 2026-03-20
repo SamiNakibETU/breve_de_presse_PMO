@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import ARRAY, Boolean, DateTime, SmallInteger, String, Text
+from sqlalchemy import ARRAY, Boolean, DateTime, Integer, SmallInteger, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
@@ -38,6 +39,16 @@ class MediaSource(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_collected_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
+    )
+    health_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    consecutive_empty_collection_runs: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    last_article_ingested_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    health_metrics_json: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

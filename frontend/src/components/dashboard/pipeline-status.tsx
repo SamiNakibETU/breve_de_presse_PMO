@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
-import type { AppStatus, PipelineTaskKind } from "@/lib/types";
+import type {
+  AppStatus,
+  MediaSourcesHealthResponse,
+  PipelineTaskKind,
+} from "@/lib/types";
 import {
   PipelineResultPanel,
   type PipelineActionKey,
@@ -12,6 +16,8 @@ import {
 interface PipelineStatusProps {
   status: AppStatus | null;
   onRefresh: () => void;
+  /** Santé des sources (GET /api/media-sources/health) — affichage discret sous le pipeline */
+  sourceHealth?: MediaSourcesHealthResponse | null;
 }
 
 const ACTIONS: { key: PipelineActionKey; label: string }[] = [
@@ -28,10 +34,15 @@ const TASK_KIND_BY_ACTION: Record<PipelineActionKey, PipelineTaskKind> = {
   pipeline: "full_pipeline",
 };
 
-export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
+export function PipelineStatus({
+  status,
+  onRefresh,
+  sourceHealth,
+}: PipelineStatusProps) {
   const [running, setRunning] = useState<PipelineActionKey | null>(null);
   const [serverLiveStep, setServerLiveStep] = useState<string | null>(null);
   const [lastRun, setLastRun] = useState<PipelineRunRecord | null>(null);
+  const [showAllSources, setShowAllSources] = useState(false);
 
   async function run(key: PipelineActionKey, label: string) {
     setRunning(key);
@@ -118,6 +129,87 @@ export function PipelineStatus({ status, onRefresh }: PipelineStatusProps) {
               <span className="shrink-0 tabular-nums">{job.next_run}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {sourceHealth && sourceHealth.sources.length > 0 && (
+        <div className="border-t border-[#eeede9] pt-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
+            Sources · fenêtre {sourceHealth.window_hours} h (collecte) · trad. 24 h
+          </p>
+          {(() => {
+            const alertOnes = sourceHealth.sources.filter(
+              (s) => s.health_status === "dead" || s.health_status === "degraded",
+            );
+            const rows = showAllSources
+              ? sourceHealth.sources
+              : alertOnes.length > 0
+                ? alertOnes
+                : sourceHealth.sources.slice(0, 6);
+            const canExpand =
+              !showAllSources &&
+              ((alertOnes.length > 0 &&
+                sourceHealth.sources.length > alertOnes.length) ||
+                (alertOnes.length === 0 && sourceHealth.sources.length > 6));
+            return (
+              <>
+                {alertOnes.length === 0 && !showAllSources && (
+                  <p className="mb-2 text-[11px] text-[#888]">
+                    Aucune source en alerte (dégradée / morte). Aperçu des six
+                    premières.
+                  </p>
+                )}
+                <div className="max-h-52 overflow-y-auto border border-[#eeede9] text-[11px]">
+                  {rows.map((s) => {
+                    const err = s.translation_24h_errors_persisted;
+                    const okP = s.translation_24h_ok_persisted;
+                    const extra =
+                      err != null && err > 0
+                        ? ` · trad. 24 h : ${okP ?? "—"} ok / ${err} err.`
+                        : okP != null
+                          ? ` · trad. 24 h : ${okP} ok`
+                          : "";
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-[#f5f4f1] px-2 py-1.5"
+                      >
+                        <span className="min-w-0 truncate text-[#1a1a1a]">
+                          {s.name}
+                        </span>
+                        <span className="shrink-0 text-right text-[#888]">
+                          <span
+                            className={
+                              s.health_status === "dead"
+                                ? "text-[#c8102e]"
+                                : s.health_status === "degraded"
+                                  ? "text-[#a67c00]"
+                                  : ""
+                            }
+                          >
+                            {s.health_status}
+                          </span>
+                          {" · "}
+                          {s.articles_72h} art.{extra}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {showAllSources || canExpand ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllSources(!showAllSources)}
+                    className="mt-2 text-[11px] text-[#888] underline decoration-[#ddd] underline-offset-2 hover:text-[#1a1a1a]"
+                  >
+                    {showAllSources
+                      ? "Replier"
+                      : `Tout voir (${sourceHealth.sources.length} sources)`}
+                  </button>
+                ) : null}
+              </>
+            );
+          })()}
         </div>
       )}
 

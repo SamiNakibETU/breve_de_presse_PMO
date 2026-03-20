@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Article } from "@/lib/types";
-import { RelevanceBadge, ConfidenceBadge } from "./confidence-badge";
+import { ConfidenceBadge } from "./confidence-badge";
 
 interface ArticleCardProps {
   article: Article;
@@ -11,6 +11,8 @@ interface ArticleCardProps {
 }
 
 const EDITORIAL_TYPES = new Set(["opinion", "editorial", "tribune"]);
+/** News / reportage / interview : hiérarchie visuelle plus discrète (MEMW §2.5.4) */
+const NEWS_LIKE_TYPES = new Set(["news", "reportage", "interview"]);
 
 const TYPE_LABELS: Record<string, string> = {
   opinion: "Opinion",
@@ -22,9 +24,19 @@ const TYPE_LABELS: Record<string, string> = {
   reportage: "Reportage",
 };
 
+/** Seuils alignés sur cod_multi_pass_min_relevance (80) — sans afficher le score (MEMW §2.5.4). */
+function editorialRelevanceLabel(score: number | null | undefined): string | null {
+  if (score == null) return null;
+  if (score >= 80) return "Très pertinent";
+  if (score >= 50) return "Pertinent";
+  return null;
+}
+
 export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isEditorial = EDITORIAL_TYPES.has(article.article_type || "");
+  const isNewsLike = NEWS_LIKE_TYPES.has(article.article_type || "");
+  const relevanceLabel = editorialRelevanceLabel(article.editorial_relevance);
 
   const date = article.published_at
     ? new Date(article.published_at).toLocaleDateString("fr-FR", {
@@ -60,16 +72,29 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             <div className="flex-1">
-              {isEditorial && article.article_type && (
-                <span className="mb-0.5 inline-block text-[10px] font-bold uppercase tracking-[0.12em] text-[#c8102e]">
-                  {TYPE_LABELS[article.article_type] || article.article_type}
-                </span>
-              )}
+              <div className="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                {(isEditorial || isNewsLike) && article.article_type && (
+                  <span
+                    className={`inline-block text-[10px] font-bold uppercase tracking-[0.12em] ${
+                      isEditorial ? "text-[#c8102e]" : "text-[#aaa]"
+                    }`}
+                  >
+                    {TYPE_LABELS[article.article_type] || article.article_type}
+                  </span>
+                )}
+                {relevanceLabel && (
+                  <span className="text-[10px] font-normal normal-case tracking-normal text-[#b0b0b0]">
+                    {relevanceLabel}
+                  </span>
+                )}
+              </div>
               <h3
                 className={`cursor-pointer leading-snug hover:text-[#c8102e] ${
                   isEditorial
-                    ? "font-[family-name:var(--font-serif)] text-[17px]"
-                    : "text-[14px] font-medium"
+                    ? "font-[family-name:var(--font-serif)] text-[17px] font-normal"
+                    : isNewsLike
+                      ? "text-[13px] font-normal text-[#888]"
+                      : "text-[14px] font-medium"
                 }`}
                 onClick={() => setExpanded(!expanded)}
               >
@@ -77,17 +102,10 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
               </h3>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
-              <span
-                title={
-                  article.why_ranked
-                    ? `Pertinence : base ${(article.why_ranked as { base_score?: number }).base_score ?? "—"} + bonus thèmes du jour ${(article.why_ranked as { topic_of_day_bonus?: number }).topic_of_day_bonus ?? 0}. Pays : ${(article.why_ranked as { factors?: { country_code?: string } }).factors?.country_code ?? "—"}`
-                    : "Score éditorial OLJ"
-                }
-                className="cursor-help"
-              >
-                <RelevanceBadge score={article.editorial_relevance} />
-              </span>
-              <ConfidenceBadge score={article.translation_confidence} />
+              {article.translation_confidence != null &&
+                article.translation_confidence < 0.7 && (
+                  <ConfidenceBadge score={article.translation_confidence} />
+                )}
             </div>
           </div>
 
@@ -123,7 +141,29 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
                 {TYPE_LABELS[article.article_type] || article.article_type}
               </span>
             )}
+            {article.is_syndicated && (
+              <span className="ml-2 text-[10px] text-[#888]">Reprise</span>
+            )}
+            {article.syndicate_siblings_count != null &&
+              article.syndicate_siblings_count > 0 && (
+                <span className="ml-2 text-[10px] text-[#888]">
+                  +{article.syndicate_siblings_count} reprise
+                  {article.syndicate_siblings_count > 1 ? "s" : ""}
+                </span>
+              )}
           </p>
+
+          {article.en_translation_summary_only && (
+            <p className="mt-1 text-[11px] text-[#999]">
+              Corps conservé en langue d’origine (anglais).
+            </p>
+          )}
+
+          {article.thesis_summary_fr && !expanded && (
+            <p className="mt-2 line-clamp-2 font-[family-name:var(--font-serif)] text-[14px] italic leading-snug text-[#333]">
+              «&nbsp;{article.thesis_summary_fr}&nbsp;»
+            </p>
+          )}
 
           {summaryPreview && !expanded && (
             <p

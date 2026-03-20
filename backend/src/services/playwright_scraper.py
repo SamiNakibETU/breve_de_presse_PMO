@@ -170,10 +170,17 @@ def _extract_body(html: str) -> Optional[str]:
     return None
 
 
-def _detect_language(text: str, source_languages: list[str]) -> str:
+def _detect_language(
+    text: str,
+    source_languages: list[str],
+    country_code: str = "",
+) -> str:
     try:
         import py3langid
+        from src.services.editorial_scope import override_langid_ar_fa
+
         detected, _ = py3langid.classify(text)
+        detected = override_langid_ar_fa(detected, country_code)
         if detected in source_languages:
             return detected
     except Exception:
@@ -295,7 +302,7 @@ class PlaywrightScraper:
                             continue
 
                         langs = config.get("languages", ["en"])
-                        lang = _detect_language(text, langs)
+                        lang = _detect_language(text, langs, source.country_code)
 
                         db.add(
                             Article(

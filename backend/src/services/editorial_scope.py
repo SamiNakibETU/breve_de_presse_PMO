@@ -116,6 +116,29 @@ _COUNTRY_ONLY: frozenset[str] = frozenset({
 
 GEO_KEYWORDS: frozenset[str] = frozenset(_GEO_EN | _GEO_FR | _GEO_AR)
 
+# py3langid confond ar/fa : correction selon le pays du média (MEMW §2.2.2).
+ARABIC_MEDIA_COUNTRY_CODES: frozenset[str] = frozenset({
+    "LB", "SA", "AE", "EG", "JO", "QA", "KW", "BH", "YE", "SY", "IQ", "OM",
+    "DZ", "MA", "TN", "LY", "SD", "PS",
+})
+
+
+def override_langid_ar_fa(detected: str, country_code: str) -> str:
+    cc = (country_code or "").strip().upper()
+    if detected == "ar" and cc == "IR":
+        return "fa"
+    if detected == "fa" and cc in ARABIC_MEDIA_COUNTRY_CODES:
+        return "ar"
+    return detected
+
+
+# Signaux « faibles » seuls : titre peut être ambigu (ex. « crise » sans conflit armé explicite).
+_WEAK_GEO_KEYWORDS: frozenset[str] = frozenset({
+    "peace", "paix", "crisis", "crise", "diplomacy", "diplomatie",
+    "negotiation", "négociation", "talks", "humanitarian", "humanitaire",
+    "refugee", "réfugié", "displaced", "déplacé", "border", "frontière",
+})
+
 
 def normalize_for_match(text: str) -> str:
     if not text:
@@ -169,6 +192,51 @@ def has_geopolitical_relevance_signal(title: str, summary: str = "") -> bool:
     if found <= _COUNTRY_ONLY:
         return False
     return True
+
+
+def snippet_for_ingestion_gate(text: str, max_chars: int | None = None) -> str:
+    """Extrait nettoyé tronqué pour le gate LLM (résumé RSS ou début de corps)."""
+    from src.config import get_settings
+
+    cap = max_chars if max_chars is not None else get_settings().ingestion_llm_gate_summary_max_chars
+    t = (text or "").strip()
+    if len(t) <= cap:
+        return t
+    return t[:cap]
+
+
+def needs_post_extract_llm_gate(title: str, body_excerpt: str) -> bool:
+    """
+    Après fetch page : même logique que le gate RSS, sur titre + extrait corps (MEMW §2.1.4).
+    """
+    ex = snippet_for_ingestion_gate(body_excerpt, max_chars=2000)
+    return needs_ingestion_llm_gate(title, ex, uses_opinion_feed=False)
+
+
+def needs_ingestion_llm_gate(
+    title: str,
+    summary: str,
+    uses_opinion_feed: bool,
+) -> bool:
+    """
+    Cas « moyennement » géopolitiques : heuristique positive mais signal faible.
+    Appel LLM léger recommandé (MEMW §2.1.4).
+    """
+    if uses_opinion_feed:
+        return False
+    if not has_geopolitical_relevance_signal(title, summary):
+        return False
+    t = normalize_for_match(f"{title} {summary}")
+    found = _matching_geo_keywords(t)
+    non_country = found - _COUNTRY_ONLY
+    if not non_country:
+        return False
+    if non_country <= _WEAK_GEO_KEYWORDS:
+        return True
+    title_words = len(normalize_for_match(title).split())
+    if title_words <= 5 and len(non_country) <= 2:
+        return True
+    return False
 
 
 def should_ingest_rss_entry(title: str, summary: str, uses_opinion_feed: bool) -> bool:

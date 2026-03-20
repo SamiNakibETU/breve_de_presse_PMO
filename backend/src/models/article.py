@@ -78,6 +78,27 @@ class Article(Base):
     cluster_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_clusters.id"), nullable=True
     )
+    cluster_soft_assigned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    framing_json: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    framing_actor: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    framing_tone: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    framing_prescription: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content_translated_fr: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    en_translation_summary_only: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    is_syndicated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    canonical_article_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("articles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="raw"

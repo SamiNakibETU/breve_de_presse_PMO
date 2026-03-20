@@ -2,7 +2,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.services.generator import _format_date_fr, MOIS_FR
+from src.services.generator import (
+    MOIS_FR,
+    PressReviewGenerator,
+    _format_date_fr,
+    _normalize_olj_block,
+    _validate_olj_block,
+)
 
 
 class TestFormatDateFr:
@@ -39,3 +45,69 @@ class TestLanguageAndCountryMaps:
         assert "IL" in COUNTRY_MAP
         assert "IR" in COUNTRY_MAP
         assert COUNTRY_MAP["LB"] == "Liban"
+
+
+class TestValidateOljBlock:
+    def test_valid_minimal_block(self):
+        block = """« Thèse assertive percutante »
+
+Résumé : """ + ("mot " * 160) + """
+
+Fiche :
+Article publié dans Test Media
+Le 18 mars 2026
+Langue originale : anglais
+Pays du média : Jordanie
+Nom de l'auteur : Jane Doe
+"""
+        ok, issues = _validate_olj_block(block)
+        assert ok, issues
+
+    def test_detects_missing_fiche(self):
+        ok, issues = _validate_olj_block("« x »\nRésumé : " + ("w " * 150))
+        assert not ok
+        assert any("fiche" in i for i in issues)
+
+    def test_extract_summary_used(self):
+        s = PressReviewGenerator._extract_summary(
+            "« t »\nRésumé : " + ("a " * 140) + "\nFiche :\nx",
+        )
+        assert s and len(s.split()) >= 130
+
+
+class TestNormalizeOljBlock:
+    def _base_tail(self) -> str:
+        return """
+Fiche :
+Article publié dans Test Media
+Le 18 mars 2026
+Langue originale : anglais
+Pays du média : Jordanie
+Nom de l'auteur : Jane Doe
+"""
+
+    def test_ascii_quotes_to_french_guillemets(self):
+        summary = "mot " * 160
+        raw = f'"Thèse assertive percutante"\n\n{summary}\n{self._base_tail()}'
+        out = _normalize_olj_block(raw)
+        assert "«" in out and "»" in out
+        ok, issues = _validate_olj_block(out)
+        assert ok, issues
+
+    def test_resume_colon_normalized(self):
+        summary = "mot " * 160
+        raw = f"« t »\n\nRésumé:{summary}\n{self._base_tail()}"
+        out = _normalize_olj_block(raw)
+        assert "Résumé :" in out
+        ok, issues = _validate_olj_block(out)
+        assert ok, issues
+
+    def test_inserts_resume_prefix_when_missing(self):
+        summary = "mot " * 160
+        raw = f"« t »\n\n{summary}\n{self._base_tail()}"
+        out = _normalize_olj_block(raw)
+        assert out.split("\n")[2].strip().startswith("Résumé :") or any(
+            ln.strip().startswith("Résumé :") for ln in out.split("\n")
+        )
+        ok, issues = _validate_olj_block(out)
+        assert ok, issues

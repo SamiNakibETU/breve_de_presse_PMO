@@ -25,6 +25,8 @@ COUNTRY_TO_CODE: dict[str, str] = {
     "turquie": "TR",
     "jordanie": "JO",
     "oman": "OM",
+    "algérie": "DZ",
+    "algerie": "DZ",
     "qatar": "QA",
     "régional": "ME",
     "regional": "ME",

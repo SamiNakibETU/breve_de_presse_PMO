@@ -41,6 +41,11 @@ Optionnel :
 - `MAX_TRANSLATION_FAILURES` — plafond d’échecs traduction par article (défaut 5).
 - `TRANSLATION_JSON_REPAIR` — `false` pour désactiver la 2ᵉ passe JSON (coût).
 - `GROQ_TRANSLATION_MODEL_FALLBACK` — modèle Groq plus petit en secours si 429 sur le modèle principal (EN/FR).
+- `INGESTION_LLM_GATE_POST_BODY_ENABLED` — second passage gate LLM après extraction page (défaut `false`).
+- `INGESTION_LLM_GATE_SUMMARY_MAX_CHARS` — taille max. du texte envoyé au gate (résumé RSS / extrait).
+- **Alertes e-mail (phase 4)** : `ALERT_EMAIL_WEBHOOK_URL` (POST JSON, même schéma que `ALERT_WEBHOOK_URL`) ; ou **`RESEND_API_KEY`** + **`ALERT_EMAIL_TO`** (destinataires, virgules) + optionnel **`ALERT_EMAIL_FROM`**.
+- **PDF revue Unicode** : `PDF_EXPORT_ENABLED=true` ; placer **DejaVuSans.ttf** sur l’image ou définir **`PDF_UNICODE_FONT_PATH`** / **`MEMW_PDF_FONT_PATH`** (sinon repli ASCII).
+- **`MEE_RSS_FR_URL`** — réservé : flux RSS FR Middle East Eye si l’OLJ le fournit (pas de branchement collecte sans URL validée).
 
 ### Front Next.js : mode BFF (recommandé si API exposée)
 

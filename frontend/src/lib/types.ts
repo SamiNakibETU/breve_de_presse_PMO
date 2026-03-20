@@ -29,11 +29,19 @@ export interface Article {
   primary_editorial_event_id?: string | null;
   processing_error?: string | null;
   translation_failure_count?: number | null;
+  framing_json?: Record<string, string> | null;
+  en_translation_summary_only?: boolean | null;
+  is_syndicated?: boolean | null;
+  canonical_article_id?: string | null;
+  /** Présent si l’API est appelée avec group_syndicated=true */
+  syndicate_siblings_count?: number | null;
+  cluster_soft_assigned?: boolean | null;
 }
 
 export interface ArticleListResponse {
   articles: Article[];
   total: number;
+  counts_by_country?: Record<string, number> | null;
 }
 
 export interface MediaSource {
@@ -48,6 +56,29 @@ export interface MediaSource {
   paywall: string;
   is_active: boolean;
   last_collected_at: string | null;
+}
+
+/** Réponse GET /api/media-sources/health */
+export interface MediaSourceHealthRow {
+  id: string;
+  name: string;
+  country_code: string;
+  articles_72h: number;
+  last_collected_at: string | null;
+  health_status: string;
+  consecutive_empty_collection_runs?: number;
+  last_article_ingested_at?: string | null;
+  last_24h_translated_count?: number;
+  translation_24h_ok_persisted?: number | null;
+  translation_24h_errors_persisted?: number | null;
+  translation_24h_metrics_at?: string | null;
+  health_metrics?: Record<string, unknown> | null;
+  last_collection?: Record<string, unknown> | null;
+}
+
+export interface MediaSourcesHealthResponse {
+  sources: MediaSourceHealthRow[];
+  window_hours: number;
 }
 
 export interface Stats {
@@ -100,6 +131,12 @@ export interface GenerateReviewResult {
   article_count: number;
 }
 
+export interface ThesisPreviewItem {
+  thesis: string;
+  media_name?: string | null;
+  article_type?: string | null;
+}
+
 export interface TopicCluster {
   id: string;
   label: string | null;
@@ -109,6 +146,8 @@ export interface TopicCluster {
   latest_article_at: string | null;
   is_active: boolean;
   countries: string[];
+  is_emerging?: boolean;
+  thesis_previews?: ThesisPreviewItem[] | string[];
 }
 
 export interface ClusterListResponse {
@@ -121,6 +160,7 @@ export interface ClusterArticle {
   id: string;
   title_fr: string | null;
   title_original: string;
+  thesis_summary_fr?: string | null;
   summary_fr: string | null;
   source_name: string | null;
   country: string;
@@ -130,6 +170,8 @@ export interface ClusterArticle {
   url: string;
   source_language: string | null;
   translation_confidence: number | null;
+  framing_line?: string | null;
+  cluster_soft_assigned?: boolean;
 }
 
 export interface ClusterArticlesResponse {

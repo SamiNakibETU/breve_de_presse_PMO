@@ -8,6 +8,12 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+class ThesisPreviewItem(BaseModel):
+    thesis: str
+    media_name: str | None = None
+    article_type: str | None = None
+
+
 class ClusterResponse(BaseModel):
     id: UUID
     label: str | None
@@ -17,6 +23,8 @@ class ClusterResponse(BaseModel):
     latest_article_at: datetime | None
     is_active: bool
     countries: list[str] = []
+    is_emerging: bool = False
+    thesis_previews: list[ThesisPreviewItem] = []
 
     class Config:
         from_attributes = True

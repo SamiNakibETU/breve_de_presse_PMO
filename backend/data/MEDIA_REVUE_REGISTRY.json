@@ -2,7 +2,7 @@
   "metadata": {
     "source_csv": "media revue - Sheet1.csv",
     "version": "1.0.0",
-    "count": 66
+    "count": 67
   },
   "media": [
     {
@@ -229,7 +229,8 @@
       "rss_opinion_url": null,
       "english_version_url": null,
       "opinion_hub_urls": [
-        "https://www.madamasr.com/en/opinion/"
+        "https://www.madamasr.com/en/opinion/",
+        "https://www.madamasr.com/opinion/"
       ],
       "collection_method": "opinion_hub",
       "paywall": "free",
@@ -877,6 +878,35 @@
       "english_version_url": null,
       "opinion_hub_urls": [
         "https://alseyassah.com/%D9%83%D9%84-%D8%A7%D9%84%D8%A2%D8%B1%D8%A7%D8%A1/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_arab_times",
+      "name": "Arab Times",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.arabtimesonline.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.arabtimesonline.com/news/category/opinion/"
       ],
       "collection_method": "opinion_hub",
       "paywall": "free",
@@ -1574,7 +1604,8 @@
       "rss_opinion_url": null,
       "english_version_url": null,
       "opinion_hub_urls": [
-        "https://7al.net/%d8%b9%d9%8a%d9%86-%d8%b9%d9%84%d9%89-%d8%a7%d9%84%d8%aa%d8%b7%d8%b1%d9%81/%d9%82%d8%b1%d8%a7%d8%a1%d8%a7%d8%aa-%d9%85%d8%b9%d9%85%d9%82%d8%a9/"
+        "https://7al.net/%d8%b9%d9%8a%d9%86-%d8%b9%d9%84%d9%89-%d8%a7%d9%84%d8%aa%d8%b7%d8%b1%d9%81/%d9%82%d8%b1%d8%a7%d8%a1%d8%a7%d8%aa-%d9%85%d8%b9%d9%85%d9%82%d8%a9/",
+        "https://7al.net/%d8%b9%d9%8a%d9%86-%d8%b9%d9%84%d9%89-%d8%a7%d9%84%d8%aa%d8%b7%d8%b1%d9%81/%d8%aa%d9%82%d8%a7%d8%b1%d9%8a%d8%b1-%d9%88%d8%aa%d8%ad%d9%84%d9%8a%d9%84%d8%a7%d8%aa/"
       ],
       "collection_method": "opinion_hub",
       "paywall": "free",
@@ -1768,7 +1799,7 @@
       "languages": [
         "tr"
       ],
-      "editorial_line": "Anti government\nKemalism /Secularism/Laicism / Left-wing politics / Social democracy",
+      "editorial_line": "Anti government\r\nKemalism /Secularism/Laicism / Left-wing politics / Social democracy",
       "bias": null,
       "content_types": [
         "opinion",
@@ -1855,7 +1886,7 @@
       "languages": [
         "tr"
       ],
-      "editorial_line": "Conservatism\nTurkish nationalism",
+      "editorial_line": "Conservatism\r\nTurkish nationalism",
       "bias": null,
       "content_types": [
         "opinion",
@@ -1884,7 +1915,7 @@
       "languages": [
         "tr"
       ],
-      "editorial_line": "Social conservatism\nHard Euroscepticism",
+      "editorial_line": "Social conservatism\r\nHard Euroscepticism",
       "bias": null,
       "content_types": [
         "opinion",

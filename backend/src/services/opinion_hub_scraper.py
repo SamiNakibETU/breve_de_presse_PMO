@@ -232,7 +232,11 @@ class OpinionHubScraper:
                     filtered_count += 1
                     continue
 
-                lang = _detect_language(text or "", list(source.languages or ["en"]))
+                lang = _detect_language(
+                    text or "",
+                    list(source.languages or ["en"]),
+                    source.country_code,
+                )
 
                 db.add(
                     Article(

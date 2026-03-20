@@ -6,6 +6,7 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
+/** MEMW §2.5.6 : titres / thèses en Poynter (fichiers locaux dans `public/fonts/`, voir globals.css). */
 export const metadata: Metadata = {
   title: "L'Orient-Le Jour — Revue de presse régionale",
   description:

@@ -6,6 +6,7 @@ import type {
   ClusterRefreshResponse,
   GenerateReviewResult,
   MediaSource,
+  MediaSourcesHealthResponse,
   PipelineTaskKind,
   PipelineTaskStartResponse,
   PipelineTaskStatus,
@@ -74,6 +75,9 @@ export const api = {
     }),
 
   mediaSources: () => request<MediaSource[]>("/api/media-sources"),
+
+  mediaSourcesHealth: () =>
+    request<MediaSourcesHealthResponse>("/api/media-sources/health"),
 
   triggerCollect: () =>
     request<{ status: string; stats: unknown }>("/api/collect", {

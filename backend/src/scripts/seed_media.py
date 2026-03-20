@@ -1,8 +1,11 @@
 """
 Seed media_sources from MEDIA_REGISTRY.json (+ fusion MEDIA_REVUE_REGISTRY.json si présent).
-Usage: python -m src.scripts.seed_media
+Usage:
+  python -m src.scripts.seed_media
+  python -m src.scripts.seed_media --revue-only   # uniquement MEDIA_REVUE_REGISTRY.json
 """
 
+import argparse
 import asyncio
 import json
 import sys
@@ -14,6 +17,26 @@ from src.models.media_source import MediaSource
 
 REGISTRY_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_REGISTRY.json"
 REVUE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_REVUE_REGISTRY.json"
+RSS_SUPPLEMENT_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "RSS_OPINION_SUPPLEMENT.json"
+)
+
+
+def _apply_rss_supplement(media_list: list[dict]) -> None:
+    if not RSS_SUPPLEMENT_PATH.exists():
+        return
+    raw = json.loads(RSS_SUPPLEMENT_PATH.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        return
+    by_id = {m["id"]: m for m in media_list}
+    for mid, url in raw.items():
+        if not isinstance(url, str) or not url.strip():
+            continue
+        if mid not in by_id:
+            continue
+        cur = (by_id[mid].get("rss_opinion_url") or "").strip()
+        if not cur:
+            by_id[mid]["rss_opinion_url"] = url.strip()
 
 
 def _english_url(entry: dict) -> str | None:
@@ -41,12 +64,23 @@ def _load_merged_media() -> list[dict]:
     return list(by_id.values())
 
 
-async def seed() -> None:
-    if not REGISTRY_PATH.exists():
-        print(f"ERROR: {REGISTRY_PATH} not found")
+def _load_revue_only() -> list[dict]:
+    if not REVUE_PATH.exists():
+        print(f"ERROR: {REVUE_PATH} not found (run import_media_revue_csv first)")
         sys.exit(1)
+    rev = json.loads(REVUE_PATH.read_text(encoding="utf-8"))
+    return [dict(m) for m in rev.get("media", [])]
 
-    media_list = _load_merged_media()
+
+async def seed(*, revue_only: bool = False) -> None:
+    if revue_only:
+        media_list = _load_revue_only()
+    else:
+        if not REGISTRY_PATH.exists():
+            print(f"ERROR: {REGISTRY_PATH} not found")
+            sys.exit(1)
+        media_list = _load_merged_media()
+    _apply_rss_supplement(media_list)
     await init_db()
     factory = get_session_factory()
 
@@ -102,4 +136,11 @@ async def seed() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    parser = argparse.ArgumentParser(description="Seed media_sources from JSON registries.")
+    parser.add_argument(
+        "--revue-only",
+        action="store_true",
+        help="Load only MEDIA_REVUE_REGISTRY.json (CSV OLJ), no fusion with MEDIA_REGISTRY.json",
+    )
+    args = parser.parse_args()
+    asyncio.run(seed(revue_only=args.revue_only))

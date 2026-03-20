@@ -1,20 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface ReviewPreviewProps {
   text: string;
 }
 
 export function ReviewPreview({ text }: ReviewPreviewProps) {
+  const [edited, setEdited] = useState(text);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setEdited(text);
+  }, [text]);
 
   async function copyToClipboard() {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(edited);
     } catch {
       const textarea = document.createElement("textarea");
-      textarea.value = text;
+      textarea.value = edited;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand("copy");
@@ -25,7 +30,7 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
   }
 
   function download() {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([edited], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -46,9 +51,15 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
       </div>
 
       <article className="mx-auto max-w-2xl border-t border-[#dddcda] pt-6">
-        <div className="whitespace-pre-wrap font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-[#1a1a1a]">
-          {text}
-        </div>
+        <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888]">
+          Ajustements avant copie
+        </label>
+        <textarea
+          value={edited}
+          onChange={(e) => setEdited(e.target.value)}
+          spellCheck
+          className="min-h-[280px] w-full resize-y border border-[#eeede9] bg-[#fafaf8] px-3 py-3 font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-[#1a1a1a] focus:border-[#ccc] focus:outline-none"
+        />
       </article>
     </div>
   );

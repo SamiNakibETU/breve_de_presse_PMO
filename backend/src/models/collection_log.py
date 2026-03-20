@@ -25,3 +25,11 @@ class CollectionLog(Base):
     articles_error: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="running")
+    duration_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    articles_filtered: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    extraction_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    extraction_primary_success: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )

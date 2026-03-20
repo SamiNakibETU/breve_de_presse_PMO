@@ -39,11 +39,25 @@ class ArticleResponse(BaseModel):
     primary_editorial_event_id: Optional[str] = None
     processing_error: Optional[str] = None
     translation_failure_count: Optional[int] = None
+    framing_json: Optional[dict[str, Any]] = None
+    framing_actor: Optional[str] = None
+    framing_tone: Optional[str] = None
+    framing_prescription: Optional[str] = None
+    content_translated_fr: Optional[str] = None
+    en_translation_summary_only: Optional[bool] = None
+    is_syndicated: Optional[bool] = None
+    canonical_article_id: Optional[str] = None
+    syndicate_siblings_count: Optional[int] = Field(
+        default=None,
+        description="Nombre de reprises pointant vers cet article (si group_syndicated=true)",
+    )
+    cluster_soft_assigned: Optional[bool] = None
 
 
 class ArticleListResponse(BaseModel):
     articles: list[ArticleResponse]
     total: int
+    counts_by_country: Optional[dict[str, int]] = None
 
 
 class ArticleIdsRequest(BaseModel):

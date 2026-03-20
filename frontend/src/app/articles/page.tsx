@@ -46,12 +46,15 @@ function buildArticleParams(
     limit: String(PAGE_SIZE),
     offset: String(offset),
     sort: sortBy,
-    days: "7",
+    days: "2",
   };
   if (filters.countries.length > 0) params.country = filters.countries.join(",");
   if (filters.types.length > 0) params.article_type = filters.types.join(",");
   if (filters.minConfidence > 0)
     params.min_confidence = String(filters.minConfidence);
+  if (filters.includeLowQuality) params.include_low_quality = "true";
+  if (filters.hideSyndicated) params.hide_syndicated = "true";
+  if (filters.groupSyndicated) params.group_syndicated = "true";
   return params;
 }
 
@@ -70,6 +73,9 @@ export default function ArticlesPage() {
     countries: [],
     types: ["opinion", "editorial", "tribune", "analysis"],
     minConfidence: 0.7,
+    includeLowQuality: false,
+    hideSyndicated: true,
+    groupSyndicated: false,
   });
   const [batchBusy, setBatchBusy] = useState(false);
 
@@ -118,6 +124,7 @@ export default function ArticlesPage() {
   );
 
   const total = data?.pages[0]?.total ?? 0;
+  const countsByCountry = data?.pages[0]?.counts_by_country ?? null;
 
   function goToReview() {
     saveReviewArticleIds(selected);
@@ -206,7 +213,11 @@ export default function ArticlesPage() {
         </div>
       </div>
 
-      <ArticleFilters filters={filters} onChange={setFilters} />
+      <ArticleFilters
+        filters={filters}
+        onChange={setFilters}
+        countsByCountry={countsByCountry}
+      />
 
       <ArticleList
         articles={articles}

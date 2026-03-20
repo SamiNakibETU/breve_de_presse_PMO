@@ -58,6 +58,17 @@ Requêtes d’alerting types : [SLO.md](SLO.md).
 | Collecte planifiée | Durée &lt; 30 min (selon volume) |
 | Disponibilité API | `/health/ready` 200 |
 
+## Alertes source « dead » / cluster chaud
+
+1. **`ALERT_WEBHOOK_URL`** : POST JSON (`media_source_health` ou `cluster_hot`).
+2. Optionnel : **`ALERT_EMAIL_WEBHOOK_URL`** (même payload vers un second endpoint).
+3. Optionnel : **Resend** — `RESEND_API_KEY`, `ALERT_EMAIL_TO`, `ALERT_EMAIL_FROM` (domaine vérifié en prod).
+
+## Export PDF sans accents
+
+1. Vérifier **`PDF_UNICODE_FONT_PATH`** ou **`MEMW_PDF_FONT_PATH`** vers un fichier **`.ttf`** (ex. DejaVuSans), ou installer `fonts-dejavu-core` sur l’image Linux (`/usr/share/fonts/truetype/dejavu/`).
+2. Sans police : le PDF utilise le repli ASCII (accents supprimés).
+
 ---
 
 Voir aussi [DEPLOY.md](DEPLOY.md) et [PIPELINE_PROGRESS.md](PIPELINE_PROGRESS.md).

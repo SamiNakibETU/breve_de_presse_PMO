@@ -140,6 +140,14 @@
     "thenationalnews.com": {
       "relaxed_same_site": true
     },
+    "thepeninsulaqatar.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 90000,
+      "relaxed_same_site": true,
+      "scroll_page": true,
+      "wait_until": "load"
+    },
     "gulfnews.com": {
       "relaxed_same_site": true,
       "playwright": true,
@@ -193,6 +201,10 @@
     "eg_madam_masr": {
       "rss_feed_url": "https://www.madamasr.com/en/feed/",
       "rss_link_filter": "/opinion/"
+    },
+    "qa_the_peninsula": {
+      "rss_feed_url": "https://thepeninsulaqatar.com/rss",
+      "rss_link_filter": "/category/views/"
     },
     "il_the_times_of_israel": {
       "link_pattern": "/blogs/|/[a-z0-9-]+-[0-9]{6,}/"
@@ -258,6 +270,13 @@
     "tr_milliyet": {
       "link_pattern": "(?i)/yazarlar/[^/]+/[^/]+",
       "strict_link_pattern": true
+    },
+    "khaleejtimes.com": {
+      "playwright": true,
+      "wait_ms": 5500,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/",
+      "relaxed_same_site": true
     }
   }
 }

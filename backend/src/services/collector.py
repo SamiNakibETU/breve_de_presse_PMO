@@ -2,7 +2,12 @@
 Async RSS collector with per-domain rate limiting, robust extraction pipeline,
 collection log persistence, and editorial relevance filtering.
 
-Extraction chain: trafilatura (recall) → trafilatura (precision) → RSS summary.
+Extraction (MEMW §2.1.5) : `trafilatura.fetch_url` puis `trafilatura.extract` en mode
+recall puis precision ; en échec, fetch HTML via aiohttp + `extract` sur le brut.
+Fallbacks : résumé RSS (≥80 car.) puis titre + résumé. Les métriques
+`extraction_attempts` / `extraction_primary_success` sur `collection_logs` reflètent
+le succès du premier bloc trafilatura/direct avant complément RSS.
+
 Feed priority: rss_opinion_url (if available) → rss_url (fallback).
 """
 
@@ -31,12 +36,53 @@ from src.models.collection_log import CollectionLog
 from src.models.media_source import MediaSource
 from src.services import metrics as app_metrics
 from src.services.editorial_scope import (
+    needs_ingestion_llm_gate,
+    needs_post_extract_llm_gate,
+    override_langid_ar_fa,
     should_ingest_rss_entry,
     should_ingest_scraped_article,
+    snippet_for_ingestion_gate,
 )
+from src.services.ingestion_llm_gate import confirm_geopolitical_relevance
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
+
+def _apply_media_source_health(
+    media_source: MediaSource,
+    new_count: int,
+    *,
+    run_metrics: dict | None = None,
+) -> tuple[str | None, str]:
+    """Met à jour compteurs MEMW (3 runs vides → degraded, 7 j sans article → dead)."""
+    now = datetime.now(timezone.utc)
+    prev = getattr(media_source, "health_status", None)
+    if new_count > 0:
+        media_source.consecutive_empty_collection_runs = 0
+        media_source.last_article_ingested_at = now
+    else:
+        cur = getattr(media_source, "consecutive_empty_collection_runs", 0) or 0
+        media_source.consecutive_empty_collection_runs = cur + 1
+
+    last_ing = getattr(media_source, "last_article_ingested_at", None)
+    empty_runs = getattr(media_source, "consecutive_empty_collection_runs", 0) or 0
+
+    if last_ing is not None and (now - last_ing).total_seconds() >= 7 * 86400:
+        media_source.health_status = "dead"
+    elif empty_runs >= 3:
+        media_source.health_status = "degraded"
+    else:
+        media_source.health_status = "ok"
+
+    metrics: dict = {
+        "last_run_new_articles": new_count,
+        "evaluated_at": now.isoformat(),
+        "empty_runs": empty_runs,
+    }
+    if run_metrics:
+        metrics.update(run_metrics)
+    media_source.health_metrics_json = metrics
+    return prev, media_source.health_status or "ok"
 
 
 def _classify_collection_error(exc: BaseException) -> str:
@@ -264,7 +310,13 @@ class RSSCollector:
         async with self._semaphore:
             feed_url = self._get_feed_url(source)
             if not feed_url:
-                return {"new": 0, "filtered": 0}
+                return {
+                    "new": 0,
+                    "filtered": 0,
+                    "extraction_attempts": 0,
+                    "extraction_primary_success": 0,
+                    "entries_seen": 0,
+                }
             domain = feed_url.split("/")[2] if feed_url else ""
             await self._rate_limit(domain)
 
@@ -276,18 +328,50 @@ class RSSCollector:
             log_id = log.id
 
             try:
+                t_run = time.monotonic()
                 result = await self._do_collect(source, feed_url)
+                duration_s = int(time.monotonic() - t_run)
 
                 async with self._factory() as db:
                     cl = await db.get(CollectionLog, log_id)
                     if cl:
                         cl.articles_new = result["new"]
+                        cl.articles_found = int(result.get("entries_seen") or 0)
+                        cl.articles_filtered = result.get("filtered")
+                        cl.duration_seconds = duration_s
+                        cl.extraction_attempts = int(
+                            result.get("extraction_attempts") or 0,
+                        )
+                        cl.extraction_primary_success = int(
+                            result.get("extraction_primary_success") or 0,
+                        )
                         cl.status = "completed"
                         cl.completed_at = datetime.now(timezone.utc)
                     src = await db.get(MediaSource, source.id)
                     if src:
                         src.last_collected_at = datetime.now(timezone.utc)
+                        prev_h, new_h = _apply_media_source_health(
+                            src,
+                            result["new"],
+                            run_metrics={
+                                "last_run_duration_seconds": duration_s,
+                                "last_run_filtered": int(result.get("filtered") or 0),
+                                "last_run_extraction_attempts": int(
+                                    result.get("extraction_attempts") or 0,
+                                ),
+                                "last_run_extraction_primary_ok": int(
+                                    result.get("extraction_primary_success") or 0,
+                                ),
+                            },
+                        )
+                    else:
+                        prev_h, new_h = None, "ok"
                     await db.commit()
+
+                if new_h == "dead" and prev_h != "dead":
+                    from src.services.alerts import post_dead_source_alert
+
+                    await post_dead_source_alert(source.id, source.name, new_h)
 
                 logger.info(
                     "collection.source_done",
@@ -326,11 +410,19 @@ class RSSCollector:
         feed = feedparser.parse(content)
         if feed.bozo and not feed.entries:
             logger.warning("collection.bad_feed", source=source.id, feed_url=feed_url)
-            return {"new": 0, "filtered": 0}
+            return {
+                "new": 0,
+                "filtered": 0,
+                "extraction_attempts": 0,
+                "extraction_primary_success": 0,
+                "entries_seen": 0,
+            }
 
         entries = feed.entries[: settings.max_articles_per_source]
         new_count = 0
         filtered_count = 0
+        extraction_attempts = 0
+        extraction_primary_success = 0
         uses_opinion_feed = bool(getattr(source, "rss_opinion_url", None))
 
         async with self._factory() as db:
@@ -360,7 +452,23 @@ class RSSCollector:
                     )
                     continue
 
+                rss_for_gate = snippet_for_ingestion_gate(rss_summary_text)
+                if needs_ingestion_llm_gate(
+                    title, rss_for_gate, uses_opinion_feed=uses_opinion_feed
+                ):
+                    if not await confirm_geopolitical_relevance(title, rss_for_gate):
+                        filtered_count += 1
+                        logger.debug(
+                            "collection.filtered_llm_gate",
+                            source=source.id,
+                            title=title[:80],
+                        )
+                        continue
+
+                extraction_attempts += 1
                 full_text, html_author = await self._extract_text_and_author(article_url)
+                if full_text and len(full_text) >= settings.min_article_length:
+                    extraction_primary_success += 1
 
                 if not full_text:
                     full_text = rss_summary_text if len(rss_summary_text) >= 80 else None
@@ -385,8 +493,27 @@ class RSSCollector:
                     )
                     continue
 
+                if settings.ingestion_llm_gate_post_body_enabled and needs_post_extract_llm_gate(
+                    title or "", full_text or ""
+                ):
+                    body_for_gate = snippet_for_ingestion_gate(full_text or "")
+                    if not await confirm_geopolitical_relevance(
+                        title or "", body_for_gate
+                    ):
+                        filtered_count += 1
+                        logger.debug(
+                            "collection.filtered_llm_gate_post_body",
+                            source=source.id,
+                            title=(title or "")[:80],
+                        )
+                        continue
+
                 author = _extract_author(entry) or html_author
-                lang = self._detect_language(full_text, source.languages)
+                lang = self._detect_language(
+                    full_text,
+                    source.languages,
+                    source.country_code,
+                )
 
                 db.add(
                     Article(
@@ -406,7 +533,13 @@ class RSSCollector:
 
             await db.commit()
 
-        return {"new": new_count, "filtered": filtered_count}
+        return {
+            "new": new_count,
+            "filtered": filtered_count,
+            "extraction_attempts": extraction_attempts,
+            "extraction_primary_success": extraction_primary_success,
+            "entries_seen": len(entries),
+        }
 
     async def _extract_text_and_author(self, url: str) -> tuple[Optional[str], Optional[str]]:
         """Extract text and author. Returns (text, author)."""
@@ -493,11 +626,17 @@ class RSSCollector:
             return None, None
 
     @staticmethod
-    def _detect_language(text: str, source_languages: list[str]) -> str:
+    def _detect_language(
+        text: str,
+        source_languages: list[str],
+        country_code: str = "",
+    ) -> str:
         try:
             detected, _ = py3langid.classify(text)
         except Exception:
             return source_languages[0] if source_languages else "unknown"
+
+        detected = override_langid_ar_fa(detected, country_code)
 
         if not source_languages:
             return detected

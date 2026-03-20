@@ -3,12 +3,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
 from src.deps.auth import require_internal_key
 from src.models.article import Article
+from src.models.collection_log import CollectionLog
 from src.models.media_source import MediaSource
 from src.schemas.articles import (
     ArticleIdBatchRequest,
@@ -23,7 +24,49 @@ from src.services.relevance import explain_editorial_relevance
 router = APIRouter(prefix="/api")
 
 
-def _to_response(art: Article, src: MediaSource) -> ArticleResponse:
+def _article_list_conditions(
+    *,
+    cutoff: datetime,
+    status: Optional[str],
+    country: Optional[str],
+    article_type: Optional[str],
+    language: Optional[str],
+    min_confidence: Optional[float],
+    include_low_quality: bool,
+    hide_syndicated: bool,
+    group_syndicated: bool,
+):
+    conds = [Article.collected_at >= cutoff]
+    if status:
+        statuses = [s.strip() for s in status.split(",")]
+        conds.append(Article.status.in_(statuses))
+    else:
+        st = ["translated", "formatted", "needs_review"]
+        if include_low_quality:
+            st.append("low_quality")
+        conds.append(Article.status.in_(st))
+    if country:
+        codes = [c.strip().upper() for c in country.split(",")]
+        conds.append(MediaSource.country_code.in_(codes))
+    if article_type:
+        types = [t.strip() for t in article_type.split(",")]
+        conds.append(Article.article_type.in_(types))
+    if language:
+        langs = [la.strip() for la in language.split(",")]
+        conds.append(Article.source_language.in_(langs))
+    if min_confidence is not None:
+        conds.append(Article.translation_confidence >= min_confidence)
+    if hide_syndicated or group_syndicated:
+        conds.append(Article.is_syndicated.is_(False))
+    return conds
+
+
+def _to_response(
+    art: Article,
+    src: MediaSource,
+    *,
+    syndicate_siblings_count: Optional[int] = None,
+) -> ArticleResponse:
     topics_day = load_topics_of_day()
     expl = explain_editorial_relevance(
         country_code=src.country_code,
@@ -72,6 +115,18 @@ def _to_response(art: Article, src: MediaSource) -> ArticleResponse:
         ),
         processing_error=art.processing_error,
         translation_failure_count=art.translation_failure_count,
+        framing_json=art.framing_json if isinstance(art.framing_json, dict) else None,
+        framing_actor=getattr(art, "framing_actor", None),
+        framing_tone=getattr(art, "framing_tone", None),
+        framing_prescription=getattr(art, "framing_prescription", None),
+        content_translated_fr=getattr(art, "content_translated_fr", None),
+        en_translation_summary_only=getattr(art, "en_translation_summary_only", None),
+        is_syndicated=getattr(art, "is_syndicated", None),
+        canonical_article_id=(
+            str(art.canonical_article_id) if art.canonical_article_id else None
+        ),
+        syndicate_siblings_count=syndicate_siblings_count,
+        cluster_soft_assigned=getattr(art, "cluster_soft_assigned", None),
     )
 
 
@@ -90,40 +145,55 @@ async def list_articles(
         default="relevance",
         description="relevance|date|confidence|confidence_asc",
     ),
+    include_low_quality: bool = Query(
+        default=False,
+        description="Inclure les articles au statut low_quality (< seuil confiance)",
+    ),
+    hide_syndicated: bool = Query(
+        default=False,
+        description="Masquer les reprises (is_syndicated)",
+    ),
+    group_syndicated: bool = Query(
+        default=False,
+        description="Vue canonique : masque les reprises et ajoute syndicate_siblings_count",
+    ),
 ):
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    conds = _article_list_conditions(
+        cutoff=cutoff,
+        status=status,
+        country=country,
+        article_type=article_type,
+        language=language,
+        min_confidence=min_confidence,
+        include_low_quality=include_low_quality,
+        hide_syndicated=hide_syndicated,
+        group_syndicated=group_syndicated,
+    )
+
     query = (
         select(Article, MediaSource)
         .join(MediaSource, Article.media_source_id == MediaSource.id)
-        .where(
-            Article.collected_at >= datetime.now(timezone.utc) - timedelta(days=days)
-        )
+        .where(and_(*conds))
     )
 
-    if status:
-        statuses = [s.strip() for s in status.split(",")]
-        query = query.where(Article.status.in_(statuses))
-    else:
-        query = query.where(
-            Article.status.in_(["translated", "formatted", "needs_review"])
-        )
+    count_base = (
+        select(func.count(Article.id))
+        .select_from(Article)
+        .join(MediaSource, Article.media_source_id == MediaSource.id)
+        .where(and_(*conds))
+    )
+    total = (await db.execute(count_base)).scalar() or 0
 
-    if country:
-        codes = [c.strip().upper() for c in country.split(",")]
-        query = query.where(MediaSource.country_code.in_(codes))
-
-    if article_type:
-        types = [t.strip() for t in article_type.split(",")]
-        query = query.where(Article.article_type.in_(types))
-
-    if language:
-        langs = [la.strip() for la in language.split(",")]
-        query = query.where(Article.source_language.in_(langs))
-
-    if min_confidence is not None:
-        query = query.where(Article.translation_confidence >= min_confidence)
-
-    count_q = select(func.count()).select_from(query.subquery())
-    total = (await db.execute(count_q)).scalar() or 0
+    cc_stmt = (
+        select(MediaSource.country_code, func.count(Article.id))
+        .select_from(Article)
+        .join(MediaSource, Article.media_source_id == MediaSource.id)
+        .where(and_(*conds))
+        .group_by(MediaSource.country_code)
+    )
+    cc_rows = (await db.execute(cc_stmt)).all()
+    counts_by_country = {str(row[0]): int(row[1]) for row in cc_rows if row[0]}
 
     if sort == "date":
         query = query.order_by(Article.collected_at.desc())
@@ -138,12 +208,40 @@ async def list_articles(
     result = await db.execute(query)
     rows = result.all()
 
-    articles = [_to_response(art, src) for art, src in rows]
+    count_map: dict[str, int] = {}
+    if group_syndicated and rows:
+        page_ids = [art.id for art, _ in rows]
+        cnt_stmt = (
+            select(Article.canonical_article_id, func.count(Article.id))
+            .where(
+                Article.canonical_article_id.in_(page_ids),
+                Article.is_syndicated.is_(True),
+            )
+            .group_by(Article.canonical_article_id)
+        )
+        for cid, n in (await db.execute(cnt_stmt)).all():
+            if cid is not None:
+                count_map[str(cid)] = int(n)
+
+    articles: list[ArticleResponse] = []
+    for art, src in rows:
+        sib = count_map.get(str(art.id)) if group_syndicated else None
+        articles.append(
+            _to_response(
+                art,
+                src,
+                syndicate_siblings_count=sib if sib else None,
+            )
+        )
 
     if sort == "relevance":
         articles.sort(key=lambda a: a.editorial_relevance or 0, reverse=True)
 
-    return ArticleListResponse(articles=articles, total=total)
+    return ArticleListResponse(
+        articles=articles,
+        total=total,
+        counts_by_country=counts_by_country or None,
+    )
 
 
 @router.post("/articles/by-ids", response_model=ArticleListResponse)
@@ -266,6 +364,123 @@ async def get_article(article_id: str, db: AsyncSession = Depends(get_db)):
 
     art, src = row
     return _to_response(art, src)
+
+
+@router.get("/media-sources/health")
+async def media_sources_health(db: AsyncSession = Depends(get_db)):
+    """Santé des sources : articles collectés sur 72 h (MEMW)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=72)
+    translated_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    translated_statuses = (
+        "translated",
+        "needs_review",
+        "low_quality",
+        "formatted",
+    )
+    result = await db.execute(
+        select(MediaSource).where(MediaSource.is_active.is_(True)).order_by(MediaSource.name)
+    )
+    sources = result.scalars().all()
+    out: list[dict] = []
+    for s in sources:
+        cnt = (
+            await db.execute(
+                select(func.count(Article.id)).where(
+                    Article.media_source_id == s.id,
+                    Article.collected_at >= cutoff,
+                )
+            )
+        ).scalar() or 0
+        last_24h_translated = (
+            await db.execute(
+                select(func.count(Article.id)).where(
+                    Article.media_source_id == s.id,
+                    Article.processed_at.isnot(None),
+                    Article.processed_at >= translated_cutoff,
+                    Article.status.in_(translated_statuses),
+                )
+            )
+        ).scalar() or 0
+        last_log = (
+            (
+                await db.execute(
+                    select(CollectionLog)
+                    .where(
+                        CollectionLog.media_source_id == s.id,
+                        CollectionLog.completed_at.isnot(None),
+                    )
+                    .order_by(CollectionLog.completed_at.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
+        persisted = getattr(s, "health_status", None)
+        if persisted in ("ok", "degraded", "dead"):
+            health = persisted
+        else:
+            stale = s.last_collected_at is None or s.last_collected_at < cutoff
+            if cnt == 0 and stale:
+                health = "dead"
+            elif cnt == 0:
+                health = "degraded"
+            else:
+                health = "ok"
+        hm = (
+            s.health_metrics_json
+            if isinstance(getattr(s, "health_metrics_json", None), dict)
+            else {}
+        )
+        out.append(
+            {
+                "id": s.id,
+                "name": s.name,
+                "country_code": s.country_code,
+                "articles_72h": cnt,
+                "last_collected_at": (
+                    s.last_collected_at.isoformat() if s.last_collected_at else None
+                ),
+                "health_status": health,
+                "consecutive_empty_collection_runs": int(
+                    getattr(s, "consecutive_empty_collection_runs", 0) or 0
+                ),
+                "last_article_ingested_at": (
+                    s.last_article_ingested_at.isoformat()
+                    if getattr(s, "last_article_ingested_at", None)
+                    else None
+                ),
+                "last_24h_translated_count": last_24h_translated,
+                "translation_24h_ok_persisted": hm.get("last_24h_translation_ok"),
+                "translation_24h_errors_persisted": hm.get(
+                    "last_24h_translation_errors"
+                ),
+                "translation_24h_metrics_at": hm.get(
+                    "last_24h_translation_metrics_at"
+                ),
+                "health_metrics": hm if hm else None,
+                "last_collection": (
+                    {
+                        "completed_at": last_log.completed_at.isoformat()
+                        if last_log.completed_at
+                        else None,
+                        "duration_seconds": last_log.duration_seconds,
+                        "articles_new": last_log.articles_new,
+                        "articles_filtered": last_log.articles_filtered,
+                        "articles_found": last_log.articles_found,
+                        "extraction_attempts": getattr(
+                            last_log, "extraction_attempts", 0
+                        ),
+                        "extraction_primary_success": getattr(
+                            last_log, "extraction_primary_success", 0
+                        ),
+                    }
+                    if last_log
+                    else None
+                ),
+            }
+        )
+    return {"sources": out, "window_hours": 72}
 
 
 @router.get("/media-sources", response_model=list[MediaSourceResponse])

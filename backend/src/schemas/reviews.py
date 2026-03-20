@@ -14,6 +14,10 @@ class GenerateReviewResponse(BaseModel):
 
 class GenerateReviewRequest(BaseModel):
     article_ids: list[str] = Field(..., min_length=1, max_length=10)
+    log_selection_analytics: bool = Field(
+        default=True,
+        description="Enregistrer l’événement de sélection (pays, ids) pour analytics MEMW",
+    )
 
 
 class ReviewItemResponse(BaseModel):

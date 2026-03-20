@@ -288,6 +288,12 @@ Do not let component libraries dictate aesthetics.
 
 ---
 
+## Middle East Eye — langue / version FR
+
+La détection « article FR » pour Middle East Eye repose sur une **heuristique d’URL** dans `translator.py`. Une variable **`MEE_RSS_FR_URL`** (optionnelle) peut documenter le flux RSS français lorsque l’OLJ le fournit ; **sans URL**, ne pas ajouter de collecte FR dédiée — le registre / CSV ne doit pas être modifié automatiquement sans validation éditoriale.
+
+---
+
 ## One-sentence reminder
 
 **Design this product like a serious publication with an almost invisible interface: typographic, minimal, modern, calm, and exact.**

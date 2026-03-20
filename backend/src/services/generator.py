@@ -5,6 +5,7 @@ Generates copy-paste-ready blocks matching Emilie's exact format.
 
 import hashlib
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -115,10 +116,230 @@ def _count_words(text: str) -> int:
     return len(text.split())
 
 
+def _strip_markdown_noise(text: str) -> str:
+    t = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    t = re.sub(r"^#{1,6}\s+", "", t, flags=re.MULTILINE)
+    return t.strip()
+
+
+def _foreign_language_warnings(summary: str | None) -> list[str]:
+    """
+    Heuristique sans API : traces non françaises résiduelles (MEMW §2.4.4).
+    Faux positifs possibles (noms propres, citations) — warning log uniquement.
+    """
+    if not summary:
+        return []
+    warnings: list[str] = []
+    if re.search(r"[\u0600-\u06FF\u0750-\u077F]", summary):
+        warnings.append("possible_arabic_script_in_summary")
+    if re.search(r"[\u0590-\u05FF]", summary):
+        warnings.append("possible_hebrew_script_in_summary")
+    t = f" {summary.lower()} "
+    en_needles = (
+        " the ",
+        " and ",
+        " of ",
+        " to ",
+        " in ",
+        " that ",
+        " with ",
+        " from ",
+        " have ",
+        " has ",
+        " said ",
+        " will ",
+        " would ",
+        " could ",
+        "ing the ",
+        "ation of ",
+        " according to ",
+        " officials ",
+    )
+    if any(n in t for n in en_needles):
+        warnings.append("possible_english_in_summary")
+    return warnings
+
+
+def _normalize_olj_block(block: str) -> str:
+    """Corrections locales avant retry LLM (MEMW §2.4.4) : guillemets « », préfixe « Résumé : »."""
+    if not (block or "").strip():
+        return block
+    lines = block.split("\n")
+
+    for idx in range(len(lines)):
+        raw = lines[idx]
+        s = raw.strip()
+        if not s:
+            continue
+        if "«" not in s and "»" not in s:
+            m = re.match(r'^["\u201c]\s*(.+?)\s*["\u201d]\s*$', s)
+            if m:
+                lead = raw[: len(raw) - len(raw.lstrip())]
+                lines[idx] = f"{lead}« {m.group(1).strip()} »"
+            elif s.startswith('"') and s.endswith('"') and len(s) > 2:
+                inner = s[1:-1].strip()
+                if inner:
+                    lead = raw[: len(raw) - len(raw.lstrip())]
+                    lines[idx] = f"{lead}« {inner} »"
+        break
+
+    b = "\n".join(lines)
+    lines = b.split("\n")
+    try:
+        fiche_i = next(
+            i for i, ln in enumerate(lines) if ln.strip().startswith("Fiche")
+        )
+    except StopIteration:
+        return b
+
+    resume_line_idx: int | None = None
+    for i in range(fiche_i):
+        st = lines[i].strip()
+        if st.startswith("Résumé"):
+            resume_line_idx = i
+            if st.startswith("Résumé :"):
+                pass
+            elif st.startswith("Résumé:"):
+                lead = lines[i][: len(lines[i]) - len(lines[i].lstrip())]
+                rest = st.split(":", 1)[-1].lstrip()
+                lines[i] = f"{lead}Résumé : {rest}" if rest else f"{lead}Résumé :"
+            elif st == "Résumé" or re.match(r"^Résumé\s+$", st):
+                lead = lines[i][: len(lines[i]) - len(lines[i].lstrip())]
+                lines[i] = f"{lead}Résumé :"
+            else:
+                lead = lines[i][: len(lines[i]) - len(lines[i].lstrip())]
+                body = st[len("Résumé") :].lstrip()
+                if body.startswith(":"):
+                    body = body[1:].lstrip()
+                lines[i] = f"{lead}Résumé : {body}"
+            break
+
+    if resume_line_idx is None:
+        insert_at = None
+        seen_non_empty = False
+        for i in range(fiche_i):
+            st = lines[i].strip()
+            if not st:
+                continue
+            if not seen_non_empty:
+                seen_non_empty = True
+                continue
+            insert_at = i
+            break
+        if insert_at is not None:
+            lead = lines[insert_at][: len(lines[insert_at]) - len(lines[insert_at].lstrip())]
+            rest = lines[insert_at].strip()
+            lines[insert_at] = f"{lead}Résumé : {rest}"
+
+    return "\n".join(lines)
+
+
+def _validate_olj_block(block: str) -> tuple[bool, list[str]]:
+    issues: list[str] = []
+    b = block.strip()
+    if "«" not in b or "»" not in b:
+        issues.append("these_guillemets")
+    if "Résumé" not in b:
+        issues.append("resume")
+    if "Fiche" not in b:
+        issues.append("fiche")
+    for needle in (
+        "Article publié dans",
+        "Langue originale",
+        "Pays du média",
+        "Nom de l'auteur",
+    ):
+        if needle not in b:
+            issues.append(f"missing:{needle}")
+    summary_section = PressReviewGenerator._extract_summary(b)
+    if summary_section:
+        wc = _count_words(summary_section)
+        if wc < 130 or wc > 230:
+            issues.append(f"summary_words:{wc}")
+    else:
+        issues.append("summary_missing")
+    return len(issues) == 0, issues
+
+
 class PressReviewGenerator:
     def __init__(self) -> None:
         self._router = get_llm_router()
         self._factory = get_session_factory()
+
+    async def _llm_olj_first_pass(self, user_prompt: str) -> str:
+        s = settings
+        if s.olj_generation_thesis_sonnet_summary_groq:
+            thesis_sys = (
+                "Tu produis uniquement la première ligne d'un bloc revue OLJ : "
+                "« phrase-thèse assertive » entre guillemets français. "
+                "Aucun autre texte, pas de Résumé, pas de Fiche."
+            )
+            thesis_user = user_prompt.replace(
+                "Produis le bloc revue de presse OLJ pour cet article :",
+                "Pour cet article, produis UNIQUEMENT la ligne « thèse » :",
+            )
+            thesis_line = _strip_markdown_noise(
+                (
+                    await self._router.generate_anthropic_only(
+                        thesis_sys,
+                        thesis_user,
+                        400,
+                    )
+                ).strip()
+            )
+            rest_user = (
+                "Produis le bloc revue de presse OLJ : commence par la ligne-thèse fournie, "
+                "puis Résumé : (150-200 mots) puis Fiche : complète.\n\n"
+                f"Ligne-thèse (reprends-la exactement en tête) :\n{thesis_line}\n\n"
+                + user_prompt
+            )
+            body = _strip_markdown_noise(
+                (
+                    await self._router.generate_groq_only(
+                        OLJ_SYSTEM_PROMPT,
+                        rest_user,
+                        1200,
+                    )
+                ).strip()
+            )
+            return f"{thesis_line}\n\n{body}"
+
+        if s.olj_generation_anthropic_only:
+            return _strip_markdown_noise(
+                (
+                    await self._router.generate_anthropic_only(
+                        OLJ_SYSTEM_PROMPT,
+                        user_prompt,
+                        1200,
+                    )
+                ).strip()
+            )
+
+        return _strip_markdown_noise(
+            (
+                await self._router.generate(
+                    OLJ_SYSTEM_PROMPT,
+                    user_prompt,
+                    max_tokens=1000,
+                )
+            ).strip()
+        )
+
+    async def _llm_olj_fix(self, fix_prompt: str) -> str:
+        s = settings
+        if s.olj_generation_anthropic_only or s.olj_generation_thesis_sonnet_summary_groq:
+            return _strip_markdown_noise(
+                (
+                    await self._router.generate_anthropic_only(
+                        OLJ_SYSTEM_PROMPT,
+                        fix_prompt,
+                        1200,
+                    )
+                ).strip()
+            )
+        return _strip_markdown_noise(
+            (await self._router.generate(OLJ_SYSTEM_PROMPT, fix_prompt, max_tokens=1200)).strip()
+        )
 
     async def generate_block(self, article_id: str | uuid.UUID) -> str:
         async with self._factory() as db:
@@ -166,12 +387,25 @@ RAPPEL : le titre entre « » doit être UNE PHRASE-THÈSE assertive et percutan
 qui capture la conviction de l'auteur. PAS un résumé avec tiret. \
 Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
 
-        formatted_block = await self._router.generate(
-            system=OLJ_SYSTEM_PROMPT,
-            prompt=user_prompt,
-            max_tokens=1000,
-        )
-        formatted_block = formatted_block.strip()
+        formatted_block = await self._llm_olj_first_pass(user_prompt)
+        formatted_block = _normalize_olj_block(formatted_block)
+
+        ok, issues = _validate_olj_block(formatted_block)
+        if not ok:
+            logger.warning(
+                "generator.validation_retry",
+                article_id=str(article_id),
+                issues=issues,
+            )
+            fix_prompt = (
+                "Le bloc suivant ne respecte pas le format OLJ (problèmes : "
+                f"{', '.join(issues)}). Réécris UNIQUEMENT le bloc corrigé, "
+                "sans commentaire, avec Résumé 150-200 mots et fiche complète.\n\n"
+                f"{formatted_block}"
+            )
+            formatted_block = _normalize_olj_block(
+                await self._llm_olj_fix(fix_prompt),
+            )
 
         summary_section = self._extract_summary(formatted_block)
         if summary_section:
@@ -181,6 +415,12 @@ Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
                     "generator.word_count_off",
                     article_id=str(article_id),
                     word_count=wc,
+                )
+            for w in _foreign_language_warnings(summary_section):
+                logger.warning(
+                    "generator.foreign_text_suspected",
+                    article_id=str(article_id),
+                    hint=w,
                 )
 
         async with self._factory() as db:

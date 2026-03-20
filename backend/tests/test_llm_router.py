@@ -73,6 +73,14 @@ class TestTranslationRouting:
         provider, model = router._pick_translation("tr")
         assert provider == Provider.CEREBRAS
 
+    @patch("src.services.llm_router.get_settings")
+    def test_kurdish_goes_to_anthropic_first_memw(self, mock_gs):
+        mock_gs.return_value = _make_settings()
+        router = LLMRouter()
+        provider, model = router._pick_translation("ku")
+        assert provider == Provider.ANTHROPIC
+        assert model == "claude-haiku"
+
 
 class TestFallbackRouting:
     @patch("src.services.llm_router.get_settings")
@@ -109,26 +117,33 @@ class TestCandidateOrdering:
         assert "llama-small" in groq_models
 
     @patch("src.services.llm_router.get_settings")
+    def test_translation_candidates_ku_starts_with_anthropic(self, mock_gs):
+        mock_gs.return_value = _make_settings()
+        router = LLMRouter()
+        pairs = router._translation_candidates("ku")
+        assert pairs[0] == (Provider.ANTHROPIC, "claude-haiku")
+
+    @patch("src.services.llm_router.get_settings")
     def test_generation_candidates_order(self, mock_gs):
         mock_gs.return_value = _make_settings()
         router = LLMRouter()
         pairs = router._generation_candidates()
-        assert pairs[0][0] == Provider.GROQ
+        assert pairs[0][0] == Provider.ANTHROPIC
 
 
 class TestGenerationRouting:
     @patch("src.services.llm_router.get_settings")
-    def test_generation_prefers_groq(self, mock_gs):
+    def test_generation_prefers_anthropic(self, mock_gs):
         mock_gs.return_value = _make_settings()
-        router = LLMRouter()
-        provider, model = router._pick_generation()
-        assert provider == Provider.GROQ
-        assert model == "llama-3.3-70b"
-
-    @patch("src.services.llm_router.get_settings")
-    def test_generation_falls_back_to_anthropic(self, mock_gs):
-        mock_gs.return_value = _make_settings(groq_api_key="")
         router = LLMRouter()
         provider, model = router._pick_generation()
         assert provider == Provider.ANTHROPIC
         assert model == "claude-sonnet"
+
+    @patch("src.services.llm_router.get_settings")
+    def test_generation_falls_back_to_groq(self, mock_gs):
+        mock_gs.return_value = _make_settings(anthropic_api_key="")
+        router = LLMRouter()
+        provider, model = router._pick_generation()
+        assert provider == Provider.GROQ
+        assert model == "llama-3.3-70b"

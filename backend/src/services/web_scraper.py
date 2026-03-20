@@ -145,12 +145,20 @@ def _extract_title_from_html(html: str) -> str:
     return "Untitled"
 
 
-def _detect_language(text: str, source_languages: list[str]) -> str:
+def _detect_language(
+    text: str,
+    source_languages: list[str],
+    country_code: str = "",
+) -> str:
     try:
         import py3langid
         detected, _ = py3langid.classify(text)
     except Exception:
         return source_languages[0] if source_languages else "unknown"
+
+    from src.services.editorial_scope import override_langid_ar_fa
+
+    detected = override_langid_ar_fa(detected, country_code)
 
     if detected in source_languages:
         return detected
@@ -327,7 +335,7 @@ class WebScraper:
                     filtered_count += 1
                     continue
 
-                lang = _detect_language(text, source.languages)
+                lang = _detect_language(text, source.languages, source.country_code)
 
                 db.add(
                     Article(
