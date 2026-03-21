@@ -54,6 +54,34 @@ def _is_rate_limit(exc: BaseException) -> bool:
     )
 
 
+def _try_next_provider_after_error(exc: BaseException) -> bool:
+    """
+    Erreurs où le candidat suivant (autre modèle / fournisseur) peut réussir.
+    Groq/Cerebras : NotFoundError = modèle inconnu ou retiré → ne pas bloquer toute la chaîne.
+    """
+    if _is_rate_limit(exc):
+        return True
+    mod = getattr(type(exc), "__module__", "") or ""
+    name = type(exc).__name__
+    if "openai" in mod:
+        if name in (
+            "NotFoundError",
+            "APIConnectionError",
+            "APITimeoutError",
+            "InternalServerError",
+        ):
+            return True
+        if name == "APIStatusError":
+            sc = getattr(exc, "status_code", None)
+            if sc in (404, 408, 429, 502, 503, 504):
+                return True
+    if "anthropic" in mod and name in ("InternalServerError", "APIStatusError"):
+        sc = getattr(exc, "status_code", None)
+        if sc in (429, 502, 503, 504):
+            return True
+    return False
+
+
 class LLMRouter:
     """Routes LLM calls to the cheapest capable provider."""
 
@@ -223,18 +251,28 @@ class LLMRouter:
                 return text
             except Exception as exc:
                 dur = time.perf_counter() - t0
-                if _is_rate_limit(exc):
+                if _try_next_provider_after_error(exc):
                     app_metrics.record_llm_request(
                         provider=prov.value,
-                        outcome="rate_limited",
+                        outcome="rate_limited"
+                        if _is_rate_limit(exc)
+                        else "error",
                         duration_seconds=dur,
                     )
-                    logger.warning(
-                        "llm.translate_rate_limited",
-                        provider=prov.value,
-                        model=model,
-                        error=str(exc)[:200],
-                    )
+                    if _is_rate_limit(exc):
+                        logger.warning(
+                            "llm.translate_rate_limited",
+                            provider=prov.value,
+                            model=model,
+                            error=str(exc)[:200],
+                        )
+                    else:
+                        logger.warning(
+                            "llm.translate_try_next_provider",
+                            provider=prov.value,
+                            model=model,
+                            error=str(exc)[:200],
+                        )
                     last_exc = exc
                     continue
                 app_metrics.record_llm_request(
@@ -275,18 +313,28 @@ class LLMRouter:
                 return text
             except Exception as exc:
                 dur = time.perf_counter() - t0
-                if _is_rate_limit(exc):
+                if _try_next_provider_after_error(exc):
                     app_metrics.record_llm_request(
                         provider=prov.value,
-                        outcome="rate_limited",
+                        outcome="rate_limited"
+                        if _is_rate_limit(exc)
+                        else "error",
                         duration_seconds=dur,
                     )
-                    logger.warning(
-                        "llm.generate_rate_limited",
-                        provider=prov.value,
-                        model=model,
-                        error=str(exc)[:200],
-                    )
+                    if _is_rate_limit(exc):
+                        logger.warning(
+                            "llm.generate_rate_limited",
+                            provider=prov.value,
+                            model=model,
+                            error=str(exc)[:200],
+                        )
+                    else:
+                        logger.warning(
+                            "llm.generate_try_next_provider",
+                            provider=prov.value,
+                            model=model,
+                            error=str(exc)[:200],
+                        )
                     last_exc = exc
                     continue
                 app_metrics.record_llm_request(

@@ -212,7 +212,12 @@ class PlaywrightScraper:
 
         logger.info("playwright_scraper.start", total=len(scrapable))
 
-        stats: dict = {"total_sources": len(scrapable), "total_new": 0, "errors": []}
+        stats: dict = {
+            "total_sources": len(scrapable),
+            "total_new": 0,
+            "total_filtered": 0,
+            "errors": [],
+        }
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(

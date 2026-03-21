@@ -24,6 +24,26 @@ Enchaînement des révisions (ordre) :
 
 > Si tu ne lances pas Alembic, `init_db()` tente des `ALTER TABLE ... IF NOT EXISTS` au démarrage : pratique en dev, **moins strict** qu’Alembic seul en prod.
 
+### Railway : pourquoi `railway run alembic` échoue avec `getaddrinfo failed`
+
+Sur Railway, la variable **`DATABASE_URL`** du backend pointe souvent vers **`*.railway.internal`**. Ce nom n’est résolvable **que depuis l’intérieur** du projet Railway (conteneurs sur le même réseau). Depuis ton PC (PowerShell), la résolution DNS échoue → **`socket.gaierror: [Errno 11001] getaddrinfo failed`**.
+
+**Deux approches valides :**
+
+1. **Lancer les migrations dans le réseau Railway** (recommandé si tu ne veux pas exposer Postgres)  
+   - `railway ssh` (service **Backend_PMO**, même environnement que staging).  
+   - Dans le shell : aller dans le répertoire de l’app (souvent `/app` ou celui du `WORKDIR` du Dockerfile), puis :  
+     `alembic upgrade head` ou `python -m alembic upgrade head`.
+
+2. **Lancer Alembic depuis ta machine avec une URL « publique »**  
+   - Dans le dashboard Railway : service **Postgres** → onglet **Connect** / **Variables** : copier l’URL avec hôte **public** (proxy TCP, souvent du type `*.proxy.rlwy.net` avec un port, **pas** `railway.internal`).  
+   - PowerShell, depuis `backend/` :  
+     `$env:DATABASE_URL = "postgresql://..."` (l’URL publique complète)  
+     puis `alembic upgrade head`.  
+   - Selon l’offre Railway, ajouter **`?sslmode=require`** (ou équivalent) peut être nécessaire pour asyncpg ; en cas d’erreur SSL, vérifier la doc du connecteur Postgres affichée par Railway.
+
+**À éviter :** coller une URL `postgres.railway.internal` dans `$env:DATABASE_URL` sur ta machine — elle ne fonctionnera pas hors Railway.
+
 ## 3. Variables d’environnement essentielles
 
 | Variable | Rôle |
@@ -93,3 +113,59 @@ GitHub Actions : [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — b
 ## 8. Runbook
 
 [RUNBOOK.md](RUNBOOK.md) — incidents fréquents (Playwright, Cohere, 429, DNS, clé interne).
+
+## 9. Vérification en amont (avant un pipeline complet)
+
+À faire **dans l’ordre** sur l’environnement cible (staging / prod) :
+
+1. **Même base que le backend**  
+   Confirmer que `DATABASE_URL` du service API est **la même** base sur laquelle tu as lancé `alembic upgrade head` (pas une base vide ou un autre projet Railway).
+
+2. **Migrations à jour**  
+   - En SSH Railway (`railway ssh`) depuis `/app` : `alembic current` puis comparer avec `alembic heads` en local sur la branche déployée.  
+   - Ou depuis ta machine avec l’URL Postgres **publique** : `cd backend` puis `alembic current`.
+
+3. **API prête**  
+   - `GET /health` → 200.  
+   - `GET /health/ready` → 200 (sinon Postgres inaccessible ou schéma incohérent).
+
+4. **Clés et modèles LLM**  
+   - Au moins une de `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `ANTHROPIC_API_KEY`.  
+   - Vérifier que `GROQ_TRANSLATION_MODEL` (et fallback) existent encore côté [Groq](https://console.groq.com/docs/models) — un nom obsolète provoque des `NotFoundError` (le routeur bascule désormais sur les candidats suivants, mais les IDs doivent rester valides).  
+   - `COHERE_API_KEY` présent si tu veux embeddings / clustering.
+
+5. **Comportement embedding (optionnel)**  
+   Si tu t’attends à beaucoup d’articles embeddés après traduction : `EMBED_ONLY_EDITORIAL_TYPES=false` élargit aux types hors opinion/analyse (plus de coût Cohere).
+
+6. **Après déploiement**  
+   - Logs backend : plus de `column ... does not exist` côté Postgres au premier chargement des sources / articles.  
+   - Lancer un **petit** test : `POST /api/pipeline/tasks` avec `kind: translate` sur un lot limité, ou pipeline complet une fois les points ci-dessus OK.  
+   - Surveiller `translation.errors` vs `processed` dans la réponse pipeline et les logs `llm.translate_try_next_provider` (bascule fournisseur / modèle).
+
+7. **Sécurité**  
+   Ne pas commiter d’URL Postgres avec mot de passe ; régénérer le mot de passe si une URL a fuité dans un ticket ou un chat.
+
+## 10. Smoke test rapide (sans relancer toute la pipeline)
+
+Remplace `https://TON-BACKEND.railway.app` par l’URL réelle du service API.
+
+**Tout en GET** — pas de coût LLM, pas de collecte :
+
+| Vérification | URL | Attendu |
+|----------------|-----|---------|
+| API vivante | `GET .../` | JSON avec liens `docs`, `health`, etc. |
+| Santé | `GET .../health` | `{"status":"ok",...}` |
+| Base OK | `GET .../health/ready` | 200 + `database: ok` (503 si Postgres / schéma) |
+| Scheduler | `GET .../api/status` | JSON avec jobs planifiés (peut être vide) |
+| Métriques | `GET .../api/metrics` | 404 si `EXPOSE_METRICS=false`, sinon JSON |
+| Données | `GET .../api/articles?limit=5` | Liste (éventuellement vide) |
+| Agrégats 24 h | `GET .../api/stats` | Compteurs par statut |
+| Clusters | `GET .../api/clusters` | Liste de clusters |
+| Sources | `GET .../api/media-sources/health` | `sources` + pas d’erreur 500 |
+
+**Navigateur** : ouvre `https://TON-BACKEND.../docs` → tu peux exécuter chaque **GET** avec « Try it out ».
+
+**Optionnel — tester un peu de traduction** (coût / temps LLM) :  
+`POST .../api/translate?limit=3` avec le header **`X-Internal-Key`** = valeur de `INTERNAL_API_KEY` du backend (ou passer par le BFF Next si configuré). Sans cette clé : 401.
+
+**Ne pas confondre** : un `GET` sur une ancienne tâche `.../api/pipeline/tasks/{uuid}` renvoie 404 si la tâche a expiré — ce n’est pas un signe que l’API est cassée.
