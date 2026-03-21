@@ -1,21 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { usePipelineRunner } from "@/contexts/pipeline-runner";
 import type {
   AppStatus,
   MediaSourcesHealthResponse,
-  PipelineTaskKind,
 } from "@/lib/types";
 import {
   PipelineResultPanel,
   type PipelineActionKey,
-  type PipelineRunRecord,
 } from "./pipeline-result-panel";
 
 interface PipelineStatusProps {
   status: AppStatus | null;
-  onRefresh: () => void;
   /** Santé des sources (GET /api/media-sources/health) — affichage discret sous le pipeline */
   sourceHealth?: MediaSourcesHealthResponse | null;
 }
@@ -27,72 +24,13 @@ const ACTIONS: { key: PipelineActionKey; label: string }[] = [
   { key: "pipeline", label: "Pipeline complet" },
 ];
 
-const TASK_KIND_BY_ACTION: Record<PipelineActionKey, PipelineTaskKind> = {
-  collect: "collect",
-  translate: "translate",
-  refreshClusters: "refresh_clusters",
-  pipeline: "full_pipeline",
-};
-
 export function PipelineStatus({
   status,
-  onRefresh,
   sourceHealth,
 }: PipelineStatusProps) {
-  const [running, setRunning] = useState<PipelineActionKey | null>(null);
-  const [serverLiveStep, setServerLiveStep] = useState<string | null>(null);
-  const [lastRun, setLastRun] = useState<PipelineRunRecord | null>(null);
+  const { running, lastRun, diagnostics, startRun, clearDiagnostics } =
+    usePipelineRunner();
   const [showAllSources, setShowAllSources] = useState(false);
-
-  async function run(key: PipelineActionKey, label: string) {
-    setRunning(key);
-    setServerLiveStep(null);
-    const t0 = performance.now();
-    const at = new Date().toLocaleString("fr-FR", {
-      dateStyle: "short",
-      timeStyle: "medium",
-    });
-    const kind = TASK_KIND_BY_ACTION[key];
-    try {
-      const data = await api.runPipelineTaskWithProgress(
-        kind,
-        (s) => {
-          setServerLiveStep(s.step_label);
-        },
-        key === "translate" ? { translateLimit: 300 } : undefined,
-      );
-      const durationMs = performance.now() - t0;
-      setLastRun({
-        action: key,
-        label,
-        ok: true,
-        durationMs,
-        payload: data,
-        at,
-      });
-      queueMicrotask(() => {
-        onRefresh();
-      });
-    } catch (err) {
-      const durationMs = performance.now() - t0;
-      setLastRun({
-        action: key,
-        label,
-        ok: false,
-        durationMs,
-        payload: null,
-        errorMessage:
-          err instanceof Error ? err.message : "Erreur inconnue",
-        at,
-      });
-      queueMicrotask(() => {
-        onRefresh();
-      });
-    } finally {
-      setServerLiveStep(null);
-      setRunning(null);
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -101,11 +39,11 @@ export function PipelineStatus({
           <button
             key={key}
             type="button"
-            onClick={() => void run(key, label)}
+            onClick={() => startRun(key, label)}
             disabled={running !== null}
             className="border border-[#dddcda] bg-white px-4 py-1.5 text-[12px] font-medium text-[#1a1a1a] transition-colors hover:bg-[#f7f7f5] disabled:opacity-40"
           >
-            {running === key ? "En cours…" : label}
+            {running?.key === key ? "En cours…" : label}
           </button>
         ))}
       </div>
@@ -114,9 +52,29 @@ export function PipelineStatus({
         <strong>Collecte</strong> : RSS + scrapers → articles « collectés ».{" "}
         <strong>Traduction</strong> : LLM → titres/résumés FR + type.{" "}
         <strong>Refresh clusters</strong> : embeddings Cohere + regroupement + libellés.{" "}
-        <strong>Pipeline complet</strong> : tout l’enchaînement (peut prendre plusieurs
-        minutes). Progression affichée via <strong>polling</strong> (étapes serveur).
+        <strong>Pipeline complet</strong> : tout l’enchaînement (plusieurs minutes
+        possibles). Le suivi continue si vous quittez cette page : bandeau en tête
+        du site + reprise après rechargement (session). Polling espacé pour limiter
+        la charge navigateur.
       </p>
+
+      {diagnostics.length > 0 && (
+        <details className="rounded border border-[#eeede9] bg-[#fafaf8] p-3 text-[11px] text-[#555]">
+          <summary className="cursor-pointer font-medium text-[#444]">
+            Journal technique ({diagnostics.length} lignes)
+          </summary>
+          <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed text-[#333]">
+            {diagnostics.join("\n")}
+          </pre>
+          <button
+            type="button"
+            onClick={() => clearDiagnostics()}
+            className="mt-2 text-[10px] text-[#888] underline underline-offset-2 hover:text-[#1a1a1a]"
+          >
+            Effacer le journal
+          </button>
+        </details>
+      )}
 
       {status?.jobs && status.jobs.length > 0 && (
         <div className="space-y-1 border-t border-[#eeede9] pt-3 text-[12px] text-[#888]">
@@ -218,10 +176,9 @@ export function PipelineStatus({
         running={
           running
             ? {
-                key: running,
-                label:
-                  ACTIONS.find((a) => a.key === running)?.label ?? running,
-                serverLiveStep,
+                key: running.key,
+                label: running.label,
+                serverLiveStep: running.stepLabel,
               }
             : null
         }

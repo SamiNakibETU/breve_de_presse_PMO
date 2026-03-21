@@ -1,3 +1,8 @@
+import {
+  ApiRequestError,
+  formatErrorForDiagnostics,
+  isApiRequestError,
+} from "./api-request-error";
 import type {
   AppStatus,
   ArticleListResponse,
@@ -40,20 +45,159 @@ function authHeaders(): Record<string, string> {
   return h;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(resolveUrl(path), {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...(init?.headers as Record<string, string> | undefined),
-    },
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const id = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(id);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
+}
+
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  let res: Response;
+  try {
+    res = await fetch(resolveUrl(path), {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...(init?.headers as Record<string, string> | undefined),
+      },
+    });
+  } catch (e) {
+    const msg =
+      e instanceof TypeError
+        ? `Réseau indisponible (${e.message})`
+        : `Échec réseau : ${formatErrorForDiagnostics(e)}`;
+    throw new Error(`${method} ${path} — ${msg}`);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${body}`);
+    const preview = body.length > 800 ? `${body.slice(0, 800)}…` : body;
+    throw new ApiRequestError(
+      preview || `HTTP ${res.status}`,
+      {
+        path,
+        method,
+        status: res.status,
+        responseBody: body,
+      },
+    );
   }
   return res.json() as Promise<T>;
+}
+
+function isRecoverablePollError(e: unknown): boolean {
+  if (e instanceof ApiRequestError) {
+    if (e.status === 404) return false;
+    return e.status >= 500 || e.status === 429 || e.status === 408;
+  }
+  if (e instanceof TypeError) return true;
+  if (e instanceof Error && e.name === "AbortError") return false;
+  if (e instanceof Error && /réseau|network|fetch/i.test(e.message)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Attend la fin d’une tâche pipeline (polling). Réessaie sur erreurs réseau / 5xx / 429.
+ * `signal` : annulation (ex. React Strict Mode — ne pas effacer la tâche côté serveur).
+ */
+export async function pollPipelineTaskUntilDone(
+  taskId: string,
+  onProgress: (s: PipelineTaskStatus) => void,
+  options?: {
+    signal?: AbortSignal;
+    onDiagnostic?: (line: string) => void;
+  },
+): Promise<unknown> {
+  let delayMs = 1400;
+  const maxDelayMs = 4500;
+  const backoffFactor = 1.12;
+  let networkStreak = 0;
+
+  for (;;) {
+    if (options?.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    let s: PipelineTaskStatus;
+    try {
+      s = await request<PipelineTaskStatus>(`/api/pipeline/tasks/${taskId}`);
+      networkStreak = 0;
+    } catch (e) {
+      if (options?.signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      if (isApiRequestError(e) && e.status === 404) {
+        throw new Error(
+          `Tâche pipeline introuvable (id ${taskId}). Elle a peut‑être expiré après un redémarrage serveur.`,
+        );
+      }
+      if (!isRecoverablePollError(e)) {
+        const base = formatErrorForDiagnostics(e);
+        throw new Error(`Polling tâche ${taskId} : ${base}`);
+      }
+      networkStreak += 1;
+      options?.onDiagnostic?.(
+        `Réseau / serveur (#${networkStreak}) : ${formatErrorForDiagnostics(e)} — nouvel essai.`,
+      );
+      const wait = Math.min(
+        60_000,
+        Math.round(2000 * Math.pow(1.45, Math.min(networkStreak, 10))),
+      );
+      try {
+        await sleep(wait, options?.signal);
+      } catch (abortErr) {
+        if (abortErr instanceof DOMException && abortErr.name === "AbortError") {
+          throw abortErr;
+        }
+        throw abortErr;
+      }
+      continue;
+    }
+
+    onProgress(s);
+
+    if (s.status === "done") {
+      const r = s.result;
+      if (r == null || typeof r !== "object") {
+        throw new Error(
+          `Tâche ${taskId} terminée mais résultat vide ou invalide (kind=${s.kind}).`,
+        );
+      }
+      return r;
+    }
+    if (s.status === "error") {
+      const errText = s.error?.trim() || "erreur inconnue";
+      throw new Error(`Tâche pipeline ${taskId} (étape « ${s.step_label} ») : ${errText}`);
+    }
+
+    try {
+      await sleep(delayMs, options?.signal);
+    } catch (abortErr) {
+      if (abortErr instanceof DOMException && abortErr.name === "AbortError") {
+        throw abortErr;
+      }
+      throw abortErr;
+    }
+    delayMs = Math.min(maxDelayMs, Math.round(delayMs * backoffFactor));
+  }
 }
 
 export const api = {
@@ -101,12 +245,13 @@ export const api = {
     request<PipelineTaskStatus>(`/api/pipeline/tasks/${taskId}`),
 
   /**
-   * Polling ~900 ms jusqu’à fin. `result` = corps final (forme selon `kind`).
+   * Démarre puis poll jusqu’à fin. Préférer `pollPipelineTaskUntilDone` + persistance
+   * si le suivi doit survivre à une navigation (voir PipelineRunnerProvider).
    */
   runPipelineTaskWithProgress: async (
     kind: PipelineTaskKind,
     onProgress: (s: PipelineTaskStatus) => void,
-    options?: { translateLimit?: number },
+    options?: { translateLimit?: number; signal?: AbortSignal },
   ): Promise<unknown> => {
     const { task_id } = await request<PipelineTaskStartResponse>(
       "/api/pipeline/tasks",
@@ -118,26 +263,9 @@ export const api = {
         }),
       },
     );
-    const pollMs = 900;
-    for (;;) {
-      const s = await request<PipelineTaskStatus>(
-        `/api/pipeline/tasks/${task_id}`,
-      );
-      onProgress(s);
-      if (s.status === "done") {
-        const r = s.result;
-        if (r == null || typeof r !== "object") {
-          throw new Error("Réponse tâche vide");
-        }
-        return r;
-      }
-      if (s.status === "error") {
-        throw new Error(s.error ?? "Erreur tâche pipeline");
-      }
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, pollMs);
-      });
-    }
+    return pollPipelineTaskUntilDone(task_id, onProgress, {
+      signal: options?.signal,
+    });
   },
 
   triggerTranslate: () =>

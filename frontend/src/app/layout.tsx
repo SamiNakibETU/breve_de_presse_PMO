@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Masthead } from "@/components/layout/sidebar";
+import { PipelineGlobalBar } from "@/components/layout/pipeline-global-bar";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-white text-[#1a1a1a] antialiased`}>
         <Providers>
           <Masthead />
+          <PipelineGlobalBar />
           <main className="mx-auto max-w-5xl px-5 py-8">{children}</main>
         </Providers>
       </body>

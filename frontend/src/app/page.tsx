@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { AppStatus, ClusterListResponse, Stats } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
@@ -18,8 +18,6 @@ const LANG_LABELS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const queryClient = useQueryClient();
-
   const [statsQ, statusQ, clustersQ, healthQ] = useQueries({
     queries: [
       {
@@ -54,15 +52,6 @@ export default function DashboardPage() {
   const status = statusQ.data ?? null;
   const clusters = clustersQ.data ?? null;
 
-  function invalidateDashboard() {
-    void queryClient.invalidateQueries({ queryKey: ["stats"] });
-    void queryClient.invalidateQueries({ queryKey: ["status"] });
-    void queryClient.invalidateQueries({ queryKey: ["clusters"] });
-    void queryClient.invalidateQueries({ queryKey: ["clusterArticles"] });
-    void queryClient.invalidateQueries({ queryKey: ["articles"] });
-    void queryClient.invalidateQueries({ queryKey: ["mediaSourcesHealth"] });
-  }
-
   const today = new Date();
   const dateStr = today.toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -95,7 +84,6 @@ export default function DashboardPage() {
         </h2>
         <PipelineStatus
           status={status}
-          onRefresh={invalidateDashboard}
           sourceHealth={healthQ.data ?? null}
         />
       </section>

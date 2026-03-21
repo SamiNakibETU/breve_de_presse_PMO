@@ -17,6 +17,10 @@ export interface PipelineRunRecord {
   payload: unknown;
   errorMessage?: string;
   at: string;
+  /** Identifiant tâche async (debug / support). */
+  taskId?: string;
+  /** Détails techniques (HTTP, polling, réseau). */
+  errorDetailLines?: string[];
 }
 
 function isRecord(x: unknown): x is Record<string, unknown> {
@@ -141,23 +145,23 @@ function PipelineRunningProgress({
       <p className="text-[11px] leading-relaxed text-[#888]">
         {serverLiveStep ? (
           <>
-            Mise à jour des étapes environ <strong>1× par seconde</strong>{" "}
-            (requêtes HTTP). Ce n’est <strong>pas</strong> un pourcentage d’avancement
-            ni une estimation du temps restant — seulement la phase en cours.
+            L’étape affichée est rafraîchie par <strong>polling</strong> (intervalle
+            progressif). Ce n’est <strong>pas</strong> un pourcentage d’avancement ni
+            une estimation du temps restant.
           </>
         ) : (
           <>
-            Une seule requête HTTP attend la <strong>fin complète</strong> du travail
-            serveur : pas de flux de progression. Cette barre indique seulement que la
-            connexion est active — <strong>pas de temps restant fiable</strong> sans
-            tâche + polling ou SSE.
+            En attendant la première réponse de suivi, cette barre indique que la
+            tâche est lancée côté serveur.
           </>
         )}
       </p>
 
       <p className="text-[12px] leading-relaxed text-[#666]">
-        Le résumé chiffré (statistiques) s’affichera ici à la fin. Les opérations
-        longues peuvent durer plusieurs minutes : gardez cet onglet ouvert.
+        Le résumé chiffré s’affichera ici à la fin. Vous pouvez{" "}
+        <strong>changer de page</strong> ou <strong>fermer puis rouvrir l’onglet</strong>{" "}
+        : le traitement continue sur le serveur ; une barre en tête de site indique
+        l’activité et la reprise automatique fonctionne après rechargement.
       </p>
 
       <details className="text-[12px] text-[#666]">
@@ -493,9 +497,26 @@ export function PipelineResultPanel({
     if (!run) return null;
     if (!run.ok) {
       return (
-        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">
-          {run.errorMessage ?? "Échec"}
-        </p>
+        <div className="space-y-3 border-l-2 border-[#c8102e] pl-3">
+          <p className="text-[13px] font-medium text-[#c8102e]">
+            {run.errorMessage ?? "Échec"}
+          </p>
+          {run.taskId ? (
+            <p className="font-mono text-[11px] text-[#555]">
+              Tâche (id) : {run.taskId}
+            </p>
+          ) : null}
+          {run.errorDetailLines && run.errorDetailLines.length > 0 ? (
+            <details className="text-[11px] text-[#444]">
+              <summary className="cursor-pointer text-[#1a1a1a] underline decoration-[#ccc] underline-offset-2">
+                Détails techniques ({run.errorDetailLines.length} lignes)
+              </summary>
+              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded border border-[#eeede9] bg-[#fafaf8] p-2 text-[10px] leading-relaxed text-[#333]">
+                {run.errorDetailLines.join("\n")}
+              </pre>
+            </details>
+          ) : null}
+        </div>
       );
     }
 
@@ -557,6 +578,11 @@ export function PipelineResultPanel({
             {run.at} · {(run.durationMs / 1000).toFixed(1)} s (mesure navigateur)
             {run.ok ? "" : " · échec"}
           </p>
+          {run.taskId ? (
+            <p className="mt-0.5 font-mono text-[10px] text-[#aaa]">
+              Tâche : {run.taskId}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
