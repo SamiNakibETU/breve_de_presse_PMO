@@ -147,6 +147,11 @@ export function PipelineStatus({
               </strong>{" "}
               (enregistrements réussis ou erreurs persistées en base).
             </p>
+            {sourceHealth.translation_metrics_note_fr ? (
+              <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                {sourceHealth.translation_metrics_note_fr}
+              </p>
+            ) : null}
             <details className="mt-2 text-[11px] text-muted-foreground">
               <summary className="cursor-pointer font-medium text-foreground-subtle hover:text-foreground">
                 Lire les statuts de collecte

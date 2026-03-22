@@ -30,6 +30,21 @@ from src.services.embedding_service import EmbeddingService
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
 
 
+def clean_author_for_display(val: object) -> str | None:
+    """Auteur affichable : exclut URL / réseaux souvent fournis à la place d’un nom."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s or s.lower() in ("non spécifié", "non specifie", "-", "n/a"):
+        return None
+    low = s.lower()
+    if low.startswith(("http://", "https://", "www.")):
+        return None
+    if "facebook.com/" in low or "twitter.com/" in low or "x.com/" in low:
+        return None
+    return s[:300] or None
+
+
 @router.get("", response_model=ClusterListResponse)
 async def list_clusters(db: AsyncSession = Depends(get_db)):
     try:
@@ -82,14 +97,6 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
     theses_by_cluster: dict[UUID, list[ThesisPreviewItem]] = defaultdict(list)
     thesis_dedup: dict[UUID, set[str]] = defaultdict(set)
 
-    def _clean_author(val: object) -> str | None:
-        if val is None:
-            return None
-        s = str(val).strip()
-        if not s or s.lower() in ("non spécifié", "non specifie", "-", "n/a"):
-            return None
-        return s[:300] or None
-
     for (
         cid,
         thesis,
@@ -119,7 +126,7 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
                 media_name=(str(media_name).strip() if media_name else None) or None,
                 article_type=(str(article_type).strip() if article_type else None)
                 or None,
-                author=_clean_author(author_raw),
+                author=clean_author_for_display(author_raw),
                 country=(str(media_country).strip() if media_country else None)
                 or None,
                 source_language=lang,
@@ -227,7 +234,7 @@ async def get_cluster_articles(
                 "country": country,
                 "published_at": article.published_at.isoformat() if article.published_at else None,
                 "article_type": article.article_type,
-                "author": article.author,
+                "author": clean_author_for_display(article.author),
                 "url": article.url,
                 "source_language": article.source_language,
                 "translation_confidence": article.translation_confidence,

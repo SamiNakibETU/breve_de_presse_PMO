@@ -19,7 +19,12 @@ from src.schemas.articles import (
     MediaSourceResponse,
 )
 from src.media_tier_labels import tier_band
+from src.services.media_source_aliases import equivalent_media_source_ids
 from src.services.olj_taxonomy import load_topics_of_day
+from src.services.source_health_metrics import (
+    fetch_translation_24h_counts_by_source,
+    sum_translation_24h_for_aliases,
+)
 from src.services.relevance import explain_editorial_relevance
 
 router = APIRouter(prefix="/api")
@@ -396,12 +401,19 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
         select(MediaSource).where(MediaSource.is_active.is_(True)).order_by(MediaSource.name)
     )
     sources = result.scalars().all()
+    tr_by_src = await fetch_translation_24h_counts_by_source(db, translated_cutoff)
     out: list[dict] = []
     for s in sources:
+        agg_ids = equivalent_media_source_ids(s.id)
+        id_filter = (
+            Article.media_source_id == agg_ids[0]
+            if len(agg_ids) == 1
+            else Article.media_source_id.in_(agg_ids)
+        )
         cnt = (
             await db.execute(
                 select(func.count(Article.id)).where(
-                    Article.media_source_id == s.id,
+                    id_filter,
                     Article.collected_at >= cutoff,
                 )
             )
@@ -409,19 +421,24 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
         last_24h_translated = (
             await db.execute(
                 select(func.count(Article.id)).where(
-                    Article.media_source_id == s.id,
+                    id_filter,
                     Article.processed_at.isnot(None),
                     Article.processed_at >= translated_cutoff,
                     Article.status.in_(translated_statuses),
                 )
             )
         ).scalar() or 0
+        log_filter = (
+            CollectionLog.media_source_id == agg_ids[0]
+            if len(agg_ids) == 1
+            else CollectionLog.media_source_id.in_(agg_ids)
+        )
         last_log = (
             (
                 await db.execute(
                     select(CollectionLog)
                     .where(
-                        CollectionLog.media_source_id == s.id,
+                        log_filter,
                         CollectionLog.completed_at.isnot(None),
                     )
                     .order_by(CollectionLog.completed_at.desc())
@@ -452,6 +469,7 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
             if isinstance(getattr(s, "health_metrics_json", None), dict)
             else {}
         )
+        ok_tr, err_tr = sum_translation_24h_for_aliases(tr_by_src, s.id)
         tb = tier_band(int(s.tier) if s.tier is not None else None)
         out.append(
             {
@@ -474,10 +492,8 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
                     else None
                 ),
                 "last_24h_translated_count": last_24h_translated,
-                "translation_24h_ok_persisted": hm.get("last_24h_translation_ok"),
-                "translation_24h_errors_persisted": hm.get(
-                    "last_24h_translation_errors"
-                ),
+                "translation_24h_ok_persisted": ok_tr,
+                "translation_24h_errors_persisted": err_tr,
                 "translation_24h_metrics_at": hm.get(
                     "last_24h_translation_metrics_at"
                 ),
@@ -503,6 +519,8 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
                 ),
             }
         )
+        if len(agg_ids) > 1:
+            out[-1]["alias_aggregate_ids"] = agg_ids
     p0_dead = [
         r
         for r in out
@@ -512,6 +530,10 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
         "sources": out,
         "window_hours": 72,
         "critical_p0_sources_down": len(p0_dead),
+        "translation_metrics_note_fr": (
+            "Pour certains médias, plusieurs fiches (IDs différents) existent en base : "
+            "les compteurs ci-dessous agrègent toutes ces fiches pour refléter l’activité réelle."
+        ),
     }
 
 

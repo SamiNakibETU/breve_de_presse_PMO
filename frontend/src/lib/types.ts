@@ -76,12 +76,16 @@ export interface MediaSourceHealthRow {
   translation_24h_metrics_at?: string | null;
   health_metrics?: Record<string, unknown> | null;
   last_collection?: Record<string, unknown> | null;
+  /** Présent si ce média partage les compteurs avec d'autres IDs */
+  alias_aggregate_ids?: string[];
 }
 
 export interface MediaSourcesHealthResponse {
   sources: MediaSourceHealthRow[];
   window_hours: number;
   critical_p0_sources_down?: number;
+  /** Note API : agrégation des fiches médias doublon (IDs alias) */
+  translation_metrics_note_fr?: string;
 }
 
 export interface Stats {

@@ -1,0 +1,19 @@
+{
+  "_comment": "Même média enregistré sous plusieurs media_source_id (registre / migrations). Les compteurs santé & traduction 24h sont agrégés sur tout le groupe.",
+  "groups": [
+    ["tr_daily_sabah", "tr_dailysabah"],
+    ["ae_gulf_news", "ae_gulfnews"],
+    ["qa_gulf_times", "qa_gulftimes"],
+    ["kw_kuwait_times", "kw_kuwaittimes"],
+    ["sy_enabbaladi", "sy_enab_baladi"],
+    ["int_middleeasteye", "me_middle_east_eye"],
+    ["ir_iranintl", "ir_iran_international"],
+    ["eg_madamasr", "eg_madam_masr"],
+    ["jo_jordan_times", "jo_jordantimes"],
+    ["il_the_times_of_israel", "il_toi", "il_timesofisrael"],
+    ["qa_perinsula", "qa_the_peninsula"],
+    ["sa_saudi_gazette", "sa_saudigazette"],
+    ["il_haaretz", "il_haaretz_en"],
+    ["il_jerusalem_post", "il_jpost"]
+  ]
+}

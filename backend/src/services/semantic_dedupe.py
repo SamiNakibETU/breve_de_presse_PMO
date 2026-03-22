@@ -56,9 +56,19 @@ async def run_semantic_dedup(
     emb = []
     ids: list[uuid.UUID] = []
     for a in articles:
-        if a.embedding and len(a.embedding) == 1024:
-            emb.append(np.array(a.embedding, dtype=np.float64))
-            ids.append(a.id)
+        # Ne pas utiliser `if a.embedding` : pgvector / numpy peut exposer un ndarray
+        # (truth value ambiguous). Tester explicitement None puis la longueur.
+        raw = a.embedding
+        if raw is None:
+            continue
+        try:
+            ln = len(raw)
+        except TypeError:
+            continue
+        if ln != 1024:
+            continue
+        emb.append(np.array(raw, dtype=np.float64))
+        ids.append(a.id)
     if len(ids) < 2:
         return {"pairs": 0, "marked": 0, "articles_in": len(ids)}
 
