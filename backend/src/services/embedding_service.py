@@ -2,6 +2,8 @@
 Cohere embedding service for article semantic vectors.
 """
 
+from __future__ import annotations
+
 import cohere
 import structlog
 from sqlalchemy import select
@@ -18,6 +20,22 @@ BATCH_SIZE = 96
 MODEL = "embed-multilingual-v3.0"
 INPUT_TYPE_DOCUMENT = "search_document"
 INPUT_TYPE_QUERY = "search_query"
+
+
+def _batch_vectors_from_cohere_embeddings(embeddings_obj) -> list[list[float]]:
+    """Extrait les vecteurs float sans `or` sur ndarray (évite ValueError numpy truthiness)."""
+    raw = getattr(embeddings_obj, "float_", None)
+    if raw is None:
+        raw = embeddings_obj
+    if raw is None:
+        return []
+    if hasattr(raw, "tolist"):
+        raw = raw.tolist()
+    if not raw:
+        return []
+    if isinstance(raw[0], (int, float)):
+        return [list(map(float, raw))]
+    return [list(map(float, row)) for row in raw]
 
 
 class EmbeddingService:
@@ -37,8 +55,9 @@ class EmbeddingService:
                 input_type=INPUT_TYPE_DOCUMENT,
                 embedding_types=["float"],
             )
-            emb = getattr(response.embeddings, "float_", None) or response.embeddings
-            all_embeddings.extend(emb)
+            all_embeddings.extend(
+                _batch_vectors_from_cohere_embeddings(response.embeddings)
+            )
         return all_embeddings
 
     def embed_query(self, text: str) -> list[float]:
@@ -49,8 +68,10 @@ class EmbeddingService:
             input_type=INPUT_TYPE_QUERY,
             embedding_types=["float"],
         )
-        emb = getattr(response.embeddings, "float_", None) or response.embeddings
-        return list(emb[0])
+        batch = _batch_vectors_from_cohere_embeddings(response.embeddings)
+        if not batch:
+            raise ValueError("Cohere embed returned no vectors for query")
+        return batch[0]
 
     async def embed_pending_articles(self, db: AsyncSession) -> int:
         settings = get_settings()

@@ -432,8 +432,13 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
             .first()
         )
         persisted = getattr(s, "health_status", None)
+        empty_runs_ui = int(getattr(s, "consecutive_empty_collection_runs", 0) or 0)
         if persisted in ("ok", "degraded", "dead"):
             health = persisted
+            # Des articles sur 72 h + plus de runs vides d’affilée → la source n’est plus « morte »
+            # pour l’UI (évite degraded/dead obsolète après une collecte réussie).
+            if cnt > 0 and empty_runs_ui == 0 and health in ("degraded", "dead"):
+                health = "ok"
         else:
             stale = s.last_collected_at is None or s.last_collected_at < cutoff
             if cnt == 0 and stale:

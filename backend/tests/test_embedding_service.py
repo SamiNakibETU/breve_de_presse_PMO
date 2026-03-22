@@ -2,6 +2,18 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 
+def test_batch_vectors_from_numpy_like_cohere_sdk():
+    """Le SDK Cohere renvoie souvent des ndarray ; éviter `or` sur le tableau."""
+    import numpy as np
+
+    from src.services.embedding_service import _batch_vectors_from_cohere_embeddings
+
+    obj = MagicMock()
+    obj.float_ = np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32)
+    out = _batch_vectors_from_cohere_embeddings(obj)
+    np.testing.assert_allclose(out, [[0.1, 0.2], [0.3, 0.4]], rtol=1e-5, atol=1e-5)
+
+
 @pytest.mark.asyncio
 async def test_embed_texts_returns_vectors():
     mock_client = MagicMock()

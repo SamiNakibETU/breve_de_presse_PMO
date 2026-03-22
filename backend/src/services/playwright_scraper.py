@@ -29,6 +29,12 @@ from src.models.media_source import MediaSource
 logger = structlog.get_logger(__name__)
 settings = get_settings()
 
+# Les pages d’index (pubs) ont souvent du trafic réseau continu → `networkidle` expire en 30 s.
+# `domcontentloaded` + sélecteur optionnel + scroll laisse le temps au HTML d’arriver sans attendre le silence réseau.
+PAGE_GOTO_WAIT_UNTIL = "domcontentloaded"
+PAGE_GOTO_INDEX_TIMEOUT_MS = 60_000
+PAGE_GOTO_ARTICLE_TIMEOUT_MS = 45_000
+
 try:
     from playwright.async_api import async_playwright
     PLAYWRIGHT_AVAILABLE = True
@@ -263,7 +269,11 @@ class PlaywrightScraper:
 
             try:
                 page = await context.new_page()
-                await page.goto(opinion_url, wait_until="networkidle", timeout=30000)
+                await page.goto(
+                    opinion_url,
+                    wait_until=PAGE_GOTO_WAIT_UNTIL,
+                    timeout=PAGE_GOTO_INDEX_TIMEOUT_MS,
+                )
 
                 wait_sel = config.get("wait_selector")
                 if wait_sel:
@@ -390,7 +400,11 @@ class PlaywrightScraper:
     ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[datetime]]:
         try:
             page = await context.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=25000)
+            await page.goto(
+                url,
+                wait_until=PAGE_GOTO_WAIT_UNTIL,
+                timeout=PAGE_GOTO_ARTICLE_TIMEOUT_MS,
+            )
 
             try:
                 await page.wait_for_selector("article, .article-body, .story-body, p", timeout=8000)
