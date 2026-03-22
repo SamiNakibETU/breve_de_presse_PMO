@@ -43,8 +43,10 @@ function resolveUrl(path: string): string {
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
   if (API_MODE !== "proxy") {
-    const key = process.env.NEXT_PUBLIC_INTERNAL_API_KEY;
-    if (key) h["X-Internal-Key"] = key;
+    const key =
+      process.env.NEXT_PUBLIC_API_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_INTERNAL_API_KEY?.trim();
+    if (key) h.Authorization = `Bearer ${key}`;
   }
   const editor = process.env.NEXT_PUBLIC_EDITOR_ID;
   if (editor) h["X-Editor-ID"] = editor;

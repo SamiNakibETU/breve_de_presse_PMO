@@ -33,46 +33,15 @@ from src.services.olj_taxonomy import (
     taxonomy_prompt_block,
     validate_olj_topic_ids,
 )
+from src.services.prompt_loader import load_prompt_bundle
 from src.services.relevance import explain_editorial_relevance
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
 
-SYSTEM_PROMPT = """Tu es un traducteur-rédacteur professionnel travaillant pour L'Orient-Le Jour, \
-quotidien francophone libanais de référence. Ta tâche est de traduire, résumer et analyser \
-des articles de presse du Moyen-Orient.
 
-MÉTHODE DE RÉSUMÉ — Chain of Density :
-Tu dois produire un résumé DENSE et INFORMATIF de 150-200 mots. Pour cela, suis ce processus mental :
-1. Identifie les 5-7 entités et faits les plus importants de l'article
-2. Rédige un premier résumé qui les contient tous
-3. Compresse mentalement : élimine toute redondance, fusionne les phrases quand c'est possible
-4. Le résumé final doit être AUTONOME (compréhensible sans l'article) et DENSE (chaque phrase apporte une info nouvelle)
-
-RÈGLES DE TRADUCTION :
-1. Traduis fidèlement le sens, pas mot à mot
-2. Résumé de 150-200 mots EXACTEMENT — français soutenu mais accessible
-3. Ton neutre et restitutif — restitue l'argument sans le juger
-4. Attribution concrète obligatoire : nom de l'auteur (ou « la rédaction de [Média] » pour un éditorial non signé), nom du média, pays du média quand il est connu (champ article.media / contexte). Forme attendue dans le résumé : « [Prénom Nom] dans [Média] (pays) estime que… », « Selon [Nom] dans [Média]… ». Interdit : « l'auteur », « le chroniqueur », « l'auteur estime » sans nom ni média identifiables.
-5. Guillemets français « » pour les citations traduites
-6. Translittération simplifiée des noms propres arabes
-7. Présent de narration comme temps principal
-8. Structure QQQOCP dans les deux premières phrases (Qui, Quoi, Quand, Où, Comment, Pourquoi)
-9. Pas de superlatifs sauf citation directe
-10. TOUT le texte en français — traduire toutes les citations
-
-RÈGLES DE CLASSIFICATION :
-- opinion : article d'opinion signé par un auteur externe
-- editorial : éditorial signé par la rédaction ou le rédacteur en chef
-- tribune : tribune libre d'un expert, politique ou intellectuel
-- analysis : analyse factuelle approfondie par un journaliste
-- news : article de nouvelles factuel
-- interview : entretien avec une personnalité
-- reportage : reportage de terrain
-
-Inclure narrative_framing (cadrage narratif) dans le JSON comme demandé dans la tâche.
-
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks."""
+def _base_system_prompt() -> str:
+    return load_prompt_bundle("translate_article_v2").system_prompt
 
 
 def _augmented_system_prompt() -> str:
@@ -81,10 +50,10 @@ def _augmented_system_prompt() -> str:
         tax_block = taxonomy_prompt_block()
         gloss = glossary_prompt_block_for_topics([])
     except Exception:
-        return SYSTEM_PROMPT
+        return _base_system_prompt()
     gloss_part = f"\n{gloss}\n" if gloss else ""
     return (
-        SYSTEM_PROMPT
+        _base_system_prompt()
         + "\n\nTHÉMATIQUES OLJ — renseigner olj_topic_ids : liste de 1 à 5 identifiants "
         "parmi la taxonomie ci-dessous (sinon [\"other\"]).\n"
         + tax_block
@@ -161,6 +130,9 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
             }
         ],
         "translation_notes": "difficultés de traduction éventuelles",
+        "quality_flags": [
+            "liste de drapeaux parmi : truncated_content, mixed_languages, paywall_detected, opinion_piece, wire_copy, clean",
+        ],
         "narrative_framing": {
             "main_actor": "acteur présenté comme central (ex. l'Iran, les États-Unis)",
             "causal_framing": "cause attribuée par l'auteur",
@@ -237,6 +209,9 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
         "source_spans": [{"text_excerpt": "extrait", "role": "quote"}],
         "entities": [
             {"name": "nom", "type": "PERSON|ORG|GPE|EVENT", "name_fr": "nom"}
+        ],
+        "quality_flags": [
+            "truncated_content|mixed_languages|paywall_detected|opinion_piece|wire_copy|clean",
         ],
         "narrative_framing": {
             "main_actor": "acteur central selon l'auteur",
@@ -712,6 +687,13 @@ class TranslationPipeline:
             nf = data.get("narrative_framing")
             art.framing_json = nf if isinstance(nf, dict) else None
             _denormalize_framing_columns(art, nf)
+            qf = data.get("quality_flags")
+            if isinstance(qf, list):
+                art.translation_quality_flags = [
+                    str(x).strip()[:80] for x in qf[:24] if str(x).strip()
+                ]
+            else:
+                art.translation_quality_flags = None
             cfg = get_settings()
             art.en_translation_summary_only = bool(en_summary_only)
             if cfg.store_full_translation_fr and not en_summary_only:

@@ -1,24 +1,29 @@
-"""Auth interne optionnelle (clé partagée) pour endpoints sensibles."""
+"""Auth interne optionnelle (Bearer) pour endpoints de mutation."""
 
 from typing import Annotated, Optional
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.config import get_settings
 
+_bearer = HTTPBearer(auto_error=False)
+
 
 async def require_internal_key(
-    x_internal_key: Annotated[Optional[str], Header()] = None,
+    creds: Annotated[Optional[HTTPAuthorizationCredentials], Depends(_bearer)],
 ) -> None:
     """
-    Si INTERNAL_API_KEY est défini dans l'environnement, exige le header
-    X-Internal-Key identique. Sinon aucune vérification (rétrocompatible).
+    Si INTERNAL_API_KEY est défini, exige le header
+    Authorization: Bearer <INTERNAL_API_KEY>. Sinon aucune vérification.
     """
     key = get_settings().internal_api_key
     if not key:
         return
-    if not x_internal_key or x_internal_key != key:
-        raise HTTPException(
-            status_code=401,
-            detail="X-Internal-Key manquant ou invalide",
-        )
+    token = (
+        creds.credentials
+        if creds is not None and creds.scheme.lower() == "bearer"
+        else None
+    )
+    if not token or token != key:
+        raise HTTPException(status_code=401, detail="Unauthorized")

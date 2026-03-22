@@ -1,48 +1,8 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: "Poynter";
-  src: url("/fonts/POYNTEROSDISP-ROMAN.TTF") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Poynter";
-  src: url("/fonts/POYNTEROSDISP-SEMIBOLD.TTF") format("truetype");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Poynter";
-  src: url("/fonts/POYNTEROSDISP-ITALIC.TTF") format("truetype");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Poynter Narrow";
-  src: url("/fonts/POYNTEROSDISPNARROW-ROMAN.TTF") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Poynter Narrow";
-  src: url("/fonts/POYNTEROSDISPNARROW-SEMIBOLD.TTF") format("truetype");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
 @theme {
-  /* Fond « papier » chaud — publication d’abord, pas tableau blanc SaaS */
-  --color-background: #f7f6f2;
+  /* MEMW : fond blanc, accent #c8102e */
+  --color-background: #ffffff;
   --color-foreground: #1a1a1a;
   --color-muted: #efede6;
   --color-muted-foreground: #6f6d68;
@@ -66,9 +26,9 @@
   /* Fond discret lié à l’accent (bandeau pipeline) */
   --color-accent-tint: #faf7f6;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Poynter", "Georgia", serif;
-  --font-narrow: "Poynter Narrow", "Georgia", serif;
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-lora), "Lora", "Georgia", serif;
+  --font-narrow: var(--font-lora), "Lora", "Georgia", serif;
 }
 
 * {

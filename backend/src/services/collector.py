@@ -306,6 +306,15 @@ class RSSCollector:
             return opinion_url
         return source.rss_url
 
+    def _max_entries_for_feed(self, source: MediaSource, feed_url: str) -> int:
+        """Flux général sans RSS opinion dédié : plafond plus bas (MEMW sprint 2)."""
+        cap = settings.max_articles_per_source
+        opinion = (getattr(source, "rss_opinion_url", None) or "").strip()
+        rss_main = (source.rss_url or "").strip()
+        if not opinion and rss_main and feed_url.strip() == rss_main:
+            return min(settings.max_articles_per_general_rss, cap)
+        return cap
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30))
     async def _collect_source(self, source: MediaSource) -> dict:
         async with self._semaphore:
@@ -419,7 +428,8 @@ class RSSCollector:
                 "entries_seen": 0,
             }
 
-        entries = feed.entries[: settings.max_articles_per_source]
+        max_e = self._max_entries_for_feed(source, feed_url)
+        entries = feed.entries[:max_e]
         new_count = 0
         filtered_count = 0
         extraction_attempts = 0

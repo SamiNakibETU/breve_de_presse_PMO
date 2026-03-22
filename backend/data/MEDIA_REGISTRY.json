@@ -12,11 +12,17 @@
       "name": "Annahar",
       "country": "Liban",
       "country_code": "LB",
-      "tier": 1,
-      "languages": ["ar"],
+      "tier": 0,
+      "languages": [
+        "ar"
+      ],
       "editorial_line": "Journal libanais historique, ligne modérée pro-souveraineté",
       "bias": "centrist",
-      "content_types": ["opinions", "editorials", "analysis"],
+      "content_types": [
+        "opinions",
+        "editorials",
+        "analysis"
+      ],
       "url": "https://www.annahar.com",
       "rss_url": "https://www.annahar.com/rss",
       "rss_opinion_url": null,
@@ -34,10 +40,17 @@
       "country": "Liban",
       "country_code": "LB",
       "tier": 1,
-      "languages": ["fr"],
+      "languages": [
+        "fr"
+      ],
       "editorial_line": "Quotidien francophone indépendant, centriste, pluraliste.",
       "bias": "liberal-independent",
-      "content_types": ["news", "opinions", "editorials", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials",
+        "analyses"
+      ],
       "url": "https://www.lorientlejour.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -55,10 +68,17 @@
       "country": "Liban",
       "country_code": "LB",
       "tier": 1,
-      "languages": ["ar"],
+      "languages": [
+        "ar"
+      ],
       "editorial_line": "Quotidien de gauche, pro-Hezbollah, pro-axe de résistance.",
       "bias": "pro-resistance-axis",
-      "content_types": ["news", "opinions", "analyses", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses",
+        "editorials"
+      ],
       "url": "https://al-akhbar.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -75,11 +95,17 @@
       "name": "The Jerusalem Post",
       "country": "Israël",
       "country_code": "IL",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone israélien, centre-droit, sioniste mainstream.",
       "bias": "center-right",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.jpost.com",
       "rss_url": "https://www.jpost.com/rss/rssfeedsopinion.aspx",
       "rss_opinion_url": "https://www.jpost.com/rss/rssfeedsopinion.aspx",
@@ -96,11 +122,17 @@
       "name": "The Times of Israel",
       "country": "Israël",
       "country_code": "IL",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Site anglophone israélien, couverture large ; blogs d’opinion (droite à centre).",
       "bias": "center-right",
-      "content_types": ["news", "opinions", "blogs"],
+      "content_types": [
+        "news",
+        "opinions",
+        "blogs"
+      ],
       "url": "https://www.timesofisrael.com",
       "rss_url": "https://www.timesofisrael.com/feed/",
       "rss_opinion_url": "https://blogs.timesofisrael.com/feed/",
@@ -118,10 +150,16 @@
       "country": "Israël",
       "country_code": "IL",
       "tier": 1,
-      "languages": ["en", "he"],
+      "languages": [
+        "en",
+        "he"
+      ],
       "editorial_line": "Quotidien pro-Netanyahu, perspective droite israélienne.",
       "bias": "center-right",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://www.israelhayom.com",
       "rss_url": "https://www.israelhayom.co.il/rss-feed",
       "rss_opinion_url": null,
@@ -138,11 +176,19 @@
       "name": "Haaretz",
       "country": "Israël",
       "country_code": "IL",
-      "tier": 1,
-      "languages": ["en", "he"],
+      "tier": 0,
+      "languages": [
+        "en",
+        "he"
+      ],
       "editorial_line": "Quotidien israélien progressiste, critique du gouvernement Netanyahu.",
       "bias": "left-liberal",
-      "content_types": ["news", "opinions", "editorials", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials",
+        "analyses"
+      ],
       "url": "https://www.haaretz.com",
       "rss_url": "https://www.haaretz.com/srv/opinion-rss",
       "rss_opinion_url": "https://www.haaretz.com/srv/opinion-rss",
@@ -159,11 +205,17 @@
       "name": "Press TV",
       "country": "Iran",
       "country_code": "IR",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Chaîne d'État iranienne, perspective pro-axe de résistance.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://www.presstv.ir",
       "rss_url": "https://www.presstv.ir/rss/rss-125.xml",
       "rss_opinion_url": null,
@@ -180,11 +232,17 @@
       "name": "Tehran Times",
       "country": "Iran",
       "country_code": "IR",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone d'État iranien, perspective officielle du régime.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.tehrantimes.com",
       "rss_url": "https://www.tehrantimes.com/rss",
       "rss_opinion_url": null,
@@ -202,10 +260,17 @@
       "country": "Iran",
       "country_code": "IR",
       "tier": 1,
-      "languages": ["en", "fa"],
+      "languages": [
+        "en",
+        "fa"
+      ],
       "editorial_line": "Média d'opposition diaspora iranienne, anti-régime.",
       "bias": "opposition-diaspora",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://www.iranintl.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -222,11 +287,17 @@
       "name": "Gulf News",
       "country": "EAU",
       "country_code": "AE",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone basé à Dubai, mainstream Golfe, pro-business.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://gulfnews.com",
       "rss_url": "https://gulfnews.com/feed",
       "rss_opinion_url": null,
@@ -244,10 +315,16 @@
       "country": "EAU",
       "country_code": "AE",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone émirati, pro-gouvernement, favorable aux Accords d'Abraham.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://www.thenationalnews.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -265,10 +342,16 @@
       "country": "EAU",
       "country_code": "AE",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone émirati, perspective Golfe.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.khaleejtimes.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -285,11 +368,19 @@
       "name": "Asharq Al-Awsat",
       "country": "Arabie Saoudite",
       "country_code": "SA",
-      "tier": 1,
-      "languages": ["ar", "en"],
+      "tier": 0,
+      "languages": [
+        "ar",
+        "en"
+      ],
       "editorial_line": "Quotidien panarabe propriété saoudienne, perspective diplomatique modérée.",
       "bias": "pro-saudi-moderate",
-      "content_types": ["news", "opinions", "analyses", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses",
+        "editorials"
+      ],
       "url": "https://english.aawsat.com",
       "rss_url": "https://english.aawsat.com/feed",
       "rss_opinion_url": null,
@@ -307,10 +398,16 @@
       "country": "Arabie Saoudite",
       "country_code": "SA",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone saoudien, perspective officielle Riyad.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://saudigazette.com.sa",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -327,11 +424,18 @@
       "name": "Arab News",
       "country": "Arabie Saoudite",
       "country_code": "SA",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Premier quotidien anglophone saoudien, pro-MBS, pro-Vision 2030.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials",
+        "analyses"
+      ],
       "url": "https://www.arabnews.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -349,10 +453,17 @@
       "country": "Turquie",
       "country_code": "TR",
       "tier": 1,
-      "languages": ["en", "tr"],
+      "languages": [
+        "en",
+        "tr"
+      ],
       "editorial_line": "Quotidien anglophone pro-AKP/Erdogan, perspective officielle turque.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.dailysabah.com",
       "rss_url": "https://www.dailysabah.com/rss/opinion/op-ed",
       "rss_opinion_url": "https://www.dailysabah.com/rss/opinion/op-ed",
@@ -370,10 +481,16 @@
       "country": "Turquie",
       "country_code": "TR",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Version anglophone d'Hürriyet, ligne modérée, mainstream.",
       "bias": "center-mainstream",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.hurriyetdailynews.com",
       "rss_url": "https://www.hurriyetdailynews.com/rss/opinion",
       "rss_opinion_url": "https://www.hurriyetdailynews.com/rss/opinion",
@@ -391,10 +508,17 @@
       "country": "Turquie",
       "country_code": "TR",
       "tier": 1,
-      "languages": ["en", "tr"],
+      "languages": [
+        "en",
+        "tr"
+      ],
       "editorial_line": "Média indépendant turc, perspectives alternatives, droits de l'homme.",
       "bias": "independent",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://bianet.org",
       "rss_url": "https://bianet.org/english/rss",
       "rss_opinion_url": null,
@@ -412,10 +536,15 @@
       "country": "Irak",
       "country_code": "IQ",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Agrégateur d'infos irakiennes en anglais, couverture factuelle.",
       "bias": "center",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://www.iraqinews.com",
       "rss_url": "https://www.iraqinews.com/feed/",
       "rss_opinion_url": null,
@@ -433,10 +562,18 @@
       "country": "Irak",
       "country_code": "IQ",
       "tier": 1,
-      "languages": ["en", "ar", "ku"],
+      "languages": [
+        "en",
+        "ar",
+        "ku"
+      ],
       "editorial_line": "Réseau d'info kurde basé à Erbil, perspective Kurdistan irakien.",
       "bias": "pro-krd-pdk",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://www.rudaw.net",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -454,10 +591,16 @@
       "country": "Irak",
       "country_code": "IQ",
       "tier": 1,
-      "languages": ["en", "ku"],
+      "languages": [
+        "en",
+        "ku"
+      ],
       "editorial_line": "Média kurde anglophone, perspective Erbil.",
       "bias": "pro-krd",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://www.kurdistan24.net",
       "rss_url": "https://www.kurdistan24.net/feed",
       "rss_opinion_url": null,
@@ -475,10 +618,16 @@
       "country": "Syrie",
       "country_code": "SY",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Agrégateur traduit, couverture opposition syrienne.",
       "bias": "opposition",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://syrianobserver.com",
       "rss_url": "https://syrianobserver.com/feed",
       "rss_opinion_url": null,
@@ -496,10 +645,17 @@
       "country": "Syrie",
       "country_code": "SY",
       "tier": 1,
-      "languages": ["en", "ar"],
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Média d'opposition syrienne en exil, couverture terrain.",
       "bias": "opposition",
-      "content_types": ["news", "analyses", "reportages"],
+      "content_types": [
+        "news",
+        "analyses",
+        "reportages"
+      ],
       "url": "https://english.enabbaladi.net",
       "rss_url": "https://english.enabbaladi.net/feed/",
       "rss_opinion_url": null,
@@ -517,10 +673,15 @@
       "country": "Syrie",
       "country_code": "SY",
       "tier": 1,
-      "languages": ["en", "ar"],
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Agence de presse d'État syrienne, perspective régime Assad.",
       "bias": "pro-government",
-      "content_types": ["news"],
+      "content_types": [
+        "news"
+      ],
       "url": "https://sana.sy",
       "rss_url": "https://sana.sy/en/feed/",
       "rss_opinion_url": null,
@@ -538,10 +699,16 @@
       "country": "Qatar",
       "country_code": "QA",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone qatari, perspective Golfe.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.gulf-times.com",
       "rss_url": "https://www.gulf-times.com/rssFeed/4",
       "rss_opinion_url": "https://www.gulf-times.com/rssFeed/4",
@@ -559,10 +726,15 @@
       "country": "Qatar",
       "country_code": "QA",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone qatari, perspective Doha.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://thepeninsulaqatar.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -579,11 +751,19 @@
       "name": "Al Jazeera",
       "country": "Qatar",
       "country_code": "QA",
-      "tier": 1,
-      "languages": ["en", "ar"],
+      "tier": 0,
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Réseau d'information international qatari, couverture pro-palestinienne.",
       "bias": "pro-qatar-progressive",
-      "content_types": ["news", "opinions", "analyses", "reportages"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses",
+        "reportages"
+      ],
       "url": "https://www.aljazeera.com",
       "rss_url": "https://www.aljazeera.com/xml/rss/all.xml",
       "rss_opinion_url": null,
@@ -601,10 +781,15 @@
       "country": "Koweït",
       "country_code": "KW",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Plus ancien quotidien anglophone koweïtien, perspective locale modérée.",
       "bias": "center-moderate",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://www.kuwaittimes.com",
       "rss_url": "https://kuwaittimes.com/rssFeed/13",
       "rss_opinion_url": "https://kuwaittimes.com/rssFeed/13",
@@ -622,10 +807,15 @@
       "country": "Koweït",
       "country_code": "KW",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone koweïtien, perspective Golfe.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://www.arabtimesonline.com",
       "rss_url": "https://www.arabtimesonline.com/rssFeed/75/",
       "rss_opinion_url": "https://www.arabtimesonline.com/rssFeed/75/",
@@ -643,10 +833,15 @@
       "country": "Koweït",
       "country_code": "KW",
       "tier": 1,
-      "languages": ["en", "ar"],
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Agence de presse officielle koweïtienne.",
       "bias": "pro-government",
-      "content_types": ["news"],
+      "content_types": [
+        "news"
+      ],
       "url": "https://www.kuna.net.kw",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -664,10 +859,16 @@
       "country": "Jordanie",
       "country_code": "JO",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone jordanien, pro-monarchie hachémite, modéré.",
       "bias": "pro-government-moderate",
-      "content_types": ["news", "opinions", "editorials"],
+      "content_types": [
+        "news",
+        "opinions",
+        "editorials"
+      ],
       "url": "https://www.jordantimes.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -685,10 +886,15 @@
       "country": "Jordanie",
       "country_code": "JO",
       "tier": 1,
-      "languages": ["ar"],
+      "languages": [
+        "ar"
+      ],
       "editorial_line": "Quotidien arabophone jordanien indépendant.",
       "bias": "independent",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://alghad.com",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -706,10 +912,16 @@
       "country": "Jordanie",
       "country_code": "JO",
       "tier": 1,
-      "languages": ["en", "ar"],
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Média jordanien, perspective Amman.",
       "bias": "center",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://en.royanews.tv",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -727,10 +939,15 @@
       "country": "Égypte",
       "country_code": "EG",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Quotidien anglophone égyptien, perspective Le Caire.",
       "bias": "center",
-      "content_types": ["news", "opinions"],
+      "content_types": [
+        "news",
+        "opinions"
+      ],
       "url": "https://dailynewsegypt.com",
       "rss_url": "https://dailynewsegypt.com/category/opinion/feed/",
       "rss_opinion_url": "https://dailynewsegypt.com/category/opinion/feed/",
@@ -748,10 +965,17 @@
       "country": "Égypte",
       "country_code": "EG",
       "tier": 1,
-      "languages": ["en", "ar"],
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Média indépendant égyptien, critique du pouvoir, journalisme d'investigation.",
       "bias": "independent-progressive",
-      "content_types": ["news", "analyses", "investigations"],
+      "content_types": [
+        "news",
+        "analyses",
+        "investigations"
+      ],
       "url": "https://www.madamasr.com",
       "rss_url": "https://www.madamasr.com/en/feed/",
       "rss_opinion_url": null,
@@ -769,10 +993,17 @@
       "country": "Égypte",
       "country_code": "EG",
       "tier": 1,
-      "languages": ["en", "ar"],
+      "languages": [
+        "en",
+        "ar"
+      ],
       "editorial_line": "Plus ancien quotidien égyptien, semi-étatique, pro-Sissi.",
       "bias": "pro-government",
-      "content_types": ["news", "opinions", "analyses"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses"
+      ],
       "url": "https://english.ahram.org.eg",
       "rss_url": null,
       "rss_opinion_url": null,
@@ -789,11 +1020,17 @@
       "name": "Al-Monitor",
       "country": "États-Unis",
       "country_code": "US",
-      "tier": 1,
-      "languages": ["en"],
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Site d'analyse MENA basé à Washington, couverture par experts régionaux.",
       "bias": "center-analytical",
-      "content_types": ["analyses", "opinions", "news"],
+      "content_types": [
+        "analyses",
+        "opinions",
+        "news"
+      ],
       "url": "https://www.al-monitor.com",
       "rss_url": "https://www.al-monitor.com/rss",
       "rss_opinion_url": null,
@@ -810,11 +1047,20 @@
       "name": "Middle East Eye",
       "country": "Royaume-Uni",
       "country_code": "GB",
-      "tier": 1,
-      "languages": ["en", "fr", "tr"],
+      "tier": 0,
+      "languages": [
+        "en",
+        "fr",
+        "tr"
+      ],
       "editorial_line": "Site d'info indépendant basé à Londres, couverture MENA progressiste.",
       "bias": "progressive-independent",
-      "content_types": ["news", "opinions", "analyses", "investigations"],
+      "content_types": [
+        "news",
+        "opinions",
+        "analyses",
+        "investigations"
+      ],
       "url": "https://www.middleeasteye.net",
       "rss_url": "https://www.middleeasteye.net/rss",
       "rss_opinion_url": null,
@@ -832,10 +1078,16 @@
       "country": "États-Unis",
       "country_code": "US",
       "tier": 1,
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "editorial_line": "Magazine d'analyses géopolitiques focalisé sur le MENA.",
       "bias": "analytical-independent",
-      "content_types": ["analyses", "opinions", "longforms"],
+      "content_types": [
+        "analyses",
+        "opinions",
+        "longforms"
+      ],
       "url": "https://newlinesmag.com",
       "rss_url": "https://newlinesmag.com/feed/",
       "rss_opinion_url": null,

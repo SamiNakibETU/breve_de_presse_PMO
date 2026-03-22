@@ -143,6 +143,11 @@ def create_app() -> FastAPI:
             traceback=traceback.format_exc(),
             **ctx,
         )
+        if settings.environment == "production":
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error"},
+            )
         return JSONResponse(
             status_code=500,
             content={"detail": str(exc)},

@@ -37,6 +37,7 @@ def _pg_vector_literal(vec: list[float]) -> str:
 async def semantic_search(
     body: SemanticSearchRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ):
     settings = get_settings()
     if not settings.cohere_api_key:
@@ -142,7 +143,6 @@ async def create_saved_search(
 async def list_saved_searches(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=50, ge=1, le=200),
-    _: None = Depends(require_internal_key),
 ):
     res = await db.execute(
         select(SavedSearch).order_by(SavedSearch.created_at.desc()).limit(limit)

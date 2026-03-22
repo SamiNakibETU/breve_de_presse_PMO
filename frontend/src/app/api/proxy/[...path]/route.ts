@@ -20,7 +20,7 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
   else headers.set("Accept", "application/json");
 
   if (INTERNAL_KEY) {
-    headers.set("X-Internal-Key", INTERNAL_KEY);
+    headers.set("Authorization", `Bearer ${INTERNAL_KEY}`);
   }
   const editor = req.headers.get("X-Editor-ID");
   if (editor) {

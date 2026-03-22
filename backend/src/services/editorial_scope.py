@@ -48,6 +48,36 @@ LIFESTYLE_TRAVEL_SUBSTRINGS: tuple[str, ...] = (
     "السياحة في",
     "وصفة ",
     "أفضل المطاعم",
+    # MEMW spec v3 sprint 2 — lifestyle additionnel
+    "coiffure",
+    "cheveux",
+    "mode et beauté",
+    "look du jour",
+    "horoscope",
+    "astrologie",
+    "signe du zodiaque",
+    "développement personnel",
+    "bien-être",
+    "mariage",
+    "noces",
+    "robe de mariée",
+    "hairstyle",
+    "hair color",
+    "fashion trend",
+    "zodiac",
+    "self-help",
+    "wellness tips",
+    "wedding",
+    "bride",
+    "celebrity gossip",
+    "saç modeli",
+    "moda",
+    "burç",
+    "düğün",
+    "تسريحات شعر",
+    "أبراج",
+    "زفاف",
+    "موضة",
 )
 
 # Sports / divertissement pur (hors angle géopolitique)
@@ -269,8 +299,15 @@ def is_article_eligible_for_clustering(
     article_type: str | None,
     editorial_types: frozenset[str],
     enforce_editorial_types: bool,
+    *,
+    relevance_score: float | None = None,
+    relevance_band: str | None = None,
 ) -> bool:
-    """Optionnellement restreint aux types éditoriaux ; exclut toujours le lifestyle."""
+    """Optionnellement restreint aux types éditoriaux ; exclut lifestyle et hors-sujet (Prompt 5)."""
+    if relevance_band == "out_of_scope":
+        return False
+    if relevance_score is not None and relevance_score < 0.40:
+        return False
     if enforce_editorial_types:
         if not article_type or article_type not in editorial_types:
             return False

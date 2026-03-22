@@ -21,10 +21,10 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
     return (
       <div className="py-12 text-center text-muted-foreground">
         <p className="font-[family-name:var(--font-serif)] text-lg text-foreground">
-          Aucun cluster thématique détecté
+          Aucun sujet thématique détecté
         </p>
         <p className="mt-2 text-sm">
-          Lancez le pipeline pour collecter et analyser les articles
+          Lancez le traitement complet (régie) pour collecter et analyser les articles
         </p>
       </div>
     );

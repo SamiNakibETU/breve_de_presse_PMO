@@ -20,8 +20,8 @@ interface PipelineStatusProps {
 const ACTIONS: { key: PipelineActionKey; label: string }[] = [
   { key: "collect", label: "Collecte" },
   { key: "translate", label: "Traduction" },
-  { key: "refreshClusters", label: "Refresh clusters" },
-  { key: "pipeline", label: "Pipeline complet" },
+  { key: "refreshClusters", label: "Actualiser les sujets" },
+  { key: "pipeline", label: "Traitement complet" },
 ];
 
 /** Libellés métier pour les statuts API (éviter « degraded / dead » bruts). */

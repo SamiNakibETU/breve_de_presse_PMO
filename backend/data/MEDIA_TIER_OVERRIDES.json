@@ -1,0 +1,11 @@
+{
+  "_comment": "Tier entier 0=P0, 1=P1, 2=P2 — clés = id registre (fusion MEDIA_REGISTRY + revue). Compléter selon MEMW Partie F.",
+  "sa_arab_news": 0,
+  "qa_al_jazeera": 0,
+  "il_haaretz": 0,
+  "il_jpost": 0,
+  "eg_ahram": 0,
+  "ae_khaleej": 0,
+  "jo_jordantimes": 1,
+  "ir_iranintl": 1
+}

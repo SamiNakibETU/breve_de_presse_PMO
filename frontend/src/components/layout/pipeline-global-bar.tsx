@@ -16,8 +16,8 @@ export function PipelineGlobalBar() {
 
   return (
     <div className="border-b border-border-light bg-accent-tint/80">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 text-[12px] text-foreground sm:px-6">
-        <span className="font-semibold text-accent">Pipeline en cours</span>
+      <div className="mx-auto flex max-w-[960px] flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 text-[12px] text-foreground sm:px-6">
+        <span className="font-semibold text-accent">Traitement en cours</span>
         <span className="text-foreground-subtle">{running.label}</span>
         {running.stepLabel ? (
           <span className="min-w-0 text-foreground-body">

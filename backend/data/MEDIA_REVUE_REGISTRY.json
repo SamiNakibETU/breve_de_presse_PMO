@@ -2,7 +2,7 @@
   "metadata": {
     "source_csv": "media revue - Sheet1.csv",
     "version": "1.0.0",
-    "count": 67
+    "count": 74
   },
   "media": [
     {
@@ -209,6 +209,35 @@
       "is_active": true
     },
     {
+      "id": "eg_al_akhbar_el_yom",
+      "name": "Al-Akhbar el-Yom",
+      "country": "Egypte",
+      "country_code": "EG",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://akhbarelyom.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://akhbarelyom.com/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
       "id": "eg_madam_masr",
       "name": "Madam Masr",
       "country": "Egypte",
@@ -243,7 +272,7 @@
       "name": "Haaretz",
       "country": "Israël",
       "country_code": "IL",
-      "tier": 1,
+      "tier": 0,
       "languages": [
         "en"
       ],
@@ -260,6 +289,35 @@
       "english_version_url": null,
       "opinion_hub_urls": [
         "https://www.haaretz.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_israel_hayon",
+      "name": "Israel Hayon",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": [
+        "he"
+      ],
+      "editorial_line": "pro netanyahu",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.israelhayom.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.israelhayom.com/"
       ],
       "collection_method": "opinion_hub",
       "paywall": "free",
@@ -565,6 +623,93 @@
       "is_active": true
     },
     {
+      "id": "ir_entekhab",
+      "name": "Entekhab",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "conservateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.entekhab.ir/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.entekhab.ir/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_ettelaat",
+      "name": "Ettelaat",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "conservateur modéré",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.ettelaat.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.ettelaat.com/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_hamshahri",
+      "name": "Hamshahri",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "réformateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://hamshahrionline.ir/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://hamshahrionline.ir/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
       "id": "ir_iran_international",
       "name": "Iran International",
       "country": "Iran",
@@ -617,6 +762,64 @@
       "english_version_url": null,
       "opinion_hub_urls": [
         "https://iranwire.com/en/category/blogs"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_jam_e_jam",
+      "name": "Jam-e Jam",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "proche du pouvoir et de l’establishment religieux.",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.jamejam.ir/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.jamejam.ir/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_kayhan",
+      "name": "Kayhan",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "conservateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://kayhan.ir/en",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://kayhan.ir/en"
       ],
       "collection_method": "opinion_hub",
       "paywall": "free",
@@ -1209,7 +1412,7 @@
       "name": "al Jazeera",
       "country": "Qatar",
       "country_code": "QA",
-      "tier": 1,
+      "tier": 0,
       "languages": [
         "en"
       ],
@@ -1500,7 +1703,7 @@
       "name": "Arab news",
       "country": "Arabie saoudite",
       "country_code": "SA",
-      "tier": 1,
+      "tier": 0,
       "languages": [
         "en"
       ],

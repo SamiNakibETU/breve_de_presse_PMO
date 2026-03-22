@@ -254,6 +254,7 @@ async def list_articles(
 async def list_articles_by_ids(
     body: ArticleIdsRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ):
     """Retourne uniquement les articles demandés (ordre préservé). Revue de presse sans charger 200 lignes."""
     if not body.ids:
@@ -355,7 +356,9 @@ async def batch_mark_reviewed(
 
 @router.post("/articles/{article_id}/relevance-score")
 async def post_article_relevance_score(
-    article_id: str, db: AsyncSession = Depends(get_db)
+    article_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ):
     """Calcule et persiste relevance_score (MEMW v2 Prompt 5)."""
     try:

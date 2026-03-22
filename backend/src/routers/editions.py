@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle
 from src.services.curator_service import (
@@ -222,6 +223,7 @@ async def patch_topic_selection(
     topic_id: UUID,
     body: TopicSelectionBody,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ) -> Any:
     et = await db.get(EditionTopic, topic_id)
     if not et or et.edition_id != edition_id:
@@ -246,6 +248,7 @@ async def post_generate_topic(
     topic_id: UUID,
     body: GenerateTopicBody | None = None,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ) -> Any:
     ids = body.article_ids if body and body.article_ids else None
     return await generate_edition_topic_review(db, edition_id, topic_id, article_ids=ids)
@@ -255,6 +258,7 @@ async def post_generate_topic(
 async def post_generate_all(
     edition_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ) -> Any:
     return await generate_all_edition_topics(db, edition_id)
 
@@ -263,6 +267,7 @@ async def post_generate_all(
 async def trigger_curate(
     edition_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ) -> Any:
     return await run_curator_for_edition(db, edition_id)
 
@@ -280,6 +285,7 @@ async def patch_edition(
     edition_id: UUID,
     body: EditionPatch,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
 ) -> Any:
     e = await db.get(Edition, edition_id)
     if not e:

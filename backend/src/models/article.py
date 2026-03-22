@@ -106,6 +106,10 @@ class Article(Base):
         nullable=True,
     )
     relevance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    relevance_band: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    translation_quality_flags: Mapped[Optional[list[str]]] = mapped_column(
+        JSON, nullable=True
+    )
     syndication_group_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     syndication_group_sources: Mapped[Optional[list[str]]] = mapped_column(
         JSON, nullable=True

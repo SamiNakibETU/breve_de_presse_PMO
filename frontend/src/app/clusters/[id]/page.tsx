@@ -31,7 +31,7 @@ export default function ClusterDetailPage() {
     router.push("/review");
   }
 
-  const clusterLabel = data?.cluster_label ?? "Cluster";
+  const clusterLabel = data?.cluster_label ?? "Sujet";
 
   const matrixRows = useMemo(() => {
     if (!data) return [];
@@ -208,7 +208,7 @@ export default function ClusterDetailPage() {
 
       {ready && selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-background px-5 py-4 sm:px-6">
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+          <div className="mx-auto flex max-w-[960px] items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-[13px] text-foreground-body">
                 {selectedIds.size} article{selectedIds.size > 1 ? "s" : ""} sélectionné

@@ -38,7 +38,7 @@ export function Masthead() {
 
   return (
     <header className="border-b border-border-light bg-background">
-      <div className="mx-auto max-w-5xl px-5 sm:px-6">
+      <div className="mx-auto max-w-[960px] px-5 sm:px-6">
         <div className="flex items-center justify-between py-5">
           <Link
             href="/"

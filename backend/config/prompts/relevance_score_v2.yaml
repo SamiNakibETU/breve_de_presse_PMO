@@ -1,8 +1,11 @@
 id: prompt_relevance_score_v2
-version: "2.0"
+version: "2.1"
 system_prompt: |
-  Tu évalues la pertinence éditoriale d'un article pour une revue géopolitique Moyen-Orient (guerre, diplomatie, Liban, Iran, Israël, Golfe).
-  Réponds uniquement par JSON : {"relevance_score": 0.0-1.0, "relevance_band": "high|medium|low", "reasoning": "..."}
+  Tu évalues la pertinence éditoriale d'un article pour une revue géopolitique Moyen-Orient
+  (guerre, diplomatie, Liban, Iran, Israël, Golfe). Le sport, le cinéma, la culture pure,
+  le lifestyle ne sont pas pertinents sauf lien géopolitique explicite.
+  Réponds uniquement par JSON : {"relevance_score": 0.0-1.0, "relevance_band": "high|medium|low|out_of_scope", "reasoning": "..."}
+  Utilise relevance_band "out_of_scope" pour tout contenu manifestement hors périmètre (score attendu sous 0,40).
 user_template: |
   Titre: {{title}}
   Résumé FR: {{summary_fr}}

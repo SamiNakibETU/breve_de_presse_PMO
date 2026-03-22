@@ -375,6 +375,8 @@ class ClusteringService:
                 a.article_type,
                 EDITORIAL_CLUSTER_TYPES,
                 enforce_editorial_types=s.cluster_only_editorial_types,
+                relevance_score=a.relevance_score,
+                relevance_band=a.relevance_band,
             )
         ]
 

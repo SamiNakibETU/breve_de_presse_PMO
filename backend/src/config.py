@@ -38,6 +38,12 @@ class Settings(BaseSettings):
 
     collection_hour_utc: int = Field(default=6)
     max_articles_per_source: int = Field(default=20)
+    max_articles_per_general_rss: int = Field(
+        default=12,
+        ge=1,
+        le=200,
+        description="Plafond pour flux RSS « général » sans rss_opinion_url (ex. Al Jazeera all.xml)",
+    )
     opinion_hub_min_articles_saved: int = Field(
         default=3,
         ge=1,
@@ -168,7 +174,8 @@ class Settings(BaseSettings):
     )
     internal_api_key: str | None = Field(
         default=None,
-        description="Si défini, endpoints sensibles exigent le header X-Internal-Key",
+        description="Si défini, endpoints POST/PUT/PATCH/DELETE sensibles exigent "
+        "Authorization: Bearer <INTERNAL_API_KEY>",
     )
     llm_use_json_object_mode: bool = Field(
         default=True,

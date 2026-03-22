@@ -19,6 +19,12 @@ from collections import defaultdict
 from pathlib import Path
 
 OUT_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_REVUE_REGISTRY.json"
+TIER_OVERRIDES_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_TIER_OVERRIDES.json"
+
+# Quand le CSV n’a ni URL principale ni URL dans « catégories » (ex. Jam-e Jam).
+MANUAL_FALLBACK_URLS: dict[tuple[str, str], str] = {
+    ("IR", "jam_e_jam"): "https://www.jamejam.ir/",
+}
 
 COUNTRY_TO_CODE: dict[str, str] = {
     "arabie saoudite": "SA",
@@ -207,10 +213,46 @@ def _merge_rows(csv_path: Path) -> dict[tuple[str, str], dict]:
             if h not in merged[key]["opinion_hub_urls"]:
                 merged[key]["opinion_hub_urls"].append(h)
 
+    # Fallback : URL principale comme hub si la colonne « catégories » n’a aucune URL
+    for key, m in merged.items():
+        if not m["opinion_hub_urls"]:
+            base_u = _fix_url(m.get("url") or "")
+            if base_u:
+                m["opinion_hub_urls"].append(base_u)
+        if not m.get("url") and m["opinion_hub_urls"]:
+            from urllib.parse import urlparse
+
+            p = urlparse(m["opinion_hub_urls"][0])
+            m["url"] = f"{p.scheme}://{p.netloc}/" if p.netloc else m["opinion_hub_urls"][0]
+        if key in MANUAL_FALLBACK_URLS:
+            fb = MANUAL_FALLBACK_URLS[key]
+            if not m.get("url"):
+                m["url"] = fb
+            if not m["opinion_hub_urls"]:
+                fu = _fix_url(fb)
+                if fu:
+                    m["opinion_hub_urls"].append(fu)
+
     return merged
 
 
+def _load_tier_overrides() -> dict[str, int]:
+    if not TIER_OVERRIDES_PATH.is_file():
+        return {}
+    raw = json.loads(TIER_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, int] = {}
+    for k, v in raw.items():
+        if k.startswith("_"):
+            continue
+        if isinstance(v, int) and 0 <= v <= 2:
+            out[str(k)] = v
+    return out
+
+
 def build_media_list(merged: dict[tuple[str, str], dict]) -> list[dict]:
+    tier_overrides = _load_tier_overrides()
     media: list[dict] = []
     for (cc, slug), m in sorted(merged.items(), key=lambda x: (x[0][0], x[0][1])):
         mid = f"{cc.lower()}_{slug}"
@@ -222,12 +264,13 @@ def build_media_list(merged: dict[tuple[str, str], dict]) -> list[dict]:
             p = urlparse(m["opinion_hub_urls"][0])
             m["url"] = f"{p.scheme}://{p.netloc}/" if p.netloc else "https://example.invalid"
 
+        tier = tier_overrides.get(mid, 1)
         entry = {
             "id": mid,
             "name": m["name"],
             "country": m["country"],
             "country_code": m["country_code"],
-            "tier": 1,
+            "tier": tier,
             "languages": m["languages"],
             "editorial_line": m.get("editorial_line"),
             "bias": None,

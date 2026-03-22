@@ -63,6 +63,26 @@ async def daily_pipeline(
     }
 
     try:
+        from src.services.edition_schedule import resolve_edition_id_for_timestamp
+        from src.services.relevance_scorer import run_relevance_scoring_pipeline
+
+        factory = get_session_factory()
+        async with factory() as db:
+            eid_rel = await resolve_edition_id_for_timestamp(
+                db, datetime.now(timezone.utc)
+            )
+            rel_stats = await run_relevance_scoring_pipeline(
+                db,
+                edition_id=eid_rel,
+            )
+            await db.commit()
+        pipeline_result["relevance_scoring"] = rel_stats
+        pipeline_result["edition_id_relevance"] = str(eid_rel) if eid_rel else None
+    except Exception as e:
+        logger.warning("pipeline.relevance_scoring_failed", error=str(e)[:200])
+        pipeline_result["relevance_scoring"] = {"error": str(e)[:200]}
+
+    try:
         from src.services.dedup_surface import run_surface_dedup
         from src.services.edition_schedule import resolve_edition_id_for_timestamp
 

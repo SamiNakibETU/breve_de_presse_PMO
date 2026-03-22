@@ -116,7 +116,7 @@ export default function DashboardPage() {
         </p>
         <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
           Vue des <strong className="font-medium text-foreground-subtle">sujets actifs</strong>{" "}
-          (clusters en base), indépendante du calendrier d’édition. Le{" "}
+          en base, indépendante du calendrier d’édition. Le{" "}
           <strong className="font-medium text-foreground-subtle">sommaire daté</strong> est sur{" "}
           <Link
             href={`/edition/${editionDate}`}
@@ -135,7 +135,7 @@ export default function DashboardPage() {
       )}
 
       <section>
-        <h2 className="olj-rubric olj-rule">Pipeline</h2>
+        <h2 className="olj-rubric olj-rule">Collecte et traitement</h2>
         <PipelineStatus
           status={status}
           sourceHealth={healthQ.data ?? null}

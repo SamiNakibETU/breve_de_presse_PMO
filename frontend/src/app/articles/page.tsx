@@ -246,7 +246,7 @@ export default function ArticlesPage() {
 
       {selectionReady && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95">
-          <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="mx-auto flex max-w-[960px] flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="font-[family-name:var(--font-serif)] text-[20px] font-semibold tabular-nums text-foreground">
                 {selected.size}

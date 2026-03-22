@@ -1,13 +1,22 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lora } from "next/font/google";
 import { Masthead } from "@/components/layout/sidebar";
 import { PipelineGlobalBar } from "@/components/layout/pipeline-global-bar";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
-/** MEMW §2.5.6 : titres / thèses en Poynter (fichiers locaux dans `public/fonts/`, voir globals.css). */
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--font-lora",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "L'Orient-Le Jour — Revue de presse régionale",
   description:
@@ -22,12 +31,12 @@ export default function RootLayout({
   return (
     <html lang="fr" className="light">
       <body
-        className={`${inter.className} bg-background text-foreground antialiased`}
+        className={`${inter.variable} ${lora.variable} ${inter.className} bg-background text-foreground antialiased`}
       >
         <Providers>
           <Masthead />
           <PipelineGlobalBar />
-          <main className="mx-auto max-w-5xl px-5 py-10 sm:px-6">{children}</main>
+          <main className="mx-auto max-w-[960px] px-5 py-10 sm:px-6">{children}</main>
         </Providers>
       </body>
     </html>

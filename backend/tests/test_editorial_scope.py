@@ -1,7 +1,9 @@
 """Filtre revue de presse : lifestyle vs signal géopolitique."""
 
+from src.services.clustering_service import EDITORIAL_CLUSTER_TYPES
 from src.services.editorial_scope import (
     has_geopolitical_relevance_signal,
+    is_article_eligible_for_clustering,
     is_out_of_scope_lifestyle,
     should_ingest_rss_entry,
     should_ingest_scraped_article,
@@ -48,4 +50,43 @@ def test_opinion_feed_allows_geopolitical():
         "Iran nuclear program concerns",
         "IAEA report summary",
         uses_opinion_feed=True,
+    )
+
+
+def test_clustering_excludes_relevance_out_of_scope():
+    assert not is_article_eligible_for_clustering(
+        "Kafka au cinéma",
+        "Kafka au cinéma",
+        "Festival",
+        "analysis",
+        EDITORIAL_CLUSTER_TYPES,
+        True,
+        relevance_score=0.12,
+        relevance_band="out_of_scope",
+    )
+
+
+def test_clustering_excludes_score_below_threshold_even_if_band_low():
+    assert not is_article_eligible_for_clustering(
+        "Sport",
+        "Sport",
+        "Match",
+        "analysis",
+        EDITORIAL_CLUSTER_TYPES,
+        True,
+        relevance_score=0.25,
+        relevance_band="low",
+    )
+
+
+def test_clustering_accepts_geopolitical_relevance():
+    assert is_article_eligible_for_clustering(
+        "Frappes sur l'Iran",
+        "Strikes on Iran",
+        "Escalade régionale",
+        "analysis",
+        EDITORIAL_CLUSTER_TYPES,
+        True,
+        relevance_score=0.82,
+        relevance_band="high",
     )

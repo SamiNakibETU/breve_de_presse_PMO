@@ -433,6 +433,7 @@ class LLMRouter:
         max_tokens: int = 1200,
         *,
         temperature: float | None = None,
+        model: str | None = None,
     ) -> str:
         """Génération revue : option stricte Sonnet uniquement (MEMW §2.4.3)."""
         s = get_settings()
@@ -440,9 +441,10 @@ class LLMRouter:
             raise RuntimeError(
                 "Anthropic requis (OLJ_GENERATION_ANTHROPIC_ONLY) mais clé absente.",
             )
+        mid = (model or "").strip() or s.anthropic_generation_model
         return await self._call(
             Provider.ANTHROPIC,
-            s.anthropic_generation_model,
+            mid,
             system,
             prompt,
             max_tokens,
@@ -459,6 +461,7 @@ class LLMRouter:
         tool_name: str = "memw_structured_output",
         max_tokens: int = 4096,
         temperature: float = 0.2,
+        model: str | None = None,
     ) -> dict[str, Any]:
         """
         Structured Outputs via outil unique (schéma JSON) — MEMW v2 p5b.
@@ -472,13 +475,14 @@ class LLMRouter:
         if schema.get("type") != "object":
             schema = {"type": "object", "properties": schema, "required": []}
 
+        model_id = (model or "").strip() or s.anthropic_generation_model
         logger.info(
             "llm.anthropic_tool_json",
-            model=s.anthropic_generation_model,
+            model=model_id,
             tool=tool_name,
         )
         response = await client.messages.create(
-            model=s.anthropic_generation_model,
+            model=model_id,
             max_tokens=max_tokens,
             temperature=temperature,
             system=system,
