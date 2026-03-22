@@ -39,6 +39,8 @@ export default function DashboardPage() {
     ],
   });
 
+  /** Liste des sujets : n’attendre que `/clusters` (pas stats, statut ni santé sources). */
+  const clustersOnlyLoading = clustersQ.isPending;
   const loading =
     statsQ.isPending || statusQ.isPending || clustersQ.isPending || healthQ.isPending;
   const error =
@@ -91,7 +93,7 @@ export default function DashboardPage() {
         <ClusterList
           clusters={clusters?.clusters ?? []}
           noiseCount={clusters?.noise_count ?? 0}
-          loading={loading}
+          loading={clustersOnlyLoading}
         />
       </section>
 
