@@ -33,12 +33,13 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
   return (
     <div className="space-y-5">
       <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
-        Chaque carte regroupe des articles proches sémantiquement (deux colonnes pour plus de clarté).
-        Tri par{" "}
-        <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>. Rubriques :{" "}
-        <strong className="font-medium text-foreground-subtle">chapeau</strong> (1re voix + source),{" "}
-        <strong className="font-medium text-foreground-subtle">autre regard</strong> si une 2e thèse
-        diffère, puis couverture pays. La page du sujet détaille la matrice et les textes.
+        Chaque carte regroupe des articles proches sémantiquement (affichage en deux colonnes). Tri par{" "}
+        <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>.{" "}
+        <strong className="font-medium text-foreground-subtle">Extrait principal</strong> : thèse de
+        l’article le plus récent du sujet, avec sa source.{" "}
+        <strong className="font-medium text-foreground-subtle">Second extrait</strong> : autre article
+        du même regroupement si disponible. En bas : couverture par pays. La page du sujet détaille la
+        matrice et les textes complets.
       </p>
 
       <ul className="grid list-none grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">

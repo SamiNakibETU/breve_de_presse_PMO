@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { displayClusterTitle } from "@/lib/cluster-display";
 import type { ThesisPreviewItem, TopicCluster } from "@/lib/types";
 import { ClusterCountryStrip } from "./cluster-country-strip";
 
@@ -86,7 +87,7 @@ function langLabel(code: string | null | undefined): string | null {
   return LANG_FR[code.trim().toLowerCase()] ?? code.toUpperCase();
 }
 
-/** Une ligne lisible : auteur, média, pays, format, langue — sans « l'auteur » générique côté données si le backend renseigne les champs. */
+/** Source : auteur, média, pays, format, langue d’origine. */
 function PreviewAttribution({ p }: { p: ThesisPreviewItem & { thesis: string } }) {
   const bits: string[] = [];
   if (p.author?.trim()) bits.push(p.author.trim());
@@ -95,18 +96,33 @@ function PreviewAttribution({ p }: { p: ThesisPreviewItem & { thesis: string } }
   const t = typeLabel(p.article_type ?? undefined);
   if (t) bits.push(t);
   const l = langLabel(p.source_language ?? undefined);
-  if (l) bits.push(`lang. ${l}`);
+  if (l) bits.push(l);
   if (bits.length === 0) return null;
   return (
     <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{bits.join(" · ")}</p>
   );
 }
 
-function Rubric({ children }: { children: ReactNode }) {
+function SectionTitle({
+  id,
+  children,
+}: {
+  id?: string;
+  children: ReactNode;
+}) {
   return (
-    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <h3
+      id={id}
+      className="mb-1 font-[family-name:var(--font-serif)] text-[13px] font-semibold text-foreground"
+    >
       {children}
-    </p>
+    </h3>
+  );
+}
+
+function SectionHint({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-2.5 text-[11px] leading-snug text-muted-foreground">{children}</p>
   );
 }
 
@@ -130,6 +146,30 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
   const pertinencePct =
     cluster.avg_relevance > 0 ? Math.round(cluster.avg_relevance * 100) : null;
 
+  const statsSentence = (
+    <>
+      <span className="text-muted-foreground">Articles</span>{" "}
+      <span className="font-medium tabular-nums text-foreground">{cluster.article_count}</span>
+      <span className="mx-1.5 text-border" aria-hidden>
+        ·
+      </span>
+      <span className="text-muted-foreground">Pays</span>{" "}
+      <span className="font-medium tabular-nums text-foreground">{cluster.country_count}</span>
+      <span className="mx-1.5 text-border" aria-hidden>
+        ·
+      </span>
+      <span className="text-muted-foreground">Pertinence</span>{" "}
+      <span className="font-medium tabular-nums text-foreground">
+        {pertinencePct !== null ? `${pertinencePct} %` : "non renseigné"}
+      </span>
+      <span className="mx-1.5 text-border" aria-hidden>
+        ·
+      </span>
+      <span className="text-muted-foreground">Mise à jour</span>{" "}
+      <span className="font-medium text-foreground">{freshness ?? "non renseigné"}</span>
+    </>
+  );
+
   return (
     <Link
       href={href}
@@ -151,52 +191,19 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
 
         <header className="border-b border-border-light pb-4">
           <h2 className="font-[family-name:var(--font-serif)] text-[1.2rem] font-semibold leading-[1.35] text-foreground sm:text-[1.28rem]">
-            {cluster.label || "Sans libellé"}
+            {displayClusterTitle(cluster.label)}
           </h2>
         </header>
 
-        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[12px] sm:grid-cols-4">
-          <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Articles
-            </dt>
-            <dd className="mt-0.5 tabular-nums font-medium text-foreground">
-              {cluster.article_count}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Pays
-            </dt>
-            <dd className="mt-0.5 tabular-nums font-medium text-foreground">
-              {cluster.country_count}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Pertinence
-            </dt>
-            <dd className="mt-0.5 tabular-nums font-medium text-foreground">
-              {pertinencePct !== null ? `${pertinencePct} %` : "—"}
-            </dd>
-          </div>
-          <div className="min-w-0 sm:col-span-1">
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Dernière activité
-            </dt>
-            <dd
-              className="mt-0.5 truncate font-medium text-foreground"
-              title={freshness ?? undefined}
-            >
-              {freshness ?? "—"}
-            </dd>
-          </div>
-        </dl>
+        <p className="mt-4 text-[12px] leading-relaxed text-foreground-body">{statsSentence}</p>
 
-        <div className="mt-5 flex min-h-0 flex-1 flex-col">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col gap-6">
           {first?.thesis ? (
-            <section aria-label="Chapeau">
-              <Rubric>Chapeau — première voix</Rubric>
+            <section aria-labelledby={`cluster-${cluster.id}-lead`}>
+              <SectionTitle id={`cluster-${cluster.id}-lead`}>Extrait principal</SectionTitle>
+              <SectionHint>
+                Thèse tirée de l’article le plus récent parmi ceux regroupés ici (date de parution).
+              </SectionHint>
               <p
                 className="text-[14px] leading-relaxed text-foreground-body line-clamp-4"
                 title={first.thesis}
@@ -206,17 +213,23 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
               <PreviewAttribution p={first} />
             </section>
           ) : (
-            <section aria-label="Chapeau">
-              <Rubric>Chapeau</Rubric>
+            <section>
+              <SectionTitle>Extrait principal</SectionTitle>
               <p className="text-[13px] italic text-muted-foreground">
-                Aperçu indisponible — ouvrez le sujet pour les articles.
+                Aucune thèse disponible en aperçu. Ouvrez le sujet pour lire les articles.
               </p>
             </section>
           )}
 
           {secondExcerpt ? (
-            <section className="mt-5 border-l-2 border-accent/25 pl-4" aria-label="Autre regard">
-              <Rubric>Autre regard</Rubric>
+            <section
+              className="border-l-2 border-accent/25 pl-4"
+              aria-labelledby={`cluster-${cluster.id}-second`}
+            >
+              <SectionTitle id={`cluster-${cluster.id}-second`}>Second extrait</SectionTitle>
+              <SectionHint>
+                Autre article du même sujet : autre média ou autre formulation de la thèse.
+              </SectionHint>
               <p className="font-[family-name:var(--font-serif)] text-[13px] italic leading-relaxed text-foreground-subtle">
                 «&nbsp;{secondExcerpt}&nbsp;»
               </p>

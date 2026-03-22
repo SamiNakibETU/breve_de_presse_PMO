@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { displayClusterTitle } from "@/lib/cluster-display";
 import type { ClusterArticlesResponse } from "@/lib/types";
 import { saveReviewArticleIds } from "@/lib/review-selection-storage";
 import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
@@ -71,7 +72,7 @@ export default function ClusterDetailPage() {
           ← Sujets du jour
         </Link>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
-          {loading ? "Chargement…" : clusterLabel}
+          {loading ? "Chargement…" : displayClusterTitle(clusterLabel)}
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           {data
@@ -130,13 +131,13 @@ export default function ClusterDetailPage() {
                       {row.country}
                     </td>
                     <td className="px-3 py-2 align-top font-[family-name:var(--font-serif)] italic text-foreground">
-                      {row.thesis ? `« ${row.thesis} »` : "—"}
+                      {row.thesis ? `« ${row.thesis} »` : "n.d."}
                     </td>
                     <td className="px-3 py-2 align-top text-foreground-body">
-                      {row.media ?? "—"}
+                      {row.media ?? "n.d."}
                     </td>
                     <td className="px-3 py-2 align-top text-muted-foreground">
-                      {row.type ?? "—"}
+                      {row.type ?? "n.d."}
                     </td>
                   </tr>
                 ))}
