@@ -52,8 +52,8 @@ Tu dois produire un résumé DENSE et INFORMATIF de 150-200 mots. Pour cela, sui
 RÈGLES DE TRADUCTION :
 1. Traduis fidèlement le sens, pas mot à mot
 2. Résumé de 150-200 mots EXACTEMENT — français soutenu mais accessible
-3. Ton neutre et restitutif — restitue l'argument de l'auteur sans le juger
-4. Attribution systématique : "L'auteur estime que...", "Selon le chroniqueur..."
+3. Ton neutre et restitutif — restitue l'argument sans le juger
+4. Attribution concrète obligatoire : nom de l'auteur (ou « la rédaction de [Média] » pour un éditorial non signé), nom du média, pays du média quand il est connu (champ article.media / contexte). Forme attendue dans le résumé : « [Prénom Nom] dans [Média] (pays) estime que… », « Selon [Nom] dans [Média]… ». Interdit : « l'auteur », « le chroniqueur », « l'auteur estime » sans nom ni média identifiables.
 5. Guillemets français « » pour les citations traduites
 6. Translittération simplifiée des noms propres arabes
 7. Présent de narration comme temps principal
@@ -129,7 +129,7 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
 
     required_output: dict[str, Any] = {
         "translated_title": "titre traduit en français",
-        "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante (max 20 mots), comme si l'auteur la prononçait",
+        "thesis_summary": "UNE phrase assertive (max ~35 mots) avec attribution en tête : [Auteur ou La rédaction de X] dans [Média] (pays si pertinent) + verbe (estime, souligne, dénonce…) + thèse. Ex. : « Ahmed Benali dans Al-Hayat (Arabie saoudite) estime que les sanctions étranglent l'économie. » Si auteur inconnu : « La rédaction du [Média] (pays) estime que… »",
         "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : chaque phrase apporte une info nouvelle, zéro redondance)",
         "key_quotes_fr": [
             "citation traduite en français 1",
@@ -138,7 +138,7 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
         "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
         "article_family": "même valeur que article_type (rédaction / famille éditoriale)",
         "olj_topic_ids": ["mena.geopolitics", "other"],
-        "stance_summary": "UNE phrase neutre restitutive : ligne argumentaire de l'auteur",
+        "stance_summary": "UNE phrase neutre restitutive avec la même règle d'attribution concrète (nom ou rédaction + média + pays), jamais « l'auteur » seul",
         "event_extraction": {
             "who": "acteur principal ou ?",
             "what": "fait ou enjeu central",
@@ -219,13 +219,13 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
         content = " ".join(words[:4000])
 
     required_output: dict[str, Any] = {
-        "thesis_summary": "thèse de l'auteur en UNE PHRASE assertive percutante",
+        "thesis_summary": "UNE phrase assertive avec attribution concrète en tête (auteur ou rédaction + média + pays) + thèse — jamais « l'auteur » sans identité",
         "summary_fr": "résumé DENSE de 150-200 mots (Chain of Density : maximise la densité d'information, zéro redondance)",
         "key_quotes_fr": ["citation 1", "citation 2"],
         "article_type": "opinion|editorial|tribune|analysis|news|interview|reportage",
         "article_family": "même valeur que article_type",
         "olj_topic_ids": ["mena.geopolitics", "other"],
-        "stance_summary": "UNE phrase neutre restitutive",
+        "stance_summary": "UNE phrase neutre restitutive avec attribution concrète (nom/rédaction + média)",
         "event_extraction": {
             "who": "?",
             "what": "?",

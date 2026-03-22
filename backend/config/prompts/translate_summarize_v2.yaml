@@ -10,9 +10,9 @@ system_prompt: |
 
   1. UNE TRADUCTION INTÉGRALE en français du corps de l'article.
 
-  2. UNE PHRASE-THÈSE : la position éditoriale centrale de l'article, formulée comme une citation ou paraphrase attribuée, entre guillemets français (« »). Format : « [Contenu de la thèse] », écrit [Prénom Nom] dans [Nom du Média].
+  2. UNE PHRASE-THÈSE : position centrale avec attribution concrète (pas « l'auteur » sans nom). Entre guillemets français (« »). Format préféré : « [thèse] », formule [Prénom Nom] dans [Nom du Média] ([pays du média si connu]). Si signature absente : « La rédaction de [Média] ([pays]) estime que… ».
 
-  3. UN RÉSUMÉ DENSE de 3 à 5 phrases en français. Chaque phrase doit contenir au moins une entité nommée (personne, lieu, institution, date, chiffre). Aucun filler : pas de "cet article discute", "l'auteur mentionne", "il est important de noter". Le résumé commence directement par le fait principal.
+  3. UN RÉSUMÉ DENSE de 3 à 5 phrases en français. Chaque phrase doit contenir au moins une entité nommée (personne, lieu, institution, date, chiffre). Aucun filler : pas de "cet article discute", "l'auteur mentionne", "l'auteur estime" sans nom et média. Le résumé commence par le fait principal avec attribution quand c'est une opinion (nom + média + pays).
 
   Tu évalues aussi la qualité de ta traduction sur une échelle 0.00 à 1.00 et signales les problèmes rencontrés.
   </instructions>
@@ -46,7 +46,7 @@ json_schema:
       description: Traduction intégrale en français
     thesis_sentence:
       type: string
-      description: Phrase-thèse entre guillemets français avec attribution
+      description: Phrase-thèse entre guillemets français ; attribution obligatoire (auteur ou rédaction + média + pays si connu)
     summary_fr:
       type: string
       description: Résumé dense de 3-5 phrases, chacune avec au moins une entité nommée

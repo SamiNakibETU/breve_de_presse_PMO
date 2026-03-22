@@ -74,10 +74,13 @@ régionale quotidienne.
 
 FORMAT EXACT à produire — respecte-le à la lettre, sans rien ajouter :
 
-« [Phrase-thèse percutante qui capture la conviction de l'auteur] »
+« [Phrase-thèse assertive avec attribution intégrée : Prénom Nom dans Média (pays) estime / \
+souligne / dénonce que… — ou thèse suivie d'une mention explicite du signataire et du média ; \
+jamais de thèse anonyme « l'auteur » sans nom ni média] »
 
 Résumé : [Résumé de 150 à 200 mots EXACTEMENT. Ton neutre, restitution fidèle. \
-Français soutenu mais accessible. Présent de narration. Attribution systématique.]
+Français soutenu mais accessible. Présent de narration. Attribution concrète : nom ou \
+« la rédaction de [Média] », jamais « l'auteur » / « le chroniqueur » sans identité.]
 
 Fiche :
 Article publié dans [nom exact du média]
@@ -96,8 +99,10 @@ d'article. UNE PHRASE-THÈSE percutante. Exemples corrects : \
 2. Le résumé fait STRICTEMENT entre 150 et 200 mots — COMPTE PRÉCISÉMENT
 3. Restitution strictement fidèle, aucun jugement de valeur
 4. Guillemets français « » pour toute citation
-5. Si opinion/tribune : "L'auteur estime que...", "Selon le chroniqueur..."
-6. Si analyse factuelle : "L'analyste rapporte que...", "Selon les sources citées..."
+5. Si opinion/tribune : nommer qui parle (auteur + média + pays) ; interdire « l'auteur estime », \
+« selon le chroniqueur » sans nom.
+6. Si analyse factuelle : citer le média ou le journaliste quand l'article est signé ; sinon \
+« selon les sources citées dans [Média]… ».
 7. TOUT le texte en français. Traduire TOUTES les citations. AUCUN texte en langue \
 étrangère sauf noms propres.
 8. Translittération simplifiée des noms propres arabes
@@ -383,9 +388,9 @@ INFORMATIONS FICHE :
 - Pays du média : {pays}
 - Auteur : {article.author or 'Éditorial non signé'}
 
-RAPPEL : le titre entre « » doit être UNE PHRASE-THÈSE assertive et percutante \
-qui capture la conviction de l'auteur. PAS un résumé avec tiret. \
-Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément."""
+RAPPEL : le titre entre « » doit être UNE PHRASE-THÈSE assertive avec attribution \
+concrète (utilise Auteur, Média, Pays ci-dessus). PAS un résumé avec tiret. \
+Le résumé doit faire EXACTEMENT 150-200 mots — compte précisément ; même règle d'attribution."""
 
         formatted_block = await self._llm_olj_first_pass(user_prompt)
         formatted_block = _normalize_olj_block(formatted_block)

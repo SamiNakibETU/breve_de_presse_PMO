@@ -66,6 +66,9 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
             Article.collected_at,
             MediaSource.name,
             Article.article_type,
+            Article.author,
+            MediaSource.country,
+            Article.source_language,
         )
         .join(MediaSource, Article.media_source_id == MediaSource.id)
         .where(Article.cluster_id.in_(cluster_ids))
@@ -78,7 +81,26 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
     thesis_rows = (await db.execute(thesis_stmt)).all()
     theses_by_cluster: dict[UUID, list[ThesisPreviewItem]] = defaultdict(list)
     thesis_dedup: dict[UUID, set[str]] = defaultdict(set)
-    for cid, thesis, _pub, _col, media_name, article_type in thesis_rows:
+
+    def _clean_author(val: object) -> str | None:
+        if val is None:
+            return None
+        s = str(val).strip()
+        if not s or s.lower() in ("non spécifié", "non specifie", "-", "n/a"):
+            return None
+        return s[:300] or None
+
+    for (
+        cid,
+        thesis,
+        _pub,
+        _col,
+        media_name,
+        article_type,
+        author_raw,
+        media_country,
+        source_language,
+    ) in thesis_rows:
         if cid is None or not thesis or not str(thesis).strip():
             continue
         cur = theses_by_cluster[cid]
@@ -89,12 +111,18 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         if key in thesis_dedup[cid]:
             continue
         thesis_dedup[cid].add(key)
+        lang = (str(source_language).strip().lower()[:12] if source_language else None)
+        lang = lang or None
         cur.append(
             ThesisPreviewItem(
                 thesis=t,
                 media_name=(str(media_name).strip() if media_name else None) or None,
                 article_type=(str(article_type).strip() if article_type else None)
                 or None,
+                author=_clean_author(author_raw),
+                country=(str(media_country).strip() if media_country else None)
+                or None,
+                source_language=lang,
             )
         )
 

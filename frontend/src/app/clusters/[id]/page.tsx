@@ -46,6 +46,21 @@ export default function ClusterDetailPage() {
     });
   }, [data]);
 
+  const ledeThesis = useMemo(() => {
+    const t = matrixRows.map((r) => r.thesis).find((x) => x && x.trim());
+    return t?.trim() ?? null;
+  }, [matrixRows]);
+
+  const ledeSummaryExcerpt = useMemo(() => {
+    if (!data) return null;
+    for (const country of data.countries) {
+      const arts = data.articles_by_country[country] ?? [];
+      const s = arts[0]?.summary_fr?.trim();
+      if (s) return s;
+    }
+    return null;
+  }, [data]);
+
   return (
     <div className="space-y-8 pb-24">
       <header>
@@ -63,6 +78,28 @@ export default function ClusterDetailPage() {
             ? `${data.total_articles} articles · ${data.countries.length} pays`
             : ""}
         </p>
+        {!loading && ledeThesis ? (
+          <div className="mt-6 border-l-2 border-accent/30 pl-4">
+            <p className="font-[family-name:var(--font-serif)] text-[1.15rem] font-semibold leading-snug text-foreground sm:text-[1.25rem]">
+              {ledeThesis}
+            </p>
+            {ledeSummaryExcerpt ? (
+              <p
+                className="mt-3 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
+                title={ledeSummaryExcerpt}
+              >
+                {ledeSummaryExcerpt}
+              </p>
+            ) : null}
+          </div>
+        ) : !loading && ledeSummaryExcerpt ? (
+          <p
+            className="mt-6 max-w-3xl border-l-2 border-accent/30 pl-4 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
+            title={ledeSummaryExcerpt}
+          >
+            {ledeSummaryExcerpt}
+          </p>
+        ) : null}
       </header>
 
       {error && (

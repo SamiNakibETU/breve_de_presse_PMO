@@ -138,6 +138,9 @@ export interface ThesisPreviewItem {
   thesis: string;
   media_name?: string | null;
   article_type?: string | null;
+  author?: string | null;
+  country?: string | null;
+  source_language?: string | null;
 }
 
 export interface TopicCluster {

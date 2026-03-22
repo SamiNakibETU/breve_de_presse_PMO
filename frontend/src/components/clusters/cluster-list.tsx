@@ -33,15 +33,15 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
   return (
     <div className="space-y-5">
       <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
-        Chaque bloc regroupe des articles proches sémantiquement. Tri par{" "}
-        <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>{" "}
-        (ordre décroissant). Le{" "}
-        <strong className="font-medium text-foreground-subtle">chapeau</strong> résume la
-        première voix ; une <strong className="font-medium text-foreground-subtle">citation</strong>{" "}
-        peut provenir d’une seconde source. La page du sujet détaille la matrice pays et les textes.
+        Chaque carte regroupe des articles proches sémantiquement (deux colonnes pour plus de clarté).
+        Tri par{" "}
+        <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>. Rubriques :{" "}
+        <strong className="font-medium text-foreground-subtle">chapeau</strong> (1re voix + source),{" "}
+        <strong className="font-medium text-foreground-subtle">autre regard</strong> si une 2e thèse
+        diffère, puis couverture pays. La page du sujet détaille la matrice et les textes.
       </p>
 
-      <ul className="grid list-none grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid list-none grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         {clusters.map((cluster) => (
           <li key={cluster.id} className="min-w-0">
             <ClusterCard cluster={cluster} />

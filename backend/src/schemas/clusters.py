@@ -12,6 +12,9 @@ class ThesisPreviewItem(BaseModel):
     thesis: str
     media_name: str | None = None
     article_type: str | None = None
+    author: str | None = None
+    country: str | None = None
+    source_language: str | None = None
 
 
 class ClusterResponse(BaseModel):
