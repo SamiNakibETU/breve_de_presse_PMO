@@ -16,20 +16,20 @@ export default function RegieSourcesPage() {
       <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold">
         Santé des sources
       </h1>
-      <p className="text-[13px] text-[#666]">
+      <p className="text-[13px] text-foreground-body">
         Fenêtre {healthQ.data?.window_hours ?? 72} h. Diagnostic technique — hors
         chemin critique de composition.
       </p>
       {healthQ.isPending && (
-        <p className="text-[13px] text-[#888]">Chargement…</p>
+        <p className="text-[13px] text-muted-foreground">Chargement…</p>
       )}
       {healthQ.error && (
-        <p className="text-[13px] text-[#c8102e]">{healthQ.error.message}</p>
+        <p className="text-[13px] text-destructive">{healthQ.error.message}</p>
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse text-left text-[13px]">
           <thead>
-            <tr className="border-b border-[#dddcda] text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
+            <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <th className="py-2 pr-3">Source</th>
               <th className="py-2 pr-3">Pays</th>
               <th className="py-2 pr-3">72 h</th>
@@ -38,11 +38,11 @@ export default function RegieSourcesPage() {
           </thead>
           <tbody>
             {rows.map((s) => (
-              <tr key={s.id} className="border-b border-[#eeede9]">
+              <tr key={s.id} className="border-b border-border-light">
                 <td className="py-2 pr-3">{s.name}</td>
-                <td className="py-2 pr-3 text-[#666]">{s.country_code}</td>
+                <td className="py-2 pr-3 text-foreground-body">{s.country_code}</td>
                 <td className="py-2 pr-3 tabular-nums">{s.articles_72h}</td>
-                <td className="py-2 text-[#555]">{s.health_status}</td>
+                <td className="py-2 text-foreground-body">{s.health_status}</td>
               </tr>
             ))}
           </tbody>

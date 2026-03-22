@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Sommaire" },
-  { href: "/dashboard", label: "Pipeline" },
+  { href: "/dashboard", label: "Sujets du jour" },
   { href: "/articles", label: "Articles" },
   { href: "/review", label: "Revue de presse" },
   { href: "/regie", label: "Régie" },
@@ -37,9 +37,9 @@ export function Masthead() {
   const queryClient = useQueryClient();
 
   return (
-    <header className="bg-background">
-      <div className="mx-auto max-w-5xl px-5">
-        <div className="flex items-center justify-between border-b border-border py-4">
+    <header className="border-b border-border-light bg-background">
+      <div className="mx-auto max-w-5xl px-5 sm:px-6">
+        <div className="flex items-center justify-between py-5">
           <Link
             href="/"
             prefetch
@@ -54,12 +54,15 @@ export function Masthead() {
               className="h-[28px] w-auto"
             />
           </Link>
-          <span className="text-[11px] font-medium text-muted-foreground">
+          <span className="max-w-[11rem] text-right text-[11px] leading-snug tracking-wide text-muted-foreground sm:max-w-none">
             Revue de presse régionale
           </span>
         </div>
 
-        <nav className="flex gap-6 py-2.5">
+        <nav
+          className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border-light py-3"
+          aria-label="Navigation principale"
+        >
           {NAV_ITEMS.map(({ href, label }) => {
             const active =
               href === "/"
@@ -81,10 +84,10 @@ export function Masthead() {
                   }
                 }}
                 className={cn(
-                  "text-[13px] transition-colors",
+                  "border-b border-transparent pb-0.5 text-[13px] transition-colors",
                   active
-                    ? "font-semibold text-[#1a1a1a]"
-                    : "text-[#888] hover:text-[#1a1a1a]"
+                    ? "border-foreground font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {label}
@@ -93,7 +96,6 @@ export function Masthead() {
           })}
         </nav>
       </div>
-      <div className="h-px bg-border" />
     </header>
   );
 }

@@ -78,7 +78,7 @@ export default function ComposePage() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          className="border border-[#1a1a1a] bg-[#1a1a1a] px-4 py-2 text-[13px] text-white hover:bg-[#333] disabled:opacity-50"
+          className="border border-foreground bg-foreground px-4 py-2 text-[13px] text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           disabled={!editionId || genAllMutation.isPending || topics.length === 0}
           onClick={() => genAllMutation.mutate()}
         >

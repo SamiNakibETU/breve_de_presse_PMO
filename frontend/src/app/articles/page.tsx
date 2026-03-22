@@ -9,6 +9,7 @@ import { ArticleFilters, type Filters } from "@/components/articles/article-filt
 import { ArticleList } from "@/components/articles/article-list";
 import { saveReviewArticleIds } from "@/lib/review-selection-storage";
 import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 40;
 
@@ -162,7 +163,7 @@ export default function ArticlesPage() {
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           Articles
         </h1>
-        <p className="mt-0.5 text-[13px] text-[#888]">
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
           {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
           {articles.length !== 1 ? "s" : ""}
           {sortBy === "relevance"
@@ -175,37 +176,41 @@ export default function ArticlesPage() {
       </header>
 
       {error && (
-        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">
+        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
           {error instanceof Error ? error.message : "Erreur de chargement"}
         </p>
       )}
 
-      <div className="flex items-center justify-between border-b border-[#dddcda] pb-2">
-        <nav className="flex gap-4">
+      <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-end sm:justify-between">
+        <nav className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Filtre statut">
           {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
             <button
               key={key}
+              type="button"
               onClick={() => setStatusFilter(key)}
-              className={`text-[13px] transition-colors ${
+              className={cn(
+                "border-b-2 pb-0.5 text-[13px] transition-colors",
                 statusFilter === key
-                  ? "font-semibold text-[#1a1a1a]"
-                  : "text-[#888] hover:text-[#1a1a1a]"
-              }`}
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
             >
               {label}
             </button>
           ))}
         </nav>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Tri">
           {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
             <button
               key={key}
+              type="button"
               onClick={() => setSortBy(key)}
-              className={`text-[12px] transition-colors ${
+              className={cn(
+                "border-b-2 pb-0.5 text-[12px] transition-colors",
                 sortBy === key
-                  ? "font-semibold text-[#1a1a1a]"
-                  : "text-[#888] hover:text-[#1a1a1a]"
-              }`}
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
             >
               {label}
             </button>
@@ -232,7 +237,7 @@ export default function ArticlesPage() {
             type="button"
             onClick={() => void fetchNextPage()}
             disabled={isFetchingNextPage}
-            className="border border-[#dddcda] bg-white px-5 py-2 text-[13px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5] disabled:opacity-50"
+            className="border border-border bg-card px-5 py-2 text-[13px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
           >
             {isFetchingNextPage ? "Chargement…" : "Charger plus d’articles"}
           </button>
@@ -240,20 +245,20 @@ export default function ArticlesPage() {
       )}
 
       {selectionReady && selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#dddcda] bg-white/97 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="font-[family-name:var(--font-serif)] text-[20px] font-semibold tabular-nums">
+              <span className="font-[family-name:var(--font-serif)] text-[20px] font-semibold tabular-nums text-foreground">
                 {selected.size}
               </span>
-              <span className="text-[13px] text-[#888]">
+              <span className="text-[13px] text-muted-foreground">
                 article{selected.size > 1 ? "s" : ""} sélectionné
                 {selected.size > 1 ? "s" : ""}
               </span>
               <button
                 type="button"
                 onClick={() => clearSelection()}
-                className="text-[11px] text-[#888] underline hover:text-[#1a1a1a]"
+                className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
               >
                 Effacer
               </button>
@@ -264,7 +269,7 @@ export default function ArticlesPage() {
                   type="button"
                   disabled={batchBusy}
                   onClick={() => void runBatch(api.batchMarkReviewed)}
-                  className="border border-[#1a1a1a] bg-white px-3 py-2 text-[12px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5] disabled:opacity-40"
+                  className="border border-foreground bg-card px-3 py-2 text-[12px] font-medium text-foreground hover:bg-muted disabled:opacity-40"
                 >
                   Marquer relus (translated)
                 </button>
@@ -275,7 +280,7 @@ export default function ArticlesPage() {
                     type="button"
                     disabled={batchBusy}
                     onClick={() => void runBatch(api.batchRetryTranslation)}
-                    className="border border-[#1a1a1a] bg-white px-3 py-2 text-[12px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5] disabled:opacity-40"
+                    className="border border-foreground bg-card px-3 py-2 text-[12px] font-medium text-foreground hover:bg-muted disabled:opacity-40"
                   >
                     Réessayer traduction
                   </button>
@@ -283,7 +288,7 @@ export default function ArticlesPage() {
                     type="button"
                     disabled={batchBusy}
                     onClick={() => void runBatch(api.batchAbandonTranslation)}
-                    className="border border-[#dddcda] px-3 py-2 text-[12px] text-[#666] hover:bg-[#fafaf8] disabled:opacity-40"
+                    className="border border-border px-3 py-2 text-[12px] text-foreground-body hover:bg-muted disabled:opacity-40"
                   >
                     Abandonner
                   </button>
@@ -293,7 +298,7 @@ export default function ArticlesPage() {
                 type="button"
                 onClick={goToReview}
                 disabled={selected.size < 1 || selected.size > 10}
-                className="bg-[#c8102e] px-5 py-2 text-[13px] font-semibold text-white hover:bg-[#a50d25] disabled:opacity-40"
+                className="bg-accent px-5 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90 disabled:opacity-40"
               >
                 Générer la revue ({selected.size})
               </button>

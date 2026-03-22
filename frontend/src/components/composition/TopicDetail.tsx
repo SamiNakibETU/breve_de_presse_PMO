@@ -145,7 +145,7 @@ export function TopicDetail({
           </p>
         )}
         {genMutation.isSuccess && genMutation.data?.status === "ok" && (
-          <p className="mt-2 text-[12px] text-[#059669]">
+          <p className="mt-2 text-[12px] text-success">
             Bloc généré. Retrouvez-le sous Composition ou ci-dessous.
           </p>
         )}

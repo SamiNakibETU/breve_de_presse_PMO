@@ -39,14 +39,14 @@ export default function ReviewPage() {
     enabled: articleIds.length > 0,
   });
 
-  const articles: Article[] = articlesData?.articles ?? [];
-
   const articlesOrdered = useMemo(() => {
-    const m = new Map(articles.map((a) => [a.id, a]));
+    const list = articlesData?.articles;
+    if (!list?.length) return [];
+    const m = new Map(list.map((a) => [a.id, a]));
     return articleIds
       .map((id) => m.get(id))
       .filter((x): x is Article => Boolean(x));
-  }, [articleIds, articles]);
+  }, [articleIds, articlesData?.articles]);
 
   useEffect(() => {
     if (!generating) {
@@ -116,14 +116,14 @@ export default function ReviewPage() {
           <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
             Revue de presse
           </h1>
-          <p className="mt-0.5 text-[13px] text-[#888]">
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
             Texte prêt à copier-coller dans le CMS
           </p>
         </div>
         {history.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="border border-[#dddcda] bg-white px-3 py-1.5 text-[12px] font-medium text-[#1a1a1a] hover:bg-[#f7f7f5]"
+            className="border border-border bg-card px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted"
           >
             Historique ({history.length})
           </button>
@@ -131,7 +131,7 @@ export default function ReviewPage() {
       </header>
 
       {showHistory && (
-        <section className="border border-[#dddcda]">
+        <section className="border border-border">
           {history.map((r) => (
             <button
               key={r.id}
@@ -139,10 +139,10 @@ export default function ReviewPage() {
                 setReviewText(r.full_text);
                 setShowHistory(false);
               }}
-              className="flex w-full items-baseline justify-between border-b border-[#eeede9] px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f5]"
+              className="flex w-full items-baseline justify-between border-b border-border-light px-3 py-2 text-left text-[13px] hover:bg-muted"
             >
               <span className="font-medium">{r.title || r.review_date}</span>
-              <span className="tabular-nums text-[11px] text-[#888]">
+              <span className="tabular-nums text-[11px] text-muted-foreground">
                 {r.article_count}
                 {r.created_by ? ` · ${r.created_by}` : ""}
               </span>
@@ -152,7 +152,7 @@ export default function ReviewPage() {
       )}
 
       <section>
-        <h2 className="mb-2 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
+        <h2 className="olj-rubric olj-rule">
           Sélection —{" "}
           {articlesLoading && articleIds.length > 0
             ? "…"
@@ -171,19 +171,19 @@ export default function ReviewPage() {
             type="button"
             onClick={() => void generate()}
             disabled={generating}
-            className="bg-[#c8102e] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#a50d25] disabled:opacity-40"
+            className="bg-accent px-6 py-2.5 text-[13px] font-semibold text-accent-foreground hover:opacity-90 disabled:opacity-40"
           >
             {generating ? "Génération en cours…" : "Générer la revue →"}
           </button>
           {generating && (
             <div className="max-w-md space-y-1">
-              <div className="h-1 w-full overflow-hidden bg-[#eeede9]">
+              <div className="h-1 w-full overflow-hidden bg-border-light">
                 <div
-                  className="h-full bg-[#1a1a1a] transition-[width] duration-300"
+                  className="h-full bg-foreground transition-[width] duration-300"
                   style={{ width: `${genProgress}%` }}
                 />
               </div>
-              <p className="text-[11px] text-[#888]">
+              <p className="text-[11px] text-muted-foreground">
                 Estimation indicative ~{Math.max(1, articleIds.length)} × 15 s (LLM)
               </p>
             </div>
@@ -192,16 +192,14 @@ export default function ReviewPage() {
       )}
 
       {error && (
-        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">
+        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
           {error}
         </p>
       )}
 
       {reviewText && (
         <section>
-          <h2 className="mb-3 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
-            Texte généré
-          </h2>
+          <h2 className="olj-rubric olj-rule">Texte généré</h2>
           <ReviewPreview text={reviewText} />
         </section>
       )}

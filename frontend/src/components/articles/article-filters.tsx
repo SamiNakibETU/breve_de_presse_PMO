@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 const COUNTRIES: Record<string, string> = {
   LB: "Liban",
   IL: "Israël",
@@ -48,36 +50,37 @@ interface ArticleFiltersProps {
   countsByCountry?: Record<string, number> | null;
 }
 
+function toggle(list: string[], item: string): string[] {
+  return list.includes(item) ? list.filter((i) => i !== item) : [...list, item];
+}
+
 export function ArticleFilters({
   filters,
   onChange,
   countsByCountry,
 }: ArticleFiltersProps) {
-  function toggle(list: string[], item: string): string[] {
-    return list.includes(item) ? list.filter((i) => i !== item) : [...list, item];
-  }
-
   return (
-    <div className="space-y-3 border-b border-[#eeede9] pb-4">
+    <div className="space-y-4 border-b border-border-light pb-4">
       <div>
-        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888]">
-          Pays
-        </p>
-        <div className="flex flex-wrap gap-1">
+        <p className="olj-rubric mb-2">Pays</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
           {Object.entries(COUNTRIES).map(([code, name]) => {
             const c = countsByCountry?.[code];
             const label = c != null ? `${name} (${c})` : name;
+            const on = filters.countries.includes(code);
             return (
               <button
                 key={code}
+                type="button"
                 onClick={() =>
                   onChange({ ...filters, countries: toggle(filters.countries, code) })
                 }
-                className={`px-2 py-0.5 text-[11px] transition-colors ${
-                  filters.countries.includes(code)
-                    ? "bg-[#1a1a1a] text-white"
-                    : "bg-[#f7f7f5] text-[#888] hover:bg-[#eeede9] hover:text-[#1a1a1a]"
-                }`}
+                className={cn(
+                  "border-b-2 pb-0.5 text-[11px] transition-colors",
+                  on
+                    ? "border-foreground font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
               >
                 {label}
               </button>
@@ -87,41 +90,44 @@ export function ArticleFilters({
       </div>
 
       <div>
-        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888]">
-          Type
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(ARTICLE_TYPES).map(([type, label]) => (
-            <button
-              key={type}
-              onClick={() =>
-                onChange({ ...filters, types: toggle(filters.types, type) })
-              }
-              className={`px-2 py-0.5 text-[11px] transition-colors ${
-                filters.types.includes(type)
-                  ? "bg-[#1a1a1a] text-white"
-                  : "bg-[#f7f7f5] text-[#888] hover:bg-[#eeede9] hover:text-[#1a1a1a]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <p className="olj-rubric mb-2">Type</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {Object.entries(ARTICLE_TYPES).map(([type, label]) => {
+            const on = filters.types.includes(type);
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() =>
+                  onChange({ ...filters, types: toggle(filters.types, type) })
+                }
+                className={cn(
+                  "border-b-2 pb-0.5 text-[11px] transition-colors",
+                  on
+                    ? "border-foreground font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 border-t border-[#eeede9] pt-3">
-        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[#666]">
+      <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border-light pt-4">
+        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
           <input
             type="checkbox"
             checked={filters.includeLowQuality}
             onChange={(e) =>
               onChange({ ...filters, includeLowQuality: e.target.checked })
             }
-            className="border-[#ccc]"
+            className="border-border text-foreground accent-foreground"
           />
           Inclure basse qualité (&lt; 50 % confiance)
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[#666]">
+        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
           <input
             type="checkbox"
             checked={filters.hideSyndicated}
@@ -133,11 +139,11 @@ export function ArticleFilters({
                 groupSyndicated: v ? filters.groupSyndicated : false,
               });
             }}
-            className="border-[#ccc]"
+            className="border-border accent-foreground"
           />
           Masquer reprises / syndiqués
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[#666]">
+        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
           <input
             type="checkbox"
             checked={filters.groupSyndicated}
@@ -149,13 +155,13 @@ export function ArticleFilters({
                 hideSyndicated: v ? true : filters.hideSyndicated,
               });
             }}
-            className="border-[#ccc]"
+            className="border-border accent-foreground"
           />
           Vue groupée (+N reprises sur l’article source)
         </label>
       </div>
       {filters.hideSyndicated && (
-        <p className="text-[10px] leading-snug text-[#aaa]">
+        <p className="text-[10px] leading-snug text-muted-foreground">
           Par défaut, les reprises d’agence ne sont pas listées. Décochez « Masquer
           reprises » pour tout afficher.
         </p>

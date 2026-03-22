@@ -40,21 +40,21 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
         });
       }}
     >
-      <article className="-mx-4 border-b border-[#e5e5e5] px-4 py-6 transition-colors hover:bg-[#fafafa]">
-        <h2 className="mb-2 font-[family-name:var(--font-serif)] text-xl">
+      <article className="-mx-4 border-b border-border-light px-4 py-6 transition-colors hover:bg-muted/40">
+        <h2 className="mb-2 font-[family-name:var(--font-serif)] text-xl text-foreground">
           {cluster.is_emerging && (
-            <span className="mr-2 text-[11px] font-sans font-normal text-[#c8102e]">
+            <span className="mr-2 text-[11px] font-sans font-normal text-accent">
               Nouveau sujet
             </span>
           )}
           {cluster.label || "Cluster sans label"}
         </h2>
-        <p className="mb-3 text-sm text-[#666]">
+        <p className="mb-3 text-sm text-foreground-body">
           {cluster.article_count} articles · {cluster.country_count} pays
           {cluster.avg_relevance > 0 && ` · pertinence ${Math.round(cluster.avg_relevance * 100)}%`}
         </p>
         {cluster.thesis_previews && cluster.thesis_previews.length > 0 && (
-          <ul className="mb-3 space-y-1 border-l border-[#eeede9] pl-3">
+          <ul className="mb-3 space-y-1 border-l border-border-light pl-3">
             {cluster.thesis_previews.slice(0, 3).map((raw, i) => {
               const item =
                 typeof raw === "string"
@@ -65,11 +65,11 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
               return (
                 <li
                   key={i}
-                  className="font-[family-name:var(--font-serif)] text-[13px] leading-snug text-[#444]"
+                  className="font-[family-name:var(--font-serif)] text-[13px] leading-snug text-foreground-subtle"
                 >
                   <span className="italic">« {th} »</span>
                   {meta ? (
-                    <span className="mt-0.5 block font-sans text-[11px] font-normal not-italic text-[#888]">
+                    <span className="mt-0.5 block font-sans text-[11px] font-normal not-italic text-muted-foreground">
                       {meta}
                     </span>
                   ) : null}
@@ -78,9 +78,9 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
             })}
           </ul>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
           {cluster.countries.map((country) => (
-            <span key={country} className="text-sm">
+            <span key={country}>
               {COUNTRY_FLAGS[country] ?? ""} {country}
             </span>
           ))}

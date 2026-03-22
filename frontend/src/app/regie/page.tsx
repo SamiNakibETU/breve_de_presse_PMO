@@ -8,8 +8,8 @@ const sections: { href: string; title: string; blurb: string }[] = [
   },
   {
     href: "/dashboard",
-    title: "Pipeline & clusters",
-    blurb: "Chronologie technique et vue articles (existant).",
+    title: "Sujets du jour",
+    blurb: "Pipeline, clusters et inventaire — vue technique.",
   },
   {
     href: "/regie/pipeline",
@@ -42,27 +42,24 @@ export default function RegieHubPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold">
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
           Régie technique
         </h1>
-        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[#666]">
-          Espace séparé du chemin critique (Composition). Les vues détaillées
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-foreground-body">
+          Espace séparé du chemin critique (composition). Les vues détaillées
           s’appuient progressivement sur les rapports JSON du pipeline (spec §10).
         </p>
       </div>
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="divide-y divide-border-light border-y border-border">
         {sections.map((s) => (
-          <li
-            key={s.href}
-            className="border border-[#eeede9] bg-[#fafaf8] px-4 py-3"
-          >
+          <li key={s.href} className="py-4 first:pt-0 last:pb-0">
             <Link
               href={s.href}
-              className="font-medium text-[#1a1a1a] underline-offset-4 hover:underline"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
             >
               {s.title}
             </Link>
-            <p className="mt-1 text-[12px] text-[#666]">{s.blurb}</p>
+            <p className="mt-1 max-w-xl text-[12px] text-muted-foreground">{s.blurb}</p>
           </li>
         ))}
       </ul>

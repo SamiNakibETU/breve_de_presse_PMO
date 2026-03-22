@@ -12,15 +12,15 @@ interface ClusterListProps {
 export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps) {
   if (loading) {
     return (
-      <div className="py-12 text-center text-[#999]">
+      <div className="py-12 text-center text-muted-foreground">
         <p className="text-sm">Chargement…</p>
       </div>
     );
   }
   if (clusters.length === 0) {
     return (
-      <div className="py-12 text-center text-[#999]">
-        <p className="font-[family-name:var(--font-serif)] text-lg">
+      <div className="py-12 text-center text-muted-foreground">
+        <p className="font-[family-name:var(--font-serif)] text-lg text-foreground">
           Aucun cluster thématique détecté
         </p>
         <p className="mt-2 text-sm">
@@ -36,7 +36,7 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
         <ClusterCard key={cluster.id} cluster={cluster} />
       ))}
       {noiseCount > 0 && (
-        <div className="py-4 text-sm text-[#999]">
+        <div className="border-t border-border-light py-4 text-sm text-muted-foreground">
           + {noiseCount} articles non classés
         </div>
       )}

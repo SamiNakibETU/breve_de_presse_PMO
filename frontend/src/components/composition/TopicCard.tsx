@@ -14,7 +14,7 @@ export function TopicCard({
         href={`/edition/${date}/topic/${topic.id}`}
         className="group block"
       >
-        <span className="font-[family-name:var(--font-serif)] text-[17px] leading-snug text-[#1a1a1a] group-hover:underline">
+        <span className="font-[family-name:var(--font-serif)] text-[17px] leading-snug text-foreground group-hover:underline">
           {topic.title_final ?? topic.title_proposed}
         </span>
         {topic.dominant_angle && (

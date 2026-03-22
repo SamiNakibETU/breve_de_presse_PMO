@@ -31,7 +31,7 @@ export function ArticleRow({
           <span className="font-medium text-foreground">
             {article.title_fr || article.title_original}
           </span>
-          <span className="ml-2 text-[13px] text-[#888]">
+          <span className="ml-2 text-[13px] text-muted-foreground">
             {article.media_name}
             {article.is_syndicated ? " · syndiqué" : ""}
           </span>

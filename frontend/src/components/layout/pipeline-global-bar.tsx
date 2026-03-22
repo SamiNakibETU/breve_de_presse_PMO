@@ -15,8 +15,8 @@ export function PipelineGlobalBar() {
   const onHome = pathname === "/";
 
   return (
-    <div className="border-b border-accent/25 bg-accent-tint">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 text-[12px] text-foreground">
+    <div className="border-b border-border-light bg-accent-tint/80">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 text-[12px] text-foreground sm:px-6">
         <span className="font-semibold text-accent">Pipeline en cours</span>
         <span className="text-foreground-subtle">{running.label}</span>
         {running.stepLabel ? (
@@ -32,7 +32,7 @@ export function PipelineGlobalBar() {
             href="/"
             className="ml-auto shrink-0 underline decoration-border underline-offset-2 hover:text-accent"
           >
-            Voir le tableau
+            Voir sujets du jour
           </Link>
         ) : null}
       </div>

@@ -20,7 +20,7 @@ export function EditionSummary({
   }
   if (topics.length === 0) {
     return (
-      <p className="text-[13px] text-[#666]">
+      <p className="text-[13px] text-foreground-body">
         Aucun sujet pour cette édition pour le moment.
       </p>
     );

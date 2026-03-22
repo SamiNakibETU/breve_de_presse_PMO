@@ -34,21 +34,21 @@ export function PipelineStatus({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-x-1 gap-y-2">
         {ACTIONS.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => startRun(key, label)}
             disabled={running !== null}
-            className="border border-[#dddcda] bg-white px-4 py-1.5 text-[12px] font-medium text-[#1a1a1a] transition-colors hover:bg-[#f7f7f5] disabled:opacity-40"
+            className="border border-border bg-card px-4 py-1.5 text-[12px] font-medium text-foreground shadow-none transition-colors hover:bg-muted disabled:opacity-40"
           >
             {running?.key === key ? "En cours…" : label}
           </button>
         ))}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-[#888]">
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
         <strong>Collecte</strong> : RSS + scrapers → articles « collectés ».{" "}
         <strong>Traduction</strong> : LLM → titres/résumés FR + type.{" "}
         <strong>Refresh clusters</strong> : embeddings Cohere + regroupement + libellés.{" "}
@@ -59,17 +59,17 @@ export function PipelineStatus({
       </p>
 
       {diagnostics.length > 0 && (
-        <details className="rounded border border-[#eeede9] bg-[#fafaf8] p-3 text-[11px] text-[#555]">
-          <summary className="cursor-pointer font-medium text-[#444]">
+        <details className="border border-border-light bg-muted/50 p-3 text-[11px] text-foreground-body">
+          <summary className="cursor-pointer font-medium text-foreground-subtle">
             Journal technique ({diagnostics.length} lignes)
           </summary>
-          <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed text-[#333]">
+          <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed text-foreground">
             {diagnostics.join("\n")}
           </pre>
           <button
             type="button"
             onClick={() => clearDiagnostics()}
-            className="mt-2 text-[10px] text-[#888] underline underline-offset-2 hover:text-[#1a1a1a]"
+            className="mt-2 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
             Effacer le journal
           </button>
@@ -77,8 +77,8 @@ export function PipelineStatus({
       )}
 
       {status?.jobs && status.jobs.length > 0 && (
-        <div className="space-y-1 border-t border-[#eeede9] pt-3 text-[12px] text-[#888]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
+        <div className="space-y-1 border-t border-border-light pt-3 text-[12px] text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Tâches planifiées (UTC)
           </p>
           {status.jobs.map((job) => (
@@ -91,8 +91,8 @@ export function PipelineStatus({
       )}
 
       {sourceHealth && sourceHealth.sources.length > 0 && (
-        <div className="border-t border-[#eeede9] pt-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
+        <div className="border-t border-border-light pt-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Sources · fenêtre {sourceHealth.window_hours} h (collecte) · trad. 24 h
           </p>
           {(() => {
@@ -112,12 +112,12 @@ export function PipelineStatus({
             return (
               <>
                 {alertOnes.length === 0 && !showAllSources && (
-                  <p className="mb-2 text-[11px] text-[#888]">
+                  <p className="mb-2 text-[11px] text-muted-foreground">
                     Aucune source en alerte (dégradée / morte). Aperçu des six
                     premières.
                   </p>
                 )}
-                <div className="max-h-52 overflow-y-auto border border-[#eeede9] text-[11px]">
+                <div className="max-h-52 overflow-y-auto border border-border-light bg-card text-[11px]">
                   {rows.map((s) => {
                     const err = s.translation_24h_errors_persisted;
                     const okP = s.translation_24h_ok_persisted;
@@ -130,18 +130,18 @@ export function PipelineStatus({
                     return (
                       <div
                         key={s.id}
-                        className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-[#f5f4f1] px-2 py-1.5"
+                        className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border-light px-2 py-1.5 last:border-b-0"
                       >
-                        <span className="min-w-0 truncate text-[#1a1a1a]">
+                        <span className="min-w-0 truncate text-foreground">
                           {s.name}
                         </span>
-                        <span className="shrink-0 text-right text-[#888]">
+                        <span className="shrink-0 text-right text-muted-foreground">
                           <span
                             className={
                               s.health_status === "dead"
-                                ? "text-[#c8102e]"
+                                ? "text-destructive"
                                 : s.health_status === "degraded"
-                                  ? "text-[#a67c00]"
+                                  ? "text-warning"
                                   : ""
                             }
                           >
@@ -158,7 +158,7 @@ export function PipelineStatus({
                   <button
                     type="button"
                     onClick={() => setShowAllSources(!showAllSources)}
-                    className="mt-2 text-[11px] text-[#888] underline decoration-[#ddd] underline-offset-2 hover:text-[#1a1a1a]"
+                    className="mt-2 text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
                   >
                     {showAllSources
                       ? "Replier"

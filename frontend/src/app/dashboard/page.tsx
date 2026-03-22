@@ -67,21 +67,19 @@ export default function DashboardPage() {
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           Sujets du jour
         </h1>
-        <p className="mt-1 text-[13px] capitalize text-[#888]">
+        <p className="mt-1 text-[13px] capitalize text-muted-foreground">
           {dateStr} · {subjectCount} sujet{subjectCount !== 1 ? "s" : ""}
         </p>
       </header>
 
       {error && (
-        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">
+        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
           {error}
         </p>
       )}
 
       <section>
-        <h2 className="mb-3 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
-          Pipeline
-        </h2>
+        <h2 className="olj-rubric olj-rule">Pipeline</h2>
         <PipelineStatus
           status={status}
           sourceHealth={healthQ.data ?? null}
@@ -89,6 +87,7 @@ export default function DashboardPage() {
       </section>
 
       <section>
+        <h2 className="olj-rubric olj-rule">Sujets détectés</h2>
         <ClusterList
           clusters={clusters?.clusters ?? []}
           noiseCount={clusters?.noise_count ?? 0}
@@ -102,15 +101,13 @@ export default function DashboardPage() {
         <div className="grid gap-8 sm:grid-cols-2">
           {Object.keys(stats.by_country).length > 0 && (
             <section>
-              <h2 className="mb-2 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
-                Par pays
-              </h2>
+              <h2 className="olj-rubric olj-rule">Par pays</h2>
               {Object.entries(stats.by_country)
                 .sort(([, a], [, b]) => b - a)
                 .map(([country, count]) => (
                   <div
                     key={country}
-                    className="flex items-baseline justify-between border-b border-[#eeede9] py-1.5 text-[13px]"
+                    className="flex items-baseline justify-between border-b border-border-light py-1.5 text-[13px] last:border-b-0"
                   >
                     <span>{country}</span>
                     <span className="tabular-nums font-medium">{count}</span>
@@ -121,15 +118,13 @@ export default function DashboardPage() {
 
           {Object.keys(stats.by_language).length > 0 && (
             <section>
-              <h2 className="mb-2 border-b border-[#dddcda] pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888]">
-                Par langue
-              </h2>
+              <h2 className="olj-rubric olj-rule">Par langue</h2>
               {Object.entries(stats.by_language)
                 .sort(([, a], [, b]) => b - a)
                 .map(([lang, count]) => (
                   <div
                     key={lang}
-                    className="flex items-baseline justify-between border-b border-[#eeede9] py-1.5 text-[13px]"
+                    className="flex items-baseline justify-between border-b border-border-light py-1.5 text-[13px] last:border-b-0"
                   >
                     <span>{LANG_LABELS[lang] || lang.toUpperCase()}</span>
                     <span className="tabular-nums font-medium">{count}</span>

@@ -18,14 +18,14 @@ export function SelectedArticles({
 
   if (articles.length === 0) {
     return (
-      <p className="border-t border-[#dddcda] py-10 text-center text-[13px] text-[#888]">
+      <p className="border-t border-border py-10 text-center text-[13px] text-muted-foreground">
         Aucun article sélectionné.
       </p>
     );
   }
 
   return (
-    <ol className="border-t border-[#dddcda]">
+    <ol className="border-t border-border">
       {articles.map((a, idx) => (
         <li
           key={a.id}
@@ -40,32 +40,32 @@ export function SelectedArticles({
             }
             setDragIdx(null);
           }}
-          className={`flex items-baseline gap-3 border-b border-[#eeede9] py-2 ${
+          className={`flex items-baseline gap-3 border-b border-border-light py-2 ${
             dragIdx === idx ? "opacity-50" : ""
           }`}
         >
           {onReorder && (
             <span
-              className="w-5 flex-shrink-0 cursor-grab text-[12px] text-[#ccc] active:cursor-grabbing"
+              className="w-5 flex-shrink-0 cursor-grab text-[12px] text-muted-foreground/50 active:cursor-grabbing"
               title="Glisser pour réordonner"
               aria-hidden
             >
               ⋮⋮
             </span>
           )}
-          <span className="w-4 flex-shrink-0 text-right tabular-nums text-[12px] font-semibold text-[#888]">
+          <span className="w-4 flex-shrink-0 text-right tabular-nums text-[12px] font-semibold text-muted-foreground">
             {idx + 1}
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium">{a.title_fr || a.title_original}</p>
-            <p className="text-[11px] text-[#888]">
+            <p className="text-[11px] text-muted-foreground">
               {a.media_name} · {a.country}
             </p>
           </div>
           <button
             type="button"
             onClick={() => onRemove(a.id)}
-            className="text-[11px] text-[#888] hover:text-[#c8102e]"
+            className="text-[11px] text-muted-foreground hover:text-accent"
             aria-label="Retirer"
           >
             ✕

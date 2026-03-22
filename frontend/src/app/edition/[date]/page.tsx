@@ -70,7 +70,7 @@ export default function EditionSommairePage() {
       </header>
 
       {err && (
-        <p className="border-l-2 border-[#c8102e] pl-3 text-[13px] text-[#c8102e]">
+        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
           {err}
         </p>
       )}
@@ -84,7 +84,7 @@ export default function EditionSommairePage() {
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Sujets détectés (secours)
           </h2>
-          <p className="text-[13px] text-[#555]">
+          <p className="text-[13px] text-foreground-body">
             Navigation provisoire à partir des clusters étiquetés. Le sommaire
             éditorial pourra être relancé depuis la régie.
           </p>
@@ -105,7 +105,7 @@ export default function EditionSommairePage() {
 
       <nav className="border-t border-border pt-4 text-[13px] text-muted-foreground">
         <Link href="/dashboard" className="underline-offset-4 hover:underline">
-          Vue pipeline (clusters)
+          Sujets du jour (pipeline)
         </Link>
         {" · "}
         <Link href="/regie" className="underline-offset-4 hover:underline">

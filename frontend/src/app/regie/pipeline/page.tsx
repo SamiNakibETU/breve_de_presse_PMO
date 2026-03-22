@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function RegiePipelinePage() {
   return (
-    <div className="space-y-3 text-[13px] leading-relaxed text-[#555]">
-      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-[#1a1a1a]">
+    <div className="space-y-3 text-[13px] leading-relaxed text-foreground-body">
+      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
         Pipeline (régie)
       </h1>
       <p>
