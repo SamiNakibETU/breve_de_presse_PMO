@@ -31,15 +31,29 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
   }
 
   return (
-    <div>
-      {clusters.map((cluster) => (
-        <ClusterCard key={cluster.id} cluster={cluster} />
-      ))}
-      {noiseCount > 0 && (
-        <div className="border-t border-border-light py-4 text-sm text-muted-foreground">
-          + {noiseCount} articles non classés
+    <div className="space-y-5">
+      <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
+        Chaque bloc regroupe des articles proches sémantiquement. Tri par{" "}
+        <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>{" "}
+        (ordre décroissant). Le{" "}
+        <strong className="font-medium text-foreground-subtle">chapeau</strong> résume la
+        première voix ; une <strong className="font-medium text-foreground-subtle">citation</strong>{" "}
+        peut provenir d’une seconde source. La page du sujet détaille la matrice pays et les textes.
+      </p>
+
+      <ul className="grid list-none grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {clusters.map((cluster) => (
+          <li key={cluster.id} className="min-w-0">
+            <ClusterCard cluster={cluster} />
+          </li>
+        ))}
+      </ul>
+
+      {noiseCount > 0 ? (
+        <div className="border-t border-border-light pt-4 text-sm text-muted-foreground">
+          + {noiseCount} articles non classés dans ces sujets
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

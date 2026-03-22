@@ -3,19 +3,52 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { TopicCluster } from "@/lib/types";
+import type { ThesisPreviewItem, TopicCluster } from "@/lib/types";
+import { ClusterCountryStrip } from "./cluster-country-strip";
 
-const PREVIEW_VOICES = 2;
-const MAX_COUNTRIES_INLINE = 5;
+const MAX_DECK = 168;
+const MAX_COUNTRIES_TEXT = 4;
 
-function formatCountriesLine(countries: string[]): string {
-  if (countries.length === 0) return "";
-  if (countries.length <= MAX_COUNTRIES_INLINE) {
-    return countries.join(" · ");
+function normalizePreview(
+  raw: string | ThesisPreviewItem,
+): { thesis: string; media_name: string | null; article_type: string | null } {
+  if (typeof raw === "string") {
+    return { thesis: raw, media_name: null, article_type: null };
   }
-  const head = countries.slice(0, MAX_COUNTRIES_INLINE);
-  const rest = countries.length - MAX_COUNTRIES_INLINE;
-  return `${head.join(" · ")} · +${rest}`;
+  return {
+    thesis: raw.thesis,
+    media_name: raw.media_name ?? null,
+    article_type: raw.article_type ?? null,
+  };
+}
+
+function deckFromThesis(text: string): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (t.length <= MAX_DECK) return t;
+  return `${t.slice(0, MAX_DECK).trim()}…`;
+}
+
+function formatFreshness(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return null;
+  }
+}
+
+function countriesShortLine(countries: string[]): string {
+  if (countries.length === 0) return "";
+  const head = countries.slice(0, MAX_COUNTRIES_TEXT);
+  const rest = countries.length - head.length;
+  return rest > 0 ? `${head.join(" · ")} · +${rest}` : head.join(" · ");
 }
 
 export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
@@ -23,15 +56,28 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
   const href = `/clusters/${cluster.id}`;
 
   const rawPreviews = cluster.thesis_previews ?? [];
-  const voiceRows = rawPreviews.slice(0, PREVIEW_VOICES);
-  const extraVoices = Math.max(0, rawPreviews.length - PREVIEW_VOICES);
-  const countriesLine = formatCountriesLine(cluster.countries);
+  const first = rawPreviews[0] ? normalizePreview(rawPreviews[0]) : null;
+  const second = rawPreviews[1] ? normalizePreview(rawPreviews[1]) : null;
+
+  const deck = first ? deckFromThesis(first.thesis) : null;
+  const pullQuote =
+    second && second.thesis.trim().length > 0
+      ? second.thesis.length > 120
+        ? `${second.thesis.slice(0, 120).trim()}…`
+        : second.thesis
+      : null;
+  const pullMeta = second
+    ? [second.media_name, second.article_type].filter(Boolean).join(" · ")
+    : "";
+
+  const freshness = formatFreshness(cluster.latest_article_at);
+  const countriesText = countriesShortLine(cluster.countries);
 
   return (
     <Link
       href={href}
       prefetch
-      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onMouseEnter={() => {
         void queryClient.prefetchQuery({
           queryKey: ["clusterArticles", cluster.id],
@@ -39,19 +85,31 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
         });
       }}
     >
-      <article className="border-b border-border-light py-5 transition-colors first:pt-0 hover:bg-muted/30 sm:py-6">
+      <article className="flex h-full flex-col border border-border-light bg-card/40 p-4 transition-colors hover:bg-muted/35 sm:p-5">
         {cluster.is_emerging ? (
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
             Nouveau sujet
           </p>
         ) : null}
 
-        <h2 className="font-[family-name:var(--font-serif)] text-[1.125rem] font-semibold leading-snug text-foreground sm:text-xl">
+        <h2 className="font-[family-name:var(--font-serif)] text-[1.05rem] font-semibold leading-snug text-foreground sm:text-[1.15rem]">
           {cluster.label || "Sans libellé"}
         </h2>
 
-        {/* Métriques = faits de calibrage, une seule ligne, chiffres tabulaires */}
-        <p className="mt-2 text-[11px] tabular-nums tracking-wide text-muted-foreground">
+        {deck ? (
+          <p
+            className="mt-3 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
+            title={first?.thesis}
+          >
+            {deck}
+          </p>
+        ) : (
+          <p className="mt-3 text-[12px] italic text-muted-foreground">
+            Aperçu textuel indisponible — ouvrez le sujet pour les articles.
+          </p>
+        )}
+
+        <p className="mt-3 text-[11px] tabular-nums tracking-wide text-muted-foreground">
           <span>{cluster.article_count} articles</span>
           <span className="mx-1.5 text-border" aria-hidden>
             ·
@@ -65,66 +123,36 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
               <span>pertinence {Math.round(cluster.avg_relevance * 100)} %</span>
             </>
           ) : null}
+          {freshness ? (
+            <>
+              <span className="mx-1.5 text-border" aria-hidden>
+                ·
+              </span>
+              <span className="whitespace-nowrap">fraîcheur {freshness}</span>
+            </>
+          ) : null}
         </p>
 
-        {voiceRows.length > 0 ? (
-          <div className="mt-4 border-l border-border pl-3">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Aperçu des voix
+        {pullQuote ? (
+          <div className="mt-4 border-l-2 border-accent/25 pl-3">
+            <p className="font-[family-name:var(--font-serif)] text-[12px] italic leading-snug text-foreground-subtle">
+              «&nbsp;{pullQuote}&nbsp;»
             </p>
-            <ul className="space-y-3">
-              {voiceRows.map((raw, i) => {
-                const item =
-                  typeof raw === "string"
-                    ? {
-                        thesis: raw,
-                        media_name: null as string | null,
-                        article_type: null as string | null,
-                      }
-                    : raw;
-                const th =
-                  item.thesis.length > 140
-                    ? `${item.thesis.slice(0, 140)}…`
-                    : item.thesis;
-                const meta = [item.media_name, item.article_type]
-                  .filter(Boolean)
-                  .join(" · ");
-                return (
-                  <li key={i} className="text-[13px] leading-snug">
-                    <p className="font-[family-name:var(--font-serif)] italic text-foreground-subtle">
-                      «&nbsp;{th}&nbsp;»
-                    </p>
-                    {meta ? (
-                      <p className="mt-1 font-sans text-[11px] font-normal not-italic text-muted-foreground">
-                        {meta}
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-            {extraVoices > 0 ? (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                +{extraVoices} autre{extraVoices > 1 ? "s" : ""} voix sur la page du sujet
-              </p>
+            {pullMeta ? (
+              <p className="mt-1 text-[10px] text-muted-foreground">{pullMeta}</p>
             ) : null}
           </div>
         ) : null}
 
-        {countriesLine ? (
-          <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
-            <span className="font-semibold uppercase tracking-[0.06em] text-muted-foreground/90">
-              Pays
-            </span>
-            <span className="mx-2 text-border" aria-hidden>
-              ·
-            </span>
-            <span>{countriesLine}</span>
-          </p>
-        ) : null}
+        <div className="mt-4 space-y-2 border-t border-border-light pt-3">
+          <ClusterCountryStrip countries={cluster.countries} maxDots={10} />
+          {countriesText ? (
+            <p className="text-[11px] leading-snug text-muted-foreground">{countriesText}</p>
+          ) : null}
+        </div>
 
-        <p className="mt-3 text-[11px] text-muted-foreground underline decoration-border underline-offset-[3px] group-hover:text-foreground">
-          Ouvrir le sujet
+        <p className="mt-auto pt-4 text-[11px] font-medium text-foreground underline decoration-border underline-offset-[3px] group-hover:decoration-foreground">
+          Ouvrir le sujet →
         </p>
       </article>
     </Link>
