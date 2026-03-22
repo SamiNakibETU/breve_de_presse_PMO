@@ -106,6 +106,32 @@ async def ensure_edition_for_publish_date(
     return ed
 
 
+async def find_edition_for_calendar_date(
+    db: AsyncSession,
+    calendar_date: date,
+) -> Optional[Edition]:
+    """Résout une édition pour une date calendaire (ex. URL ``/by-date/YYYY-MM-DD``).
+
+    1) Ligne avec ``publish_date`` égal au jour demandé (jours ouvrés de parution).
+    2) Sinon, édition dont la fenêtre contient le **midi** (Asia/Beirut) de ce jour
+    (week-ends et cas sans ligne ``publish_date`` dédiée).
+    """
+    res = await db.execute(
+        select(Edition).where(Edition.publish_date == calendar_date).limit(1)
+    )
+    row = res.scalar_one_or_none()
+    if row:
+        return row
+    noon_local = datetime.combine(calendar_date, time(12, 0), tzinfo=BEIRUT)
+    ts_utc = noon_local.astimezone(timezone.utc)
+    res2 = await db.execute(
+        select(Edition)
+        .where(Edition.window_start <= ts_utc, ts_utc < Edition.window_end)
+        .limit(1)
+    )
+    return res2.scalar_one_or_none()
+
+
 async def bootstrap_editions_for_two_weeks() -> None:
     """Crée les éditions des ~2 prochaines semaines (jours ouvrés) si absentes — pour rattachement collecte."""
     from datetime import timedelta

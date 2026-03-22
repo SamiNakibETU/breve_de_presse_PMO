@@ -1,6 +1,9 @@
 """API MEMW v2 — Éditions."""
 
+import json
+import time
 from datetime import date
+from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
 
@@ -20,8 +23,33 @@ from src.services.edition_review_generator import (
     generate_all_edition_topics,
     generate_edition_topic_review,
 )
+from src.services.edition_schedule import find_edition_for_calendar_date
 
 router = APIRouter(prefix="/api/editions", tags=["editions"])
+
+
+# #region agent log
+def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
+    try:
+        p = Path(__file__).resolve().parents[3] / "debug-8e42d9.log"
+        line = json.dumps(
+            {
+                "sessionId": "8e42d9",
+                "hypothesisId": hypothesis_id,
+                "location": location,
+                "message": message,
+                "data": data,
+                "timestamp": int(time.time() * 1000),
+            },
+            ensure_ascii=False,
+        )
+        with p.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
+
+
+# #endregion
 
 
 class EditionOut(BaseModel):
@@ -115,8 +143,26 @@ async def get_edition_by_date(
     publish_date: date,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    res = await db.execute(select(Edition).where(Edition.publish_date == publish_date))
-    e = res.scalar_one_or_none()
+    # #region agent log
+    _agent_debug_log(
+        "H1",
+        "editions.py:get_edition_by_date",
+        "incoming calendar date",
+        {"publish_date": str(publish_date), "weekday": publish_date.weekday()},
+    )
+    # #endregion
+    e = await find_edition_for_calendar_date(db, publish_date)
+    # #region agent log
+    _agent_debug_log(
+        "H2",
+        "editions.py:get_edition_by_date",
+        "after find_edition_for_calendar_date",
+        {
+            "found": e is not None,
+            "resolved_publish_date": str(e.publish_date) if e else None,
+        },
+    )
+    # #endregion
     if not e:
         raise HTTPException(status_code=404, detail="Edition not found for this date")
     return _edition_to_out(e)
