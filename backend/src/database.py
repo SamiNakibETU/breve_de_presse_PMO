@@ -94,6 +94,10 @@ async def init_db() -> None:
                 "ALTER TABLE articles ADD COLUMN IF NOT EXISTS "
                 "en_translation_summary_only BOOLEAN NOT NULL DEFAULT false"
             ),
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS edition_id UUID",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS relevance_score DOUBLE PRECISION",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS syndication_group_size INTEGER",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS syndication_group_sources JSON",
         ]:
             try:
                 await conn.execute(text(stmt))

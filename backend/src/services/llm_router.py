@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
+from typing import Any
 
 import anthropic
 import structlog
@@ -430,6 +431,8 @@ class LLMRouter:
         system: str,
         prompt: str,
         max_tokens: int = 1200,
+        *,
+        temperature: float | None = None,
     ) -> str:
         """Génération revue : option stricte Sonnet uniquement (MEMW §2.4.3)."""
         s = get_settings()
@@ -444,7 +447,55 @@ class LLMRouter:
             prompt,
             max_tokens,
             json_object_mode=False,
+            temperature=temperature,
         )
+
+    async def generate_anthropic_tool_json(
+        self,
+        system: str,
+        user: str,
+        json_schema: dict[str, Any],
+        *,
+        tool_name: str = "memw_structured_output",
+        max_tokens: int = 4096,
+        temperature: float = 0.2,
+    ) -> dict[str, Any]:
+        """
+        Structured Outputs via outil unique (schéma JSON) — MEMW v2 p5b.
+        Retourne le dict `input` de l’appel d’outil.
+        """
+        s = get_settings()
+        if not self._has(Provider.ANTHROPIC):
+            raise RuntimeError("Anthropic requis pour la sortie structurée MEMW v2.")
+        client = self._clients[Provider.ANTHROPIC]
+        schema = dict(json_schema)
+        if schema.get("type") != "object":
+            schema = {"type": "object", "properties": schema, "required": []}
+
+        logger.info(
+            "llm.anthropic_tool_json",
+            model=s.anthropic_generation_model,
+            tool=tool_name,
+        )
+        response = await client.messages.create(
+            model=s.anthropic_generation_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            tools=[
+                {
+                    "name": tool_name,
+                    "description": "Réponse structurée conforme au schéma MEMW.",
+                    "input_schema": schema,
+                }
+            ],
+            tool_choice={"type": "tool", "name": tool_name},
+        )
+        for block in response.content:
+            if block.type == "tool_use" and block.name == tool_name:
+                return dict(block.input)
+        raise RuntimeError("structured_output_tool_missing")
 
     async def generate_groq_only(
         self,
@@ -474,6 +525,7 @@ class LLMRouter:
         max_tokens: int,
         *,
         json_object_mode: bool = False,
+        temperature: float | None = None,
     ) -> str:
         client = self._clients[provider]
 
@@ -499,12 +551,15 @@ class LLMRouter:
                         "cache_control": {"type": "ephemeral"},
                     },
                 ]
-            response = await client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                system=sys_param,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            kwargs_msg: dict[str, Any] = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "system": sys_param,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if temperature is not None:
+                kwargs_msg["temperature"] = temperature
+            response = await client.messages.create(**kwargs_msg)
             text = response.content[0].text
         else:
             kwargs: dict = {

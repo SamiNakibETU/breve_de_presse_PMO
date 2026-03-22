@@ -56,11 +56,28 @@ async def daily_pipeline(
     )
     step_timings["translation_s"] = round(time.monotonic() - t1, 2)
 
-    pipeline_result = {
+    pipeline_result: dict = {
         "collection": collection_stats,
         "translation": translation_stats,
         "step_timings": step_timings,
     }
+
+    try:
+        from src.services.dedup_surface import run_surface_dedup
+        from src.services.edition_schedule import resolve_edition_id_for_timestamp
+
+        factory = get_session_factory()
+        async with factory() as db:
+            eid = await resolve_edition_id_for_timestamp(
+                db, datetime.now(timezone.utc)
+            )
+            dedup_stats = await run_surface_dedup(db, edition_id=eid)
+            await db.commit()
+        pipeline_result["dedup_surface"] = dedup_stats
+        pipeline_result["edition_id"] = str(eid) if eid else None
+    except Exception as e:
+        logger.warning("pipeline.dedup_surface_failed", error=str(e)[:200])
+        pipeline_result["dedup_surface"] = {"error": str(e)[:200]}
     try:
         from src.services.source_health_metrics import refresh_translation_metrics_24h
 
@@ -91,6 +108,9 @@ async def daily_pipeline(
             from src.services.clustering_service import ClusteringService
             from src.services.embedding_service import EmbeddingService
 
+            from src.services.edition_schedule import resolve_edition_id_for_timestamp
+            from src.services.semantic_dedupe import run_semantic_dedup
+
             factory = get_session_factory()
             async with factory() as db:
                 t_emb = time.monotonic()
@@ -115,10 +135,20 @@ async def daily_pipeline(
                 }
                 step_timings["syndication_s"] = round(time.monotonic() - t_sy, 2)
 
+                eid = await resolve_edition_id_for_timestamp(
+                    db, datetime.now(timezone.utc)
+                )
+                t_sem = time.monotonic()
+                sem_dedup = await run_semantic_dedup(db, edition_id=eid)
+                pipeline_result["dedup_semantic"] = sem_dedup
+                step_timings["dedup_semantic_s"] = round(time.monotonic() - t_sem, 2)
+
                 t_cl = time.monotonic()
                 p("clustering", "Regroupement thématique (HDBSCAN)…")
                 clustering_service = ClusteringService()
-                clustering_result = await clustering_service.run_clustering(db)
+                clustering_result = await clustering_service.run_clustering(
+                    db, edition_id=eid
+                )
                 pipeline_result["clustering"] = clustering_result
                 step_timings["clustering_s"] = round(time.monotonic() - t_cl, 2)
                 logger.info("pipeline.clustering_done", **clustering_result)
@@ -177,9 +207,23 @@ def create_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
+    try:
+        from src.services.edition_schedule import ensure_next_day_edition_job
+
+        scheduler.add_job(
+            ensure_next_day_edition_job,
+            trigger=CronTrigger(hour=0, minute=0, timezone="Asia/Beirut"),
+            id="edition_daily_create_beirut",
+            name="Create next-day edition (00:00 Asia/Beirut)",
+            replace_existing=True,
+        )
+    except Exception as exc:
+        logger.warning("scheduler.edition_job_failed", error=str(exc)[:200])
+
     logger.info(
         "scheduler.configured",
         morning=f"{settings.collection_hour_utc}:00 UTC",
         afternoon="14:00 UTC",
+        edition_cron="00:00 Asia/Beirut",
     )
     return scheduler

@@ -1,0 +1,104 @@
+id: prompt_curator_v2
+version: "2.0"
+system_prompt: |
+  Tu es le rédacteur en chef de la revue de presse régionale de L'Orient-Le Jour.
+  Tu produis un sommaire éditorial JSON pour l'édition du jour à partir des clusters fournis.
+  Respecte strictement le schéma JSON : topics[] (nombre entre target_topics_min et target_topics_max),
+  chaque sujet avec title, importance_rank, source_clusters, recommended_articles
+  [{article_id, justification}], country_coverage, dominant_angle, counter_angle, editorial_note (nullable).
+  meta : total_articles_considered, total_articles_recommended, clusters_merged, coverage_gaps[], edition_summary.
+  Chaque article_id doit exister dans l'entrée (clusters ou bruit) et n'apparaître qu'une fois au total.
+  2 à 6 articles recommandés par sujet ; au plus 40 articles au total (MEMW §5.4).
+  Les articles du pseudo-cluster "noise" (Divers / Non classés) peuvent être rattachés à un sujet ;
+  dans ce cas inclure "noise" dans source_clusters.
+user_template: |
+  <edition>
+  publish_date={{publish_date}}
+  window_start={{window_start}}
+  window_end={{window_end}}
+  target_topics_min={{target_topics_min}}
+  target_topics_max={{target_topics_max}}
+  </edition>
+
+  <clusters_json>
+  {{clusters_json}}
+  </clusters_json>
+
+  <noise_articles_json>
+  {{noise_articles_json}}
+  </noise_articles_json>
+
+  Réponds uniquement via l'outil structuré (JSON conforme au schéma).
+json_schema:
+  type: object
+  properties:
+    topics:
+      type: array
+      items:
+        type: object
+        properties:
+          title:
+            type: string
+          importance_rank:
+            type: integer
+          source_clusters:
+            type: array
+            items:
+              type: string
+          recommended_articles:
+            type: array
+            items:
+              type: object
+              properties:
+                article_id:
+                  type: string
+                justification:
+                  type: string
+              required:
+                - article_id
+                - justification
+          country_coverage:
+            type: object
+            additionalProperties:
+              type: integer
+          dominant_angle:
+            type: string
+          counter_angle:
+            type: string
+          editorial_note:
+            type: string
+        required:
+          - title
+          - importance_rank
+          - source_clusters
+          - recommended_articles
+          - country_coverage
+          - dominant_angle
+          - counter_angle
+    meta:
+      type: object
+      properties:
+        total_articles_considered:
+          type: integer
+        total_articles_recommended:
+          type: integer
+        clusters_merged:
+          type: integer
+        coverage_gaps:
+          type: array
+          items:
+            type: string
+        edition_summary:
+          type: string
+        articles_from_noise_rescued:
+          type: integer
+          description: Nombre d'articles issus du cluster bruit rattachés à un sujet (0 si aucun).
+      required:
+        - total_articles_considered
+        - total_articles_recommended
+        - clusters_merged
+        - coverage_gaps
+        - edition_summary
+  required:
+    - topics
+    - meta

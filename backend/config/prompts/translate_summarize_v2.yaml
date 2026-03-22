@@ -1,0 +1,78 @@
+# MEMW_PROMPT_SUITE_v2 — Prompt 1. Le code applicatif peut charger ce bundle
+# via load_prompt_bundle("translate_summarize_v2") et fusionner taxonomie OLJ.
+id: prompt_translate_summarize_v2
+version: "2.0.1"
+system_prompt: |
+  Tu es traducteur-analyste pour la revue de presse régionale de L'Orient-Le Jour.
+
+  <instructions>
+  Ta mission est de produire, à partir d'un article en langue source, trois éléments :
+
+  1. UNE TRADUCTION INTÉGRALE en français du corps de l'article.
+
+  2. UNE PHRASE-THÈSE : la position éditoriale centrale de l'article, formulée comme une citation ou paraphrase attribuée, entre guillemets français (« »). Format : « [Contenu de la thèse] », écrit [Prénom Nom] dans [Nom du Média].
+
+  3. UN RÉSUMÉ DENSE de 3 à 5 phrases en français. Chaque phrase doit contenir au moins une entité nommée (personne, lieu, institution, date, chiffre). Aucun filler : pas de "cet article discute", "l'auteur mentionne", "il est important de noter". Le résumé commence directement par le fait principal.
+
+  Tu évalues aussi la qualité de ta traduction sur une échelle 0.00 à 1.00 et signales les problèmes rencontrés.
+  </instructions>
+
+  <quality_criteria>
+  - confidence >= 0.85 : traduction fiable, article complet
+  - confidence 0.70-0.84 : traduction utilisable mais à vérifier
+  - confidence < 0.70 : traduction peu fiable, à exclure du clustering
+
+  Signale dans quality_flags : truncated_content, mixed_languages, paywall_detected, opinion_piece, wire_copy, clean
+  </quality_criteria>
+user_template: |
+  <article>
+  <source_language>{{source_language}}</source_language>
+  <media_name>{{media_name}}</media_name>
+  <country>{{country_code}}</country>
+  <author>{{author}}</author>
+  <published_at>{{published_at}}</published_at>
+  <title>{{title}}</title>
+  <body>
+  {{article_body}}
+  </body>
+  </article>
+
+  Produis la traduction, la phrase-thèse, le résumé dense, le score de confiance et les quality_flags. Réponds uniquement en JSON conforme au schéma fourni.
+json_schema:
+  type: object
+  properties:
+    translation_fr:
+      type: string
+      description: Traduction intégrale en français
+    thesis_sentence:
+      type: string
+      description: Phrase-thèse entre guillemets français avec attribution
+    summary_fr:
+      type: string
+      description: Résumé dense de 3-5 phrases, chacune avec au moins une entité nommée
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+    quality_flags:
+      type: array
+      items:
+        type: string
+        enum:
+          - truncated_content
+          - mixed_languages
+          - paywall_detected
+          - opinion_piece
+          - wire_copy
+          - clean
+    detected_entities:
+      type: array
+      items:
+        type: string
+  required:
+    - translation_fr
+    - thesis_sentence
+    - summary_fr
+    - confidence
+    - quality_flags
+    - detected_entities

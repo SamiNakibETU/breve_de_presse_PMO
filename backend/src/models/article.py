@@ -21,6 +21,7 @@ from src.models.base import Base
 
 if TYPE_CHECKING:
     from src.models.cluster import TopicCluster
+    from src.models.edition import Edition
     from src.models.editorial_event import EditorialEvent
     from src.models.entity import ArticleEntity
     from src.models.media_source import MediaSource
@@ -99,6 +100,16 @@ class Article(Base):
         ForeignKey("articles.id", ondelete="SET NULL"),
         nullable=True,
     )
+    edition_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("editions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    relevance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    syndication_group_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    syndication_group_sources: Mapped[Optional[list[str]]] = mapped_column(
+        JSON, nullable=True
+    )
 
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="raw"
@@ -124,6 +135,9 @@ class Article(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    edition: Mapped[Optional["Edition"]] = relationship(
+        "Edition", foreign_keys=[edition_id]
+    )
     media_source: Mapped["MediaSource"] = relationship(back_populates="articles")
     cluster: Mapped[Optional["TopicCluster"]] = relationship(
         "TopicCluster", back_populates="articles"

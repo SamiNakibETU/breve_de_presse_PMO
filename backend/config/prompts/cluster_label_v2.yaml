@@ -1,0 +1,21 @@
+id: prompt_cluster_label_v2
+version: "2.0"
+system_prompt: |
+  Tu rédiges des libellés pour une revue de presse Moyen-Orient (L'Orient-Le Jour).
+  Réponds uniquement par un objet JSON respectant le schéma fourni. Labels factuels, 5–10 mots.
+user_template: |
+  Extraits d'articles (titres + résumés FR) :
+
+  {{blocks}}
+
+  Produis label, dominant_country (code ISO alpha-2), one_line_summary.
+json_schema:
+  type: object
+  properties:
+    label:
+      type: string
+    dominant_country:
+      type: string
+    one_line_summary:
+      type: string
+  required: [label, dominant_country, one_line_summary]

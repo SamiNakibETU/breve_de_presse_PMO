@@ -1,0 +1,53 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+
+export default function RegieSourcesPage() {
+  const healthQ = useQuery({
+    queryKey: ["mediaSourcesHealth"] as const,
+    queryFn: () => api.mediaSourcesHealth(),
+  });
+
+  const rows = healthQ.data?.sources ?? [];
+
+  return (
+    <div className="space-y-4">
+      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold">
+        Santé des sources
+      </h1>
+      <p className="text-[13px] text-[#666]">
+        Fenêtre {healthQ.data?.window_hours ?? 72} h. Diagnostic technique — hors
+        chemin critique de composition.
+      </p>
+      {healthQ.isPending && (
+        <p className="text-[13px] text-[#888]">Chargement…</p>
+      )}
+      {healthQ.error && (
+        <p className="text-[13px] text-[#c8102e]">{healthQ.error.message}</p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-left text-[13px]">
+          <thead>
+            <tr className="border-b border-[#dddcda] text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
+              <th className="py-2 pr-3">Source</th>
+              <th className="py-2 pr-3">Pays</th>
+              <th className="py-2 pr-3">72 h</th>
+              <th className="py-2">État</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((s) => (
+              <tr key={s.id} className="border-b border-[#eeede9]">
+                <td className="py-2 pr-3">{s.name}</td>
+                <td className="py-2 pr-3 text-[#666]">{s.country_code}</td>
+                <td className="py-2 pr-3 tabular-nums">{s.articles_72h}</td>
+                <td className="py-2 text-[#555]">{s.health_status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

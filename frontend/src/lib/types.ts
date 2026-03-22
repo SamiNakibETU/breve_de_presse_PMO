@@ -63,6 +63,8 @@ export interface MediaSourceHealthRow {
   id: string;
   name: string;
   country_code: string;
+  tier?: number;
+  tier_band?: string;
   articles_72h: number;
   last_collected_at: string | null;
   health_status: string;
@@ -79,6 +81,7 @@ export interface MediaSourceHealthRow {
 export interface MediaSourcesHealthResponse {
   sources: MediaSourceHealthRow[];
   window_hours: number;
+  critical_p0_sources_down?: number;
 }
 
 export interface Stats {
@@ -212,4 +215,74 @@ export interface PipelineTaskStatus {
   error: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** MEMW v2 — édition */
+export interface Edition {
+  id: string;
+  publish_date: string;
+  window_start: string;
+  window_end: string;
+  timezone: string;
+  target_topics_min: number;
+  target_topics_max: number;
+  status: string;
+  curator_run_id: string | null;
+  pipeline_trace_id: string | null;
+  generated_text: string | null;
+}
+
+export interface EditionTopic {
+  id: string;
+  rank: number;
+  title_proposed: string;
+  title_final: string | null;
+  status: string;
+  dominant_angle: string | null;
+  counter_angle: string | null;
+  editorial_note: string | null;
+  country_coverage: Record<string, number> | null;
+  generated_text: string | null;
+}
+
+export interface TopicArticleRef {
+  article_id: string;
+  is_selected: boolean;
+  is_recommended: boolean;
+  rank_in_topic: number | null;
+}
+
+export interface EditionTopicDetailResponse {
+  topic: EditionTopic;
+  article_ids: string[];
+  article_refs: TopicArticleRef[];
+}
+
+export interface GenerateTopicResponse {
+  status: string;
+  edition_topic_id?: string;
+  generated_text?: string | null;
+  llm_call_log_id?: string;
+  article_count?: number;
+  detail?: string;
+}
+
+export interface GenerateAllResponse {
+  status: string;
+  topics_ok: number;
+  topics_failed: string[];
+  generated_text: string | null;
+}
+
+export interface ClusterFallbackArticle {
+  id: string;
+  title: string;
+  source: string;
+}
+
+export interface ClusterFallbackRow {
+  cluster_id: string;
+  label: string | null;
+  article_count: number;
+  articles: ClusterFallbackArticle[];
 }

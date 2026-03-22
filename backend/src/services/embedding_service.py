@@ -59,6 +59,8 @@ class EmbeddingService:
             .where(Article.status == "translated")
             .where(Article.summary_fr.isnot(None))
             .where(Article.embedding.is_(None))
+            .where(Article.is_syndicated.is_(False))
+            .where(Article.canonical_article_id.is_(None))
             .limit(500)
         )
         if settings.embed_only_editorial_types:

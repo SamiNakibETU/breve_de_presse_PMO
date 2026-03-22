@@ -92,8 +92,18 @@ class Settings(BaseSettings):
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)
 
-    hdbscan_min_cluster_size: int = Field(default=6)
-    hdbscan_min_samples: int = Field(default=5)
+    hdbscan_min_cluster_size: int = Field(
+        default=3,
+        ge=2,
+        le=200,
+        description="MEMW v2 §4.2 : corpus post-dédup ~80–150 articles",
+    )
+    hdbscan_min_samples: int = Field(
+        default=2,
+        ge=1,
+        le=50,
+        description="MEMW v2 §4.2 (min_samples=2)",
+    )
     hdbscan_cluster_method: str = Field(default="leaf")
     # Fenêtre temporelle et périmètre pour le clustering (revue éditoriale)
     clustering_window_hours: int = Field(
@@ -113,11 +123,16 @@ class Settings(BaseSettings):
     )
     clustering_use_umap: bool = Field(
         default=True,
-        description="UMAP 5D avant HDBSCAN (recommandé MEMW)",
+        description="UMAP avant HDBSCAN (MEMW v2 : 15 dimensions)",
     )
     umap_n_neighbors: int = Field(default=15, ge=2, le=200)
-    umap_n_components: int = Field(default=5, ge=2, le=50)
-    umap_min_dist: float = Field(default=0.0, ge=0.0, le=0.99)
+    umap_n_components: int = Field(default=15, ge=2, le=50)
+    umap_min_dist: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=0.99,
+        description="MEMW v2 §4.2 (min_dist=0.1)",
+    )
     clustering_soft_assign_min_cosine: float = Field(
         default=0.65,
         ge=0.3,
@@ -224,6 +239,18 @@ class Settings(BaseSettings):
         ge=2,
         le=20,
         description="Nombre minimum de pays distincts pour marquer un cluster émergent",
+    )
+    cluster_merge_centroid_cosine: float = Field(
+        default=0.80,
+        ge=0.5,
+        le=0.99,
+        description="MEMW v2 §4 : fusionner deux clusters si similarité cosinus des centroïdes > seuil",
+    )
+    semantic_dedup_cosine: float = Field(
+        default=0.92,
+        ge=0.80,
+        le=0.99,
+        description="Passe 2 dédup : cosinus sur embeddings (résumé global article)",
     )
     body_simhash_max_hamming: int = Field(
         default=13,

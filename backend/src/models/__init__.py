@@ -1,5 +1,12 @@
 from src.models.base import Base
 from src.models.cluster import TopicCluster
+from src.models.edition import (
+    Edition,
+    EditionTopic,
+    EditionTopicArticle,
+    LLMCallLog,
+    PipelineDebugLog,
+)
 from src.models.media_source import MediaSource
 from src.models.article import Article
 from src.models.entity import Entity, ArticleEntity
@@ -13,6 +20,11 @@ from src.models.pipeline_job import PipelineJob
 __all__ = [
     "Base",
     "TopicCluster",
+    "Edition",
+    "EditionTopic",
+    "EditionTopicArticle",
+    "LLMCallLog",
+    "PipelineDebugLog",
     "MediaSource",
     "Article",
     "Entity",

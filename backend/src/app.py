@@ -19,7 +19,7 @@ from src.config import get_settings
 from src.limiter import limiter
 from src.middleware.correlation import CorrelationIdMiddleware
 from src.database import init_db
-from src.routers import articles, clusters, health, olj_watch, pipeline, reviews
+from src.routers import articles, clusters, editions, health, olj_watch, pipeline, reviews
 from src.services.scheduler import create_scheduler
 from src.otel_setup import instrument_fastapi_app
 
@@ -75,6 +75,14 @@ async def lifespan(app: FastAPI):
         log.info("app.media_sources_seeded")
     except Exception as exc:
         log.warning("app.seed_failed", error=str(exc)[:200])
+
+    try:
+        from src.services.edition_schedule import bootstrap_editions_for_two_weeks
+
+        await bootstrap_editions_for_two_weeks()
+        log.info("app.editions_bootstrapped")
+    except Exception as exc:
+        log.warning("app.editions_bootstrap_failed", error=str(exc)[:200])
 
     scheduler = create_scheduler()
     scheduler.start()
@@ -141,6 +149,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(health.router)
+    app.include_router(editions.router)
     app.include_router(articles.router)
     app.include_router(clusters.router)
     app.include_router(pipeline.router)

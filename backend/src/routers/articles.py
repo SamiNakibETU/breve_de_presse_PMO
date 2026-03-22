@@ -18,6 +18,7 @@ from src.schemas.articles import (
     ArticleResponse,
     MediaSourceResponse,
 )
+from src.media_tier_labels import tier_band
 from src.services.olj_taxonomy import load_topics_of_day
 from src.services.relevance import explain_editorial_relevance
 
@@ -347,6 +348,20 @@ async def batch_mark_reviewed(
     return {"status": "ok", "updated": res.rowcount}
 
 
+@router.post("/articles/{article_id}/relevance-score")
+async def post_article_relevance_score(
+    article_id: str, db: AsyncSession = Depends(get_db)
+):
+    """Calcule et persiste relevance_score (MEMW v2 Prompt 5)."""
+    try:
+        aid = uuid.UUID(article_id)
+    except ValueError:
+        raise HTTPException(404, "Article not found") from None
+    from src.services.relevance_scorer import score_article_relevance
+
+    return await score_article_relevance(db, aid)
+
+
 @router.get("/articles/{article_id}", response_model=ArticleResponse)
 async def get_article(article_id: str, db: AsyncSession = Depends(get_db)):
     try:
@@ -432,11 +447,14 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
             if isinstance(getattr(s, "health_metrics_json", None), dict)
             else {}
         )
+        tb = tier_band(int(s.tier) if s.tier is not None else None)
         out.append(
             {
                 "id": s.id,
                 "name": s.name,
                 "country_code": s.country_code,
+                "tier": int(s.tier) if s.tier is not None else 1,
+                "tier_band": tb,
                 "articles_72h": cnt,
                 "last_collected_at": (
                     s.last_collected_at.isoformat() if s.last_collected_at else None
@@ -480,7 +498,16 @@ async def media_sources_health(db: AsyncSession = Depends(get_db)):
                 ),
             }
         )
-    return {"sources": out, "window_hours": 72}
+    p0_dead = [
+        r
+        for r in out
+        if r.get("tier_band") == "P0" and r.get("health_status") == "dead"
+    ]
+    return {
+        "sources": out,
+        "window_hours": 72,
+        "critical_p0_sources_down": len(p0_dead),
+    }
 
 
 @router.get("/media-sources", response_model=list[MediaSourceResponse])

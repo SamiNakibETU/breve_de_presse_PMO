@@ -33,6 +33,10 @@ numpy>=1.26
 # Scheduling
 apscheduler==3.10.4
 
+# Deduplication (MEMW surface / MinHash)
+datasketch==1.6.5
+PyYAML==6.0.2
+
 # Utilities
 fpdf2==2.8.2
 slowapi==0.1.9

@@ -8,6 +8,7 @@ HDBSCAN clustering for thematic grouping of editorial articles.
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import hdbscan
 import numpy as np
@@ -134,6 +135,55 @@ def _soft_assign_noise(
     return out, soft
 
 
+def _merge_cluster_labels_by_centroid(
+    labels: list[int],
+    X_norm: np.ndarray,
+    threshold: float,
+) -> list[int]:
+    """Fusionne des groupes HDBSCAN si cosinus entre centroïdes normalisés ≥ seuil (MEMW v2 §4)."""
+    unique = sorted({lab for lab in labels if lab != -1})
+    if len(unique) < 2:
+        return labels
+
+    centroids: dict[int, np.ndarray] = {}
+    for L in unique:
+        idxs = [i for i, lab in enumerate(labels) if lab == L]
+        if len(idxs) < 1:
+            continue
+        centroids[L] = _centroid_normalized(X_norm, idxs)
+
+    parent: dict[int, int] = {L: L for L in unique}
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for i, L1 in enumerate(unique):
+        for L2 in unique[i + 1 :]:
+            if L1 not in centroids or L2 not in centroids:
+                continue
+            sim = float(np.dot(centroids[L1], centroids[L2]))
+            if sim >= threshold:
+                union(L1, L2)
+
+    roots = sorted({find(L) for L in unique})
+    remap = {root: j for j, root in enumerate(roots)}
+    out: list[int] = []
+    for lab in labels:
+        if lab == -1:
+            out.append(-1)
+        else:
+            out.append(remap[find(lab)])
+    return out
+
+
 def _umap_reduce(X_norm: np.ndarray, s) -> np.ndarray:
     import umap
 
@@ -213,6 +263,11 @@ class ClusteringService:
             X_norm,
             soft_thr,
         )
+        labels_list = _merge_cluster_labels_by_centroid(
+            labels_list,
+            X_norm,
+            float(self._settings.cluster_merge_centroid_cosine),
+        )
 
         labels_arr = np.array(labels_list)
         unique = {int(l) for l in labels_arr if l != -1}
@@ -284,7 +339,12 @@ class ClusteringService:
         best = max(float(np.dot(c_new, p)) for p in prev_centroids)
         return best < max_cos
 
-    async def run_clustering(self, db: AsyncSession) -> dict:
+    async def run_clustering(
+        self,
+        db: AsyncSession,
+        *,
+        edition_id: Optional[uuid.UUID] = None,
+    ) -> dict:
         s = self._settings
         cutoff = datetime.now(timezone.utc) - timedelta(hours=s.clustering_window_hours)
 
@@ -296,6 +356,9 @@ class ClusteringService:
             .where(Article.embedding.isnot(None))
             .where(Article.created_at >= cutoff)
         )
+        if edition_id is not None:
+            stmt = stmt.where(Article.edition_id == edition_id)
+        stmt = stmt.where(Article.is_syndicated.is_(False))
         if s.cluster_only_editorial_types:
             stmt = stmt.where(Article.article_type.in_(tuple(EDITORIAL_CLUSTER_TYPES)))
 
@@ -334,12 +397,33 @@ class ClusteringService:
         valid_embeddings = [embeddings[i] for i in valid_indices]
         labels, soft_flags = self.cluster_embeddings(valid_embeddings)
 
-        await db.execute(
-            update(Article)
-            .where(Article.cluster_id.isnot(None))
-            .values(cluster_id=None, cluster_soft_assigned=False)
-        )
-        await db.execute(update(TopicCluster).values(is_active=False))
+        if edition_id is not None:
+            prev_res = await db.execute(
+                select(Article.cluster_id).where(
+                    Article.edition_id == edition_id,
+                    Article.cluster_id.isnot(None),
+                )
+            )
+            old_cluster_ids = [row[0] for row in prev_res.all() if row[0] is not None]
+            if old_cluster_ids:
+                await db.execute(
+                    update(TopicCluster)
+                    .where(TopicCluster.id.in_(old_cluster_ids))
+                    .values(is_active=False)
+                )
+            await db.execute(
+                update(Article)
+                .where(Article.edition_id == edition_id)
+                .where(Article.cluster_id.isnot(None))
+                .values(cluster_id=None, cluster_soft_assigned=False)
+            )
+        else:
+            await db.execute(
+                update(Article)
+                .where(Article.cluster_id.isnot(None))
+                .values(cluster_id=None, cluster_soft_assigned=False)
+            )
+            await db.execute(update(TopicCluster).values(is_active=False))
 
         unique_labels = {l for l in labels if l != -1}
 

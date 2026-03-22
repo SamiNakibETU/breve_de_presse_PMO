@@ -10,22 +10,9 @@ from src.models.article import Article
 from src.models.cluster import TopicCluster
 from src.services.editorial_scope import is_out_of_scope_lifestyle
 from src.services.llm_router import get_llm_router
+from src.services.prompt_loader import load_prompt_bundle
 
 logger = structlog.get_logger()
-
-# Contexte revue de presse régionale : évite les labels « cuisine / voyage » hors-sujet.
-LABEL_PROMPT = """Tu rédiges des rubriques pour une **revue de presse Moyen-Orient** (géopolitique, sécurité, société, économie locale).
-
-Voici des extraits d'articles regroupés automatiquement (titres + débuts de résumé FR quand disponibles) :
-
-{blocks}
-
-Consignes :
-- Si le fil commun est clairement **la région MENA / ses voisinages directs** (Iran, Israël, Palestine, Liban, Syrie, Irak, Golfe, Turquie, Égypte, conflits, diplomatie, énergie, crises humanitaires) : un label **court et précis** (6 à 14 mots), factuel, en français, **sans verbe conjugué** (style manchette).
-- Si le groupe mélange surtout des **hors-sujets** (lifestyle, sport pur, cuisine, voyages sans angle régional, tech générique sans lien Moyen-Orient) avec peu ou pas de lien avec cette mission : réponds **exactement** : `Hétérogène — revue de presse à resynchroniser`
-- Si le thème est **trop vague** (« conflit au Moyen-Orient ») mais pertinent : affine avec l'acteur ou l'enjeu principal visible dans les extraits (ex. « Tensions Iran — États-Unis et sécurité du Golfe »).
-
-Réponds **uniquement** avec le label, une seule ligne, sans guillemets."""
 
 
 def _snippet(text: str | None, max_len: int = 180) -> str:
@@ -77,14 +64,38 @@ async def label_clusters(db: AsyncSession) -> int:
             continue
 
         try:
-            label = await router.generate(
-                system=(
-                    "Tu es rédacteur en chef adjoint pour une revue de presse "
-                    "spécialisée Proche & Moyen-Orient. Tu refuses les titres fourre-tout."
-                ),
-                prompt=LABEL_PROMPT.format(blocks="\n".join(blocks)),
-            )
-            cleaned = label.strip().strip('"').strip("«").strip("»").strip()[:300]
+            bundle = load_prompt_bundle("cluster_label_v2")
+            user = bundle.render_user(blocks="\n".join(blocks))
+            schema = bundle.json_schema
+            if schema and isinstance(schema, dict) and schema.get("properties"):
+                data = await router.generate_anthropic_tool_json(
+                    bundle.system_prompt,
+                    user,
+                    schema,
+                    tool_name="cluster_label",
+                    max_tokens=600,
+                    temperature=0.2,
+                )
+                cleaned = str(data.get("label", "")).strip()[:300]
+            else:
+                raw = await router.generate_anthropic_only(
+                    bundle.system_prompt,
+                    user,
+                    max_tokens=600,
+                    temperature=0.2,
+                )
+                cleaned = raw.strip()
+                try:
+                    import json
+
+                    cleaned = cleaned.strip().removeprefix("```json").removesuffix("```").strip()
+                    data = json.loads(cleaned)
+                    if isinstance(data, dict) and data.get("label"):
+                        cleaned = str(data["label"]).strip()[:300]
+                    else:
+                        cleaned = cleaned[:300]
+                except Exception:
+                    cleaned = cleaned[:300]
             if is_out_of_scope_lifestyle(cleaned):
                 cleaned = (
                     "Hors périmètre revue (lifestyle / voyage) — exclure de la veille"

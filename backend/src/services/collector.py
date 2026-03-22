@@ -44,6 +44,7 @@ from src.services.editorial_scope import (
     snippet_for_ingestion_gate,
 )
 from src.services.ingestion_llm_gate import confirm_geopolitical_relevance
+from src.services.edition_schedule import resolve_edition_id_for_timestamp
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -535,6 +536,8 @@ class RSSCollector:
                     source.country_code,
                 )
 
+                edition_id = await resolve_edition_id_for_timestamp(db, entry_published)
+
                 db.add(
                     Article(
                         media_source_id=source.id,
@@ -547,6 +550,7 @@ class RSSCollector:
                         source_language=lang,
                         status="collected",
                         word_count=len(full_text.split()),
+                        edition_id=edition_id,
                     )
                 )
                 new_count += 1

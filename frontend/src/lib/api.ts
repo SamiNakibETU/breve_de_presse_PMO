@@ -7,8 +7,14 @@ import type {
   AppStatus,
   ArticleListResponse,
   ClusterArticlesResponse,
+  ClusterFallbackRow,
   ClusterListResponse,
   ClusterRefreshResponse,
+  Edition,
+  EditionTopic,
+  EditionTopicDetailResponse,
+  GenerateAllResponse,
+  GenerateTopicResponse,
   GenerateReviewResult,
   MediaSource,
   MediaSourcesHealthResponse,
@@ -315,5 +321,59 @@ export const api = {
     request<{ status: string; updated: number }>(
       "/api/articles/batch-mark-reviewed",
       { method: "POST", body: JSON.stringify({ ids }) },
+    ),
+
+  editionByDate: (publishDate: string) =>
+    request<Edition>(`/api/editions/by-date/${publishDate}`),
+
+  editionTopics: (editionId: string) =>
+    request<EditionTopic[]>(`/api/editions/${editionId}/topics`),
+
+  editionTopicDetail: (editionId: string, topicId: string) =>
+    request<EditionTopicDetailResponse>(
+      `/api/editions/${editionId}/topics/${topicId}`,
+    ),
+
+  editionTopicSelection: (
+    editionId: string,
+    topicId: string,
+    selectedArticleIds: string[],
+  ) =>
+    request<{ status: string; updated: number }>(
+      `/api/editions/${editionId}/topics/${topicId}/selection`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ selected_article_ids: selectedArticleIds }),
+      },
+    ),
+
+  editionTopicGenerate: (
+    editionId: string,
+    topicId: string,
+    articleIds?: string[] | null,
+  ) =>
+    request<GenerateTopicResponse>(
+      `/api/editions/${editionId}/topics/${topicId}/generate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          articleIds && articleIds.length > 0 ? { article_ids: articleIds } : {},
+        ),
+      },
+    ),
+
+  editionGenerateAll: (editionId: string) =>
+    request<GenerateAllResponse>(
+      `/api/editions/${editionId}/generate-all`,
+      { method: "POST" },
+    ),
+
+  editionCurate: (editionId: string) =>
+    request<unknown>(`/api/editions/${editionId}/curate`, { method: "POST" }),
+
+  editionClustersFallback: (editionId: string) =>
+    request<ClusterFallbackRow[]>(
+      `/api/editions/${editionId}/clusters-fallback`,
     ),
 };

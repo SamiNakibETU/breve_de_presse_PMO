@@ -3,7 +3,7 @@
     "version": "2.0.0",
     "created": "2026-03-18",
     "author": "OLJ Media Watch v2",
-    "total_media": 39,
+    "total_media": 40,
     "countries": 12
   },
   "media": [
@@ -89,6 +89,27 @@
       "scraping_difficulty": "easy",
       "translation_quality_to_fr": "high",
       "editorial_notes": "RSS opinion dédié. Perspective centre-droit israélienne.",
+      "is_active": true
+    },
+    {
+      "id": "il_timesofisrael",
+      "name": "The Times of Israel",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": ["en"],
+      "editorial_line": "Site anglophone israélien, couverture large ; blogs d’opinion (droite à centre).",
+      "bias": "center-right",
+      "content_types": ["news", "opinions", "blogs"],
+      "url": "https://www.timesofisrael.com",
+      "rss_url": "https://www.timesofisrael.com/feed/",
+      "rss_opinion_url": "https://blogs.timesofisrael.com/feed/",
+      "english_version_url": "https://www.timesofisrael.com",
+      "collection_method": "rss",
+      "paywall": "soft",
+      "scraping_difficulty": "easy",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "MEMW v2 sprint — flux principal + blogs opinion (liste Emilie).",
       "is_active": true
     },
     {
