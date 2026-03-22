@@ -1,13 +1,29 @@
+import Link from "next/link";
+
+/** Page régie : pas de table clustering_run dédiée ; logs pipeline + configuration backend. */
 export default function RegieClusteringPage() {
   return (
-    <div className="space-y-3 text-[13px] leading-relaxed text-foreground-body">
+    <div className="space-y-4 text-[13px] leading-relaxed text-foreground-body">
       <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
-        Clustering
+        Regroupement thématique (régie)
       </h1>
       <p>
-        Paramètres UMAP (15D), HDBSCAN (<code className="text-[12px]">leaf</code>
-        ), fusion des centroïdes : exposer depuis{" "}
-        <code className="text-[12px]">clustering_run</code> (spec §4.4).
+        Les réglages UMAP / HDBSCAN sont dans le backend (
+        <code className="text-[12px]">clustering_use_umap</code>,{" "}
+        <code className="text-[12px]">umap_n_components</code>, etc. — voir{" "}
+        <code className="text-[12px]">.env.example</code>
+        ). Les sorties d’étape utiles au diagnostic sont dans{" "}
+        <Link href="/regie/pipeline" className="underline-offset-4 hover:underline">
+          Étapes pipeline
+        </Link>{" "}
+        (rapports JSON par étape).
+      </p>
+      <p className="text-muted-foreground">
+        Vue sujets côté produit :{" "}
+        <Link href="/dashboard" className="underline-offset-4 hover:underline">
+          Sujets du jour
+        </Link>
+        .
       </p>
     </div>
   );

@@ -9,32 +9,32 @@ const sections: { href: string; title: string; blurb: string }[] = [
   {
     href: "/dashboard",
     title: "Sujets du jour",
-    blurb: "Pipeline, clusters et inventaire — vue technique.",
+    blurb: "Vue technique : traitements, sujets thématiques et inventaire.",
   },
   {
     href: "/regie/pipeline",
-    title: "Pipeline (régie)",
-    blurb: "Placeholder — rapports JSON à brancher sur l’API debug.",
+    title: "Étapes pipeline",
+    blurb: "Rapports JSON par étape (collecte, dédup, regroupement…) depuis la base.",
   },
   {
     href: "/regie/dedup",
     title: "Déduplication",
-    blurb: "Groupes syndication — à connecter aux logs pipeline_debug_logs.",
+    blurb: "Filtre sur les étapes dédup + signalements faux positifs.",
   },
   {
     href: "/regie/clustering",
     title: "Clustering",
-    blurb: "Paramètres UMAP/HDBSCAN et visualisations — en cours.",
+    blurb: "Paramètres et documentation — métriques dans les logs pipeline.",
   },
   {
     href: "/regie/curator",
     title: "Curateur",
-    blurb: "Entrées/sorties LLM et diffs — en cours.",
+    blurb: "Historique des appels LLM du curateur (prompt dédié).",
   },
   {
     href: "/regie/logs",
     title: "Logs",
-    blurb: "Flux structuré — à brancher sur le backend.",
+    blurb: "Vue combinée : étapes pipeline et journal des appels LLM.",
   },
 ];
 
@@ -46,23 +46,36 @@ export default function RegieHubPage() {
           Régie technique
         </h1>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-foreground-body">
-          Espace séparé du chemin critique (composition). Les vues détaillées
-          s’appuient progressivement sur les rapports JSON du pipeline (spec §10).
+          Espace séparé du chemin critique (composition). Les vues listées
+          s’appuient sur les tables{" "}
+          <code className="text-[12px]">pipeline_debug_logs</code>,{" "}
+          <code className="text-[12px]">llm_call_logs</code> et l’API{" "}
+          <code className="text-[12px]">/api/regie/*</code> (authentification requise).
         </p>
       </div>
-      <ul className="divide-y divide-border-light border-y border-border">
+      <ul className="grid gap-4 sm:grid-cols-2">
         {sections.map((s) => (
-          <li key={s.href} className="py-4 first:pt-0 last:pb-0">
+          <li key={s.href}>
             <Link
               href={s.href}
-              className="font-medium text-foreground underline-offset-4 hover:underline"
+              className="block border border-border-light bg-card p-4 transition-colors hover:bg-muted/60"
             >
-              {s.title}
+              <h2 className="font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
+                {s.title}
+              </h2>
+              <p className="mt-2 text-[12px] leading-relaxed text-foreground-body">
+                {s.blurb}
+              </p>
             </Link>
-            <p className="mt-1 max-w-xl text-[12px] text-muted-foreground">{s.blurb}</p>
           </li>
         ))}
       </ul>
+      <p className="text-[11px] text-muted-foreground">
+        <Link href="/" className="underline-offset-4 hover:underline">
+          Retour à l’accueil (sommaire du jour)
+        </Link>
+        .
+      </p>
     </div>
   );
 }

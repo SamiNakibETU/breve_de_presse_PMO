@@ -8,7 +8,7 @@
 ## Liste sources Emilie (CSV)
 
 - **Canonique pour l’import** : [`media revue - Sheet1.csv`](../media%20revue%20-%20Sheet1.csv) — chemin par défaut de [`import_media_revue_csv`](../backend/src/scripts/import_media_revue_csv.py).
-- **Variante** : `media revue - Sheet1 (1).csv` — binaire différent du canonique ; à fusionner manuellement dans le CSV canonique si la rédaction y ajoute des lignes, puis relancer l’import.
+- **Variante** : `media revue - Sheet1 (1).csv` — binaire différent du canonique. **Fusion recommandée** : comparer les deux fichiers (diff ou outil de tableur), reporter dans `media revue - Sheet1.csv` toute ligne absente du canonique, puis `python -m src.scripts.import_media_revue_csv` depuis `backend/`. Ne pas maintenir deux imports parallèles.
 
 ## Registres générés
 

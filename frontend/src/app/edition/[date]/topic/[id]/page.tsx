@@ -63,7 +63,9 @@ export default function EditionTopicPage() {
         <p className="text-[13px] text-foreground-muted">Chargement du sujet…</p>
       )}
       {detailQ.error && (
-        <p className="text-[13px] text-accent">Sujet introuvable.</p>
+        <p className="text-[13px] text-accent" role="alert" aria-live="polite">
+          Sujet introuvable.
+        </p>
       )}
     </div>
   );

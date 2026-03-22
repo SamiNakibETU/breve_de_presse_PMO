@@ -9,15 +9,18 @@ import type {
   ClusterArticlesResponse,
   ClusterFallbackRow,
   ClusterListResponse,
+  DedupFeedbackItem,
   ClusterRefreshResponse,
   Edition,
   EditionTopic,
   EditionTopicDetailResponse,
   GenerateAllResponse,
   GenerateTopicResponse,
+  LLMCallLogsResponse,
   GenerateReviewResult,
   MediaSource,
   MediaSourcesHealthResponse,
+  PipelineDebugLogsResponse,
   PipelineTaskKind,
   PipelineTaskStartResponse,
   PipelineTaskStatus,
@@ -378,4 +381,49 @@ export const api = {
     request<ClusterFallbackRow[]>(
       `/api/editions/${editionId}/clusters-fallback`,
     ),
+
+  regiePipelineDebugLogs: (params?: {
+    edition_id?: string;
+    step?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.edition_id) q.set("edition_id", params.edition_id);
+    if (params?.step) q.set("step", params.step);
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.offset != null) q.set("offset", String(params.offset));
+    const qs = q.toString();
+    return request<PipelineDebugLogsResponse>(
+      `/api/regie/pipeline-debug-logs${qs ? `?${qs}` : ""}`,
+    );
+  },
+
+  regieLlmCallLogs: (params?: {
+    edition_id?: string;
+    prompt_id?: string;
+    limit?: number;
+    offset?: number;
+    include_raw?: boolean;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.edition_id) q.set("edition_id", params.edition_id);
+    if (params?.prompt_id) q.set("prompt_id", params.prompt_id);
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.offset != null) q.set("offset", String(params.offset));
+    if (params?.include_raw) q.set("include_raw", "true");
+    const qs = q.toString();
+    return request<LLMCallLogsResponse>(
+      `/api/regie/llm-call-logs${qs ? `?${qs}` : ""}`,
+    );
+  },
+
+  regieDedupFeedbackList: (limit = 40) =>
+    request<DedupFeedbackItem[]>(`/api/regie/dedup-feedback?limit=${limit}`),
+
+  regieDedupFeedbackCreate: (body: { article_id: string; note: string }) =>
+    request<DedupFeedbackItem>("/api/regie/dedup-feedback", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

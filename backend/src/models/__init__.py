@@ -16,6 +16,7 @@ from src.models.translation_review import TranslationReview
 from src.models.review import Review, ReviewItem
 from src.models.collection_log import CollectionLog
 from src.models.pipeline_job import PipelineJob
+from src.models.dedup_feedback import DedupFeedback
 
 __all__ = [
     "Base",
@@ -36,4 +37,5 @@ __all__ = [
     "ReviewItem",
     "CollectionLog",
     "PipelineJob",
+    "DedupFeedback",
 ]

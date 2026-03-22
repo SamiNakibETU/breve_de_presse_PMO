@@ -87,7 +87,7 @@ export default function ComposePage() {
             : "Générer tous les sujets"}
         </button>
         {genAllMutation.isError && (
-          <span className="text-[12px] text-accent">
+          <span className="text-[12px] text-accent" role="alert" aria-live="polite">
             {(genAllMutation.error as Error)?.message ?? "Échec"}
           </span>
         )}

@@ -293,3 +293,46 @@ export interface ClusterFallbackRow {
   article_count: number;
   articles: ClusterFallbackArticle[];
 }
+
+/** GET /api/regie/pipeline-debug-logs */
+export interface PipelineDebugLogItem {
+  id: string;
+  edition_id: string | null;
+  step: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PipelineDebugLogsResponse {
+  items: PipelineDebugLogItem[];
+  total: number;
+}
+
+/** GET /api/regie/llm-call-logs */
+export interface LLMCallLogItem {
+  id: string;
+  edition_id: string | null;
+  prompt_id: string;
+  prompt_version: string;
+  model_used: string;
+  temperature: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  latency_ms: number | null;
+  cost_usd: number | null;
+  has_validation_error: boolean;
+  output_raw_preview: string | null;
+  created_at: string;
+}
+
+export interface LLMCallLogsResponse {
+  items: LLMCallLogItem[];
+  total: number;
+}
+
+export interface DedupFeedbackItem {
+  id: string;
+  article_id: string;
+  note: string;
+  created_at: string;
+}

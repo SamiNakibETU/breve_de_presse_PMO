@@ -93,8 +93,9 @@ export function PipelineStatus({
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         <strong>Collecte</strong> : RSS + scrapers → articles « collectés ».{" "}
         <strong>Traduction</strong> : LLM → titres/résumés FR + type.{" "}
-        <strong>Refresh clusters</strong> : embeddings Cohere + regroupement + libellés.{" "}
-        <strong>Pipeline complet</strong> : tout l’enchaînement (plusieurs minutes
+        <strong>Actualiser les sujets</strong> : vecteurs (Cohere) + regroupement
+        thématique + libellés.{" "}
+        <strong>Traitement complet</strong> : tout l’enchaînement (plusieurs minutes
         possibles). Le suivi continue si vous quittez cette page : bandeau en tête
         du site + reprise après rechargement (session). Polling espacé pour limiter
         la charge navigateur.

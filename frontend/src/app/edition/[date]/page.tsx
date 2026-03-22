@@ -70,7 +70,11 @@ export default function EditionSommairePage() {
       </header>
 
       {err && (
-        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
+        <p
+          className="border-l-2 border-destructive pl-3 text-[13px] text-destructive"
+          role="alert"
+          aria-live="polite"
+        >
           {err}
         </p>
       )}
@@ -105,7 +109,7 @@ export default function EditionSommairePage() {
 
       <nav className="border-t border-border pt-4 text-[13px] text-muted-foreground">
         <Link href="/dashboard" className="underline-offset-4 hover:underline">
-          Sujets du jour (pipeline)
+          Sujets du jour (vue technique)
         </Link>
         {" · "}
         <Link href="/regie" className="underline-offset-4 hover:underline">

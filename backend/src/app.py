@@ -19,7 +19,7 @@ from src.config import get_settings
 from src.limiter import limiter
 from src.middleware.correlation import CorrelationIdMiddleware
 from src.database import init_db
-from src.routers import articles, clusters, editions, health, olj_watch, pipeline, reviews
+from src.routers import articles, clusters, editions, health, olj_watch, pipeline, regie, reviews
 from src.services.scheduler import create_scheduler
 from src.otel_setup import instrument_fastapi_app
 
@@ -160,6 +160,7 @@ def create_app() -> FastAPI:
     app.include_router(pipeline.router)
     app.include_router(reviews.router)
     app.include_router(olj_watch.router)
+    app.include_router(regie.router)
 
     instrument_fastapi_app(app)
 
