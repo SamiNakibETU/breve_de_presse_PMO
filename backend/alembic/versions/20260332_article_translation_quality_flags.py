@@ -7,7 +7,8 @@ from alembic import op
 
 from memw_alembic_utils import column_exists
 
-revision: str = "20260332_translation_quality_flags"
+# ≤32 car. : alembic_version.version_num est souvent VARCHAR(32) (nom long = échec UPDATE).
+revision: str = "m20260332_tqf"
 down_revision: Union[str, None] = "20260331_relevance_band"
 branch_labels: Sequence[str] | None = None
 depends_on: Union[str, Sequence[str], None] = None

@@ -8,7 +8,7 @@ from alembic import op
 from memw_alembic_utils import table_exists
 
 revision: str = "20260333_dedup_feedback"
-down_revision: Union[str, None] = "20260332_translation_quality_flags"
+down_revision: Union[str, None] = "m20260332_tqf"
 branch_labels: Sequence[str] | None = None
 depends_on: Union[str, Sequence[str], None] = None
 
