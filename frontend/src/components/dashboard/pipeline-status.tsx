@@ -24,6 +24,48 @@ const ACTIONS: { key: PipelineActionKey; label: string }[] = [
   { key: "pipeline", label: "Pipeline complet" },
 ];
 
+/** Libellés métier pour les statuts API (éviter « degraded / dead » bruts). */
+function collecteStatusFr(code: string): { label: string; lineClass: string } {
+  const c = (code || "").toLowerCase();
+  if (c === "dead") {
+    return {
+      label: "Collecte interrompue",
+      lineClass: "border-l-destructive/50",
+    };
+  }
+  if (c === "degraded") {
+    return {
+      label: "Collecte irrégulière",
+      lineClass: "border-l-warning/55",
+    };
+  }
+  return {
+    label: "Collecte normale",
+    lineClass: "border-l-border",
+  };
+}
+
+function formatTranslationHint(s: {
+  translation_24h_ok_persisted?: number | null;
+  translation_24h_errors_persisted?: number | null;
+}): string | null {
+  const okP = s.translation_24h_ok_persisted;
+  const err = s.translation_24h_errors_persisted;
+  if (okP == null && (err == null || err === 0)) return null;
+  const parts: string[] = [];
+  if (okP != null) {
+    parts.push(
+      `${okP} traduction${okP !== 1 ? "s" : ""} enregistrée${okP !== 1 ? "s" : ""} (24 h)`,
+    );
+  }
+  if (err != null && err > 0) {
+    parts.push(
+      `${err} erreur${err !== 1 ? "s" : ""} de traduction persistée${err !== 1 ? "s" : ""}`,
+    );
+  }
+  return parts.length ? parts.join(". ") : null;
+}
+
 export function PipelineStatus({
   status,
   sourceHealth,
@@ -92,9 +134,40 @@ export function PipelineStatus({
 
       {sourceHealth && sourceHealth.sources.length > 0 && (
         <div className="border-t border-border-light pt-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Sources · fenêtre {sourceHealth.window_hours} h (collecte) · trad. 24 h
-          </p>
+          <div className="mb-2">
+            <p className="olj-rubric olj-rule text-[11px]">État des sources</p>
+            <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+              Volume d’articles sur les{" "}
+              <strong className="font-medium text-foreground-subtle">
+                {sourceHealth.window_hours} dernières heures
+              </strong>{" "}
+              (collecte). Les chiffres de traduction concernent les{" "}
+              <strong className="font-medium text-foreground-subtle">
+                24 dernières heures
+              </strong>{" "}
+              (enregistrements réussis ou erreurs persistées en base).
+            </p>
+            <details className="mt-2 text-[11px] text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-foreground-subtle hover:text-foreground">
+                Lire les statuts de collecte
+              </summary>
+              <ul className="mt-1.5 list-inside list-disc space-y-0.5 pl-0.5 leading-relaxed">
+                <li>
+                  <strong className="text-foreground-subtle">Collecte normale</strong> : flux
+                  considéré sain pour la fenêtre affichée.
+                </li>
+                <li>
+                  <strong className="text-foreground-subtle">Collecte irrégulière</strong> : peu
+                  d’articles ou séries de collectes vides ; la source peut toutefois avoir du stock
+                  (voir le nombre d’articles).
+                </li>
+                <li>
+                  <strong className="text-foreground-subtle">Collecte interrompue</strong> : pas
+                  d’article dans la fenêtre ou source inactive côté pipeline.
+                </li>
+              </ul>
+            </details>
+          </div>
           {(() => {
             const alertOnes = sourceHealth.sources.filter(
               (s) => s.health_status === "dead" || s.health_status === "degraded",
@@ -109,47 +182,50 @@ export function PipelineStatus({
               ((alertOnes.length > 0 &&
                 sourceHealth.sources.length > alertOnes.length) ||
                 (alertOnes.length === 0 && sourceHealth.sources.length > 6));
+            const wh = sourceHealth.window_hours;
             return (
               <>
                 {alertOnes.length === 0 && !showAllSources && (
                   <p className="mb-2 text-[11px] text-muted-foreground">
-                    Aucune source en alerte (dégradée / morte). Aperçu des six
-                    premières.
+                    Aucune source en alerte. Aperçu de six sources (ordre API).
                   </p>
                 )}
-                <div className="max-h-52 overflow-y-auto border border-border-light bg-card text-[11px]">
+                <div className="max-h-60 overflow-y-auto border border-border-light bg-card">
                   {rows.map((s) => {
-                    const err = s.translation_24h_errors_persisted;
-                    const okP = s.translation_24h_ok_persisted;
-                    const extra =
-                      err != null && err > 0
-                        ? ` · trad. 24 h : ${okP ?? "—"} ok / ${err} err.`
-                        : okP != null
-                          ? ` · trad. 24 h : ${okP} ok`
-                          : "";
+                    const { label: statusLabel, lineClass } = collecteStatusFr(
+                      s.health_status,
+                    );
+                    const n = s.articles_72h;
+                    const artLabel = `${n} article${n !== 1 ? "s" : ""} (${wh} h)`;
+                    const trad = formatTranslationHint(s);
+                    const statusTone =
+                      s.health_status === "dead"
+                        ? "text-destructive"
+                        : s.health_status === "degraded"
+                          ? "text-warning"
+                          : "text-foreground-body";
                     return (
                       <div
                         key={s.id}
-                        className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border-light px-2 py-1.5 last:border-b-0"
+                        className={`border-b border-border-light border-l-2 bg-card px-3 py-2.5 last:border-b-0 ${lineClass}`}
                       >
-                        <span className="min-w-0 truncate text-foreground">
-                          {s.name}
-                        </span>
-                        <span className="shrink-0 text-right text-muted-foreground">
-                          <span
-                            className={
-                              s.health_status === "dead"
-                                ? "text-destructive"
-                                : s.health_status === "degraded"
-                                  ? "text-warning"
-                                  : ""
-                            }
-                          >
-                            {s.health_status}
-                          </span>
-                          {" · "}
-                          {s.articles_72h} art.{extra}
-                        </span>
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                          <p className="min-w-0 shrink font-[family-name:var(--font-serif)] text-[13px] font-medium leading-snug text-foreground">
+                            {s.name}
+                          </p>
+                          <div className="min-w-0 shrink-0 space-y-0.5 text-[11px] leading-snug sm:max-w-[min(100%,20rem)] sm:text-right">
+                            <p className={statusTone}>
+                              <span className="font-medium">{statusLabel}</span>
+                              <span className="text-muted-foreground">
+                                {" "}
+                                · {artLabel}
+                              </span>
+                            </p>
+                            {trad ? (
+                              <p className="text-muted-foreground">{trad}</p>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -161,8 +237,8 @@ export function PipelineStatus({
                     className="mt-2 text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
                   >
                     {showAllSources
-                      ? "Replier"
-                      : `Tout voir (${sourceHealth.sources.length} sources)`}
+                      ? "Replier la liste"
+                      : `Afficher toutes les sources (${sourceHealth.sources.length})`}
                   </button>
                 ) : null}
               </>
