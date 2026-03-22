@@ -8,9 +8,11 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Sujets" },
+  { href: "/", label: "Sommaire" },
+  { href: "/dashboard", label: "Pipeline" },
   { href: "/articles", label: "Articles" },
   { href: "/review", label: "Revue de presse" },
+  { href: "/regie", label: "Régie" },
 ];
 
 function prefetchDashboardData(queryClient: ReturnType<typeof useQueryClient>) {
@@ -35,9 +37,9 @@ export function Masthead() {
   const queryClient = useQueryClient();
 
   return (
-    <header className="bg-white">
+    <header className="bg-background">
       <div className="mx-auto max-w-5xl px-5">
-        <div className="flex items-center justify-between border-b border-[#dddcda] py-4">
+        <div className="flex items-center justify-between border-b border-border py-4">
           <Link
             href="/"
             prefetch
@@ -52,7 +54,7 @@ export function Masthead() {
               className="h-[28px] w-auto"
             />
           </Link>
-          <span className="text-[11px] font-medium text-[#888]">
+          <span className="text-[11px] font-medium text-muted-foreground">
             Revue de presse régionale
           </span>
         </div>
@@ -60,7 +62,9 @@ export function Masthead() {
         <nav className="flex gap-6 py-2.5">
           {NAV_ITEMS.map(({ href, label }) => {
             const active =
-              href === "/" ? pathname === "/" : pathname.startsWith(href);
+              href === "/"
+                ? pathname === "/" || pathname.startsWith("/edition")
+                : pathname.startsWith(href);
 
             return (
               <Link
@@ -89,7 +93,7 @@ export function Masthead() {
           })}
         </nav>
       </div>
-      <div className="h-px bg-[#dddcda]" />
+      <div className="h-px bg-border" />
     </header>
   );
 }

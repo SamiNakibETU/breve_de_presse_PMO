@@ -15,22 +15,22 @@ export function PipelineGlobalBar() {
   const onHome = pathname === "/";
 
   return (
-    <div className="border-b border-[#c8102e]/25 bg-[#faf7f6]">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 text-[12px] text-[#1a1a1a]">
-        <span className="font-semibold text-[#c8102e]">Pipeline en cours</span>
-        <span className="text-[#444]">{running.label}</span>
+    <div className="border-b border-accent/25 bg-accent-tint">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 text-[12px] text-foreground">
+        <span className="font-semibold text-accent">Pipeline en cours</span>
+        <span className="text-foreground-subtle">{running.label}</span>
         {running.stepLabel ? (
-          <span className="min-w-0 text-[#555]">
-            <span className="text-[#888]">·</span> {running.stepLabel}
+          <span className="min-w-0 text-foreground-body">
+            <span className="text-muted-foreground">·</span> {running.stepLabel}
           </span>
         ) : null}
-        <span className="text-[11px] text-[#888]">
+        <span className="text-[11px] text-muted-foreground">
           (le traitement serveur continue si vous changez de page)
         </span>
         {!onHome ? (
           <Link
             href="/"
-            className="ml-auto shrink-0 underline decoration-[#ccc] underline-offset-2 hover:text-[#c8102e]"
+            className="ml-auto shrink-0 underline decoration-border underline-offset-2 hover:text-accent"
           >
             Voir le tableau
           </Link>

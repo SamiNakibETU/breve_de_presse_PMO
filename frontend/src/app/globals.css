@@ -57,6 +57,13 @@
   --color-card: #ffffff;
   --color-card-foreground: #1a1a1a;
   --color-surface: #f9f8f5;
+  /* Texte secondaire / corps (aligné DESIGN_SYSTEM, évite hex dans les pages) */
+  --color-foreground-muted: #666666;
+  --color-foreground-body: #555555;
+  --color-foreground-subtle: #444444;
+  --color-primary-hover: #333333;
+  /* Fond discret lié à l’accent (bandeau pipeline) */
+  --color-accent-tint: #faf7f6;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Poynter", "Georgia", serif;
@@ -73,15 +80,15 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: #ffffff;
-  color: #1a1a1a;
+  background: var(--color-background);
+  color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: #c8102e;
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-primary-foreground);
 }
 
 /* Barre de progression indéterminée (pipeline : pas d’API de progression serveur) */
@@ -98,13 +105,17 @@ body {
   height: 6px;
   overflow: hidden;
   border-radius: 9999px;
-  background: #e8e8e4;
+  background: var(--color-border-light);
 }
 
 .olj-progress-indeterminate {
   width: 35%;
   height: 100%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #6b6b68, #1a1a1a);
+  background: linear-gradient(
+    90deg,
+    var(--color-muted-foreground),
+    var(--color-foreground)
+  );
   animation: olj-indeterminate-slide 1.35s ease-in-out infinite;
 }

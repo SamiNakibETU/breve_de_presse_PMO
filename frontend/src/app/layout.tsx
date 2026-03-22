@@ -21,7 +21,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="light">
-      <body className={`${inter.className} bg-white text-[#1a1a1a] antialiased`}>
+      <body
+        className={`${inter.className} bg-background text-foreground antialiased`}
+      >
         <Providers>
           <Masthead />
           <PipelineGlobalBar />
