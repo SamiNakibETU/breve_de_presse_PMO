@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/press_review",
     )
+    # URL publique Postgres (Railway) : pour Alembic depuis ta machine (`railway run`).
+    # DATABASE_URL côté service pointe souvent vers un hôte interne non résolvable en local.
+    database_public_url: str | None = Field(
+        default=None,
+        description="Postgres URL accessible depuis l'extérieur (ex. Railway DATABASE_PUBLIC_URL)",
+    )
 
     # --- Embedding (Cohere) ---
     cohere_api_key: str | None = Field(default=None)
@@ -321,6 +327,15 @@ class Settings(BaseSettings):
     @property
     def async_database_url(self) -> str:
         url = self.database_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
+    def async_database_url_for_migrations(self) -> str:
+        """Alembic uniquement : préfère l’URL publique si définie (CLI local + railway run)."""
+        raw = self.database_public_url or self.database_url
+        url = raw.strip()
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url

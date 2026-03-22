@@ -5,6 +5,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from memw_alembic_utils import column_exists
+
 revision: str = "20260332_translation_quality_flags"
 down_revision: Union[str, None] = "20260331_relevance_band"
 branch_labels: Sequence[str] | None = None
@@ -12,6 +14,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    if column_exists("articles", "translation_quality_flags"):
+        return
     op.add_column(
         "articles",
         sa.Column("translation_quality_flags", sa.JSON(), nullable=True),
@@ -19,4 +23,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if not column_exists("articles", "translation_quality_flags"):
+        return
     op.drop_column("articles", "translation_quality_flags")
