@@ -18,7 +18,11 @@ export function PipelineGlobalBar() {
   return (
     <div className="border-b border-border-light bg-accent-tint/90">
       <div className="mx-auto flex max-w-[80rem] flex-wrap items-center gap-x-3 gap-y-2 px-5 py-2.5 text-foreground sm:px-6">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-accent">
+        <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-accent">
+          <span
+            className="size-2 shrink-0 rounded-full bg-accent motion-safe:animate-pulse"
+            aria-hidden
+          />
           Traitement en cours
         </span>
         <span className="text-[13px] font-semibold text-foreground">

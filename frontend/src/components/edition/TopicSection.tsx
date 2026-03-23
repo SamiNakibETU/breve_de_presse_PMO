@@ -139,6 +139,11 @@ export function TopicSection({
       : Math.max(0, previews.length - VISIBLE_PER_TOPIC);
 
   const countriesText = countriesInlineLabel(topic.countries);
+  const articleTotal = topic.article_count ?? previews.length;
+  const nCountryCodes = topic.countries?.length ?? 0;
+  const contrasting = pickContrastingPreviews(previews, 3);
+  const showContrastingBlock =
+    mode === "summary" && previews.length > 0 && contrasting.length >= 2;
 
   const header = (
     <>
@@ -176,12 +181,22 @@ export function TopicSection({
         {topic.is_multi_perspective ? (
           <span className="border-l border-accent pl-2 text-[11px] font-medium text-foreground">
             Plusieurs regards
+            {nCountryCodes > 1
+              ? ` · ${nCountryCodes} pays`
+              : nCountryCodes === 1
+                ? " · 1 pays"
+                : null}
           </span>
         ) : (
           <span className="border-l border-border pl-2 text-foreground-body">
             Point de vue national
           </span>
         )}
+        {nCountryCodes === 1 && articleTotal <= 1 ? (
+          <span className="rounded bg-muted/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Perspective unique
+          </span>
+        ) : null}
         {countriesText ? (
           <span className="text-foreground-body">{countriesText}</span>
         ) : null}
@@ -191,9 +206,9 @@ export function TopicSection({
           </span>
         )}
       </div>
-      {mode === "summary" && previews.length > 0 ? (
+      {showContrastingBlock ? (
         <ul className="mt-4 space-y-3 border-l border-border pl-3">
-          {pickContrastingPreviews(previews, 3).map((p) => {
+          {contrasting.map((p) => {
             const cc = (p.country_code ?? "").trim().toUpperCase() || "";
             const flag = REGION_FLAG_EMOJI[cc];
             const place = p.country?.trim() || cc || "Région";

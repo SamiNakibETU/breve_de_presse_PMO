@@ -326,11 +326,19 @@ async def run_curator_for_edition(
     return {"status": "ok", "topics": len(topics), "llm_call_log_id": str(log.id)}
 
 
+def _article_country_code(article: Article) -> str:
+    ms = article.media_source
+    if not ms:
+        return ""
+    cc = (ms.country_code or "").strip().upper()
+    return cc
+
+
 async def list_clusters_fallback_for_edition(
     db: AsyncSession,
     edition_id: uuid.UUID,
 ) -> list[dict[str, Any]]:
-    """Clusters bruts étiquetés pour l’écran fallback (spec §7)."""
+    """Clusters bruts étiquetés pour l’écran thèmes / fallback (pays, sources, filtre)."""
     stmt = (
         select(Article)
         .options(selectinload(Article.media_source))
@@ -345,20 +353,47 @@ async def list_clusters_fallback_for_edition(
             by_c[a.cluster_id].append(a)
     out: list[dict[str, Any]] = []
     for cid, group in by_c.items():
+        if len(group) < 2:
+            continue
         cl = await db.get(TopicCluster, cid)
+        country_codes: set[str] = set()
+        source_keys: set[str] = set()
+        group_sorted = sorted(
+            group,
+            key=lambda a: (a.relevance_score or 0.0),
+            reverse=True,
+        )
+        article_rows: list[dict[str, Any]] = []
+        for x in group_sorted[:40]:
+            ms = x.media_source
+            cc = _article_country_code(x)
+            if cc:
+                country_codes.add(cc)
+            if ms:
+                source_keys.add(ms.id)
+            country_name = (ms.country or "").strip() if ms else ""
+            article_rows.append(
+                {
+                    "id": str(x.id),
+                    "title": (x.title_fr or x.title_original or "")[:300],
+                    "source": ms.name if ms else "",
+                    "country": country_name,
+                    "country_code": cc,
+                },
+            )
+        countries_sorted = sorted(country_codes)
+        country_count = len(countries_sorted)
+        source_count = len(source_keys)
         out.append(
             {
                 "cluster_id": str(cid),
                 "label": cl.label if cl else None,
                 "article_count": len(group),
-                "articles": [
-                    {
-                        "id": str(x.id),
-                        "title": (x.title_fr or x.title_original or "")[:300],
-                        "source": x.media_source.name if x.media_source else "",
-                    }
-                    for x in group[:40]
-                ],
-            }
+                "country_count": country_count,
+                "countries": countries_sorted,
+                "source_count": source_count,
+                "articles": article_rows,
+            },
         )
+    out.sort(key=lambda r: (-int(r["article_count"]), -int(r["country_count"])))
     return out

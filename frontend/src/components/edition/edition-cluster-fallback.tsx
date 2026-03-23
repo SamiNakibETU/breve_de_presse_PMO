@@ -39,13 +39,19 @@ export function EditionClusterFallback({
               </Link>
               <span className="tabular-nums text-[11px] text-muted-foreground">
                 {row.article_count} texte{row.article_count > 1 ? "s" : ""}
+                {row.country_count != null
+                  ? ` · ${row.country_count} pays`
+                  : null}
               </span>
             </div>
             {row.articles.length > 0 ? (
               <ul className="mt-2 space-y-1 text-[12px] text-foreground-body">
                 {row.articles.slice(0, 4).map((a) => (
                   <li key={a.id} className="line-clamp-2">
-                    <span className="text-muted-foreground">{a.source}</span>
+                    <span className="text-muted-foreground">
+                      {a.source}
+                      {a.country ? ` (${a.country})` : ""}
+                    </span>
                     {" · "}
                     {a.title}
                   </li>

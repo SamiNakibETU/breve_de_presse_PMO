@@ -10,6 +10,7 @@ from src.database import get_db
 from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.collection_log import CollectionLog
+from src.models.edition import Edition
 from src.models.media_source import MediaSource
 from src.schemas.articles import (
     ArticleIdBatchRequest,
@@ -32,7 +33,8 @@ router = APIRouter(prefix="/api")
 
 def _article_list_conditions(
     *,
-    cutoff: datetime,
+    collected_after: datetime,
+    collected_before: Optional[datetime],
     status: Optional[str],
     country: Optional[str],
     article_type: Optional[str],
@@ -43,7 +45,9 @@ def _article_list_conditions(
     group_syndicated: bool,
     q: Optional[str] = None,
 ):
-    conds = [Article.collected_at >= cutoff]
+    conds = [Article.collected_at >= collected_after]
+    if collected_before is not None:
+        conds.append(Article.collected_at < collected_before)
     if status:
         statuses = [s.strip() for s in status.split(",")]
         conds.append(Article.status.in_(statuses))
@@ -181,10 +185,27 @@ async def list_articles(
         default=None,
         description="Recherche texte (titre, résumé, thèse, angle éditorial)",
     ),
+    edition_id: Optional[uuid.UUID] = Query(
+        default=None,
+        description=(
+            "Si défini : filtre collected_at sur la fenêtre d’édition (Asia/Beirut) ; "
+            "le paramètre days est alors ignoré pour le bornage temporel."
+        ),
+    ),
 ):
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    if edition_id is not None:
+        ed = await db.get(Edition, edition_id)
+        if not ed:
+            raise HTTPException(status_code=404, detail="Edition not found")
+        collected_after = ed.window_start
+        collected_before = ed.window_end
+    else:
+        collected_after = datetime.now(timezone.utc) - timedelta(days=days)
+        collected_before = None
+
     conds = _article_list_conditions(
-        cutoff=cutoff,
+        collected_after=collected_after,
+        collected_before=collected_before,
         status=status,
         country=country,
         article_type=article_type,

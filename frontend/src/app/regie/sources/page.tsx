@@ -17,7 +17,11 @@ export default function RegieSourcesPage() {
         Santé des sources
       </h1>
       <p className="text-[13px] text-foreground-body">
-        Fenêtre {healthQ.data?.window_hours ?? 72} h. Diagnostic technique — hors
+        Volumes par source :{" "}
+        <strong className="font-medium text-foreground">
+          {healthQ.data?.window_hours ?? 72} dernières heures
+        </strong>{" "}
+        (articles collectés sur cette période). Diagnostic technique · hors
         chemin critique de composition.
       </p>
       {healthQ.isPending && (

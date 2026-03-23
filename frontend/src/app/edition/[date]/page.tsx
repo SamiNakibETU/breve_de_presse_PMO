@@ -2,10 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArticleRow } from "@/components/composition/ArticleRow";
 import { CoverageGaps } from "@/components/composition/CoverageGaps";
-import { EditionClusterFallback } from "@/components/edition/edition-cluster-fallback";
+import { EditionThemesView } from "@/components/edition/edition-themes-view";
+import {
+  EditionViewTabs,
+  type EditionViewTabId,
+} from "@/components/edition/edition-view-tabs";
 import { TopicSection } from "@/components/edition/TopicSection";
 import { ReviewPreview } from "@/components/review/review-preview";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
@@ -33,6 +37,21 @@ function formatDateFr(iso: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(dt);
+}
+
+/** Fenêtre d’édition (début / fin) en heure de Beyrouth, alignée backend. */
+function formatEditionWindowBeirut(isoStart: string, isoEnd: string): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Beirut",
+  };
+  const fmt = new Intl.DateTimeFormat("fr-FR", opts);
+  return `Du ${fmt.format(new Date(isoStart))} au ${fmt.format(new Date(isoEnd))} · heure de Beyrouth`;
 }
 
 function detectionLabel(s: EditionDetectionStatus | undefined): string | null {
@@ -139,15 +158,17 @@ export default function EditionSommairePage() {
   const clustersFallbackQ = useQuery({
     queryKey: ["editionClustersFallback", editionId] as const,
     queryFn: () => api.editionClustersFallback(editionId!),
-    enabled:
-      Boolean(editionId) &&
-      !hasTopicFeed &&
-      detectionStatus !== "running",
+    enabled: Boolean(editionId) && detectionStatus !== "running",
     staleTime: QUERY_STALE_MS,
   });
 
-  const [panelList, setPanelList] = useState(false);
-  const [panelSearch, setPanelSearch] = useState(false);
+  const [activeTab, setActiveTab] = useState<EditionViewTabId>("sujets");
+  const tabDefaultedForEdition = useRef<string | null>(null);
+
+  useEffect(() => {
+    tabDefaultedForEdition.current = null;
+  }, [editionId]);
+
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
 
@@ -156,25 +177,22 @@ export default function EditionSommairePage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const showCorpus = !hasTopicFeed || panelList || panelSearch;
-
   const articlesListQ = useQuery({
     queryKey: [
       "editionArticlesList",
-      date,
+      editionId,
       debouncedQ,
-      showCorpus,
-      panelSearch,
+      activeTab,
     ] as const,
     queryFn: () =>
       api.articles({
+        edition_id: editionId!,
         sort: "relevance",
         limit: "250",
-        days: "14",
         group_syndicated: "true",
-        ...(panelSearch && debouncedQ ? { q: debouncedQ } : {}),
+        ...(debouncedQ ? { q: debouncedQ } : {}),
       }),
-    enabled: Boolean(date) && showCorpus,
+    enabled: Boolean(date) && Boolean(editionId) && activeTab === "corpus",
     staleTime: 60_000,
   });
 
@@ -212,6 +230,8 @@ export default function EditionSommairePage() {
     );
   }, [editionId, selectedIds]);
 
+  const clusterRows = clustersFallbackQ.data ?? [];
+
   const idToCountryCode = useMemo(() => {
     const m = new Map<string, string>();
     for (const t of topics) {
@@ -224,8 +244,16 @@ export default function EditionSommairePage() {
     for (const a of listArticles) {
       m.set(a.id, a.country_code);
     }
+    for (const row of clusterRows) {
+      for (const ar of row.articles) {
+        const c = ar.country_code?.trim();
+        if (c) {
+          m.set(ar.id, c.toUpperCase());
+        }
+      }
+    }
     return m;
-  }, [topics, listArticles]);
+  }, [topics, listArticles, clusterRows]);
 
   const selectedCountryCodes = useMemo(() => {
     const s = new Set<string>();
@@ -261,10 +289,15 @@ export default function EditionSommairePage() {
     };
   }, [topics, edition]);
 
-  const collectHint =
+  const vigieGlobaleHint =
     statsQ.data != null
-      ? `${statsQ.data.total_collected_24h.toLocaleString("fr-FR")} article(s) collecté(s) sur les dernières 24 h`
+      ? `Vigie globale : ${statsQ.data.total_collected_24h.toLocaleString("fr-FR")} article(s) entrés en base sur les dernières 24 h (UTC), toutes éditions confondues.`
       : null;
+
+  const editionWindowLabel = useMemo(() => {
+    if (!edition?.window_start || !edition?.window_end) return null;
+    return formatEditionWindowBeirut(edition.window_start, edition.window_end);
+  }, [edition?.window_start, edition?.window_end]);
 
   const pipelineJobsHint = useMemo(() => {
     const jobs = statusQ.data?.jobs ?? [];
@@ -294,6 +327,7 @@ export default function EditionSommairePage() {
       await qc.invalidateQueries({
         queryKey: ["editionClustersFallback", editionId],
       });
+      await qc.invalidateQueries({ queryKey: ["editionArticlesList"] });
     },
   });
 
@@ -307,6 +341,14 @@ export default function EditionSommairePage() {
 
   const loading =
     editionQ.isPending || (Boolean(editionId) && topicsQ.isPending);
+
+  useEffect(() => {
+    if (!editionId || loading) return;
+    if (tabDefaultedForEdition.current === editionId) return;
+    tabDefaultedForEdition.current = editionId;
+    setActiveTab(hasTopicFeed ? "sujets" : "themes");
+  }, [editionId, loading, hasTopicFeed]);
+
   const detectionMessage = detectionLabel(detectionStatus);
   const err =
     editionQ.error?.message ??
@@ -321,17 +363,18 @@ export default function EditionSommairePage() {
       detectionStatus === "failed" ||
       (detectionStatus === "done" && topics.length === 0));
 
-  const fallbackRows = clustersFallbackQ.data ?? [];
-  const showClusterFallback =
-    !hasTopicFeed &&
-    detectionStatus !== "running" &&
-    fallbackRows.length > 0;
-
   const corpusEmpty =
     !loading &&
-    showCorpus &&
+    activeTab === "corpus" &&
     !articlesListQ.isPending &&
     listArticles.length === 0;
+
+  const fullyEmpty =
+    !loading &&
+    Boolean(edition) &&
+    (edition?.corpus_article_count ?? 0) === 0 &&
+    clusterRows.length === 0 &&
+    !hasTopicFeed;
 
   return (
     <div className="space-y-10 pb-36">
@@ -341,27 +384,39 @@ export default function EditionSommairePage() {
           {date ? formatDateFr(date) : "Date non renseignée"}
         </h1>
         {edition && (
-          <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
-            <span className="tabular-nums">{stats.articles}</span>{" "}
-            article{stats.articles > 1 ? "s" : ""}{" "}
-            {stats.articles > 1 ? "disponibles" : "disponible"},{" "}
-            <span className="tabular-nums">{stats.countries}</span> pays
-            représentés
-            {stats.developments > 0 ? (
-              <>
-                ,{" "}
-                <span className="tabular-nums">{stats.developments}</span>{" "}
-                grand{stats.developments > 1 ? "s" : ""} sujet
-                {stats.developments > 1 ? "s" : ""}
-              </>
+          <>
+            <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
+              <span className="tabular-nums">{stats.articles}</span>{" "}
+              article{stats.articles > 1 ? "s" : ""}{" "}
+              {stats.articles > 1 ? "disponibles" : "disponible"},{" "}
+              <span className="tabular-nums">{stats.countries}</span> pays
+              représentés
+              {stats.developments > 0 ? (
+                <>
+                  ,{" "}
+                  <span className="tabular-nums">{stats.developments}</span>{" "}
+                  grand{stats.developments > 1 ? "s" : ""} sujet
+                  {stats.developments > 1 ? "s" : ""}
+                </>
+              ) : null}
+              {editionWindowLabel ? (
+                <>
+                  {" "}
+                  · périmètre : fenêtre d’édition ci-dessous.
+                </>
+              ) : null}
+            </p>
+            {editionWindowLabel ? (
+              <p className="mt-1.5 text-[12px] leading-snug text-foreground-body">
+                {editionWindowLabel}
+              </p>
             ) : null}
-            {collectHint ? (
-              <>
-                {" "}
-                · {collectHint}
-              </>
+            {vigieGlobaleHint ? (
+              <p className="mt-2 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                {vigieGlobaleHint}
+              </p>
             ) : null}
-          </p>
+          </>
         )}
         {detectionMessage ? (
           <p className="mt-2 text-[12px] text-muted-foreground">
@@ -410,159 +465,165 @@ export default function EditionSommairePage() {
 
       {loading && <EditionSommaireSkeleton />}
 
-      {!loading && hasTopicFeed && (
+      {!loading && (
         <>
-          <div>
-            <h2 className="olj-rubric olj-rule mb-4">Grands sujets</h2>
-            <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
-              {topics.map((t: EditionTopic) => (
-                <TopicSection
-                  key={t.id}
-                  topic={t}
-                  selectedIds={selectedIds}
-                  onToggleArticle={toggleArticle}
-                  editionDate={date}
-                  mode="summary"
-                />
-              ))}
-            </div>
-          </div>
+          <EditionViewTabs active={activeTab} onChange={setActiveTab} />
 
-          <div className="border-t border-border pt-6">
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-muted-foreground">
-              <button
-                type="button"
-                className={
-                  panelList
-                    ? "font-medium text-foreground underline decoration-accent underline-offset-4"
-                    : "underline decoration-border underline-offset-4 hover:text-foreground"
-                }
-                onClick={() => {
-                  setPanelList((v) => !v);
-                  if (!panelList) setPanelSearch(false);
-                }}
-              >
-                {panelList ? "Masquer la liste complète" : "Liste complète"}
-              </button>
-              <button
-                type="button"
-                className={
-                  panelSearch
-                    ? "font-medium text-foreground underline decoration-accent underline-offset-4"
-                    : "underline decoration-border underline-offset-4 hover:text-foreground"
-                }
-                onClick={() => {
-                  setPanelSearch((v) => !v);
-                  if (!panelSearch) setPanelList(false);
-                }}
-              >
-                {panelSearch
-                  ? "Fermer la recherche"
-                  : "Rechercher dans le corpus"}
-              </button>
+          {fullyEmpty && (
+            <div className="mt-6 rounded border border-border bg-surface/50 px-5 py-8 sm:px-8">
+              <h2 className="font-[family-name:var(--font-serif)] text-[18px] font-semibold text-foreground">
+                Aucun article collecté pour cette date
+              </h2>
+              <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-foreground-body">
+                Lancez le traitement complet (collecte, traduction,
+                regroupement) pour alimenter l’édition. Les onglets Sujets,
+                Thèmes et Corpus se rempliront au fil du pipeline.
+              </p>
+              {pipeline ? (
+                <button
+                  type="button"
+                  className="olj-btn-primary mt-5 text-[13px] disabled:opacity-45"
+                  disabled={pipeline.running !== null}
+                  onClick={() =>
+                    pipeline.startRun("pipeline", "Traitement complet")
+                  }
+                >
+                  {pipeline.running?.key === "pipeline"
+                    ? "Traitement…"
+                    : "Lancer le traitement complet"}
+                </button>
+              ) : null}
+              {pipelineJobsHint ? (
+                <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+                  Tâches planifiées (UTC) · {pipelineJobsHint}
+                </p>
+              ) : null}
             </div>
-          </div>
+          )}
 
-          {panelSearch && (
-            <div className="max-w-xl pt-4">
-              <label className="olj-rubric mb-1 block" htmlFor="edition-search-q">
-                Recherche
-              </label>
-              <input
-                id="edition-search-q"
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Titre, résumé, thèse, angle…"
-                className="olj-field-search"
-                autoComplete="off"
+          {!fullyEmpty && activeTab === "sujets" && (
+            <div className="mt-6 space-y-6">
+              {hasTopicFeed ? (
+                <div>
+                  <h2 className="olj-rubric olj-rule mb-4">Grands sujets</h2>
+                  <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
+                    {topics.map((t: EditionTopic) => (
+                      <TopicSection
+                        key={t.id}
+                        topic={t}
+                        selectedIds={selectedIds}
+                        onToggleArticle={toggleArticle}
+                        editionDate={date}
+                        mode="summary"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-xl space-y-4">
+                  <p className="text-[13px] leading-relaxed text-foreground-body">
+                    Aucun grand sujet éditorial pour cette date pour l’instant.
+                    Lancez la détection automatique ou le traitement complet,
+                    ou consultez l’onglet Thèmes pour un autre découpage du
+                    corpus.
+                  </p>
+                  {pipeline ? (
+                    <button
+                      type="button"
+                      className="olj-btn-secondary text-[12px] disabled:opacity-45"
+                      disabled={pipeline.running !== null}
+                      onClick={() =>
+                        pipeline.startRun("pipeline", "Traitement complet")
+                      }
+                    >
+                      {pipeline.running?.key === "pipeline"
+                        ? "Traitement…"
+                        : "Lancer le traitement complet"}
+                    </button>
+                  ) : null}
+                  {pipelineJobsHint ? (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Tâches planifiées (UTC) · {pipelineJobsHint}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="text-[12px] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
+                    onClick={() => setActiveTab("themes")}
+                  >
+                    Ouvrir l’onglet Thèmes
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!fullyEmpty && activeTab === "themes" && (
+            <div className="mt-6">
+              <EditionThemesView
+                rows={clusterRows}
+                selectedIds={selectedIds}
+                onToggleArticle={toggleArticle}
+                isLoading={
+                  clustersFallbackQ.isFetching && clusterRows.length === 0
+                }
+                countryLabelsFr={coverageQ.data?.labels_fr ?? null}
               />
             </div>
+          )}
+
+          {!fullyEmpty && activeTab === "corpus" && (
+            <section className="mt-6 space-y-0 border-t border-border pt-8">
+              <div className="olj-rubric olj-rule mb-4">
+                <h2 className="mb-1 font-[family-name:var(--font-serif)] text-[15px] font-semibold tracking-wide">
+                  {debouncedQ
+                    ? "Résultats de recherche"
+                    : "Corpus de l’édition"}
+                </h2>
+                {editionWindowLabel ? (
+                  <p className="max-w-2xl text-[12px] font-normal normal-case tracking-normal text-muted-foreground">
+                    {debouncedQ
+                      ? `Filtrés dans la même fenêtre · ${editionWindowLabel}`
+                      : `Textes collectés dans cette fenêtre · ${editionWindowLabel}`}
+                  </p>
+                ) : null}
+              </div>
+              <div className="max-w-xl pb-4">
+                <label
+                  className="olj-rubric mb-1 block"
+                  htmlFor="edition-search-corpus"
+                >
+                  Recherche dans le corpus
+                </label>
+                <input
+                  id="edition-search-corpus"
+                  type="search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Titre, résumé, thèse, angle…"
+                  className="olj-field-search"
+                  autoComplete="off"
+                />
+              </div>
+              {articlesListQ.isPending && <CorpusListSkeleton />}
+              {corpusEmpty && (
+                <p className="text-[13px] text-muted-foreground">
+                  Aucun article dans cette vue. Lancez le traitement complet ou
+                  élargissez la recherche.
+                </p>
+              )}
+              {!articlesListQ.isPending &&
+                listArticles.map((a) => (
+                  <ArticleRow
+                    key={a.id}
+                    article={a}
+                    selected={selectedIds.has(a.id)}
+                    onSelectedChange={(next) => toggleArticle(a.id, next)}
+                  />
+                ))}
+            </section>
           )}
         </>
-      )}
-
-      {!loading && !hasTopicFeed && (
-        <div className="max-w-xl space-y-4">
-          <p className="text-[13px] leading-relaxed text-foreground-body">
-            Aucun grand sujet éditorial pour cette date pour l’instant. Vous
-            pouvez lancer le traitement complet depuis l’en-tête (collecte,
-            traduction, regroupement), ou utiliser le regroupement automatique
-            ci-dessous s’il est disponible.
-          </p>
-          {pipeline ? (
-            <button
-              type="button"
-              className="olj-btn-secondary text-[12px] disabled:opacity-45"
-              disabled={pipeline.running !== null}
-              onClick={() =>
-                pipeline.startRun("pipeline", "Traitement complet")
-              }
-            >
-              {pipeline.running?.key === "pipeline"
-                ? "Traitement…"
-                : "Lancer le traitement complet"}
-            </button>
-          ) : null}
-          {pipelineJobsHint ? (
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Tâches planifiées (UTC) · {pipelineJobsHint}
-            </p>
-          ) : null}
-          <div>
-            <label className="olj-rubric mb-1 block" htmlFor="edition-search-q-empty">
-              Rechercher dans le corpus
-            </label>
-            <input
-              id="edition-search-q-empty"
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Titre, résumé, thèse…"
-              className="olj-field-search"
-              autoComplete="off"
-            />
-          </div>
-        </div>
-      )}
-
-      {!loading &&
-        clustersFallbackQ.isFetching &&
-        !hasTopicFeed &&
-        detectionStatus !== "running" && (
-          <p className="text-[12px] text-muted-foreground">
-            Chargement des regroupements automatiques…
-          </p>
-        )}
-
-      {!loading && showClusterFallback && (
-        <EditionClusterFallback rows={fallbackRows} />
-      )}
-
-      {!loading && showCorpus && (
-        <section className="space-y-0 border-t border-border pt-8">
-          <h2 className="olj-rubric olj-rule mb-6">
-            {panelSearch && debouncedQ
-              ? "Résultats de recherche"
-              : "Corpus, pertinence éditoriale"}
-          </h2>
-          {articlesListQ.isPending && <CorpusListSkeleton />}
-          {corpusEmpty && (
-            <p className="text-[13px] text-muted-foreground">
-              Aucun article dans cette vue. Lancez le traitement complet ou
-              élargissez la recherche.
-            </p>
-          )}
-          {!articlesListQ.isPending &&
-            listArticles.map((a) => (
-              <ArticleRow
-                key={a.id}
-                article={a}
-                selected={selectedIds.has(a.id)}
-                onSelectedChange={(next) => toggleArticle(a.id, next)}
-              />
-            ))}
-        </section>
       )}
 
       {genOpen && generatedText && (

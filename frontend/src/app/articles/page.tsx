@@ -16,6 +16,9 @@ import type { Article } from "@/lib/types";
 
 const PAGE_SIZE = 40;
 
+/** Fenêtre glissante pour la liste (alignée sur le paramètre API `days`). */
+const ARTICLES_ROLLING_DAYS: number = 2;
+
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   editorial: { label: "Éditorial", value: "translated,formatted,needs_review" },
   needs_review: { label: "À relire", value: "needs_review" },
@@ -54,7 +57,7 @@ function buildArticleParams(
     limit: String(PAGE_SIZE),
     offset: String(offset),
     sort: sortBy,
-    days: "2",
+    days: String(ARTICLES_ROLLING_DAYS),
   };
   if (filters.countries.length > 0) params.country = filters.countries.join(",");
   if (filters.types.length > 0) params.article_type = filters.types.join(",");
@@ -203,6 +206,12 @@ export default function ArticlesPage() {
           <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
             Articles
           </h1>
+          <p className="mt-1 text-[12px] leading-snug text-foreground-body">
+            {ARTICLES_ROLLING_DAYS === 1
+              ? "Période : le dernier jour (glissant, UTC)."
+              : `Période : les ${ARTICLES_ROLLING_DAYS} derniers jours (glissant, UTC).`}{" "}
+            Vue d’exploration, pas la fenêtre d’édition du jour.
+          </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
             {articles.length !== 1 ? "s" : ""}

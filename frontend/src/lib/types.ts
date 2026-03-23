@@ -333,12 +333,22 @@ export interface ClusterFallbackArticle {
   id: string;
   title: string;
   source: string;
+  /** Pays affichable (média). */
+  country: string;
+  /** Code pays ISO (média), ex. LB. */
+  country_code: string;
 }
 
 export interface ClusterFallbackRow {
   cluster_id: string;
   label: string | null;
   article_count: number;
+  /** Nombre de codes pays distincts (non vides). */
+  country_count: number;
+  /** Codes pays triés. */
+  countries: string[];
+  /** Nombre de médias distincts. */
+  source_count: number;
   articles: ClusterFallbackArticle[];
 }
 

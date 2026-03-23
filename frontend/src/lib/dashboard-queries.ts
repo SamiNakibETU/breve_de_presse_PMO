@@ -1,6 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-/** Clés invalidées après une action pipeline (aligné sur la page d’accueil). */
+/**
+ * Clés invalidées après une action pipeline (aligné sur la page d’accueil).
+ * Inclut `editionClustersFallback` pour rafraîchir l’onglet Thèmes après clustering.
+ */
 export function invalidateDashboardQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ["stats"] });
   void queryClient.invalidateQueries({ queryKey: ["status"] });
@@ -12,4 +15,5 @@ export function invalidateDashboardQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ["editionTopics"] });
   void queryClient.invalidateQueries({ queryKey: ["editionClustersFallback"] });
   void queryClient.invalidateQueries({ queryKey: ["editionTopicDetail"] });
+  void queryClient.invalidateQueries({ queryKey: ["editionArticlesList"] });
 }
