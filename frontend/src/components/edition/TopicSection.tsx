@@ -257,7 +257,7 @@ export function TopicSection({
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span
               className="shrink-0 tabular-nums text-[11px] font-semibold text-muted-foreground"
-              title="Rang du sommaire (1 = tête). Équivalent technique : développement du jour enregistré comme sujet d’édition."
+              title="Rang dans le brief (1 en tête). Même entrée que le « développement » côté outil."
             >
               Sujet {topic.rank}
             </span>

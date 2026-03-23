@@ -553,9 +553,9 @@ export default function EditionSommairePage() {
                 </div>
               </div>
               <p className="mt-4 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                Compteur <strong className="font-medium text-foreground/90">Grands sujets</strong> : entrées du sommaire
-                (opinion, analyse, éditorial, tribune), au plus {edition.target_topics_max}. Le reste du corpus est plus
-                bas, avec ou sans rattachement à un sujet.
+                Plafond du sommaire : <strong className="font-medium text-foreground/90">{edition.target_topics_max}</strong>{" "}
+                sujets au plus (opinion, analyse, éditorial, tribune). Tout le reste de l’édition est dans le corpus, en
+                bas de page.
               </p>
             </div>
 
@@ -584,28 +584,53 @@ export default function EditionSommairePage() {
               >
                 Parcours de la page
               </h2>
-              <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-foreground-body">
-                <span className="font-medium text-foreground">1.</span> Grands sujets (sommaire éditorial) ·{" "}
-                <span className="font-medium text-foreground">2.</span> Autres regroupements (similarité automatique) ·{" "}
-                <span className="font-medium text-foreground">3.</span> Corpus complet. En bas : couverture pays et
-                génération de revue (articles cochés).
+              <ol
+                className="mt-3 max-w-xl list-none space-y-2.5 p-0 text-[13px] leading-snug text-foreground-body"
+                aria-label="Trois parties de la page"
+              >
+                <li className="flex gap-3">
+                  <span
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
+                    aria-hidden
+                  >
+                    1
+                  </span>
+                  <span>
+                    <strong className="font-medium text-foreground">Sommaire</strong> — grands sujets (ordre proposé
+                    pour le brief, textes d’opinion et d’analyse).
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
+                    aria-hidden
+                  >
+                    2
+                  </span>
+                  <span>
+                    <strong className="font-medium text-foreground">Affinités</strong> — textes très proches entre eux
+                    (rapprochement automatique, pas le sommaire).
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
+                    aria-hidden
+                  >
+                    3
+                  </span>
+                  <span>
+                    <strong className="font-medium text-foreground">Corpus</strong> — liste complète de l’édition, puis
+                    couverture pays et génération de revue (articles cochés).
+                  </span>
+                </li>
+              </ol>
+              <p className="mt-4 max-w-2xl border-l-2 border-border pl-3 text-[11px] leading-relaxed text-muted-foreground">
+                <span className="font-medium text-foreground/85">Lexique.</span> Un sujet affiché au sommaire est aussi
+                appelé <em>développement</em> dans la chaîne technique — même entrée. Les affinités (§2) ne suivent pas
+                cette logique : le lien entre articles est calculé par ressemblance, pas par choix éditorial du moteur de
+                sommaire.
               </p>
-              <details className="mt-3 max-w-2xl rounded-md border border-border-light bg-background/70 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-                <summary className="cursor-pointer font-medium text-foreground-body">
-                  « Sujet » et « développement » : la même chose ?
-                </summary>
-                <p className="mt-2">
-                  Oui, côté outil : un <strong className="text-foreground">grand sujet</strong> affiché ici correspond à
-                  ce qu’on appelle en interne un <strong className="text-foreground">développement</strong> du jour — une
-                  actualité regroupant des textes d’opinion. Le vocabulaire « sujet » est celui du journal ; «
-                  développement » est surtout technique.
-                </p>
-                <p className="mt-2">
-                  Ce n’est <strong className="text-foreground">pas</strong> la même chose que les{" "}
-                  <strong className="text-foreground">autres regroupements</strong> (clusters par similarité), affichés
-                  ensuite sur la page.
-                </p>
-              </details>
             </section>
 
             {vigieGlobaleHint ? (
@@ -794,8 +819,8 @@ export default function EditionSommairePage() {
                 <section>
                   <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>
                   <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                    Ordre d’affichage proposé pour le brief : <strong className="font-medium text-foreground/90">Sujet 1</strong>{" "}
-                    en tête. Chaque bloc est un sujet d’édition (synonyme technique : développement du jour).
+                    <strong className="font-medium text-foreground/90">Sujet 1</strong> ouvre le brief ; les rangs
+                    suivants poursuivent le sommaire dans l’ordre proposé.
                   </p>
                   <div className="space-y-10">
                     {topics.map((t: EditionTopic) => (
@@ -814,8 +839,9 @@ export default function EditionSommairePage() {
               ) : (
                 <section className="max-w-xl space-y-4">
                   <p className="text-[13px] leading-relaxed text-foreground-body">
-                    Aucun grand sujet éditorial pour cette date. Les
-                    regroupements thématiques ci-dessous restent disponibles.
+                    Aucun grand sujet pour cette date. La section{" "}
+                    <strong className="font-medium text-foreground">Textes très proches</strong> (affinités) reste
+                    disponible ci-dessous si le corpus le permet.
                   </p>
                   {pipeline ? (
                     <button
@@ -835,14 +861,23 @@ export default function EditionSommairePage() {
               )}
 
               {clusterRows.length > 0 && (
-                <section>
-                  <h2 className="olj-rubric olj-rule mb-2">
-                    Autres regroupements
-                  </h2>
-                  <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                    Complément aux <strong className="font-medium text-foreground/90">grands sujets</strong> : familles
-                    de textes proches par similarité (pas la même logique que le sommaire éditorial).
-                  </p>
+                <section
+                  className="rounded-xl border border-border bg-surface-warm/30 p-5 shadow-sm sm:p-7"
+                  aria-labelledby="edition-affinity-heading"
+                >
+                  <header className="mb-6 border-b border-border pb-5">
+                    <p className="olj-rubric">Affinités</p>
+                    <h2
+                      id="edition-affinity-heading"
+                      className="mt-2 font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug tracking-tight text-foreground sm:text-[19px]"
+                    >
+                      Textes très proches
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+                      Articles rapprochés par ressemblance automatique. Utile en complément du sommaire : même matière
+                      apparente, autre méthode que les grands sujets.
+                    </p>
+                  </header>
                   <EditionThemesView
                     rows={clusterRows}
                     selectedIds={selectedIds}

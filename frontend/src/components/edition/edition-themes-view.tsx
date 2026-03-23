@@ -68,7 +68,7 @@ function ThemeArticleRow({
 }
 
 /**
- * Regroupements sémantiques (HDBSCAN) pour l’édition : complément aux grands sujets LLM.
+ * Affinités : familles de textes rapprochés par similarité (HDBSCAN), distinctes du sommaire LLM.
  */
 export function EditionThemesView({
   rows,
@@ -76,7 +76,7 @@ export function EditionThemesView({
   onToggleArticle,
   isLoading,
   countryLabelsFr,
-  /** Masque le titre long (utilisé quand le parent affiche déjà « Autres regroupements »). */
+  /** Masque l’en-tête interne : le parent affiche déjà « Affinités / Textes très proches ». */
   embedded = false,
 }: {
   rows: ClusterFallbackRow[];
@@ -103,7 +103,7 @@ export function EditionThemesView({
   if (isLoading) {
     return (
       <p className="text-[12px] text-muted-foreground">
-        Chargement des regroupements thématiques…
+        Chargement des affinités…
       </p>
     );
   }
@@ -114,10 +114,9 @@ export function EditionThemesView({
     }
     return (
       <div className="max-w-2xl space-y-2">
-        <h2 className="olj-rubric olj-rule">Regroupements thématiques</h2>
+        <h2 className="olj-rubric olj-rule">Affinités</h2>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Aucun regroupement disponible pour cette édition. Lancez le traitement
-          complet si besoin.
+          Aucune famille de textes très proches pour cette édition. Lancez le traitement complet si besoin.
         </p>
       </div>
     );
@@ -142,11 +141,11 @@ export function EditionThemesView({
             <li
               key={row.cluster_id}
               className={cn(
-                "overflow-hidden rounded-lg border border-border bg-card shadow-sm",
-                multi && "ring-1 ring-accent/20",
+                "overflow-hidden rounded-lg border border-border bg-card",
+                multi && "ring-1 ring-[#c8102e]/15",
               )}
             >
-              <div className="border-b border-border-light bg-surface/50 px-4 py-4">
+              <div className="border-b border-border-light bg-background/80 px-4 py-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <Link
                     href={`/clusters/${row.cluster_id}`}
@@ -160,12 +159,12 @@ export function EditionThemesView({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
                   {multi ? (
-                    <span className="rounded-md bg-info/12 px-2 py-0.5 font-semibold text-foreground">
-                      Multi-perspective
+                    <span className="inline-flex rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground-body">
+                      Plusieurs pays
                     </span>
                   ) : (
-                    <span className="rounded-md border border-border bg-background px-2 py-0.5 text-muted-foreground">
-                      Perspective limitée
+                    <span className="inline-flex rounded-md border border-border bg-muted/20 px-2 py-0.5 font-medium text-muted-foreground">
+                      Un seul pays
                     </span>
                   )}
                   <span className="text-muted-foreground">
@@ -189,8 +188,13 @@ export function EditionThemesView({
                   const label = countryHeaderLabel(key, arts, countryLabelsFr);
                   return (
                     <div key={key} className="mb-4 last:mb-0">
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        {flag ? `${flag} ${label}` : label}
+                      <p className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground">
+                        {flag ? (
+                          <span className="text-[13px] leading-none" aria-hidden>
+                            {flag}
+                          </span>
+                        ) : null}
+                        {label}
                       </p>
                       <div className="divide-y divide-border-light rounded-md border border-border-light bg-card">
                         {arts.map((a) => (

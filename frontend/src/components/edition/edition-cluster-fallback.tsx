@@ -19,13 +19,13 @@ export function EditionClusterFallback({
   return (
     <section className="space-y-4 border-t border-border pt-8">
       <div>
-        <h2 className="olj-rubric olj-rule mb-2">
-          Regroupement automatique (thèmes)
+        <p className="olj-rubric mb-2">Affinités</p>
+        <h2 className="font-[family-name:var(--font-serif)] text-[17px] font-semibold leading-snug text-foreground">
+          Textes très proches
         </h2>
-        <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-          En l’absence de grands sujets éditoriaux, voici des regroupements
-          calculés sur le corpus (similarité sémantique). Ouvrez un thème pour
-          voir les textes par pays.
+        <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+          En l’absence de grands sujets, voici des familles de textes rapprochées par similarité sur le corpus. Ouvrez un
+          bloc pour voir les textes par pays.
         </p>
       </div>
       <ul className="divide-y divide-border border border-border">
