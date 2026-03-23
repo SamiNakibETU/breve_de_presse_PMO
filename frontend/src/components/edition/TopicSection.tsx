@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   FLAGSHIP_BADGE_LABEL,
@@ -10,6 +11,8 @@ import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
 
 /** Nombre d’articles visibles par défaut avant « + N autres regards ». */
 export const VISIBLE_PER_TOPIC = 3;
+
+const SUMMARY_PREVIEW_COUNT = 2;
 
 function TopicArticleLine({
   preview,
@@ -26,7 +29,7 @@ function TopicArticleLine({
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
-          className="olj-focus mt-1.5 size-[15px] shrink-0 rounded-sm border-border"
+          className="olj-focus mt-1.5 size-[15px] shrink-0 border-border"
           checked={selected}
           onChange={(e) => onToggle(e.target.checked)}
           aria-label={`Inclure ${title}`}
@@ -55,7 +58,7 @@ function TopicArticleLine({
               </span>
             )}
             {preview.is_flagship ? (
-              <span className="border-l-2 border-accent pl-2 text-[11px] font-semibold text-accent">
+              <span className="border-l border-accent pl-2 text-[11px] font-semibold text-accent">
                 {FLAGSHIP_BADGE_LABEL}
               </span>
             ) : null}
@@ -76,53 +79,89 @@ function TopicArticleLine({
   );
 }
 
+function countriesInlineLabel(countries: string[] | null | undefined): string {
+  if (!countries?.length) return "";
+  return countries
+    .map((c) => {
+      const u = c.trim().toUpperCase();
+      const flag = REGION_FLAG_EMOJI[u];
+      return flag ? `${flag} ${u}` : u;
+    })
+    .join(", ");
+}
+
 export function TopicSection({
   topic,
   selectedIds,
   onToggleArticle,
+  editionDate,
+  mode = "full",
 }: {
   topic: EditionTopic;
   selectedIds: ReadonlySet<string>;
   onToggleArticle: (articleId: string, next: boolean) => void;
+  /** Requis en mode `summary` pour le lien vers la fiche sujet. */
+  editionDate?: string;
+  /** `summary` : carte éditoriale compacte (grille sommaire). */
+  mode?: "full" | "summary";
 }) {
   const [expanded, setExpanded] = useState(false);
   const previews = topic.article_previews ?? [];
-  const visible = expanded
-    ? previews
-    : previews.slice(0, VISIBLE_PER_TOPIC);
-  const restCount = Math.max(0, previews.length - VISIBLE_PER_TOPIC);
+  const maxPreview =
+    mode === "summary"
+      ? expanded
+        ? previews.length
+        : SUMMARY_PREVIEW_COUNT
+      : expanded
+        ? previews.length
+        : VISIBLE_PER_TOPIC;
+  const visible = previews.slice(0, maxPreview);
+  const restCount =
+    mode === "summary"
+      ? Math.max(0, previews.length - SUMMARY_PREVIEW_COUNT)
+      : Math.max(0, previews.length - VISIBLE_PER_TOPIC);
 
-  const flags =
-    topic.countries?.map((c) => (
-      <span key={c} title={c} className="text-lg leading-none">
-        {REGION_FLAG_EMOJI[c.toUpperCase()] ?? c}
-      </span>
-    )) ?? [];
+  const countriesText = countriesInlineLabel(topic.countries);
 
-  return (
-    <section className="border-b border-border pb-8 pt-4">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="tabular-nums text-[12px] font-medium text-muted-foreground">
+  const header = (
+    <>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="tabular-nums text-[11px] font-medium text-muted-foreground">
           {topic.rank}
         </span>
-        <h2 className="max-w-3xl font-[family-name:var(--font-serif)] text-[20px] font-semibold leading-snug tracking-tight text-foreground sm:text-[21px]">
-          {topic.title_final ?? topic.title_proposed}
-        </h2>
+        {mode === "summary" && editionDate ? (
+          <h2 className="font-[family-name:var(--font-serif)] text-[17px] font-semibold leading-snug tracking-tight text-foreground sm:text-[18px]">
+            <Link
+              href={`/edition/${editionDate}/topic/${topic.id}`}
+              className="hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {topic.title_final ?? topic.title_proposed}
+            </Link>
+          </h2>
+        ) : (
+          <h2 className="max-w-3xl font-[family-name:var(--font-serif)] text-[20px] font-semibold leading-snug tracking-tight text-foreground sm:text-[21px]">
+            {topic.title_final ?? topic.title_proposed}
+          </h2>
+        )}
       </div>
       {topic.description && (
-        <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-foreground-body">
+        <p
+          className={
+            mode === "summary"
+              ? "mt-2 line-clamp-3 text-[13px] leading-relaxed text-foreground-body"
+              : "mt-3 max-w-2xl text-[14px] leading-relaxed text-foreground-body"
+          }
+        >
           {topic.description}
         </p>
       )}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         {topic.is_multi_perspective === false ? (
-          <span className="border-l-2 border-border pl-2 text-foreground-body">
+          <span className="border-l border-border pl-2 text-foreground-body">
             Point de vue national
           </span>
-        ) : flags.length > 0 ? (
-          <span className="flex gap-1.5" aria-label="Pays concernés">
-            {flags}
-          </span>
+        ) : countriesText ? (
+          <span className="text-foreground-body">{countriesText}</span>
         ) : null}
         {topic.article_count != null && (
           <span className="tabular-nums">
@@ -130,7 +169,18 @@ export function TopicSection({
           </span>
         )}
       </div>
-      <div className="mt-3">
+    </>
+  );
+
+  const sectionClass =
+    mode === "summary"
+      ? "border-b border-border pb-6 pt-2"
+      : "border-b border-border pb-8 pt-4";
+
+  return (
+    <section className={sectionClass}>
+      {header}
+      <div className={mode === "summary" ? "mt-3" : "mt-3"}>
         {visible.map((p) => (
           <TopicArticleLine
             key={p.id}
@@ -140,7 +190,17 @@ export function TopicSection({
           />
         ))}
       </div>
-      {!expanded && restCount > 0 && (
+      {mode === "summary" && editionDate && (
+        <p className="mt-2">
+          <Link
+            href={`/edition/${editionDate}/topic/${topic.id}`}
+            className="olj-link-action text-[12px]"
+          >
+            Fiche sujet
+          </Link>
+        </p>
+      )}
+      {!expanded && restCount > 0 && mode === "full" && (
         <button
           type="button"
           className="olj-link-action mt-4"
@@ -148,6 +208,16 @@ export function TopicSection({
         >
           Voir {restCount} autre{restCount > 1 ? "s" : ""} article
           {restCount > 1 ? "s" : ""} sur ce sujet
+        </button>
+      )}
+      {!expanded && restCount > 0 && mode === "summary" && (
+        <button
+          type="button"
+          className="olj-link-action mt-3 text-[12px]"
+          onClick={() => setExpanded(true)}
+        >
+          Afficher les {restCount} autre{restCount > 1 ? "s" : ""} texte
+          {restCount > 1 ? "s" : ""}
         </button>
       )}
     </section>

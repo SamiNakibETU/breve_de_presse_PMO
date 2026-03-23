@@ -3,13 +3,16 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { api } from "@/lib/api";
-import type { Article } from "@/lib/types";
-import { ArticleFilters, type Filters } from "@/components/articles/article-filters";
+import {
+  ArticleFilters,
+  ArticleFilterNavLinks,
+  type Filters,
+} from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
-import { saveReviewArticleIds } from "@/lib/review-selection-storage";
 import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
-import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { saveReviewArticleIds } from "@/lib/review-selection-storage";
+import type { Article } from "@/lib/types";
 
 const PAGE_SIZE = 40;
 
@@ -26,9 +29,19 @@ const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
 const SORT_OPTIONS: Record<string, { label: string; value: string }> = {
   relevance: { label: "Pertinence", value: "relevance" },
   date: { label: "Date de collecte", value: "date" },
-  confidence: { label: "Confiance ↓", value: "confidence" },
-  confidence_asc: { label: "Confiance ↑", value: "confidence_asc" },
+  confidence: { label: "Confiance (haute d’abord)", value: "confidence" },
+  confidence_asc: { label: "Confiance (basse d’abord)", value: "confidence_asc" },
 };
+
+const STATUS_NAV = Object.entries(STATUS_OPTIONS).map(([key, { label }]) => ({
+  key,
+  label,
+}));
+
+const SORT_NAV = Object.entries(SORT_OPTIONS).map(([key, { label }]) => ({
+  key,
+  label,
+}));
 
 function buildArticleParams(
   statusFilter: string,
@@ -51,6 +64,42 @@ function buildArticleParams(
   if (filters.hideSyndicated) params.hide_syndicated = "true";
   if (filters.groupSyndicated) params.group_syndicated = "true";
   return params;
+}
+
+function FiltersColumn({
+  statusFilter,
+  sortBy,
+  setStatusFilter,
+  setSortBy,
+  filters,
+  setFilters,
+  countsByCountry,
+}: {
+  statusFilter: string;
+  sortBy: string;
+  setStatusFilter: (k: string) => void;
+  setSortBy: (k: string) => void;
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  countsByCountry: Record<string, number> | null;
+}) {
+  return (
+    <div className="space-y-6">
+      <ArticleFilterNavLinks
+        statusFilter={statusFilter}
+        sortBy={sortBy}
+        onStatusChange={setStatusFilter}
+        onSortChange={setSortBy}
+        statusOptions={STATUS_NAV}
+        sortOptions={SORT_NAV}
+      />
+      <ArticleFilters
+        filters={filters}
+        onChange={setFilters}
+        countsByCountry={countsByCountry}
+      />
+    </div>
+  );
 }
 
 export default function ArticlesPage() {
@@ -124,104 +173,86 @@ export default function ArticlesPage() {
     router.push("/review");
   }
 
+  const filterColumnProps = {
+    statusFilter,
+    sortBy,
+    setStatusFilter,
+    setSortBy,
+    filters,
+    setFilters,
+    countsByCountry,
+  };
+
   return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
-          Articles
-        </h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
-          {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
-          {articles.length !== 1 ? "s" : ""}
-          {sortBy === "relevance"
-            ? " · Tri partiel par pertinence (par page)"
-            : ""}
-          {statusFilter === "needs_review"
-            ? " · Tri confiance / date disponibles ci-dessous"
-            : ""}
-        </p>
-      </header>
-
-      <p className="text-[12px] text-muted-foreground">
-        Actions groupées sur les traductions (marquer relu, réessayer) : espace{" "}
-        <a href="/regie" className="underline underline-offset-2 hover:text-foreground">
-          Administration
-        </a>
-        .
-      </p>
-
-      {error && (
-        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
-          {error instanceof Error ? error.message : "Erreur de chargement"}
-        </p>
-      )}
-
-      <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-end sm:justify-between">
-        <nav className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Filtre statut">
-          {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setStatusFilter(key)}
-              className={cn(
-                "border-b-2 pb-0.5 text-[13px] transition-colors",
-                statusFilter === key
-                  ? "border-foreground font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-        <div className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Tri">
-          {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSortBy(key)}
-              className={cn(
-                "border-b-2 pb-0.5 text-[12px] transition-colors",
-                sortBy === key
-                  ? "border-foreground font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+    <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
+      <details className="group border border-border-light bg-card p-4 lg:hidden">
+        <summary className="olj-rubric cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
+          Filtres et tri
+        </summary>
+        <div className="mt-4">
+          <FiltersColumn {...filterColumnProps} />
         </div>
-      </div>
+      </details>
 
-      <ArticleFilters
-        filters={filters}
-        onChange={setFilters}
-        countsByCountry={countsByCountry}
-      />
+      <aside className="hidden w-[15rem] shrink-0 lg:sticky lg:top-8 lg:block">
+        <FiltersColumn {...filterColumnProps} />
+      </aside>
 
-      <ArticleList
-        articles={articles}
-        selected={selected}
-        onToggle={toggle}
-        loading={isPending}
-      />
+      <div className="min-w-0 flex-1 space-y-5 pb-24">
+        <header>
+          <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
+            Articles
+          </h1>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
+            {articles.length !== 1 ? "s" : ""}
+            {sortBy === "relevance"
+              ? " · tri partiel par pertinence (par page)"
+              : ""}
+          </p>
+        </header>
 
-      {hasNextPage && (
-        <div className="flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={() => void fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="border border-border bg-card px-5 py-2 text-[13px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
+        <p className="text-[12px] text-muted-foreground">
+          Traductions (relu, réessayer) :{" "}
+          <a
+            href="/regie"
+            className="underline underline-offset-2 hover:text-foreground"
           >
-            {isFetchingNextPage ? "Chargement…" : "Charger plus d’articles"}
-          </button>
-        </div>
-      )}
+            Régie
+          </a>
+          .
+        </p>
+
+        {error && (
+          <p className="border-l border-destructive pl-3 text-[13px] text-destructive">
+            {error instanceof Error ? error.message : "Erreur de chargement"}
+          </p>
+        )}
+
+        <ArticleList
+          articles={articles}
+          selected={selected}
+          onToggle={toggle}
+          loading={isPending}
+        />
+
+        {hasNextPage && (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => void fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="olj-btn-secondary px-5 py-2 text-[13px] disabled:opacity-50"
+            >
+              {isFetchingNextPage ? "Chargement…" : "Charger plus d’articles"}
+            </button>
+          </div>
+        )}
+      </div>
 
       {selectionReady && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95">
-          <div className="mx-auto flex max-w-[960px] flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="mx-auto flex max-w-[80rem] flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="font-[family-name:var(--font-serif)] text-[20px] font-semibold tabular-nums text-foreground">
                 {selected.size}
@@ -238,16 +269,14 @@ export default function ArticlesPage() {
                 Effacer
               </button>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={goToReview}
-                disabled={selected.size < 1 || selected.size > 10}
-                className="bg-accent px-5 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90 disabled:opacity-40"
-              >
-                Générer la revue ({selected.size})
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={goToReview}
+              disabled={selected.size < 1 || selected.size > 10}
+              className="olj-btn-primary disabled:opacity-40"
+            >
+              Générer la revue ({selected.size})
+            </button>
           </div>
         </div>
       )}

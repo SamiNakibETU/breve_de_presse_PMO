@@ -44,7 +44,7 @@ function ArticleBlock({
 
   return (
     <div className="space-y-4">
-      <h3 className="border-b border-border pb-1.5 font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
+      <h3 className="border-b border-border pb-1.5 font-[family-name:var(--font-serif)] text-[15px] font-semibold leading-snug text-foreground">
         {title}
       </h3>
       {sorted.length === 0 ? (
@@ -193,10 +193,6 @@ export function TopicDetail({
         <h2 className="border-b border-border pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Textes rattachés à ce sujet
         </h2>
-        <p className="text-[13px] leading-relaxed text-foreground-muted">
-          Sélectionnez les articles à inclure dans la revue. Les textes cochés
-          apparaissent en tête pour faciliter la lecture.
-        </p>
 
         <div className="space-y-8 pt-2">
           <ArticleBlock
@@ -234,7 +230,7 @@ export function TopicDetail({
         </h2>
         <button
           type="button"
-          className="border border-primary bg-primary px-4 py-2 text-[13px] text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+          className="olj-btn-primary disabled:opacity-50"
           disabled={genMutation.isPending || orderedArticles.length < 2}
           onClick={() => genMutation.mutate()}
         >

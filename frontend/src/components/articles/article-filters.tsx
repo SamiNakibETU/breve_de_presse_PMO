@@ -63,59 +63,65 @@ export function ArticleFilters({
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
-    <div className="space-y-4 border-b border-border-light pb-4">
+    <div className="olj-sidebar-filter space-y-5 border-b border-border-light pb-4 lg:border-0 lg:pb-0">
       <div>
         <p className="olj-rubric mb-2">Pays</p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <ul className="max-h-[min(14rem,40vh)] space-y-1.5 overflow-y-auto lg:max-h-[min(18rem,50vh)]">
           {Object.entries(COUNTRIES).map(([code, name]) => {
             const c = countsByCountry?.[code];
             const label = c != null ? `${name} (${c})` : name;
             const on = filters.countries.includes(code);
             return (
-              <button
-                key={code}
-                type="button"
-                onClick={() =>
-                  onChange({ ...filters, countries: toggle(filters.countries, code) })
-                }
-                className={cn(
-                  "border-b-2 pb-0.5 text-[11px] transition-colors",
-                  on
-                    ? "border-foreground font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {label}
-              </button>
+              <li key={code}>
+                <label className="flex cursor-pointer items-start gap-2 text-[12px] leading-snug text-foreground-body">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() =>
+                      onChange({
+                        ...filters,
+                        countries: toggle(filters.countries, code),
+                      })
+                    }
+                    className="olj-focus mt-0.5 size-[14px] shrink-0 border-border"
+                  />
+                  <span className={on ? "font-medium text-foreground" : ""}>
+                    {label}
+                  </span>
+                </label>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
 
       <div>
         <p className="olj-rubric mb-2">Type</p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <ul className="space-y-1.5">
           {Object.entries(ARTICLE_TYPES).map(([type, label]) => {
             const on = filters.types.includes(type);
             return (
-              <button
-                key={type}
-                type="button"
-                onClick={() =>
-                  onChange({ ...filters, types: toggle(filters.types, type) })
-                }
-                className={cn(
-                  "border-b-2 pb-0.5 text-[11px] transition-colors",
-                  on
-                    ? "border-foreground font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {label}
-              </button>
+              <li key={type}>
+                <label className="flex cursor-pointer items-start gap-2 text-[12px] leading-snug text-foreground-body">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() =>
+                      onChange({
+                        ...filters,
+                        types: toggle(filters.types, type),
+                      })
+                    }
+                    className="olj-focus mt-0.5 size-[14px] shrink-0 border-border"
+                  />
+                  <span className={on ? "font-medium text-foreground" : ""}>
+                    {label}
+                  </span>
+                </label>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
 
       <button
@@ -128,7 +134,7 @@ export function ArticleFilters({
       </button>
 
       {advancedOpen ? (
-        <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border-light pt-4">
+        <div className="space-y-3 border-t border-border-light pt-4">
           <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
             <input
               type="checkbox"
@@ -136,7 +142,7 @@ export function ArticleFilters({
               onChange={(e) =>
                 onChange({ ...filters, includeLowQuality: e.target.checked })
               }
-              className="border-border text-foreground accent-foreground"
+              className="border-border accent-foreground"
             />
             Inclure textes à faible confiance de traduction
           </label>
@@ -181,6 +187,70 @@ export function ArticleFilters({
           reprises » pour tout afficher.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Liens texte discrets pour statut / tri (barre latérale). */
+export function ArticleFilterNavLinks({
+  statusFilter,
+  sortBy,
+  onStatusChange,
+  onSortChange,
+  statusOptions,
+  sortOptions,
+}: {
+  statusFilter: string;
+  sortBy: string;
+  onStatusChange: (key: string) => void;
+  onSortChange: (key: string) => void;
+  statusOptions: readonly { key: string; label: string }[];
+  sortOptions: readonly { key: string; label: string }[];
+}) {
+  return (
+    <div className="space-y-5">
+      <nav className="space-y-1.5" aria-label="Filtre statut">
+        <p className="olj-rubric">Statut</p>
+        <ul className="space-y-1">
+          {statusOptions.map(({ key, label }) => (
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => onStatusChange(key)}
+                className={cn(
+                  "block w-full text-left text-[12px] transition-colors",
+                  statusFilter === key
+                    ? "font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <nav className="space-y-1.5" aria-label="Tri">
+        <p className="olj-rubric">Tri</p>
+        <ul className="space-y-1">
+          {sortOptions.map(({ key, label }) => (
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => onSortChange(key)}
+                className={cn(
+                  "block w-full text-left text-[12px] transition-colors",
+                  sortBy === key
+                    ? "font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   );
 }

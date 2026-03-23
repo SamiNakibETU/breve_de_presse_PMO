@@ -30,9 +30,12 @@ const FLAG_EMOJI: Record<string, string> = {
 export function CoverageGaps({
   selectedCountryCodes,
   targets,
+  compact = false,
 }: {
   selectedCountryCodes: string[];
   targets?: CoverageTargetsResponse | null;
+  /** Barre fixe : libellés plus discrets. */
+  compact?: boolean;
 }) {
   const codes =
     targets?.country_codes?.length && targets.country_codes.length > 0
@@ -50,8 +53,28 @@ export function CoverageGaps({
     return null;
   }
 
+  if (compact) {
+    const missingLabels =
+      missing.length > 0 ? missing.map((c) => labels[c] ?? c).join(", ") : null;
+    return (
+      <p className="max-w-2xl text-[11px] leading-snug text-muted-foreground">
+        <span className="font-medium text-foreground-subtle">Couverture · </span>
+        {present.map((c) => (
+          <span key={c} className="mr-1" title={labels[c] ?? c}>
+            {FLAG_EMOJI[c] ?? c}
+          </span>
+        ))}
+        {missingLabels ? (
+          <span> · À compléter si possible : {missingLabels}.</span>
+        ) : selectedCountryCodes.length > 0 ? (
+          <span> · Périmètre couvert.</span>
+        ) : null}
+      </p>
+    );
+  }
+
   return (
-    <div className="max-w-md border-l-2 border-border pl-3 text-[13px] text-foreground-body">
+    <div className="max-w-md border-l border-border pl-3 text-[13px] text-foreground-body">
       <p className="olj-rubric">Couverture régionale (sélection)</p>
       <div
         className="mt-2 flex flex-wrap gap-1.5"
@@ -69,8 +92,7 @@ export function CoverageGaps({
       </div>
       {missing.length > 0 && (
         <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
-          À compléter si possible :{" "}
-          {missing.map((c) => labels[c] ?? c).join(", ")}.
+          À compléter si possible : {missing.map((c) => labels[c] ?? c).join(", ")}.
         </p>
       )}
       {missing.length === 0 &&

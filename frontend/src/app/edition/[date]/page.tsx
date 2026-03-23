@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArticleRow } from "@/components/composition/ArticleRow";
@@ -15,8 +14,6 @@ import type {
   EditionDetectionStatus,
   EditionTopic,
 } from "@/lib/types";
-
-type EditionView = "topics" | "list" | "search";
 
 function formatDateFr(iso: string): string {
   const parts = iso.split("-").map(Number);
@@ -50,6 +47,12 @@ export default function EditionSommairePage() {
   const params = useParams();
   const date = typeof params.date === "string" ? params.date : "";
   const qc = useQueryClient();
+
+  const statsQ = useQuery({
+    queryKey: ["stats"] as const,
+    queryFn: () => api.stats(),
+    staleTime: 60_000,
+  });
 
   const editionQ = useQuery({
     queryKey: ["edition", date] as const,
@@ -88,7 +91,12 @@ export default function EditionSommairePage() {
     enabled: Boolean(date),
   });
 
-  const [view, setView] = useState<EditionView | null>(null);
+  const topics = topicsQ.data ?? [];
+  const hasTopicFeed =
+    detectionStatus === "done" && topics.length > 0;
+
+  const [panelList, setPanelList] = useState(false);
+  const [panelSearch, setPanelSearch] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
 
@@ -97,43 +105,28 @@ export default function EditionSommairePage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const topics = topicsQ.data ?? [];
-
-  const needFlatArticles =
-    view === "list" ||
-    view === "search" ||
-    (view === null && !(detectionStatus === "done" && topics.length > 0));
+  const showCorpus = !hasTopicFeed || panelList || panelSearch;
 
   const articlesListQ = useQuery({
-    queryKey: ["editionArticlesList", view, debouncedQ, needFlatArticles] as const,
+    queryKey: [
+      "editionArticlesList",
+      date,
+      debouncedQ,
+      showCorpus,
+      panelSearch,
+    ] as const,
     queryFn: () =>
       api.articles({
         sort: "relevance",
         limit: "250",
         days: "14",
         group_syndicated: "true",
-        ...(view === "search" && debouncedQ ? { q: debouncedQ } : {}),
+        ...(panelSearch && debouncedQ ? { q: debouncedQ } : {}),
       }),
-    enabled: Boolean(date) && needFlatArticles,
+    enabled: Boolean(date) && showCorpus,
   });
 
   const listArticles: Article[] = articlesListQ.data?.articles ?? [];
-
-  const effectiveView: EditionView = useMemo(() => {
-    if (view === "search") {
-      return "search";
-    }
-    if (view === "list") {
-      return "list";
-    }
-    if (view === "topics") {
-      return "topics";
-    }
-    if (detectionStatus === "done" && topics.length > 0) {
-      return "topics";
-    }
-    return "list";
-  }, [view, detectionStatus, topics.length]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [genOpen, setGenOpen] = useState(false);
@@ -214,6 +207,11 @@ export default function EditionSommairePage() {
     };
   }, [topics, overviewQ.data]);
 
+  const collectHint =
+    statsQ.data != null
+      ? `${statsQ.data.total_collected_24h.toLocaleString("fr-FR")} article(s) collecté(s) sur les dernières 24 h`
+      : null;
+
   const toggleArticle = useCallback((id: string, next: boolean) => {
     setSelectedIds((prev) => {
       const n = new Set(prev);
@@ -253,25 +251,31 @@ export default function EditionSommairePage() {
     null;
 
   return (
-    <div className="space-y-10 pb-44">
-      <header className="max-w-2xl">
-        <p className="olj-rubric">Revue de presse — Édition du jour</p>
+    <div className="space-y-10 pb-36">
+      <header className="max-w-3xl">
+        <p className="olj-rubric">Édition du jour</p>
         <h1 className="mt-3 font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-[1.2] tracking-tight text-foreground capitalize sm:text-[32px]">
-          {date ? formatDateFr(date) : "—"}
+          {date ? formatDateFr(date) : "Date non renseignée"}
         </h1>
         {edition && (
           <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
             <span className="tabular-nums">{stats.articles}</span>{" "}
             article{stats.articles > 1 ? "s" : ""}{" "}
-            {stats.articles > 1 ? "disponibles" : "disponible"} ·{" "}
+            {stats.articles > 1 ? "disponibles" : "disponible"},{" "}
             <span className="tabular-nums">{stats.countries}</span> pays
             représentés
             {stats.developments > 0 ? (
               <>
-                {" "}
-                · <span className="tabular-nums">{stats.developments}</span>{" "}
+                ,{" "}
+                <span className="tabular-nums">{stats.developments}</span>{" "}
                 grand{stats.developments > 1 ? "s" : ""} sujet
                 {stats.developments > 1 ? "s" : ""}
+              </>
+            ) : null}
+            {collectHint ? (
+              <>
+                {" "}
+                · {collectHint}
               </>
             ) : null}
           </p>
@@ -285,7 +289,7 @@ export default function EditionSommairePage() {
 
       {err && (
         <p
-          className="border-l-2 border-destructive pl-3 text-[13px] text-destructive"
+          className="border-l border-destructive pl-3 text-[13px] text-destructive"
           role="alert"
           aria-live="polite"
         >
@@ -295,14 +299,14 @@ export default function EditionSommairePage() {
 
       {detectionStatus === "failed" && (
         <aside
-          className="border-l-[3px] border-accent bg-surface/60 py-3 pl-4 pr-2 text-[13px] leading-relaxed text-foreground-body"
+          className="border-l border-accent bg-surface/60 py-3 pl-4 pr-2 text-[13px] leading-relaxed text-foreground-body"
           role="status"
         >
           <p className="font-[family-name:var(--font-serif)] text-[15px] font-medium text-foreground">
             Détection des sujets indisponible
           </p>
           <p className="mt-1.5 text-muted-foreground">
-            La vue liste par pertinence reste utilisable pour composer la revue.
+            La liste par pertinence reste utilisable pour composer la revue.
           </p>
           <button
             type="button"
@@ -317,118 +321,113 @@ export default function EditionSommairePage() {
         </aside>
       )}
 
-      <div
-        className="mb-10 flex flex-wrap gap-x-8 gap-y-1 border-b border-border"
-        role="tablist"
-        aria-label="Mode d’affichage de l’édition"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={effectiveView === "topics"}
-          className={
-            effectiveView === "topics"
-              ? "olj-tab olj-tab--active"
-              : "olj-tab olj-tab--inactive"
-          }
-          onClick={() => {
-            setView("topics");
-            setSearchInput("");
-            setDebouncedQ("");
-          }}
-        >
-          Grands sujets du jour
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={effectiveView === "list"}
-          className={
-            effectiveView === "list"
-              ? "olj-tab olj-tab--active"
-              : "olj-tab olj-tab--inactive"
-          }
-          onClick={() => {
-            setView("list");
-            setSearchInput("");
-            setDebouncedQ("");
-          }}
-        >
-          Liste complète
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={effectiveView === "search"}
-          className={
-            effectiveView === "search"
-              ? "olj-tab olj-tab--active"
-              : "olj-tab olj-tab--inactive"
-          }
-          onClick={() => setView("search")}
-        >
-          Recherche
-        </button>
-      </div>
-
-      {effectiveView === "search" && (
-        <div className="max-w-xl pt-2">
-          <label className="olj-rubric mb-1 block" htmlFor="edition-search-q">
-            Recherche dans le corpus
-          </label>
-          <input
-            id="edition-search-q"
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Titre, résumé, thèse, angle éditorial…"
-            className="olj-field-search"
-            autoComplete="off"
-          />
-        </div>
-      )}
-
       {loading && (
         <p className="text-[13px] text-muted-foreground">
           Chargement de l’édition…
         </p>
       )}
 
-      {!loading && effectiveView === "topics" && topics.length === 0 && (
-        <p className="max-w-xl text-[13px] leading-relaxed text-foreground-body">
-          Aucun sujet identifié pour cette date. Consultez la{" "}
-          <button
-            type="button"
-            className="olj-link-action inline p-0 align-baseline"
-            onClick={() => {
-              setView("list");
-              setSearchInput("");
-              setDebouncedQ("");
-            }}
-          >
-            liste complète des articles
-          </button>
-          .
-        </p>
+      {!loading && hasTopicFeed && (
+        <>
+          <div>
+            <h2 className="olj-rubric olj-rule mb-4">Grands sujets</h2>
+            <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
+              {topics.map((t: EditionTopic) => (
+                <TopicSection
+                  key={t.id}
+                  topic={t}
+                  selectedIds={selectedIds}
+                  onToggleArticle={toggleArticle}
+                  editionDate={date}
+                  mode="summary"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-6">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-muted-foreground">
+              <button
+                type="button"
+                className={
+                  panelList
+                    ? "font-medium text-foreground underline decoration-accent underline-offset-4"
+                    : "underline decoration-border underline-offset-4 hover:text-foreground"
+                }
+                onClick={() => {
+                  setPanelList((v) => !v);
+                  if (!panelList) setPanelSearch(false);
+                }}
+              >
+                {panelList ? "Masquer la liste complète" : "Liste complète"}
+              </button>
+              <button
+                type="button"
+                className={
+                  panelSearch
+                    ? "font-medium text-foreground underline decoration-accent underline-offset-4"
+                    : "underline decoration-border underline-offset-4 hover:text-foreground"
+                }
+                onClick={() => {
+                  setPanelSearch((v) => !v);
+                  if (!panelSearch) setPanelList(false);
+                }}
+              >
+                {panelSearch
+                  ? "Fermer la recherche"
+                  : "Rechercher dans le corpus"}
+              </button>
+            </div>
+          </div>
+
+          {panelSearch && (
+            <div className="max-w-xl pt-4">
+              <label className="olj-rubric mb-1 block" htmlFor="edition-search-q">
+                Recherche
+              </label>
+              <input
+                id="edition-search-q"
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Titre, résumé, thèse, angle…"
+                className="olj-field-search"
+                autoComplete="off"
+              />
+            </div>
+          )}
+        </>
       )}
 
-      {!loading &&
-        effectiveView === "topics" &&
-        topics.map((t: EditionTopic) => (
-          <TopicSection
-            key={t.id}
-            topic={t}
-            selectedIds={selectedIds}
-            onToggleArticle={toggleArticle}
-          />
-        ))}
+      {!loading && !hasTopicFeed && (
+        <div className="max-w-xl space-y-4">
+          <p className="text-[13px] leading-relaxed text-foreground-body">
+            Aucun grand sujet pour cette date pour l’instant. Parcourez le
+            corpus ou lancez une collecte depuis l’en-tête.
+          </p>
+          <div>
+            <label className="olj-rubric mb-1 block" htmlFor="edition-search-q-empty">
+              Rechercher dans le corpus
+            </label>
+            <input
+              id="edition-search-q-empty"
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Titre, résumé, thèse…"
+              className="olj-field-search"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+      )}
 
-      {!loading && (effectiveView === "list" || effectiveView === "search") && (
-        <section className="space-y-0">
+      {!loading && showCorpus && (
+        <section className="space-y-0 border-t border-border pt-8">
           <h2 className="olj-rubric olj-rule mb-6">
-            {effectiveView === "search"
+            {panelSearch && debouncedQ
               ? "Résultats de recherche"
-              : "Corpus du jour — pertinence éditoriale"}
+              : "Corpus, pertinence éditoriale"}
           </h2>
           {articlesListQ.isPending && (
             <p className="text-[13px] text-muted-foreground">Chargement…</p>
@@ -448,67 +447,51 @@ export default function EditionSommairePage() {
       {genOpen && generatedText && (
         <section className="border-t border-border bg-surface/30 py-8">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="olj-rubric">Brouillon — texte pour le CMS</h2>
+            <h2 className="olj-rubric">Brouillon pour le CMS</h2>
             <button
               type="button"
               className="text-[12px] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
               onClick={() => setGenOpen(false)}
             >
-              Masquer le panneau
+              Masquer
             </button>
           </div>
           <ReviewPreview text={generatedText} stickyToolbar />
         </section>
       )}
 
-      <nav className="border-t border-border pt-8 text-[13px] text-muted-foreground">
-        <Link
-          href={`/edition/${date}/compose`}
-          className="underline decoration-border underline-offset-4 hover:text-foreground"
-        >
-          Voir le texte complet
-        </Link>
-        <span className="mx-2 text-border">·</span>
-        <Link
-          href="/regie"
-          className="underline decoration-border underline-offset-4 hover:text-foreground"
-        >
-          Administration
-        </Link>
-      </nav>
-
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
-        <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background px-5 py-4 sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <CoverageGaps
-              selectedCountryCodes={selectedCountryCodes}
-              targets={coverageQ.data ?? null}
-            />
-            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
-              <p className="text-center text-[12px] text-muted-foreground sm:text-right">
-                <span className="tabular-nums font-medium text-foreground">
-                  {selectedIds.size}
-                </span>{" "}
-                article{selectedIds.size > 1 ? "s" : ""} sélectionné
-                {selectedIds.size > 1 ? "s" : ""}
-              </p>
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  type="button"
-                  className="olj-btn-primary"
-                  disabled={selectedIds.size === 0 || generateMutation.isPending}
-                  onClick={() => generateMutation.mutate()}
-                >
-                  {generateMutation.isPending
-                    ? "Rédaction en cours…"
-                    : "Générer la revue"}
-                </button>
-              </div>
-            </div>
+        <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background px-5 py-3 sm:px-6">
+          <CoverageGaps
+            selectedCountryCodes={selectedCountryCodes}
+            targets={coverageQ.data ?? null}
+            compact
+          />
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+            <p className="text-center text-[12px] text-muted-foreground sm:text-right">
+              <span className="tabular-nums font-medium text-foreground">
+                {selectedIds.size}
+              </span>{" "}
+              sélection
+            </p>
+            <button
+              type="button"
+              className="olj-btn-primary w-full sm:w-auto"
+              disabled={selectedIds.size === 0 || generateMutation.isPending}
+              onClick={() => generateMutation.mutate()}
+            >
+              {generateMutation.isPending
+                ? "Rédaction…"
+                : "Générer la revue"}
+            </button>
           </div>
           {generateMutation.isError && (
-            <p className="mt-3 border-l-2 border-destructive pl-3 text-[12px] text-destructive" role="alert">
-              {(generateMutation.error as Error)?.message ?? "Échec de la génération"}
+            <p
+              className="mt-2 border-l border-destructive pl-3 text-[12px] text-destructive"
+              role="alert"
+            >
+              {(generateMutation.error as Error)?.message ??
+                "Échec de la génération"}
             </p>
           )}
         </div>

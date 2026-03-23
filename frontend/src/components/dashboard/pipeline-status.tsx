@@ -76,14 +76,14 @@ export function PipelineStatus({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-x-1 gap-y-2">
+      <div className="flex flex-wrap gap-2">
         {ACTIONS.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => startRun(key, label)}
             disabled={running !== null}
-            className="border border-border bg-card px-4 py-1.5 text-[12px] font-medium text-foreground shadow-none transition-colors hover:bg-muted disabled:opacity-40"
+            className="olj-btn-secondary text-[12px] disabled:opacity-40"
           >
             {running?.key === key ? "En cours…" : label}
           </button>
@@ -91,14 +91,8 @@ export function PipelineStatus({
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        <strong>Collecte</strong> : RSS + scrapers → articles « collectés ».{" "}
-        <strong>Traduction</strong> : LLM → titres/résumés FR + type.{" "}
-        <strong>Actualiser les sujets</strong> : vecteurs (Cohere) + regroupement
-        thématique + libellés.{" "}
-        <strong>Traitement complet</strong> : tout l’enchaînement (plusieurs minutes
-        possibles). Le suivi continue si vous quittez cette page : bandeau en tête
-        du site + reprise après rechargement (session). Polling espacé pour limiter
-        la charge navigateur.
+        Collecte (sources), traduction, actualisation des sujets, ou traitement
+        complet. Le suivi reste visible en haut de page pendant la navigation.
       </p>
 
       {diagnostics.length > 0 && (

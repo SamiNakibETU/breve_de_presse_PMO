@@ -18,9 +18,8 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "L'Orient-Le Jour — Revue de presse régionale",
-  description:
-    "Revue de presse régionale — L'Orient-Le Jour",
+  title: "L'Orient-Le Jour · Revue de presse régionale",
+  description: "Revue de presse régionale · L'Orient-Le Jour",
 };
 
 export default function RootLayout({

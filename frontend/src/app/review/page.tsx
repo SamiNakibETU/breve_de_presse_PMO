@@ -153,7 +153,7 @@ export default function ReviewPage() {
 
       <section>
         <h2 className="olj-rubric olj-rule">
-          Sélection —{" "}
+          Sélection ·{" "}
           {articlesLoading && articleIds.length > 0
             ? "…"
             : `${articlesOrdered.length} article${articlesOrdered.length > 1 ? "s" : ""}`}

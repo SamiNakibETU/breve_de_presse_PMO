@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 
-/** Bandeau discret : la pipeline continue même hors de la page d’accueil. */
+/** Bandeau discret : suivi de la tâche pipeline hors page dédiée. */
 export function PipelineGlobalBar() {
   const pathname = usePathname();
   const ctx = usePipelineRunnerOptional();
@@ -12,27 +12,25 @@ export function PipelineGlobalBar() {
 
   if (!running) return null;
 
-  const onHome = pathname === "/";
+  const onSommaire =
+    pathname === "/" || pathname.startsWith("/edition");
 
   return (
     <div className="border-b border-border-light bg-accent-tint/80">
-      <div className="mx-auto flex max-w-[960px] flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 text-[12px] text-foreground sm:px-6">
-        <span className="font-semibold text-accent">Opération en cours</span>
+      <div className="mx-auto flex max-w-[80rem] flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2 text-[12px] text-foreground sm:px-6">
+        <span className="font-semibold text-accent">Tâche en cours</span>
         <span className="text-foreground-subtle">{running.label}</span>
         {running.stepLabel ? (
           <span className="min-w-0 text-foreground-body">
             <span className="text-muted-foreground">·</span> {running.stepLabel}
           </span>
         ) : null}
-        <span className="text-[11px] text-muted-foreground">
-          (vous pouvez continuer à naviguer pendant ce temps)
-        </span>
-        {!onHome ? (
+        {!onSommaire ? (
           <Link
             href="/"
-            className="ml-auto shrink-0 underline decoration-border underline-offset-2 hover:text-accent"
+            className="ml-auto shrink-0 text-[11px] underline decoration-border underline-offset-2 hover:text-accent"
           >
-            Retour au sommaire du jour
+            Sommaire du jour
           </Link>
         ) : null}
       </div>

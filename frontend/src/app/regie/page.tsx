@@ -7,63 +7,60 @@ const sections: { href: string; title: string; blurb: string }[] = [
     blurb: "État des médias, dernières collectes et alertes.",
   },
   {
-    href: "/dashboard",
-    title: "Sujets automatiques",
-    blurb: "Vue technique : regroupements et inventaire.",
-  },
-  {
     href: "/regie/pipeline",
     title: "Collecte et traduction",
-    blurb: "Rapports par étape (collecte, dédoublonnage, regroupement…).",
+    blurb: "Lancer la collecte ou le traitement, consulter les rapports d’étape.",
   },
   {
     href: "/regie/dedup",
     title: "Dédoublonnage",
-    blurb: "Étapes de fusion et signalements.",
+    blurb: "Fusions et signalements.",
   },
   {
     href: "/regie/clustering",
     title: "Regroupements",
-    blurb: "Paramètres et documentation — indicateurs dans les journaux.",
+    blurb: "Paramètres et documentation.",
   },
   {
     href: "/regie/curator",
     title: "Curateur",
-    blurb: "Historique des propositions de sujets (appels automatisés).",
+    blurb: "Historique des propositions de sujets.",
   },
   {
     href: "/regie/logs",
     title: "Journaux",
     blurb: "Traces techniques et journal des opérations.",
   },
+  {
+    href: "/dashboard",
+    title: "Sujets automatiques",
+    blurb: "Vue technique des regroupements en base.",
+  },
 ];
 
 export default function RegieHubPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
-          Administration
+          Régie
         </h1>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-foreground-body">
-          Outils réservés à l’équipe technique et à la maintenance. Les vues
-          s’appuient sur les tables{" "}
-          <code className="text-[12px]">pipeline_debug_logs</code>,{" "}
-          <code className="text-[12px]">llm_call_logs</code> et l’API{" "}
-          <code className="text-[12px]">/api/regie/*</code> (authentification requise).
+          Outils internes pour la revue de presse : sources, pipeline, suivi et
+          journaux.
         </p>
       </div>
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <ul className="divide-y divide-border border-t border-border">
         {sections.map((s) => (
           <li key={s.href}>
             <Link
               href={s.href}
-              className="block border border-border-light bg-card p-4 transition-colors hover:bg-muted/60"
+              className="block py-4 transition-colors hover:bg-muted/30"
             >
-              <h2 className="font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
+              <h2 className="font-[family-name:var(--font-serif)] text-[16px] font-semibold text-foreground">
                 {s.title}
               </h2>
-              <p className="mt-2 text-[12px] leading-relaxed text-foreground-body">
+              <p className="mt-1 text-[12px] leading-relaxed text-foreground-body">
                 {s.blurb}
               </p>
             </Link>
@@ -72,9 +69,12 @@ export default function RegieHubPage() {
       </ul>
       <p className="text-[11px] text-muted-foreground">
         <Link href="/" className="underline-offset-4 hover:underline">
-          Retour à l’accueil (sommaire du jour)
+          Retour au sommaire du jour
         </Link>
-        .
+        {" · "}
+        <Link href="/articles" className="underline-offset-4 hover:underline">
+          Articles
+        </Link>
       </p>
     </div>
   );
