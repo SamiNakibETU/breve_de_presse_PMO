@@ -5,6 +5,37 @@
 
 export const FLAGSHIP_BADGE_LABEL = "À la une";
 
+/** Codes connus pour filtres corpus (API `article_type`). */
+export const CORPUS_ARTICLE_TYPE_CODES: readonly string[] = [
+  "analysis",
+  "blog",
+  "briefing",
+  "column",
+  "editorial",
+  "feature",
+  "interview",
+  "news",
+  "opinion",
+  "reportage",
+  "review",
+  "tribune",
+] as const;
+
+/** Codes langue source pour filtres corpus (API `language`). */
+export const CORPUS_SOURCE_LANGUAGE_CODES: readonly string[] = [
+  "ar",
+  "de",
+  "en",
+  "es",
+  "fa",
+  "fr",
+  "he",
+  "it",
+  "ku",
+  "ru",
+  "tr",
+] as const;
+
 const ARTICLE_TYPE_FR: Record<string, string> = {
   news: "Actualité",
   opinion: "Opinion",

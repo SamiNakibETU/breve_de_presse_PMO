@@ -25,7 +25,7 @@ export function ArticleRow({
   /** `dense` : en-tête journal + pays + type mis en avant (grille corpus). */
   variant?: "default" | "dense";
 }) {
-  const openArticle = useArticleReader();
+  const { openArticle, prefetchArticle } = useArticleReader();
   const [open, setOpen] = useState(false);
   const title = article.title_fr || article.title_original;
   const cc = (article.country_code ?? "").trim().toUpperCase();
@@ -145,6 +145,8 @@ export function ArticleRow({
           <button
             type="button"
             className="olj-btn-secondary px-2 py-0.5 text-[10px]"
+            onMouseEnter={() => prefetchArticle(article.id)}
+            onFocus={() => prefetchArticle(article.id)}
             onClick={(e) => {
               e.stopPropagation();
               openArticle(article.id);

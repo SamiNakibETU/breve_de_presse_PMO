@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useArticleReader } from "@/contexts/article-reader";
 import { clusterFallbackDisplayTitle } from "@/lib/cluster-display";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -47,7 +47,7 @@ function ThemeArticleRow({
   selected: boolean;
   onToggle: (next: boolean) => void;
 }) {
-  const openArticle = useArticleReader();
+  const { openArticle, prefetchArticle } = useArticleReader();
   const title = article.title.trim() || "Sans titre";
   return (
     <div className="px-3 py-3 text-[12px] sm:px-4">
@@ -68,6 +68,8 @@ function ThemeArticleRow({
           <button
             type="button"
             className="olj-btn-secondary px-2 py-0.5 text-[10px]"
+            onMouseEnter={() => prefetchArticle(article.id)}
+            onFocus={() => prefetchArticle(article.id)}
             onClick={() => openArticle(article.id)}
           >
             Lire
@@ -97,6 +99,8 @@ export function EditionThemesView({
   countryLabelsFr?: Record<string, string> | null;
   embedded?: boolean;
 }) {
+  const [listFilter, setListFilter] = useState<"all" | "useful">("useful");
+
   const sortedRows = useMemo(() => {
     const r = [...rows];
     r.sort((a, b) => {
@@ -110,6 +114,18 @@ export function EditionThemesView({
     });
     return r;
   }, [rows]);
+
+  const visibleRows = useMemo(() => {
+    if (listFilter === "all") {
+      return sortedRows;
+    }
+    return sortedRows.filter(
+      (row) => row.country_count >= 2 || row.source_count >= 2,
+    );
+  }, [sortedRows, listFilter]);
+
+  const hiddenByFilter =
+    listFilter === "useful" ? sortedRows.length - visibleRows.length : 0;
 
   if (isLoading) {
     return (
@@ -144,8 +160,55 @@ export function EditionThemesView({
           </p>
         </div>
       ) : null}
-      <ul className="space-y-5">
-        {sortedRows.map((row) => {
+      {embedded && sortedRows.length > 0 ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <label className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="shrink-0 font-medium text-foreground-body">
+              Filtre affinités
+            </span>
+            <select
+              className="olj-focus max-w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px] text-foreground"
+              value={listFilter}
+              onChange={(e) =>
+                setListFilter(e.target.value === "all" ? "all" : "useful")
+              }
+              aria-label="Filtrer les blocs d’affinités"
+            >
+              <option value="useful">
+                Utiles seulement (multi-pays ou multi-médias)
+              </option>
+              <option value="all">Tous les blocs</option>
+            </select>
+          </label>
+          {hiddenByFilter > 0 ? (
+            <span className="text-[11px] text-muted-foreground">
+              {hiddenByFilter} bloc{hiddenByFilter > 1 ? "s" : ""} masqué
+              {hiddenByFilter > 1 ? "s" : ""} (même pays et une seule source)
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {visibleRows.length === 0 &&
+      listFilter === "useful" &&
+      sortedRows.length > 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/10 px-4 py-4 text-[13px] leading-relaxed text-muted-foreground">
+          <p>
+            Aucun bloc ne combine plusieurs pays ou plusieurs médias : les
+            regroupements visibles sans filtre sont souvent du même journal.
+            Passez à{" "}
+            <button
+              type="button"
+              className="font-semibold text-[#c8102e] underline decoration-[#c8102e]/40 underline-offset-2 hover:decoration-[#c8102e]"
+              onClick={() => setListFilter("all")}
+            >
+              Tous les blocs
+            </button>{" "}
+            pour tout parcourir, ou affinez le corpus (pays, langue) plus bas.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-5">
+          {visibleRows.map((row) => {
           const multi = row.country_count >= 2;
           const groups = groupByCountry(row.articles);
           return (
@@ -223,8 +286,9 @@ export function EditionThemesView({
               </div>
             </li>
           );
-        })}
-      </ul>
+          })}
+        </ul>
+      )}
     </section>
   );
 }

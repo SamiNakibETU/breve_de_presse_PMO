@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -9,36 +9,68 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { articleTypeLabelFr, sourceLanguageLabelFr } from "@/lib/article-labels-fr";
+import {
+  articleTypeLabelFr,
+  sourceLanguageLabelFr,
+} from "@/lib/article-labels-fr";
 import { api } from "@/lib/api";
 import type { Article } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const ARTICLE_QUERY_STALE_MS = 60_000;
+
+export const articleDetailQueryKey = (articleId: string) =>
+  ["article", articleId] as const;
 
 type ArticleReaderContextValue = {
   openArticle: (articleId: string) => void;
+  prefetchArticle: (articleId: string) => void;
 };
 
-const ArticleReaderContext = createContext<ArticleReaderContextValue | null>(null);
+const ArticleReaderContext = createContext<ArticleReaderContextValue | null>(
+  null,
+);
 
 export function ArticleReaderProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [articleId, setArticleId] = useState<string | null>(null);
   const openArticle = useCallback((id: string) => {
     setArticleId(id);
   }, []);
   const close = useCallback(() => setArticleId(null), []);
 
+  const prefetchArticle = useCallback(
+    (id: string) => {
+      if (!id.trim()) return;
+      void queryClient.prefetchQuery({
+        queryKey: articleDetailQueryKey(id),
+        queryFn: () => api.articleById(id),
+        staleTime: ARTICLE_QUERY_STALE_MS,
+      });
+    },
+    [queryClient],
+  );
+
   return (
-    <ArticleReaderContext.Provider value={{ openArticle }}>
+    <ArticleReaderContext.Provider value={{ openArticle, prefetchArticle }}>
       {children}
-      {articleId ? <ArticleReadModal articleId={articleId} onClose={close} /> : null}
+      {articleId ? (
+        <ArticleReadModal articleId={articleId} onClose={close} />
+      ) : null}
     </ArticleReaderContext.Provider>
   );
 }
 
-/** Ouvre la fiche article standardisée ; no-op si hors provider. */
-export function useArticleReader(): (articleId: string) => void {
+/** Actions lecteur article ; no-op si hors provider. */
+export function useArticleReader(): ArticleReaderContextValue {
   const ctx = useContext(ArticleReaderContext);
-  return ctx?.openArticle ?? (() => {});
+  return {
+    openArticle: ctx?.openArticle ?? (() => {}),
+    prefetchArticle: ctx?.prefetchArticle ?? (() => {}),
+  };
 }
+
+type ReaderTab = "synthesis" | "translation";
 
 function ArticleReadModal({
   articleId,
@@ -47,12 +79,17 @@ function ArticleReadModal({
   articleId: string;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<ReaderTab>("synthesis");
   const q = useQuery({
-    queryKey: ["article", articleId] as const,
+    queryKey: articleDetailQueryKey(articleId),
     queryFn: () => api.articleById(articleId),
     enabled: Boolean(articleId),
-    staleTime: 60_000,
+    staleTime: ARTICLE_QUERY_STALE_MS,
   });
+
+  useEffect(() => {
+    setTab("synthesis");
+  }, [articleId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,6 +105,9 @@ function ArticleReadModal({
   const title = a?.title_fr || a?.title_original || "Article";
   const typeFr = articleTypeLabelFr(a?.article_type);
   const langFr = sourceLanguageLabelFr(a?.source_language);
+  const hasBodyFr = Boolean(a?.content_translated_fr?.trim());
+  const summaryOnly =
+    Boolean(a?.en_translation_summary_only) && !hasBodyFr;
 
   return (
     <div
@@ -95,12 +135,17 @@ function ArticleReadModal({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
           {q.isPending ? (
-            <p className="text-[13px] text-muted-foreground" role="status">
-              Chargement…
-            </p>
+            <div className="space-y-3" role="status" aria-label="Chargement">
+              <div className="h-6 w-3/4 animate-pulse rounded bg-muted/60" />
+              <div className="h-4 w-full animate-pulse rounded bg-muted/40" />
+              <div className="h-4 w-5/6 animate-pulse rounded bg-muted/40" />
+              <div className="h-32 w-full animate-pulse rounded bg-muted/30" />
+            </div>
           ) : q.isError ? (
             <p className="text-[13px] text-destructive" role="alert">
-              {q.error instanceof Error ? q.error.message : "Impossible de charger l’article."}
+              {q.error instanceof Error
+                ? q.error.message
+                : "Impossible de charger l’article."}
             </p>
           ) : a ? (
             <article className="space-y-4 text-[13px] leading-relaxed text-foreground-body">
@@ -111,11 +156,17 @@ function ArticleReadModal({
                 >
                   {title}
                 </h2>
-                {a.title_fr && a.title_original && a.title_fr !== a.title_original ? (
-                  <p className="text-[12px] text-muted-foreground">Titre d’origine : {a.title_original}</p>
+                {a.title_fr &&
+                a.title_original &&
+                a.title_fr !== a.title_original ? (
+                  <p className="text-[12px] text-muted-foreground">
+                    Titre d’origine : {a.title_original}
+                  </p>
                 ) : null}
                 <p className="flex flex-wrap gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
-                  <span className="font-medium text-foreground">{a.media_name}</span>
+                  <span className="font-medium text-foreground">
+                    {a.media_name}
+                  </span>
                   <span>·</span>
                   <span>{a.country}</span>
                   {typeFr ? (
@@ -149,60 +200,133 @@ function ArticleReadModal({
                 ) : null}
               </header>
 
-              {a.thesis_summary_fr?.trim() ? (
-                <section>
-                  <p className="olj-rubric mb-2">Thèse</p>
-                  <p className="font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
-                    {a.thesis_summary_fr.trim()}
+              <div
+                className="flex flex-wrap gap-1 border-b border-border-light pb-3"
+                role="tablist"
+                aria-label="Mode de lecture"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "synthesis"}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors",
+                    tab === "synthesis"
+                      ? "bg-[#c8102e]/12 text-[#c8102e]"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                  )}
+                  onClick={() => setTab("synthesis")}
+                >
+                  Synthèse revue
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "translation"}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors",
+                    tab === "translation"
+                      ? "bg-[#c8102e]/12 text-[#c8102e]"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                  )}
+                  onClick={() => setTab("translation")}
+                >
+                  Traduction du corps
+                </button>
+              </div>
+
+              {tab === "synthesis" ? (
+                <>
+                  {a.thesis_summary_fr?.trim() ? (
+                    <section>
+                      <p className="olj-rubric mb-2">Thèse</p>
+                      <p className="font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
+                        {a.thesis_summary_fr.trim()}
+                      </p>
+                    </section>
+                  ) : null}
+
+                  {a.summary_fr?.trim() ? (
+                    <section>
+                      <p className="olj-rubric mb-2">Résumé</p>
+                      <p className="whitespace-pre-wrap text-foreground-body">
+                        {a.summary_fr.trim()}
+                      </p>
+                    </section>
+                  ) : null}
+
+                  {!a.thesis_summary_fr?.trim() && !a.summary_fr?.trim() ? (
+                    <p className="text-muted-foreground">
+                      Pas de synthèse LLM pour cet article. Voyez l’onglet{" "}
+                      <strong className="font-medium text-foreground">
+                        Traduction du corps
+                      </strong>{" "}
+                      ou la source.
+                    </p>
+                  ) : null}
+
+                  {a.key_quotes_fr && a.key_quotes_fr.length > 0 ? (
+                    <section>
+                      <p className="olj-rubric mb-2">Citations</p>
+                      <ul className="list-inside list-disc space-y-2 text-foreground-body">
+                        {a.key_quotes_fr.map((quote, i) => (
+                          <li key={i} className="whitespace-pre-wrap">
+                            « {quote} »
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+
+                  {(a.framing_actor ||
+                    a.framing_tone ||
+                    a.framing_prescription) && (
+                    <section className="border-t border-border-light pt-4 text-[12px] text-muted-foreground">
+                      <p className="olj-rubric mb-2">Cadrage</p>
+                      {a.framing_actor ? (
+                        <p>Acteur : {a.framing_actor}</p>
+                      ) : null}
+                      {a.framing_tone ? <p>Ton : {a.framing_tone}</p> : null}
+                      {a.framing_prescription ? (
+                        <p>Prescription : {a.framing_prescription}</p>
+                      ) : null}
+                    </section>
+                  )}
+
+                  {a.editorial_angle?.trim() ? (
+                    <p className="border-t border-border-light pt-4 text-[12px] text-foreground-subtle">
+                      {a.editorial_angle.trim()}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <section className="space-y-2">
+                  <p className="olj-rubric mb-1">Texte traduit (pipeline)</p>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Version française du corps issu de la traduction automatique
+                    (hors reformulation « thèse / résumé » de l’onglet précédent).
                   </p>
-                </section>
-              ) : null}
-
-              {a.summary_fr?.trim() ? (
-                <section>
-                  <p className="olj-rubric mb-2">Résumé</p>
-                  <p className="whitespace-pre-wrap text-foreground-body">{a.summary_fr.trim()}</p>
-                </section>
-              ) : null}
-
-              {a.content_translated_fr?.trim() ? (
-                <section>
-                  <p className="olj-rubric mb-2">Texte</p>
-                  <div className="whitespace-pre-wrap text-foreground-body">{a.content_translated_fr.trim()}</div>
-                </section>
-              ) : !a.summary_fr?.trim() && !a.thesis_summary_fr?.trim() ? (
-                <p className="text-muted-foreground">
-                  Aucun texte traduit stocké pour cet article. Utilisez le lien vers la source.
-                </p>
-              ) : null}
-
-              {a.key_quotes_fr && a.key_quotes_fr.length > 0 ? (
-                <section>
-                  <p className="olj-rubric mb-2">Citations</p>
-                  <ul className="list-inside list-disc space-y-2 text-foreground-body">
-                    {a.key_quotes_fr.map((quote, i) => (
-                      <li key={i} className="whitespace-pre-wrap">
-                        « {quote} »
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {(a.framing_actor || a.framing_tone || a.framing_prescription) && (
-                <section className="border-t border-border-light pt-4 text-[12px] text-muted-foreground">
-                  <p className="olj-rubric mb-2">Cadrage</p>
-                  {a.framing_actor ? <p>Acteur : {a.framing_actor}</p> : null}
-                  {a.framing_tone ? <p>Ton : {a.framing_tone}</p> : null}
-                  {a.framing_prescription ? <p>Prescription : {a.framing_prescription}</p> : null}
+                  {hasBodyFr ? (
+                    <div className="whitespace-pre-wrap rounded-md border border-border-light bg-surface-warm/20 p-3 text-[13px] text-foreground-body">
+                      {a.content_translated_fr!.trim()}
+                    </div>
+                  ) : summaryOnly ? (
+                    <p className="text-[13px] text-muted-foreground">
+                      Pour cet article, la chaîne n’a pas persisté le corps
+                      traduit (résumé seulement). Utilisez la{" "}
+                      <strong className="font-medium text-foreground">
+                        Synthèse revue
+                      </strong>{" "}
+                      ou le lien vers la source.
+                    </p>
+                  ) : (
+                    <p className="text-[13px] text-muted-foreground">
+                      Aucun corps traduit en base pour cet article. Ouvrez la
+                      source ou vérifiez les options de traduction côté serveur.
+                    </p>
+                  )}
                 </section>
               )}
-
-              {a.editorial_angle?.trim() ? (
-                <p className="border-t border-border-light pt-4 text-[12px] text-foreground-subtle">
-                  {a.editorial_angle.trim()}
-                </p>
-              ) : null}
             </article>
           ) : null}
         </div>

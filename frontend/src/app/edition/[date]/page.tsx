@@ -10,8 +10,15 @@ import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
 import { ReviewPreview } from "@/components/review/review-preview";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
+import {
+  CORPUS_ARTICLE_TYPE_CODES,
+  CORPUS_SOURCE_LANGUAGE_CODES,
+  articleTypeLabelFr,
+  sourceLanguageLabelFr,
+} from "@/lib/article-labels-fr";
 import { clusterFallbackDisplayTitle } from "@/lib/cluster-display";
 import { api } from "@/lib/api";
+import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type {
   Article,
   Edition,
@@ -21,6 +28,9 @@ import type {
 
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
+const CORPUS_LIST_LIMIT = 250;
+
+type CorpusSortKey = "relevance" | "date" | "confidence" | "confidence_asc";
 
 function formatDateFr(iso: string): string {
   const parts = iso.split("-").map(Number);
@@ -282,21 +292,52 @@ export default function EditionSommairePage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const [corpusCountry, setCorpusCountry] = useState("");
+  const [corpusLanguage, setCorpusLanguage] = useState("");
+  const [corpusType, setCorpusType] = useState("");
+  const [corpusSort, setCorpusSort] = useState<CorpusSortKey>("relevance");
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(searchInput.trim()), 320);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const articlesListQ = useQuery({
-    queryKey: ["editionArticlesList", editionId, debouncedQ, "unified"] as const,
+  const corpusFacetsQ = useQuery({
+    queryKey: ["editionArticlesFacets", editionId, debouncedQ] as const,
     queryFn: () =>
       api.articles({
         edition_id: editionId!,
         sort: "relevance",
-        limit: "250",
+        limit: "1",
+        offset: "0",
         group_syndicated: "true",
         ...(debouncedQ ? { q: debouncedQ } : {}),
+      }),
+    enabled: Boolean(date) && Boolean(editionId),
+    staleTime: 60_000,
+  });
+
+  const articlesListQ = useQuery({
+    queryKey: [
+      "editionArticlesList",
+      editionId,
+      debouncedQ,
+      "unified",
+      corpusCountry,
+      corpusLanguage,
+      corpusType,
+      corpusSort,
+    ] as const,
+    queryFn: () =>
+      api.articles({
+        edition_id: editionId!,
+        sort: corpusSort,
+        limit: String(CORPUS_LIST_LIMIT),
+        group_syndicated: "true",
+        ...(debouncedQ ? { q: debouncedQ } : {}),
+        ...(corpusCountry ? { country: corpusCountry } : {}),
+        ...(corpusLanguage ? { language: corpusLanguage } : {}),
+        ...(corpusType ? { article_type: corpusType } : {}),
       }),
     enabled: Boolean(date) && Boolean(editionId),
     staleTime: 60_000,
@@ -501,6 +542,7 @@ export default function EditionSommairePage() {
         queryKey: ["editionClustersFallback", editionId],
       });
       await qc.invalidateQueries({ queryKey: ["editionArticlesList"] });
+      await qc.invalidateQueries({ queryKey: ["editionArticlesFacets"] });
     },
   });
 
@@ -536,6 +578,36 @@ export default function EditionSommairePage() {
     !hasTopicFeed;
 
   const labelsFr = coverageQ.data?.labels_fr ?? null;
+
+  const corpusCountryOptions = useMemo(() => {
+    const raw = corpusFacetsQ.data?.counts_by_country;
+    if (!raw || typeof raw !== "object") {
+      return [] as { code: string; count: number }[];
+    }
+    return Object.entries(raw)
+      .map(([code, count]) => ({
+        code: code.trim().toUpperCase(),
+        count: Number(count) || 0,
+      }))
+      .filter((x) => x.code)
+      .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code, "fr"));
+  }, [corpusFacetsQ.data?.counts_by_country]);
+
+  const corpusTotalCount = articlesListQ.data?.total ?? 0;
+  const corpusTruncated = corpusTotalCount > CORPUS_LIST_LIMIT;
+
+  const resetCorpusFilters = useCallback(() => {
+    setCorpusCountry("");
+    setCorpusLanguage("");
+    setCorpusType("");
+    setCorpusSort("relevance");
+  }, []);
+
+  const corpusFiltersActive =
+    Boolean(corpusCountry) ||
+    Boolean(corpusLanguage) ||
+    Boolean(corpusType) ||
+    corpusSort !== "relevance";
 
   return (
     <div className="space-y-10 pb-36">
@@ -804,8 +876,9 @@ export default function EditionSommairePage() {
                       Textes très proches
                     </h2>
                     <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-                      Articles rapprochés par ressemblance automatique. Utile en complément du sommaire : même matière
-                      apparente, autre méthode que les grands sujets.
+                      Articles rapprochés par ressemblance automatique. Par défaut, seuls les blocs{" "}
+                      <strong className="font-medium text-foreground-body">multi-pays ou multi-médias</strong> sont
+                      listés ; le filtre se règle dans le bloc ci-dessous.
                     </p>
                   </header>
                   <EditionThemesView
@@ -836,22 +909,125 @@ export default function EditionSommairePage() {
                     </p>
                   ) : null}
                 </div>
-                <div className="max-w-xl pb-4">
-                  <label
-                    className="olj-rubric mb-1 block"
-                    htmlFor="edition-search-corpus"
-                  >
-                    Recherche dans le corpus
-                  </label>
-                  <input
-                    id="edition-search-corpus"
-                    type="search"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Titre, résumé, thèse, angle…"
-                    className="olj-field-search"
-                    autoComplete="off"
-                  />
+                <div className="space-y-4 pb-4">
+                  <div className="max-w-xl">
+                    <label
+                      className="olj-rubric mb-1 block"
+                      htmlFor="edition-search-corpus"
+                    >
+                      Recherche dans le corpus
+                    </label>
+                    <input
+                      id="edition-search-corpus"
+                      type="search"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      placeholder="Titre, résumé, thèse, angle…"
+                      className="olj-field-search"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="max-w-4xl space-y-2">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <p className="olj-rubric w-full">Filtres et tri</p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
+                        <span>Pays</span>
+                        <select
+                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
+                          value={corpusCountry}
+                          onChange={(e) => setCorpusCountry(e.target.value)}
+                          aria-label="Filtrer par pays"
+                        >
+                          <option value="">Tous les pays</option>
+                          {corpusCountryOptions.map(({ code, count }) => {
+                            const flag = REGION_FLAG_EMOJI[code];
+                            const name = labelsFr?.[code]?.trim() || code;
+                            return (
+                              <option key={code} value={code}>
+                                {flag ? `${flag} ` : ""}
+                                {name} ({count})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
+                        <span>Langue source</span>
+                        <select
+                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
+                          value={corpusLanguage}
+                          onChange={(e) => setCorpusLanguage(e.target.value)}
+                          aria-label="Filtrer par langue source"
+                        >
+                          <option value="">Toutes</option>
+                          {CORPUS_SOURCE_LANGUAGE_CODES.map((code) => (
+                            <option key={code} value={code}>
+                              {sourceLanguageLabelFr(code) ?? code}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
+                        <span>Type d’article</span>
+                        <select
+                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
+                          value={corpusType}
+                          onChange={(e) => setCorpusType(e.target.value)}
+                          aria-label="Filtrer par type d’article"
+                        >
+                          <option value="">Tous les types</option>
+                          {CORPUS_ARTICLE_TYPE_CODES.map((code) => (
+                            <option key={code} value={code}>
+                              {articleTypeLabelFr(code) ?? code}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
+                        <span>Tri</span>
+                        <select
+                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
+                          value={corpusSort}
+                          onChange={(e) =>
+                            setCorpusSort(e.target.value as CorpusSortKey)
+                          }
+                          aria-label="Trier la liste"
+                        >
+                          <option value="relevance">Pertinence éditoriale</option>
+                          <option value="date">Date de collecte</option>
+                          <option value="confidence">Confiance (desc.)</option>
+                          <option value="confidence_asc">Confiance (asc.)</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {corpusFiltersActive ? (
+                        <button
+                          type="button"
+                          className="text-[11px] font-medium text-[#c8102e] underline decoration-[#c8102e]/35 underline-offset-2 hover:decoration-[#c8102e]"
+                          onClick={resetCorpusFilters}
+                        >
+                          Réinitialiser filtres et tri
+                        </button>
+                      ) : null}
+                      {!articlesListQ.isPending && listArticles.length > 0 ? (
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                          {listArticles.length} affiché
+                          {listArticles.length > 1 ? "s" : ""}
+                          {corpusTotalCount > listArticles.length
+                            ? ` sur ${corpusTotalCount.toLocaleString("fr-FR")}`
+                            : corpusTotalCount > 0
+                              ? ` · ${corpusTotalCount.toLocaleString("fr-FR")} au total`
+                              : ""}
+                          {corpusTruncated
+                            ? ` (plafond ${CORPUS_LIST_LIMIT} — affinez les filtres)`
+                            : ""}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
                 {articlesListQ.isPending && <CorpusListSkeleton />}
                 {corpusEmpty && (

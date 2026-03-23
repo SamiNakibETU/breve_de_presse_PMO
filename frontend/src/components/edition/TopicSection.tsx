@@ -75,7 +75,7 @@ function TopicArticleLine({
   compact?: boolean;
   countryShownInGroupHeader?: boolean;
 }) {
-  const openArticle = useArticleReader();
+  const { openArticle, prefetchArticle } = useArticleReader();
   const title = preview.title_fr || preview.title_original;
   const typeFr = articleTypeLabelFr(preview.article_type);
   const cc = (preview.country_code ?? "").trim().toUpperCase();
@@ -163,6 +163,8 @@ function TopicArticleLine({
             <button
               type="button"
               className="olj-btn-secondary px-2 py-0.5 text-[10px] disabled:opacity-50"
+              onMouseEnter={() => prefetchArticle(preview.id)}
+              onFocus={() => prefetchArticle(preview.id)}
               onClick={() => openArticle(preview.id)}
             >
               Lire
