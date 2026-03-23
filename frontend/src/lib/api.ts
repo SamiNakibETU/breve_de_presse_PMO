@@ -5,6 +5,7 @@ import {
 } from "./api-request-error";
 import type {
   AppStatus,
+  Article,
   ArticleListResponse,
   ClusterArticlesResponse,
   ClusterFallbackRow,
@@ -236,6 +237,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ ids }),
     }),
+
+  articleById: (articleId: string) =>
+    request<Article>(`/api/articles/${encodeURIComponent(articleId)}`),
 
   mediaSources: () => request<MediaSource[]>("/api/media-sources"),
 

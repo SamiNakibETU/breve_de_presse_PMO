@@ -39,6 +39,11 @@ export interface Article {
   editorial_angle?: string | null;
   event_tags?: string[] | null;
   is_flagship?: boolean | null;
+  /** Corps traduit (souvent présent sur GET /api/articles/{id}). */
+  content_translated_fr?: string | null;
+  framing_actor?: string | null;
+  framing_tone?: string | null;
+  framing_prescription?: string | null;
 }
 
 export interface ArticleListResponse {

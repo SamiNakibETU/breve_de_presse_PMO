@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useArticleReader } from "@/contexts/article-reader";
 import {
   FLAGSHIP_BADGE_LABEL,
   articleTypeLabelFr,
@@ -74,6 +75,7 @@ function TopicArticleLine({
   compact?: boolean;
   countryShownInGroupHeader?: boolean;
 }) {
+  const openArticle = useArticleReader();
   const title = preview.title_fr || preview.title_original;
   const typeFr = articleTypeLabelFr(preview.article_type);
   const cc = (preview.country_code ?? "").trim().toUpperCase();
@@ -150,16 +152,25 @@ function TopicArticleLine({
               ) : null}
             </div>
           ) : null}
-          {preview.url ? (
-            <a
-              href={preview.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="olj-focus mt-1.5 inline-block text-[10px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="olj-btn-secondary px-2 py-0.5 text-[10px] disabled:opacity-50"
+              onClick={() => openArticle(preview.id)}
             >
-              Source ↗
-            </a>
-          ) : null}
+              Lire
+            </button>
+            {preview.url ? (
+              <a
+                href={preview.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="olj-focus text-[10px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
+              >
+                Source ↗
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

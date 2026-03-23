@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { useArticleReader } from "@/contexts/article-reader";
 import { clusterFallbackDisplayTitle } from "@/lib/cluster-display";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { ClusterFallbackArticle, ClusterFallbackRow } from "@/lib/types";
@@ -46,6 +47,7 @@ function ThemeArticleRow({
   selected: boolean;
   onToggle: (next: boolean) => void;
 }) {
+  const openArticle = useArticleReader();
   const title = article.title.trim() || "Sans titre";
   return (
     <div className="px-3 py-3 text-[12px] sm:px-4">
@@ -61,6 +63,15 @@ function ThemeArticleRow({
           <span className="text-muted-foreground">{article.source}</span>
           <span className="text-muted-foreground"> · </span>
           <span className="font-medium leading-snug text-foreground">{title}</span>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            className="olj-btn-secondary px-2 py-0.5 text-[10px]"
+            onClick={() => openArticle(article.id)}
+          >
+            Lire
+          </button>
         </div>
       </div>
     </div>

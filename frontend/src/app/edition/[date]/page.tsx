@@ -51,6 +51,32 @@ function formatEditionWindowBeirut(isoStart: string, isoEnd: string): string {
   return `Du ${fmt.format(new Date(isoStart))} au ${fmt.format(new Date(isoEnd))} · heure de Beyrouth`;
 }
 
+/** Période couverte : forme courte pour l’en-tête (Beyrouth). */
+function formatEditionWindowCompact(isoStart: string, isoEnd: string): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Beirut",
+  };
+  const fmt = new Intl.DateTimeFormat("fr-FR", opts);
+  return `${fmt.format(new Date(isoStart))} → ${fmt.format(new Date(isoEnd))} · Beyrouth`;
+}
+
+function shiftEditionDate(isoDate: string, deltaDays: number): string {
+  const parts = isoDate.split("-").map(Number);
+  const y = parts[0] ?? 1970;
+  const m = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 /** Chaîne renvoyée par APScheduler (ex. `2026-03-24 06:00:00+00:00`). */
 function parseSchedulerDate(raw: string): Date | null {
   const trimmed = raw.trim();
@@ -399,6 +425,14 @@ export default function EditionSommairePage() {
     return formatEditionWindowBeirut(edition.window_start, edition.window_end);
   }, [edition?.window_start, edition?.window_end]);
 
+  const editionWindowCompact = useMemo(() => {
+    if (!edition?.window_start || !edition?.window_end) return null;
+    return formatEditionWindowCompact(edition.window_start, edition.window_end);
+  }, [edition?.window_start, edition?.window_end]);
+
+  const editionDatePrev = date ? shiftEditionDate(date, -1) : "";
+  const editionDateNext = date ? shiftEditionDate(date, 1) : "";
+
   const schedulerPreview = useMemo(() => {
     const jobs = statusQ.data?.jobs ?? [];
     const rows = jobs.map((j) => {
@@ -505,257 +539,149 @@ export default function EditionSommairePage() {
 
   return (
     <div className="space-y-10 pb-36">
-      <header className="max-w-4xl rounded-xl border border-border bg-surface-warm/35 p-5 shadow-sm sm:p-6">
+      <header className="max-w-4xl border-b border-border pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="olj-rubric">Édition du jour</p>
-            <h1 className="mt-2 font-[family-name:var(--font-serif)] text-[28px] font-semibold capitalize leading-[1.2] tracking-tight text-foreground sm:text-[32px]">
-              {date ? formatDateFr(date) : "Date non renseignée"}
-            </h1>
+          <div className="min-w-0 flex-1">
+            <p className="olj-rubric">Édition</p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+              <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold capitalize leading-tight text-foreground sm:text-[30px]">
+                {date ? formatDateFr(date) : "Date non renseignée"}
+              </h1>
+              {date ? (
+                <nav
+                  className="flex flex-wrap items-center gap-1.5 text-[11px]"
+                  aria-label="Naviguer entre les jours"
+                >
+                  <Link
+                    href={`/edition/${editionDatePrev}`}
+                    className="olj-nav-item olj-nav-item--subtle"
+                  >
+                    ← Veille
+                  </Link>
+                  <Link
+                    href={`/edition/${editionDateNext}`}
+                    className="olj-nav-item olj-nav-item--subtle"
+                  >
+                    Lendemain →
+                  </Link>
+                </nav>
+              ) : null}
+            </div>
+            {edition && editionWindowCompact ? (
+              <p
+                className="mt-2 max-w-3xl text-[12px] leading-snug text-foreground-body"
+                title={editionWindowLabel ?? undefined}
+              >
+                <span className="font-semibold text-foreground">Collecte couverte (Beyrouth) :</span>{" "}
+                {editionWindowCompact}
+              </p>
+            ) : null}
+            {edition ? (
+              <p className="mt-1.5 text-[11px] tabular-nums text-muted-foreground">
+                {stats.articles} article{stats.articles > 1 ? "s" : ""} · {stats.countries} pays · {stats.developments}{" "}
+                sujet{stats.developments > 1 ? "s" : ""} au sommaire (max. {edition.target_topics_max})
+              </p>
+            ) : null}
           </div>
-          {pipeline ? (
-            <button
-              type="button"
-              className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
-              disabled={pipeline.running !== null}
-              onClick={() =>
-                pipeline.startRun("pipeline", "Traitement complet")
-              }
-            >
-              {pipeline.running?.key === "pipeline"
-                ? "Traitement…"
-                : "Actualiser"}
-            </button>
-          ) : null}
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {pipeline ? (
+              <button
+                type="button"
+                className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
+                disabled={pipeline.running !== null}
+                onClick={() =>
+                  pipeline.startRun("pipeline", "Traitement complet")
+                }
+              >
+                {pipeline.running?.key === "pipeline"
+                  ? "Traitement…"
+                  : "Actualiser"}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {edition ? (
-          <>
-            <div className="mt-6 border-t border-border pt-5">
-              <div className="flex flex-wrap gap-x-12 gap-y-5 sm:gap-x-16">
-                <div>
-                  <p className="olj-rubric">Articles</p>
-                  <p className="mt-1.5 font-[family-name:var(--font-serif)] text-3xl font-semibold tabular-nums leading-none text-foreground">
-                    {stats.articles}
-                  </p>
-                </div>
-                <div>
-                  <p className="olj-rubric">Pays</p>
-                  <p className="mt-1.5 font-[family-name:var(--font-serif)] text-3xl font-semibold tabular-nums leading-none text-foreground">
-                    {stats.countries}
-                  </p>
-                </div>
-                <div>
-                  <p className="olj-rubric">Grands sujets</p>
-                  <p className="mt-1.5 font-[family-name:var(--font-serif)] text-3xl font-semibold tabular-nums leading-none text-foreground">
-                    {stats.developments}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                Plafond du sommaire : <strong className="font-medium text-foreground/90">{edition.target_topics_max}</strong>{" "}
-                sujets au plus (opinion, analyse, éditorial, tribune). Tout le reste de l’édition est dans le corpus, en
-                bas de page.
+          <details className="mt-4 border-t border-border pt-3">
+            <summary className="cursor-pointer select-none text-[11px] font-medium text-muted-foreground marker:text-muted-foreground hover:text-foreground">
+              Structure de la page · lexique
+            </summary>
+            <div className="mt-2 space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+              <p>
+                <strong className="font-medium text-foreground/90">1</strong> Sommaire (grands sujets) ·{" "}
+                <strong className="font-medium text-foreground/90">2</strong> Affinités (textes proches) ·{" "}
+                <strong className="font-medium text-foreground/90">3</strong> Corpus et outils en bas de page.
+              </p>
+              <p className="border-l-2 border-border pl-2">
+                <em>Sujet</em> au sommaire = <em>développement</em> côté outil. Les affinités suivent une autre logique
+                (ressemblance entre textes).
               </p>
             </div>
-
-            {editionWindowLabel ? (
-              <section className="mt-6 border-t border-border pt-5" aria-labelledby="edition-window-heading">
-                <h2
-                  id="edition-window-heading"
-                  className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
-                >
-                  Fenêtre de collecte de cette édition
-                </h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-foreground-body">
-                  {editionWindowLabel}
-                </p>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                  Seuls les articles collectés dans cette plage horaire entrent dans l’édition du{" "}
-                  {date ? formatDateFr(date) : "jour choisi"}.
-                </p>
-              </section>
-            ) : null}
-
-            <section className="mt-6 border-t border-border pt-5" aria-labelledby="edition-page-guide-heading">
-              <h2
-                id="edition-page-guide-heading"
-                className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
-              >
-                Parcours de la page
-              </h2>
-              <ol
-                className="mt-3 max-w-xl list-none space-y-2.5 p-0 text-[13px] leading-snug text-foreground-body"
-                aria-label="Trois parties de la page"
-              >
-                <li className="flex gap-3">
-                  <span
-                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
-                    aria-hidden
-                  >
-                    1
-                  </span>
-                  <span>
-                    <strong className="font-medium text-foreground">Sommaire</strong> — grands sujets (ordre proposé
-                    pour le brief, textes d’opinion et d’analyse).
-                  </span>
-                </li>
-                <li className="flex gap-3">
-                  <span
-                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
-                    aria-hidden
-                  >
-                    2
-                  </span>
-                  <span>
-                    <strong className="font-medium text-foreground">Affinités</strong> — textes très proches entre eux
-                    (rapprochement automatique, pas le sommaire).
-                  </span>
-                </li>
-                <li className="flex gap-3">
-                  <span
-                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
-                    aria-hidden
-                  >
-                    3
-                  </span>
-                  <span>
-                    <strong className="font-medium text-foreground">Corpus</strong> — liste complète de l’édition, puis
-                    couverture pays et génération de revue (articles cochés).
-                  </span>
-                </li>
-              </ol>
-              <p className="mt-4 max-w-2xl border-l-2 border-border pl-3 text-[11px] leading-relaxed text-muted-foreground">
-                <span className="font-medium text-foreground/85">Lexique.</span> Un sujet affiché au sommaire est aussi
-                appelé <em>développement</em> dans la chaîne technique — même entrée. Les affinités (§2) ne suivent pas
-                cette logique : le lien entre articles est calculé par ressemblance, pas par choix éditorial du moteur de
-                sommaire.
-              </p>
-            </section>
-
-            {vigieGlobaleHint ? (
-              <p className="mt-5 max-w-2xl border-t border-border pt-4 text-[11px] leading-relaxed text-muted-foreground">
-                {vigieGlobaleHint}
-              </p>
-            ) : null}
-          </>
+          </details>
         ) : null}
 
         {date ? (
-          <section className="mt-6 border-t border-border pt-5" aria-labelledby="edition-automation-heading">
-            <h2
-              id="edition-automation-heading"
-              className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
-            >
-              Lancements automatiques et manuels
-            </h2>
-            {pipeline?.running ? (
-              <p
-                className="mt-2 border-l-2 border-[#c8102e] pl-3 text-[12px] font-medium text-foreground"
-                role="status"
-                aria-live="polite"
-              >
-                Traitement en cours sur le serveur : {pipeline.running.label}…
-              </p>
-            ) : null}
-            {schedulerPreview.next ? (
-              <p className="mt-3 text-[13px] leading-relaxed text-foreground">
-                <span className="font-semibold text-foreground">Prochain passage automatique :</span>{" "}
-                {schedulerPreview.next.title} — {schedulerPreview.next.formattedNext}.
-              </p>
-            ) : statusQ.isSuccess && schedulerPreview.rows.length === 0 ? (
-              <p className="mt-3 text-[12px] text-muted-foreground">
-                Aucune tâche planifiée renvoyée par le serveur (vérifiez la configuration du planificateur).
-              </p>
-            ) : statusQ.isPending ? (
-              <p className="mt-3 text-[12px] text-muted-foreground">Chargement des horaires planifiés…</p>
-            ) : null}
-            {schedulerPreview.recentServerRun ? (
-              <p className="mt-3 text-[13px] leading-relaxed text-foreground-body">
-                <span className="font-semibold text-foreground">Dernier passage automatique enregistré</span> (sur ce
-                serveur) : {schedulerPreview.recentServerRun.formattedLast}
-                {schedulerPreview.recentServerRun.lastOk === false ? " · la tâche s’est terminée en erreur" : ""} —{" "}
-                <span className="text-foreground">{schedulerPreview.recentServerRun.title}</span>.
-              </p>
-            ) : statusQ.isSuccess && schedulerPreview.rows.length > 0 ? (
-              <p className="mt-3 text-[12px] text-muted-foreground">
-                Aucune exécution de tâche planifiée encore enregistrée depuis le dernier démarrage du serveur.
-              </p>
-            ) : null}
-            {schedulerPreview.rows.length > 0 ? (
-              <ul className="mt-4 list-none space-y-4 p-0">
-                {schedulerPreview.rows.map((row) => (
-                  <li
-                    key={row.id}
-                    className="border-l-2 border-border pl-3"
-                  >
-                    <p className="text-[12px] font-medium text-foreground">{row.title}</p>
-                    <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
-                      <span className="font-medium text-foreground/85">Prochain :</span> {row.formattedNext}
-                    </p>
-                    <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                      <span className="font-medium text-foreground/85">Dernier :</span>{" "}
-                      {row.formattedLast ?? (
-                        <span className="italic text-muted-foreground/90">
-                          aucune exécution enregistrée depuis le redémarrage du serveur
-                        </span>
-                      )}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
-              Les collectes du matin et de l’après-midi sont affichées en{" "}
-              <strong className="font-medium text-foreground">UTC</strong> ; l’ouverture de l’édition du lendemain suit
-              l’heure de <strong className="font-medium text-foreground">Beyrouth</strong>.
-            </p>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              Les horodatages « Dernier » sont fournis par le serveur d’API et sont remis à zéro après chaque
-              redémarrage. Pour un historique conservé, utilisez{" "}
-              <Link href="/regie/logs" className="olj-link-action font-medium">
-                Régie → Journaux
-              </Link>
-              .
-            </p>
-            {pipeline ? (
-              pipeline.lastRun ? (
-                <p className="mt-3 text-[12px] leading-relaxed text-foreground-body">
-                  <span className="font-semibold text-foreground">Dernier lancement manuel</span> (depuis ce navigateur,
-                  bouton « Actualiser ») : {formatSessionDateTimeFr(pipeline.lastRun.at)} — {pipeline.lastRun.label}
-                  {pipeline.lastRun.ok ? " · terminé avec succès" : " · terminé en erreur"}.
+          <details className="mt-2 border-t border-border pt-3">
+            <summary className="cursor-pointer select-none text-[11px] font-medium text-muted-foreground marker:text-muted-foreground hover:text-foreground">
+              Planificateur · historique
+            </summary>
+            <div className="mt-2 space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+              {pipeline?.running ? (
+                <p
+                  className="border-l-2 border-[#c8102e] pl-2 font-medium text-foreground"
+                  role="status"
+                  aria-live="polite"
+                >
+                  Traitement serveur : {pipeline.running.label}…
                 </p>
-              ) : (
-                <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-                  Pas encore de traitement manuel lancé depuis cette session. Pour l’historique des exécutions sur le
-                  serveur, ouvrez{" "}
-                  <Link href="/regie/logs" className="olj-link-action font-medium">
-                    Régie → Journaux
-                  </Link>
-                  .
+              ) : null}
+              {statusQ.isError ? (
+                <p className="text-destructive">Statut planificateur indisponible (erreur API).</p>
+              ) : statusQ.isPending ? (
+                <p>Chargement du planificateur…</p>
+              ) : schedulerPreview.next ? (
+                <p>
+                  <span className="font-medium text-foreground">Prochain passage auto :</span>{" "}
+                  {schedulerPreview.next.formattedNext} ({schedulerPreview.next.title}).
                 </p>
-              )
-            ) : (
-              <p className="mt-3 text-[12px] text-muted-foreground">
-                Historique serveur :{" "}
+              ) : schedulerPreview.rows.length === 0 ? (
+                <p>Aucune tâche planifiée renvoyée par le serveur.</p>
+              ) : null}
+              <p>
+                Fuseaux (UTC / Beyrouth), liste des tâches et historique :{" "}
+                <Link href="/regie/pipeline" className="olj-link-action font-medium">
+                  Régie — Collecte
+                </Link>
+                {" · "}
                 <Link href="/regie/logs" className="olj-link-action font-medium">
-                  Régie → Journaux
+                  Journaux
                 </Link>
                 .
               </p>
-            )}
-          </section>
+              {pipeline?.lastRun ? (
+                <p>
+                  Dernier « Actualiser » (session) : {formatSessionDateTimeFr(pipeline.lastRun.at)} —{" "}
+                  {pipeline.lastRun.label}
+                  {pipeline.lastRun.ok ? "" : " · erreur"}.
+                </p>
+              ) : null}
+            </div>
+          </details>
+        ) : null}
+
+        {vigieGlobaleHint ? (
+          <p className="mt-3 text-[10px] leading-snug text-muted-foreground">{vigieGlobaleHint}</p>
         ) : null}
 
         {detectionMessage ? (
-          <p className="mt-4 text-[12px] text-muted-foreground">{detectionMessage}</p>
+          <p className="mt-3 text-[12px] text-muted-foreground">{detectionMessage}</p>
         ) : null}
         {editionId &&
           detectionStatus !== "running" &&
           (detectionStatus === "pending" ||
             detectionStatus === "failed" ||
             (detectionStatus === "done" && topics.length === 0)) && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
               <button
                 type="button"
                 className="olj-link-action text-[12px] disabled:opacity-45"
@@ -808,7 +734,11 @@ export default function EditionSommairePage() {
                 </button>
               ) : null}
               <p className="mt-4 text-[12px] text-muted-foreground">
-                Les prochains passages automatiques sont indiqués dans l’en-tête de la page.
+                Planificateur : section repliable en haut de page ou{" "}
+                <Link href="/regie/pipeline" className="olj-link-action">
+                  Régie — Collecte
+                </Link>
+                .
               </p>
             </div>
           )}

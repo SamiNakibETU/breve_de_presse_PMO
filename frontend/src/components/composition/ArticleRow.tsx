@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useArticleReader } from "@/contexts/article-reader";
 import {
   FLAGSHIP_BADGE_LABEL,
   articleTypeLabelFr,
@@ -24,6 +25,7 @@ export function ArticleRow({
   /** `dense` : en-tête journal + pays + type mis en avant (grille corpus). */
   variant?: "default" | "dense";
 }) {
+  const openArticle = useArticleReader();
   const [open, setOpen] = useState(false);
   const title = article.title_fr || article.title_original;
   const cc = (article.country_code ?? "").trim().toUpperCase();
@@ -135,17 +137,29 @@ export function ArticleRow({
             </div>
           )}
         </button>
-        {article.url && (
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="olj-focus mt-1 shrink-0 self-start text-[11px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
-            onClick={(e) => e.stopPropagation()}
+        <div className="mt-1 flex shrink-0 flex-col items-end gap-1 self-start">
+          <button
+            type="button"
+            className="olj-btn-secondary px-2 py-0.5 text-[10px]"
+            onClick={(e) => {
+              e.stopPropagation();
+              openArticle(article.id);
+            }}
           >
-            Source ↗
-          </a>
-        )}
+            Lire
+          </button>
+          {article.url ? (
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="olj-focus text-[11px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Source ↗
+            </a>
+          ) : null}
+        </div>
       </div>
       {attachmentLabel ? (
         <p className="mt-2 pl-8 text-[10px] font-medium uppercase tracking-wide text-info">

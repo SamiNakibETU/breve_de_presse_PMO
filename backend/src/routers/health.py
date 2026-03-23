@@ -1,5 +1,6 @@
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
@@ -11,6 +12,7 @@ from src.services.metrics import prometheus_text, snapshot as metrics_snapshot
 
 router = APIRouter()
 settings = get_settings()
+_log = structlog.get_logger(__name__)
 
 
 @router.get("/")
@@ -75,24 +77,33 @@ async def status(request: Request):
     jobs: list[SchedulerJobResponse] = []
 
     if scheduler:
-        for j in scheduler.get_jobs():
-            meta = runs.get(j.id)
-            last_at = None
-            last_ok = None
-            if isinstance(meta, dict):
-                raw_at = meta.get("at")
-                if isinstance(raw_at, str):
-                    last_at = raw_at
-                if "ok" in meta and isinstance(meta.get("ok"), bool):
-                    last_ok = meta["ok"]
-            jobs.append(
-                SchedulerJobResponse(
-                    id=j.id,
-                    name=j.name,
-                    next_run=str(j.next_run_time) if j.next_run_time else None,
-                    last_run_at=last_at,
-                    last_run_ok=last_ok,
+        try:
+            for j in scheduler.get_jobs():
+                jid = getattr(j, "id", None) or ""
+                jname = getattr(j, "name", None) or ""
+                meta = runs.get(jid) if jid else None
+                last_at = None
+                last_ok = None
+                if isinstance(meta, dict):
+                    raw_at = meta.get("at")
+                    if isinstance(raw_at, str):
+                        last_at = raw_at
+                    if "ok" in meta and isinstance(meta.get("ok"), bool):
+                        last_ok = meta["ok"]
+                nrt = getattr(j, "next_run_time", None)
+                jobs.append(
+                    SchedulerJobResponse(
+                        id=jid or "unknown",
+                        name=jname or "job",
+                        next_run=str(nrt) if nrt else None,
+                        last_run_at=last_at,
+                        last_run_ok=last_ok,
+                    )
                 )
+        except Exception as exc:
+            _log.warning(
+                "api.status.scheduler_jobs_failed",
+                error=str(exc)[:300],
             )
 
     return StatusResponse(
