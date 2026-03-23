@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from src.config import get_settings
 from src.models.article import Article
-from src.models.edition import PipelineDebugLog
+
 logger = structlog.get_logger(__name__)
 
 
@@ -139,16 +139,6 @@ async def run_semantic_dedup(
         )
 
     await db.commit()
-
-    if edition_id and report:
-        db.add(
-            PipelineDebugLog(
-                edition_id=edition_id,
-                step="dedup_semantic",
-                payload={"groups": report, "threshold": thr},
-            )
-        )
-        await db.commit()
 
     logger.info(
         "semantic_dedup.done",

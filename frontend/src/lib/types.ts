@@ -239,6 +239,14 @@ export interface Edition {
   generated_text: string | null;
 }
 
+export interface TopicArticlePreview {
+  id: string;
+  title_fr: string | null;
+  title_original: string;
+  media_name: string;
+  url: string;
+}
+
 export interface EditionTopic {
   id: string;
   rank: number;
@@ -250,6 +258,8 @@ export interface EditionTopic {
   editorial_note: string | null;
   country_coverage: Record<string, number> | null;
   generated_text: string | null;
+  article_count?: number | null;
+  article_previews?: TopicArticlePreview[] | null;
 }
 
 export interface TopicArticleRef {

@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.models.article import Article
-from src.models.edition import PipelineDebugLog
 from src.models.media_source import MediaSource
 
 logger = structlog.get_logger(__name__)
@@ -158,20 +157,6 @@ async def run_surface_dedup(
         )
 
     await db.commit()
-
-    if edition_id and report_groups:
-        db.add(
-            PipelineDebugLog(
-                edition_id=edition_id,
-                step="dedup_surface",
-                payload={
-                    "groups": report_groups,
-                    "threshold": JACCARD_THRESHOLD,
-                    "num_perm": NUM_PERM,
-                },
-            )
-        )
-        await db.commit()
 
     logger.info(
         "dedup_surface.done",

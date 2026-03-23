@@ -36,6 +36,17 @@ export function ArticleRow({
             {article.is_syndicated ? " · syndiqué" : ""}
           </span>
         </button>
+        {article.url && (
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 shrink-0 text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Article original ↗
+          </a>
+        )}
       </div>
       {open && article.summary_fr && (
         <p className="mt-2 pl-6 text-[13px] leading-relaxed text-foreground-body">

@@ -20,8 +20,9 @@ export default function EditionSommairePage() {
   const editionId = editionQ.data?.id;
 
   const topicsQ = useQuery({
-    queryKey: ["editionTopics", editionId] as const,
-    queryFn: () => api.editionTopics(editionId!),
+    queryKey: ["editionTopics", editionId, "previews"] as const,
+    queryFn: () =>
+      api.editionTopics(editionId!, { includeArticlePreviews: true }),
     enabled: Boolean(editionId),
   });
 

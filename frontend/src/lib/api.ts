@@ -331,8 +331,16 @@ export const api = {
   editionByDate: (publishDate: string) =>
     request<Edition>(`/api/editions/by-date/${publishDate}`),
 
-  editionTopics: (editionId: string) =>
-    request<EditionTopic[]>(`/api/editions/${editionId}/topics`),
+  editionTopics: (
+    editionId: string,
+    opts?: { includeArticlePreviews?: boolean },
+  ) => {
+    const qs =
+      opts?.includeArticlePreviews === true
+        ? "?include_article_previews=true"
+        : "";
+    return request<EditionTopic[]>(`/api/editions/${editionId}/topics${qs}`);
+  },
 
   editionTopicDetail: (editionId: string, topicId: string) =>
     request<EditionTopicDetailResponse>(

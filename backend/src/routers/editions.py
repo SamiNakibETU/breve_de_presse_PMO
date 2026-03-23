@@ -1,5 +1,6 @@
 """API MEMW v2 — Éditions."""
 
+from collections import defaultdict
 from datetime import date
 from typing import Any, Optional
 from uuid import UUID
@@ -13,6 +14,7 @@ from src.database import get_db
 from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle
+from src.models.media_source import MediaSource
 from src.services.curator_service import (
     list_clusters_fallback_for_edition,
     run_curator_for_edition,
@@ -24,6 +26,8 @@ from src.services.edition_review_generator import (
 from src.services.edition_schedule import find_edition_for_calendar_date
 
 router = APIRouter(prefix="/api/editions", tags=["editions"])
+
+TOPIC_ARTICLE_PREVIEW_LIMIT = 6
 
 
 class EditionOut(BaseModel):
@@ -51,6 +55,16 @@ class EditionPatch(BaseModel):
     curator_run_id: Optional[UUID] = None
 
 
+class TopicArticlePreviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title_fr: Optional[str] = None
+    title_original: str
+    media_name: str
+    url: str
+
+
 class EditionTopicOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,6 +78,8 @@ class EditionTopicOut(BaseModel):
     editorial_note: Optional[str] = None
     country_coverage: Optional[dict[str, Any]] = None
     generated_text: Optional[str] = None
+    article_count: Optional[int] = None
+    article_previews: Optional[list[TopicArticlePreviewOut]] = None
 
 
 class TopicArticleRef(BaseModel):
@@ -81,6 +97,28 @@ class TopicSelectionBody(BaseModel):
 
 class GenerateTopicBody(BaseModel):
     article_ids: Optional[list[UUID]] = None
+
+
+def _edition_topic_to_out(
+    t: EditionTopic,
+    *,
+    article_count: Optional[int] = None,
+    article_previews: Optional[list[TopicArticlePreviewOut]] = None,
+) -> EditionTopicOut:
+    return EditionTopicOut(
+        id=t.id,
+        rank=t.rank,
+        title_proposed=t.title_proposed,
+        title_final=t.title_final,
+        status=t.status,
+        dominant_angle=t.dominant_angle,
+        counter_angle=t.counter_angle,
+        editorial_note=t.editorial_note,
+        country_coverage=t.country_coverage,
+        generated_text=t.generated_text,
+        article_count=article_count,
+        article_previews=article_previews,
+    )
 
 
 def _edition_to_out(e: Edition) -> EditionOut:
@@ -137,6 +175,10 @@ async def get_edition(
 @router.get("/{edition_id}/topics", response_model=list[EditionTopicOut])
 async def list_edition_topics(
     edition_id: UUID,
+    include_article_previews: bool = Query(
+        default=False,
+        description="Inclut article_count et jusqu’à 6 aperçus (titre, source, URL) par sujet.",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     e = await db.get(Edition, edition_id)
@@ -148,22 +190,53 @@ async def list_edition_topics(
         .order_by(EditionTopic.rank.asc())
     )
     res = await db.execute(stmt)
-    rows = res.scalars().all()
-    return [
-        EditionTopicOut(
-            id=t.id,
-            rank=t.rank,
-            title_proposed=t.title_proposed,
-            title_final=t.title_final,
-            status=t.status,
-            dominant_angle=t.dominant_angle,
-            counter_angle=t.counter_angle,
-            editorial_note=t.editorial_note,
-            country_coverage=t.country_coverage,
-            generated_text=t.generated_text,
+    rows = list(res.scalars().all())
+
+    preview_by_topic: dict[UUID, tuple[int, list[TopicArticlePreviewOut]]] = {}
+    if include_article_previews and rows:
+        topic_ids = [t.id for t in rows]
+        jstmt = (
+            select(EditionTopicArticle, Article, MediaSource.name)
+            .join(Article, EditionTopicArticle.article_id == Article.id)
+            .join(MediaSource, Article.media_source_id == MediaSource.id)
+            .where(EditionTopicArticle.edition_topic_id.in_(topic_ids))
         )
-        for t in rows
-    ]
+        jres = await db.execute(jstmt)
+
+        grouped: dict[UUID, list[tuple[Optional[int], Article, str]]] = defaultdict(list)
+        for link, art, media_name in jres.all():
+            grouped[link.edition_topic_id].append(
+                (link.rank_in_topic, art, str(media_name)),
+            )
+        for tid, items in grouped.items():
+            items.sort(
+                key=lambda x: (
+                    x[0] if x[0] is not None else 999,
+                    str(x[1].id),
+                ),
+            )
+            count = len(items)
+            prev_slice = items[:TOPIC_ARTICLE_PREVIEW_LIMIT]
+            previews = [
+                TopicArticlePreviewOut(
+                    id=a.id,
+                    title_fr=a.title_fr,
+                    title_original=a.title_original,
+                    media_name=mn,
+                    url=a.url,
+                )
+                for _rnk, a, mn in prev_slice
+            ]
+            preview_by_topic[tid] = (count, previews)
+
+    out: list[EditionTopicOut] = []
+    for t in rows:
+        if include_article_previews:
+            cnt, prev = preview_by_topic.get(t.id, (0, []))
+            out.append(_edition_topic_to_out(t, article_count=cnt, article_previews=prev))
+        else:
+            out.append(_edition_topic_to_out(t))
+    return out
 
 
 @router.get("/{edition_id}/topics/{topic_id}")
@@ -200,18 +273,7 @@ async def get_edition_topic(
     ]
     article_ids = [str(a.id) for _link, a in pairs]
     return {
-        "topic": EditionTopicOut(
-            id=et.id,
-            rank=et.rank,
-            title_proposed=et.title_proposed,
-            title_final=et.title_final,
-            status=et.status,
-            dominant_angle=et.dominant_angle,
-            counter_angle=et.counter_angle,
-            editorial_note=et.editorial_note,
-            country_coverage=et.country_coverage,
-            generated_text=et.generated_text,
-        ).model_dump(),
+        "topic": _edition_topic_to_out(et).model_dump(),
         "article_ids": article_ids,
         "article_refs": [r.model_dump() for r in refs],
     }

@@ -27,6 +27,11 @@ export function EditionSummary({
   }
   return (
     <div>
+      <p className="mb-4 max-w-2xl text-[13px] leading-relaxed text-foreground-body">
+        Proposition éditoriale du curateur : le titre mène à la page sujet pour
+        sélectionner les textes et générer le bloc. Les liens listés ouvrent
+        l’article sur le site source.
+      </p>
       <nav className="mb-3 border-b border-border pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         <Link href={`/edition/${date}/compose`} className="text-foreground">
           Composition

@@ -14,6 +14,12 @@ from apscheduler.triggers.cron import CronTrigger
 from src.config import get_settings
 from src.database import get_session_factory
 from src.services.collector import run_collection
+from src.services.dedup_surface import JACCARD_THRESHOLD, NUM_PERM
+from src.services.pipeline_debug_log import (
+    compact_payload,
+    log_pipeline_step,
+    resolve_current_edition_id,
+)
 from src.services.translator import run_translation_pipeline
 
 logger = structlog.get_logger(__name__)
@@ -44,6 +50,15 @@ async def daily_pipeline(
     )
     step_timings["collection_s"] = round(time.monotonic() - t0, 2)
 
+    eid_log = await resolve_current_edition_id()
+    await log_pipeline_step(
+        eid_log,
+        "collect",
+        compact_payload(
+            {"stats": collection_stats, "duration_s": step_timings["collection_s"]},
+        ),
+    )
+
     logger.info("pipeline.step", step="translate")
     p("translation", "Traduction et résumés (LLM)…")
 
@@ -55,6 +70,14 @@ async def daily_pipeline(
         on_progress=translate_pb if on_progress else None,
     )
     step_timings["translation_s"] = round(time.monotonic() - t1, 2)
+
+    await log_pipeline_step(
+        eid_log,
+        "translate",
+        compact_payload(
+            {"stats": translation_stats, "duration_s": step_timings["translation_s"]},
+        ),
+    )
 
     pipeline_result: dict = {
         "collection": collection_stats,
@@ -78,6 +101,11 @@ async def daily_pipeline(
             await db.commit()
         pipeline_result["relevance_scoring"] = rel_stats
         pipeline_result["edition_id_relevance"] = str(eid_rel) if eid_rel else None
+        await log_pipeline_step(
+            eid_rel,
+            "relevance_scoring",
+            compact_payload({"stats": rel_stats}),
+        )
     except Exception as e:
         logger.warning("pipeline.relevance_scoring_failed", error=str(e)[:200])
         pipeline_result["relevance_scoring"] = {"error": str(e)[:200]}
@@ -95,6 +123,17 @@ async def daily_pipeline(
             await db.commit()
         pipeline_result["dedup_surface"] = dedup_stats
         pipeline_result["edition_id"] = str(eid) if eid else None
+        await log_pipeline_step(
+            eid,
+            "dedup_surface",
+            compact_payload(
+                {
+                    **dedup_stats,
+                    "threshold_jaccard": JACCARD_THRESHOLD,
+                    "num_perm": NUM_PERM,
+                },
+            ),
+        )
     except Exception as e:
         logger.warning("pipeline.dedup_surface_failed", error=str(e)[:200])
         pipeline_result["dedup_surface"] = {"error": str(e)[:200]}
@@ -122,6 +161,11 @@ async def daily_pipeline(
         )
         p("embedding", "Embeddings — clé Cohere absente, étape ignorée")
         pipeline_result["embedding"] = {"error": "COHERE_API_KEY not configured"}
+        await log_pipeline_step(
+            await resolve_current_edition_id(),
+            "embedding_skipped",
+            {"reason": "COHERE_API_KEY not configured"},
+        )
     else:
         try:
             from src.services.cluster_labeller import label_clusters
@@ -133,6 +177,9 @@ async def daily_pipeline(
 
             factory = get_session_factory()
             async with factory() as db:
+                eid = await resolve_edition_id_for_timestamp(
+                    db, datetime.now(timezone.utc)
+                )
                 t_emb = time.monotonic()
                 p("embedding", "Embeddings articles en attente (Cohere)…")
                 embedding_service = EmbeddingService()
@@ -140,6 +187,13 @@ async def daily_pipeline(
                 pipeline_result["embedding"] = {"embedded": embedded}
                 step_timings["embedding_s"] = round(time.monotonic() - t_emb, 2)
                 logger.info("pipeline.embedding_done", embedded=embedded)
+                await log_pipeline_step(
+                    eid,
+                    "embedding",
+                    compact_payload(
+                        {"embedded": embedded, "duration_s": step_timings["embedding_s"]},
+                    ),
+                )
 
                 from src.services.simhash_dedupe import (
                     mark_syndicated_from_bodies,
@@ -154,14 +208,33 @@ async def daily_pipeline(
                     "marked_syndicated_bodies": syndicated_body,
                 }
                 step_timings["syndication_s"] = round(time.monotonic() - t_sy, 2)
-
-                eid = await resolve_edition_id_for_timestamp(
-                    db, datetime.now(timezone.utc)
+                await log_pipeline_step(
+                    eid,
+                    "syndication_simhash",
+                    compact_payload(
+                        {
+                            "marked_syndicated_summaries": syndicated_sum,
+                            "marked_syndicated_bodies": syndicated_body,
+                            "duration_s": step_timings["syndication_s"],
+                        },
+                    ),
                 )
+
                 t_sem = time.monotonic()
                 sem_dedup = await run_semantic_dedup(db, edition_id=eid)
                 pipeline_result["dedup_semantic"] = sem_dedup
                 step_timings["dedup_semantic_s"] = round(time.monotonic() - t_sem, 2)
+                await log_pipeline_step(
+                    eid,
+                    "dedup_semantic",
+                    compact_payload(
+                        {
+                            **sem_dedup,
+                            "cosine_threshold": settings.semantic_dedup_cosine,
+                            "duration_s": step_timings["dedup_semantic_s"],
+                        },
+                    ),
+                )
 
                 t_cl = time.monotonic()
                 p("clustering", "Regroupement thématique (HDBSCAN)…")
@@ -172,6 +245,17 @@ async def daily_pipeline(
                 pipeline_result["clustering"] = clustering_result
                 step_timings["clustering_s"] = round(time.monotonic() - t_cl, 2)
                 logger.info("pipeline.clustering_done", **clustering_result)
+                await log_pipeline_step(
+                    eid,
+                    "clustering",
+                    compact_payload(
+                        {
+                            **clustering_result,
+                            "use_umap": settings.clustering_use_umap,
+                            "duration_s": step_timings["clustering_s"],
+                        },
+                    ),
+                )
 
                 t_lb = time.monotonic()
                 p("labelling", "Libellés sujets (LLM)…")
@@ -179,6 +263,13 @@ async def daily_pipeline(
                 pipeline_result["labelling"] = {"labeled": labeled}
                 step_timings["labelling_s"] = round(time.monotonic() - t_lb, 2)
                 logger.info("pipeline.labelling_done", labeled=labeled)
+                await log_pipeline_step(
+                    eid,
+                    "cluster_labelling",
+                    compact_payload(
+                        {"labeled": labeled, "duration_s": step_timings["labelling_s"]},
+                    ),
+                )
         except Exception as e:
             logger.error("pipeline.embedding_clustering_failed", error=str(e))
             p("embedding", f"Erreur embeddings / clusters : {str(e)[:80]}")
@@ -188,6 +279,14 @@ async def daily_pipeline(
     pipeline_result["elapsed_seconds"] = elapsed
     p("done", "Pipeline terminé")
     logger.info("pipeline.complete", elapsed_seconds=elapsed)
+
+    await log_pipeline_step(
+        await resolve_current_edition_id(),
+        "pipeline_summary",
+        compact_payload(
+            {"elapsed_seconds": elapsed, "step_timings": step_timings},
+        ),
+    )
 
     hou = datetime.now(timezone.utc).hour
     if (
