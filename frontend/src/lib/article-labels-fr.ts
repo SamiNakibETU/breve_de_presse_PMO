@@ -75,12 +75,15 @@ export function formatArticleMetaLine(opts: {
   country?: string | null;
   articleType?: string | null;
   sourceLanguage?: string | null;
+  author?: string | null;
   /** Par défaut : masqué (pas affiché en vue éditoriale). */
   includeSyndicated?: boolean;
   isSyndicated?: boolean | null;
 }): string {
   const parts: string[] = [opts.mediaName];
   if (opts.country) parts.push(opts.country);
+  const auth = opts.author?.trim();
+  if (auth) parts.push(auth);
   const t = articleTypeLabelFr(opts.articleType ?? undefined);
   if (t) parts.push(t);
   const l = sourceLanguageLabelFr(opts.sourceLanguage ?? undefined);

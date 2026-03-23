@@ -97,6 +97,9 @@ function TopicArticleLine({
                 <span className="text-[12px] font-semibold text-foreground">
                   {preview.media_name}
                 </span>
+                {preview.author?.trim() ? (
+                  <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
+                ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
               </>
             ) : (
@@ -118,6 +121,9 @@ function TopicArticleLine({
                     {cc}
                   </span>
                 ) : null}
+                {preview.author?.trim() ? (
+                  <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
+                ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
               </>
             )}
@@ -138,6 +144,7 @@ function TopicArticleLine({
                   country: preview.country,
                   articleType: preview.article_type,
                   sourceLanguage: preview.source_language,
+                  author: preview.author,
                 })}
               </span>
               {preview.editorial_angle ? (

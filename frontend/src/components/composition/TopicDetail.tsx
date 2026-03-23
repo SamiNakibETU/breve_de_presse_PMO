@@ -57,7 +57,7 @@ function ArticleBlock({
         ? groups.map((g) => (
             <div key={g.countryCode || "all"} className="space-y-0">
               {g.label ? (
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <p className="mb-2 flex flex-wrap items-baseline gap-x-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground">
                   {g.label}
                 </p>
               ) : null}
@@ -183,15 +183,20 @@ export function TopicDetail({
     orderedArticles.length === 0
       ? "Aucun texte n’est rattaché à ce sujet."
       : articlesOutsideRecommended.length === 0
-        ? "Tous les textes figurent dans « Regards mis en avant » ci-dessus."
-        : "Aucun article sélectionné. Cochez les textes à inclure dans la revue.";
+        ? "Tous les textes de ce sujet sont dans « Regards mis en avant ». Cochez-les dans ce bloc pour la revue ; ce qui suit ne s’applique pas."
+        : "Aucun texte supplémentaire coché ici. Ce bloc est facultatif : servez-vous des cases dans « Regards mis en avant » pour la revue, ou cochez d’autres articles ci-dessous si besoin.";
 
   const othersEmptyMessage =
     orderedArticles.length === 0
       ? "Aucun texte n’est rattaché à ce sujet."
       : others.length === 0
-        ? "Tous les textes liés figurent dans la sélection ci-dessus."
+        ? "Tous les textes liés sont cochés ou classés dans les blocs au-dessus."
         : "";
+
+  const selectedCount = selected.size;
+  const canGenerate =
+    orderedArticles.length >= 2 &&
+    (selectedCount === 0 || selectedCount >= 2);
 
   const displayCountryCodes = useMemo(
     () => countryCodesFromArticles(orderedArticles),
@@ -237,7 +242,7 @@ export function TopicDetail({
             />
           ) : null}
           <ArticleBlock
-            title="Retenus pour ce sujet"
+            title="Complément pour la revue (hors regard mis en avant)"
             articles={retained}
             refs={articleRefs}
             articleIdsOrder={articleIdsOrder}
@@ -272,14 +277,26 @@ export function TopicDetail({
         <button
           type="button"
           className="olj-btn-primary disabled:opacity-50"
-          disabled={genMutation.isPending || orderedArticles.length < 2}
+          disabled={genMutation.isPending || !canGenerate}
           onClick={() => genMutation.mutate()}
         >
           {genMutation.isPending ? "Génération…" : "Générer le texte"}
         </button>
         {orderedArticles.length < 2 && (
           <p className="mt-2 text-[12px] text-muted-foreground">
-            Sélectionnez au moins deux articles pour lancer la génération.
+            Il faut au moins deux textes rattachés à ce sujet pour générer.
+          </p>
+        )}
+        {orderedArticles.length >= 2 && selectedCount === 1 && (
+          <p className="mt-2 text-[12px] text-muted-foreground">
+            Pour une sélection manuelle, cochez <strong className="font-medium text-foreground">au moins deux</strong>{" "}
+            textes — ou <strong className="font-medium text-foreground">décochez tout</strong> pour que le système
+            s’appuie sur les regards mis en avant (ou l’ensemble des textes du sujet).
+          </p>
+        )}
+        {orderedArticles.length >= 2 && selectedCount === 0 && (
+          <p className="mt-2 text-[12px] text-muted-foreground">
+            Aucune case cochée : la génération utilisera d’abord les textes recommandés, sinon tous les textes du sujet.
           </p>
         )}
         {genMutation.isError && (

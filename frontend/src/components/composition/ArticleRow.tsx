@@ -53,6 +53,9 @@ export function ArticleRow({
           {typeFr}
         </span>
       ) : null}
+      {article.author?.trim() ? (
+        <span className="text-[11px] text-muted-foreground">· {article.author.trim()}</span>
+      ) : null}
     </div>
   );
 
@@ -109,6 +112,7 @@ export function ArticleRow({
                   country: article.country,
                   articleType: article.article_type,
                   sourceLanguage: article.source_language,
+                  author: article.author,
                 })}
               </span>
               {article.editorial_angle && (

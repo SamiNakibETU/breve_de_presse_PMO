@@ -88,13 +88,20 @@ export default function EditionTopicPage() {
 
   return (
     <div className="space-y-6">
-      <nav className="text-[13px] text-muted-foreground">
+      <nav
+        className="flex flex-wrap items-center gap-2 gap-y-2"
+        aria-label="Navigation édition"
+      >
         <Link
           href={`/edition/${date}`}
-          className="underline-offset-4 hover:underline"
+          className="olj-btn-secondary inline-flex text-[12px] px-3 py-1.5"
         >
-          Sujets du jour
+          ← Sommaire de l’édition
         </Link>
+        <span className="max-w-xl text-[12px] leading-snug text-muted-foreground">
+          Le <strong className="font-medium text-foreground/90">sommaire</strong> liste les autres sujets et le corpus —
+          la revue ne vous oblige pas à rester sur cette fiche.
+        </span>
       </nav>
 
       {editionLoading && (
