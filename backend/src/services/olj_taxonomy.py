@@ -73,6 +73,29 @@ def taxonomy_prompt_block() -> str:
     return "\n".join(lines) if lines else "(taxonomie vide — utiliser uniquement \"other\")"
 
 
+def get_topic_labels_fr() -> dict[str, str]:
+    """id taxonomie → libellé français (pour UI liste Articles, filtres, etc.)."""
+    data = _load_taxonomy_raw()
+    topics = data.get("topics") or []
+    out: dict[str, str] = {}
+    for t in topics:
+        if not isinstance(t, dict):
+            continue
+        tid = t.get("id")
+        if not tid:
+            continue
+        tid_s = str(tid).strip()
+        lab = t.get("label_fr")
+        out[tid_s] = (str(lab).strip() if lab else "") or tid_s
+    return out
+
+
+def get_taxonomy_version() -> str:
+    data = _load_taxonomy_raw()
+    v = data.get("version")
+    return str(v).strip() if v is not None else "0"
+
+
 def load_topics_of_day() -> list[str]:
     """IDs thématiques prioritaires du jour (bonus pertinence)."""
     if not _TOPICS_DAY_PATH.exists():

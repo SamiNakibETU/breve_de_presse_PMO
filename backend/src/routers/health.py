@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
@@ -68,15 +70,28 @@ async def health_ready():
 @router.get("/api/status", response_model=StatusResponse)
 async def status(request: Request):
     scheduler = getattr(request.app.state, "scheduler", None)
+    runs_raw = getattr(request.app.state, "scheduler_job_runs", None)
+    runs: dict[str, Any] = runs_raw if isinstance(runs_raw, dict) else {}
     jobs: list[SchedulerJobResponse] = []
 
     if scheduler:
         for j in scheduler.get_jobs():
+            meta = runs.get(j.id)
+            last_at = None
+            last_ok = None
+            if isinstance(meta, dict):
+                raw_at = meta.get("at")
+                if isinstance(raw_at, str):
+                    last_at = raw_at
+                if "ok" in meta and isinstance(meta.get("ok"), bool):
+                    last_ok = meta["ok"]
             jobs.append(
                 SchedulerJobResponse(
                     id=j.id,
                     name=j.name,
                     next_run=str(j.next_run_time) if j.next_run_time else None,
+                    last_run_at=last_at,
+                    last_run_ok=last_ok,
                 )
             )
 

@@ -87,7 +87,7 @@ export function Masthead() {
         </div>
 
         <nav
-          className="flex flex-wrap gap-x-8 gap-y-1 border-t border-border py-3"
+          className="flex flex-wrap items-center gap-2 border-t border-border py-3 sm:gap-3"
           aria-label="Navigation principale"
         >
           {PRIMARY_NAV.map(({ href, label }) => {
@@ -105,10 +105,8 @@ export function Masthead() {
                   if (href === "/") prefetchDashboardData(queryClient);
                 }}
                 className={cn(
-                  "relative pb-1 text-[13px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent",
-                  active
-                    ? "font-semibold text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-accent"
-                    : "text-muted-foreground hover:text-foreground",
+                  "olj-nav-item",
+                  active && "olj-nav-item--active",
                 )}
               >
                 {label}
@@ -119,11 +117,10 @@ export function Masthead() {
             href="/regie"
             prefetch
             className={cn(
-              "relative pb-1 text-[11px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:ml-auto",
-              pathname.startsWith("/regie") ||
-                pathname.startsWith("/dashboard")
-                ? "font-medium text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border"
-                : "text-muted-foreground hover:text-foreground",
+              "olj-nav-item olj-nav-item--subtle sm:ml-auto",
+              (pathname.startsWith("/regie") ||
+                pathname.startsWith("/dashboard")) &&
+                "olj-nav-item--active",
             )}
           >
             Régie

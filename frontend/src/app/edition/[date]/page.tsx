@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { ArticleRow } from "@/components/composition/ArticleRow";
@@ -48,6 +49,102 @@ function formatEditionWindowBeirut(isoStart: string, isoEnd: string): string {
   };
   const fmt = new Intl.DateTimeFormat("fr-FR", opts);
   return `Du ${fmt.format(new Date(isoStart))} au ${fmt.format(new Date(isoEnd))} · heure de Beyrouth`;
+}
+
+/** Chaîne renvoyée par APScheduler (ex. `2026-03-24 06:00:00+00:00`). */
+function parseSchedulerDate(raw: string): Date | null {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const isoLike = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
+  const d = new Date(isoLike);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" {
+  return jobId === "edition_daily_create_beirut" ? "Asia/Beirut" : "UTC";
+}
+
+function schedulerJobTitleFr(jobId: string, fallbackName: string): string {
+  switch (jobId) {
+    case "daily_pipeline_morning":
+      return "Collecte et traitement du matin";
+    case "daily_pipeline_afternoon":
+      return "Mise à jour de l’après-midi";
+    case "edition_daily_create_beirut":
+      return "Ouverture de l’édition du lendemain";
+    default:
+      return fallbackName;
+  }
+}
+
+function formatJobNextRunFr(jobId: string, nextRun: string | null): string {
+  if (!nextRun) {
+    return "Non planifié";
+  }
+  const d = parseSchedulerDate(nextRun);
+  if (!d) {
+    return nextRun;
+  }
+  const tz = schedulerJobTimeZone(jobId);
+  const suffix = tz === "UTC" ? " UTC" : " · heure de Beyrouth";
+  return (
+    new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: tz,
+    }).format(d) + suffix
+  );
+}
+
+/** Dernier passage enregistré côté serveur (événement APScheduler, même fuseau que le prochain). */
+function formatJobLastRunFr(
+  jobId: string,
+  lastRunAt: string | null | undefined,
+  lastOk: boolean | null | undefined,
+): string | null {
+  if (lastRunAt == null || lastRunAt === "") {
+    return null;
+  }
+  const d = parseSchedulerDate(lastRunAt);
+  const tz = schedulerJobTimeZone(jobId);
+  const suffix = tz === "UTC" ? " UTC" : " · heure de Beyrouth";
+  let base: string;
+  if (!d) {
+    base = lastRunAt;
+  } else {
+    base =
+      new Intl.DateTimeFormat("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tz,
+      }).format(d) + suffix;
+  }
+  if (lastOk === false) {
+    return `${base} · échec`;
+  }
+  return base;
+}
+
+function formatSessionDateTimeFr(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return iso;
+  }
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Europe/Paris",
+  }).format(d);
 }
 
 function detectionLabel(s: EditionDetectionStatus | undefined): string | null {
@@ -302,12 +399,51 @@ export default function EditionSommairePage() {
     return formatEditionWindowBeirut(edition.window_start, edition.window_end);
   }, [edition?.window_start, edition?.window_end]);
 
-  const pipelineJobsHint = useMemo(() => {
+  const schedulerPreview = useMemo(() => {
     const jobs = statusQ.data?.jobs ?? [];
-    if (jobs.length === 0) return null;
-    return jobs
-      .map((j) => `${j.name} : ${j.next_run ?? "non planifié"}`)
-      .join(" · ");
+    const rows = jobs.map((j) => {
+      const d = parseSchedulerDate(j.next_run ?? "");
+      const lastAt = j.last_run_at ?? null;
+      const lastOk = j.last_run_ok ?? null;
+      const lastTs = lastAt ? parseSchedulerDate(lastAt)?.getTime() : null;
+      return {
+        id: j.id,
+        title: schedulerJobTitleFr(j.id, j.name),
+        ts: d?.getTime() ?? Number.POSITIVE_INFINITY,
+        formattedNext: formatJobNextRunFr(j.id, j.next_run),
+        formattedLast: formatJobLastRunFr(j.id, lastAt, lastOk),
+        lastTs: lastTs ?? null,
+        lastOk,
+      };
+    });
+    rows.sort((a, b) => a.ts - b.ts);
+    const next =
+      rows.length > 0 && rows[0] !== undefined && rows[0].ts !== Number.POSITIVE_INFINITY
+        ? rows[0]
+        : null;
+    let recentServerRun: {
+      lastTs: number;
+      title: string;
+      formattedLast: string;
+      lastOk: boolean | null;
+    } | null = null;
+    for (const r of rows) {
+      if (r.lastTs == null) {
+        continue;
+      }
+      if (!recentServerRun || r.lastTs > recentServerRun.lastTs) {
+        const fl = r.formattedLast;
+        if (fl) {
+          recentServerRun = {
+            lastTs: r.lastTs,
+            title: r.title,
+            formattedLast: fl,
+            lastOk: r.lastOk,
+          };
+        }
+      }
+    }
+    return { rows, next, recentServerRun };
   }, [statusQ.data?.jobs]);
 
   const toggleArticle = useCallback((id: string, next: boolean) => {
@@ -369,13 +505,18 @@ export default function EditionSommairePage() {
 
   return (
     <div className="space-y-10 pb-36">
-      <header className="max-w-3xl">
-        <p className="olj-rubric">Édition du jour</p>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-          <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-[1.2] tracking-tight text-foreground capitalize sm:text-[32px]">
-            {date ? formatDateFr(date) : "Date non renseignée"}
-          </h1>
-          {pipeline && (
+      <header className="max-w-4xl rounded-xl border border-border bg-surface-warm/35 p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="olj-rubric">Édition du jour</p>
+            <h1 className="mt-2 font-[family-name:var(--font-serif)] text-[28px] font-semibold capitalize leading-[1.2] tracking-tight text-foreground sm:text-[32px]">
+              {date ? formatDateFr(date) : "Date non renseignée"}
+            </h1>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">
+              Date de l’édition affichée (calendrier éditorial).
+            </p>
+          </div>
+          {pipeline ? (
             <button
               type="button"
               className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
@@ -388,54 +529,205 @@ export default function EditionSommairePage() {
                 ? "Traitement…"
                 : "Actualiser"}
             </button>
-          )}
+          ) : null}
         </div>
-        {edition && (
+
+        {edition ? (
           <>
-            <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
-              <span className="tabular-nums">{stats.articles}</span>{" "}
-              article{stats.articles > 1 ? "s" : ""}{" "}
-              {stats.articles > 1 ? "disponibles" : "disponible"},{" "}
-              <span className="tabular-nums">{stats.countries}</span> pays
-              représentés
-              {stats.developments > 0 ? (
-                <>
-                  ,{" "}
-                  <span className="tabular-nums">{stats.developments}</span>{" "}
-                  grand{stats.developments > 1 ? "s" : ""} sujet
-                  {stats.developments > 1 ? "s" : ""}
-                </>
-              ) : null}
-              {editionWindowLabel ? (
-                <>
-                  {" "}
-                  · fenêtre d’édition ci-dessous.
-                </>
-              ) : null}
-            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border-light bg-background/80 px-4 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Articles dans cette vue
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-foreground">
+                  {stats.articles}
+                </p>
+                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                  Liés aux grands sujets ou au corpus listé plus bas.
+                </p>
+              </div>
+              <div className="rounded-lg border border-border-light bg-background/80 px-4 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Pays représentés
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-foreground">
+                  {stats.countries}
+                </p>
+                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                  Codes pays distincts dans cette édition.
+                </p>
+              </div>
+              <div className="rounded-lg border border-border-light bg-background/80 px-4 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Grands sujets
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-foreground">
+                  {stats.developments}
+                </p>
+                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                  Fils rédactionnels détectés (0 si pas encore lancé).
+                </p>
+              </div>
+            </div>
+
             {editionWindowLabel ? (
-              <p className="mt-1.5 text-[12px] leading-snug text-foreground-body">
-                {editionWindowLabel}
-              </p>
+              <section className="mt-6 border-t border-border pt-5" aria-labelledby="edition-window-heading">
+                <h2
+                  id="edition-window-heading"
+                  className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
+                >
+                  Fenêtre de collecte de cette édition
+                </h2>
+                <p className="mt-2 text-[13px] leading-relaxed text-foreground-body">
+                  {editionWindowLabel}
+                </p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Seuls les articles collectés dans cette plage horaire entrent dans l’édition du{" "}
+                  {date ? formatDateFr(date) : "jour choisi"}.
+                </p>
+              </section>
             ) : null}
+
+            <section className="mt-6 border-t border-border pt-5" aria-labelledby="edition-page-guide-heading">
+              <h2
+                id="edition-page-guide-heading"
+                className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
+              >
+                Ce que vous avez sous les yeux
+              </h2>
+              <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-foreground-body">
+                D’abord les <strong className="font-medium text-foreground">grands sujets</strong> (sommaire
+                rédactionnel), puis d’autres <strong className="font-medium text-foreground">regroupements</strong>{" "}
+                automatiques, puis la liste complète du <strong className="font-medium text-foreground">corpus</strong>.
+                En bas de page : la couverture par pays et le bouton pour{" "}
+                <strong className="font-medium text-foreground">générer</strong> le texte de revue à partir des articles
+                que vous cochez.
+              </p>
+            </section>
+
             {vigieGlobaleHint ? (
-              <p className="mt-2 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+              <p className="mt-5 max-w-2xl border-t border-border pt-4 text-[11px] leading-relaxed text-muted-foreground">
                 {vigieGlobaleHint}
               </p>
             ) : null}
           </>
-        )}
+        ) : null}
+
+        {date ? (
+          <section className="mt-6 border-t border-border pt-5" aria-labelledby="edition-automation-heading">
+            <h2
+              id="edition-automation-heading"
+              className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
+            >
+              Lancements automatiques et manuels
+            </h2>
+            {pipeline?.running ? (
+              <p
+                className="mt-2 border-l-2 border-[#c8102e] pl-3 text-[12px] font-medium text-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                Traitement en cours sur le serveur : {pipeline.running.label}…
+              </p>
+            ) : null}
+            {schedulerPreview.next ? (
+              <p className="mt-3 text-[13px] leading-relaxed text-foreground">
+                <span className="font-semibold text-foreground">Prochain passage automatique :</span>{" "}
+                {schedulerPreview.next.title} — {schedulerPreview.next.formattedNext}.
+              </p>
+            ) : statusQ.isSuccess && schedulerPreview.rows.length === 0 ? (
+              <p className="mt-3 text-[12px] text-muted-foreground">
+                Aucune tâche planifiée renvoyée par le serveur (vérifiez la configuration du planificateur).
+              </p>
+            ) : statusQ.isPending ? (
+              <p className="mt-3 text-[12px] text-muted-foreground">Chargement des horaires planifiés…</p>
+            ) : null}
+            {schedulerPreview.recentServerRun ? (
+              <p className="mt-3 text-[13px] leading-relaxed text-foreground-body">
+                <span className="font-semibold text-foreground">Dernier passage automatique enregistré</span> (sur ce
+                serveur) : {schedulerPreview.recentServerRun.formattedLast}
+                {schedulerPreview.recentServerRun.lastOk === false ? " · la tâche s’est terminée en erreur" : ""} —{" "}
+                <span className="text-foreground">{schedulerPreview.recentServerRun.title}</span>.
+              </p>
+            ) : statusQ.isSuccess && schedulerPreview.rows.length > 0 ? (
+              <p className="mt-3 text-[12px] text-muted-foreground">
+                Aucune exécution de tâche planifiée encore enregistrée depuis le dernier démarrage du serveur.
+              </p>
+            ) : null}
+            {schedulerPreview.rows.length > 0 ? (
+              <ul className="mt-4 list-none space-y-4 p-0">
+                {schedulerPreview.rows.map((row) => (
+                  <li
+                    key={row.id}
+                    className="border-l-2 border-border pl-3"
+                  >
+                    <p className="text-[12px] font-medium text-foreground">{row.title}</p>
+                    <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                      <span className="font-medium text-foreground/85">Prochain :</span> {row.formattedNext}
+                    </p>
+                    <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                      <span className="font-medium text-foreground/85">Dernier :</span>{" "}
+                      {row.formattedLast ?? (
+                        <span className="italic text-muted-foreground/90">
+                          aucune exécution enregistrée depuis le redémarrage du serveur
+                        </span>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
+              Les collectes du matin et de l’après-midi sont affichées en{" "}
+              <strong className="font-medium text-foreground">UTC</strong> ; l’ouverture de l’édition du lendemain suit
+              l’heure de <strong className="font-medium text-foreground">Beyrouth</strong>.
+            </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              Les horodatages « Dernier » sont fournis par le serveur d’API et sont remis à zéro après chaque
+              redémarrage. Pour un historique conservé, utilisez{" "}
+              <Link href="/regie/logs" className="olj-link-action font-medium">
+                Régie → Journaux
+              </Link>
+              .
+            </p>
+            {pipeline ? (
+              pipeline.lastRun ? (
+                <p className="mt-3 text-[12px] leading-relaxed text-foreground-body">
+                  <span className="font-semibold text-foreground">Dernier lancement manuel</span> (depuis ce navigateur,
+                  bouton « Actualiser ») : {formatSessionDateTimeFr(pipeline.lastRun.at)} — {pipeline.lastRun.label}
+                  {pipeline.lastRun.ok ? " · terminé avec succès" : " · terminé en erreur"}.
+                </p>
+              ) : (
+                <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+                  Pas encore de traitement manuel lancé depuis cette session. Pour l’historique des exécutions sur le
+                  serveur, ouvrez{" "}
+                  <Link href="/regie/logs" className="olj-link-action font-medium">
+                    Régie → Journaux
+                  </Link>
+                  .
+                </p>
+              )
+            ) : (
+              <p className="mt-3 text-[12px] text-muted-foreground">
+                Historique serveur :{" "}
+                <Link href="/regie/logs" className="olj-link-action font-medium">
+                  Régie → Journaux
+                </Link>
+                .
+              </p>
+            )}
+          </section>
+        ) : null}
+
         {detectionMessage ? (
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            {detectionMessage}
-          </p>
+          <p className="mt-4 text-[12px] text-muted-foreground">{detectionMessage}</p>
         ) : null}
         {editionId &&
           detectionStatus !== "running" &&
           (detectionStatus === "pending" ||
             detectionStatus === "failed" ||
             (detectionStatus === "done" && topics.length === 0)) && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
               <button
                 type="button"
                 className="olj-link-action text-[12px] disabled:opacity-45"
@@ -487,11 +779,9 @@ export default function EditionSommairePage() {
                     : "Lancer le traitement complet"}
                 </button>
               ) : null}
-              {pipelineJobsHint ? (
-                <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
-                  Tâches planifiées (UTC) · {pipelineJobsHint}
-                </p>
-              ) : null}
+              <p className="mt-4 text-[12px] text-muted-foreground">
+                Les prochains passages automatiques sont indiqués dans l’en-tête de la page.
+              </p>
             </div>
           )}
 
@@ -499,7 +789,11 @@ export default function EditionSommairePage() {
             <div className="mt-6 space-y-14">
               {hasTopicFeed ? (
                 <section>
-                  <h2 className="olj-rubric olj-rule mb-6">Grands sujets</h2>
+                  <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>
+                  <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                    Numérotation : ordre proposé pour le brief (1 = premier
+                    sujet).
+                  </p>
                   <div className="space-y-10">
                     {topics.map((t: EditionTopic) => (
                       <TopicSection

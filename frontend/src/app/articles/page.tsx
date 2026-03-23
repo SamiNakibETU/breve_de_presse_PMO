@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
@@ -123,6 +123,13 @@ export default function ArticlesPage() {
     hideSyndicated: true,
     groupSyndicated: false,
   });
+  const [groupByOljTheme, setGroupByOljTheme] = useState(true);
+
+  const oljLabelsQ = useQuery({
+    queryKey: ["oljTopicLabels"] as const,
+    queryFn: () => api.oljTopicLabels(),
+    staleTime: 60 * 60 * 1000,
+  });
 
   const queryKey = useMemo(
     () =>
@@ -212,6 +219,12 @@ export default function ArticlesPage() {
               : `Période : les ${ARTICLES_ROLLING_DAYS} derniers jours (glissant, UTC).`}{" "}
             Vue d’exploration, pas la fenêtre d’édition du jour.
           </p>
+          <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+            Filtres et tri dans la colonne de gauche (pays, type de texte, confiance).
+            Les séparateurs « Thème · … » regroupent les articles qui partagent les
+            mêmes rubriques OLJ (taxonomie) ; vous pouvez désactiver ce groupement
+            pour une grille continue.
+          </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
             {articles.length !== 1 ? "s" : ""}
@@ -238,11 +251,23 @@ export default function ArticlesPage() {
           </p>
         )}
 
+        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-foreground-body">
+          <input
+            type="checkbox"
+            className="olj-focus size-[14px] rounded-sm border-border"
+            checked={groupByOljTheme}
+            onChange={(e) => setGroupByOljTheme(e.target.checked)}
+          />
+          Grouper par thème OLJ (rubriques de la taxonomie)
+        </label>
+
         <ArticleList
           articles={articles}
           selected={selected}
           onToggle={toggle}
           loading={isPending}
+          topicLabelsFr={oljLabelsQ.data?.labels_fr ?? null}
+          groupByOljTheme={groupByOljTheme}
         />
 
         {hasNextPage && (

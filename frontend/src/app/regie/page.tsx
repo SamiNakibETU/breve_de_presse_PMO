@@ -45,10 +45,9 @@ export default function RegieHubPage() {
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
           Régie
         </h1>
-        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-foreground-body">
-          Accès aux outils internes : chaîne de collecte, qualité des textes,
-          regroupements automatiques et suivi technique — sans surcouche
-          «&nbsp;tableau de bord&nbsp;».
+        <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-foreground-body">
+          Production : collecte, traduction, dédoublonnage, regroupements et
+          curateur. Données : état des sources et journaux techniques.
         </p>
       </div>
       <ul className="grid gap-px border border-border bg-border sm:grid-cols-2">

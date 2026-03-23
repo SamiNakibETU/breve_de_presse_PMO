@@ -21,6 +21,7 @@ from src.middleware.correlation import CorrelationIdMiddleware
 from src.database import init_db
 from src.routers import articles, clusters, config, editions, health, olj_watch, pipeline, regie, reviews
 from src.services.scheduler import create_scheduler
+from src.services.scheduler_run_tracker import attach_scheduler_run_tracker
 from src.otel_setup import instrument_fastapi_app
 
 settings = get_settings()
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI):
         log.warning("app.editions_bootstrap_failed", error=str(exc)[:200])
 
     scheduler = create_scheduler()
+    attach_scheduler_run_tracker(scheduler, app)
     scheduler.start()
     app.state.scheduler = scheduler
     log.info("app.scheduler_started")

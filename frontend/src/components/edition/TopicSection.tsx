@@ -263,8 +263,11 @@ export function TopicSection({
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 lg:items-start">
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="tabular-nums text-[11px] font-medium text-muted-foreground">
-              {topic.rank}
+            <span
+              className="shrink-0 tabular-nums text-[11px] font-semibold text-muted-foreground"
+              title="Ordre sur la page du jour (sommaire du brief)"
+            >
+              Sujet {topic.rank}
             </span>
             {titleNode}
           </div>

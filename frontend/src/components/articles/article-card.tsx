@@ -129,11 +129,13 @@ export function ArticleCard({
               </div>
               <h3
                 className={`cursor-pointer leading-snug hover:text-accent ${
-                  isEditorial
-                    ? "font-[family-name:var(--font-serif)] text-[17px] font-normal"
-                    : isNewsLike
-                      ? "text-[13px] font-normal text-muted-foreground"
-                      : "text-[14px] font-medium"
+                  variant === "grid"
+                    ? "font-[family-name:var(--font-serif)] text-[16px] font-semibold leading-[1.35] text-foreground sm:text-[17px]"
+                    : isEditorial
+                      ? "font-[family-name:var(--font-serif)] text-[17px] font-normal"
+                      : isNewsLike
+                        ? "text-[13px] font-normal text-muted-foreground"
+                        : "text-[14px] font-medium"
                 }`}
                 onClick={() => setExpanded(!expanded)}
               >

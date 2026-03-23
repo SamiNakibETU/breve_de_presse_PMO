@@ -41,7 +41,18 @@ class StatsResponse(BaseModel):
 class SchedulerJobResponse(BaseModel):
     id: str
     name: str
-    next_run: Optional[str] = None
+    next_run: Optional[str] = Field(
+        default=None,
+        description="Prochaine exécution planifiée (chaîne renvoyée par APScheduler).",
+    )
+    last_run_at: Optional[str] = Field(
+        default=None,
+        description="ISO 8601 UTC : fin de la dernière exécution enregistrée pour ce processus.",
+    )
+    last_run_ok: Optional[bool] = Field(
+        default=None,
+        description="True si succès, False si erreur, null si aucune exécution depuis le boot.",
+    )
 
 
 class StatusResponse(BaseModel):

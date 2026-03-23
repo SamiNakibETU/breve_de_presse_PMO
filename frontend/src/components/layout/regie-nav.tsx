@@ -2,43 +2,80 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-const LINKS: { href: string; label: string }[] = [
-  { href: "/regie", label: "Vue d’ensemble" },
-  { href: "/regie/sources", label: "Sources" },
+const PRODUCTION: { href: string; label: string }[] = [
   { href: "/regie/pipeline", label: "Collecte et traduction" },
   { href: "/regie/dedup", label: "Dédoublonnage" },
   { href: "/regie/clustering", label: "Regroupements" },
+  { href: "/dashboard", label: "Cartes clusters" },
   { href: "/regie/curator", label: "Curateur" },
+];
+
+const DATA_AND_OPS: { href: string; label: string }[] = [
+  { href: "/regie", label: "Vue d’ensemble" },
+  { href: "/regie/sources", label: "Sources" },
   { href: "/regie/logs", label: "Journaux" },
 ];
+
+function linkActive(pathname: string, href: string): boolean {
+  if (href === "/regie") {
+    return pathname === "/regie";
+  }
+  if (href === "/dashboard") {
+    return pathname.startsWith("/dashboard");
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavRow({
+  title,
+  links,
+  pathname,
+}: {
+  title: string;
+  links: { href: string; label: string }[];
+  pathname: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
+      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {title}
+      </span>
+      <div className="flex flex-wrap gap-2">
+        {links.map(({ href, label }) => {
+          const active = linkActive(pathname, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "olj-nav-item olj-nav-item--subtle",
+                active && "olj-nav-item--active",
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function RegieNav() {
   const pathname = usePathname();
   return (
     <nav
-      className="flex flex-wrap gap-x-3 gap-y-1 border-b border-border pb-3 text-[12px] text-muted-foreground"
+      className="space-y-4 border-b border-border pb-4"
       aria-label="Régie"
     >
-      {LINKS.map(({ href, label }) => {
-        const active =
-          href === "/regie"
-            ? pathname === "/regie"
-            : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={
-              active
-                ? "font-medium text-foreground underline decoration-accent underline-offset-4"
-                : "hover:text-foreground hover:underline hover:decoration-border hover:underline-offset-4"
-            }
-          >
-            {label}
-          </Link>
-        );
-      })}
+      <NavRow title="Production" links={PRODUCTION} pathname={pathname} />
+      <NavRow
+        title="Données & suivi"
+        links={DATA_AND_OPS}
+        pathname={pathname}
+      />
     </nav>
   );
 }

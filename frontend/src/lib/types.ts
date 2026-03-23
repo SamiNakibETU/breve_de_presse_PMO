@@ -113,6 +113,9 @@ export interface SchedulerJob {
   id: string;
   name: string;
   next_run: string | null;
+  /** ISO 8601 UTC ; optionnel pour compatibilité avec anciennes API. */
+  last_run_at?: string | null;
+  last_run_ok?: boolean | null;
 }
 
 export interface AppStatus {
@@ -304,6 +307,12 @@ export interface TopicArticleRef {
 /** GET /api/config/coverage-targets */
 export interface CoverageTargetsResponse {
   country_codes: string[];
+  labels_fr: Record<string, string>;
+}
+
+/** GET /api/config/olj-topic-labels — taxonomie thématique articles. */
+export interface OljTopicLabelsResponse {
+  version: string;
   labels_fr: Record<string, string>;
 }
 

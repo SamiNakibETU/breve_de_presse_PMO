@@ -12,6 +12,7 @@ import type {
   DedupFeedbackItem,
   ClusterRefreshResponse,
   CoverageTargetsResponse,
+  OljTopicLabelsResponse,
   Edition,
   EditionTopic,
   EditionTopicDetailResponse,
@@ -217,6 +218,9 @@ export const api = {
 
   coverageTargets: () =>
     request<CoverageTargetsResponse>("/api/config/coverage-targets"),
+
+  oljTopicLabels: () =>
+    request<OljTopicLabelsResponse>("/api/config/olj-topic-labels"),
 
   status: () => request<AppStatus>("/api/status"),
 
