@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/* Poynter via fichiers statiques : next/font/local rejette .TTF sur le build Linux (Railway). */
+@font-face {
+  font-family: "Poynter OS Display";
+  src: url("/fonts/POYNTEROSDISP-ROMAN.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Poynter OS Display";
+  src: url("/fonts/POYNTEROSDISP-SEMIBOLD.TTF") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Poynter OS Display";
+  src: url("/fonts/POYNTEROSDISP-ITALIC.TTF") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --font-poynter: "Poynter OS Display", Georgia, serif;
+}
+
 @theme {
   /* Palette OLJ étendue (brief 2026) */
   --color-background: #eee5d4;
@@ -27,8 +54,8 @@
   --color-accent-tint: #faf6f2;
 
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-poynter), "Poynter OS Display", "Georgia", serif;
-  --font-narrow: var(--font-poynter), "Poynter OS Display", "Georgia", serif;
+  --font-serif: var(--font-poynter);
+  --font-narrow: var(--font-poynter);
 }
 
 * {
