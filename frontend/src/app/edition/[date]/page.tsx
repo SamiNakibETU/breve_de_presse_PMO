@@ -465,7 +465,7 @@ export default function EditionSommairePage() {
       {!loading && (
         <>
           {fullyEmpty && (
-            <div className="mt-6 rounded border border-border bg-surface/50 px-5 py-8 sm:px-8">
+            <div className="mt-6 rounded-lg border border-border bg-surface-warm/40 px-5 py-8 sm:px-8">
               <h2 className="font-[family-name:var(--font-serif)] text-[18px] font-semibold text-foreground">
                 Aucun article collecté pour cette date
               </h2>
@@ -599,7 +599,7 @@ export default function EditionSommairePage() {
                     {listArticles.map((a) => (
                       <div
                         key={a.id}
-                        className="rounded border border-border-light bg-card/90 p-3 sm:p-4"
+                        className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5"
                       >
                         <ArticleRow
                           article={a}
@@ -621,7 +621,7 @@ export default function EditionSommairePage() {
       )}
 
       {genOpen && generatedText && (
-        <section className="border-t border-border bg-surface/30 py-8">
+        <section className="border-t border-border bg-surface-warm/25 py-8">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="olj-rubric">Brouillon pour le CMS</h2>
             <button
@@ -637,7 +637,7 @@ export default function EditionSommairePage() {
       )}
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
-        <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background px-5 py-3 sm:px-6">
+        <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background px-5 py-3 shadow-[0_-6px_24px_rgba(27,26,26,0.06)] sm:px-6">
           <CoverageGaps
             selectedCountryCodes={selectedCountryCodes}
             targets={coverageQ.data ?? null}

@@ -65,7 +65,7 @@ export function ArticleList({ articles, selected, onToggle, loading }: ArticleLi
     cells.push(
       <div
         key={a.id}
-        className="rounded border border-border-light bg-card/90 p-3 sm:p-4"
+          className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5"
       >
         <ArticleCard
           article={a}

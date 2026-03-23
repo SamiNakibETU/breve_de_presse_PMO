@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   FLAGSHIP_BADGE_LABEL,
   articleTypeLabelFr,
-  articleTypePictogramFr,
   formatArticleMetaLine,
 } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -30,21 +29,29 @@ export function ArticleRow({
   const cc = (article.country_code ?? "").trim().toUpperCase();
   const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
   const typeFr = articleTypeLabelFr(article.article_type);
-  const picto = articleTypePictogramFr(article.article_type);
 
   const metaDense = (
-    <p className="text-[11px] font-semibold leading-snug text-foreground">
-      {flag ? <span className="mr-1">{flag}</span> : null}
-      <span className="tabular-nums text-muted-foreground">{cc || "—"}</span>
-      <span className="mx-1.5 text-border">·</span>
-      <span>{article.media_name}</span>
-      {typeFr ? (
-        <span className="font-normal text-muted-foreground">
-          {" "}
-          · {picto} {typeFr}
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      {flag || cc ? (
+        <span className="inline-flex items-center rounded border border-border-light bg-surface px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+          {flag ? <span className="mr-1">{flag}</span> : null}
+          {cc || "—"}
         </span>
       ) : null}
-    </p>
+      <span className="text-[11px] font-semibold text-foreground">
+        {article.media_name}
+      </span>
+      {article.country?.trim() ? (
+        <span className="text-[11px] text-muted-foreground">
+          {article.country.trim()}
+        </span>
+      ) : null}
+      {typeFr ? (
+        <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+          {typeFr}
+        </span>
+      ) : null}
+    </div>
   );
 
   return (

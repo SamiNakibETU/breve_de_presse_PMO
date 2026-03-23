@@ -43,7 +43,7 @@ export function Masthead() {
   });
 
   return (
-    <header className="border-b border-border bg-card">
+    <header className="border-b border-border bg-background shadow-sm">
       <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 py-4 sm:py-5">
           <div className="flex min-w-0 flex-1 items-center gap-4">

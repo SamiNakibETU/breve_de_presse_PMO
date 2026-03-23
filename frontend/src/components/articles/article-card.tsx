@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  articleTypeLabelFr,
-  articleTypePictogramFr,
-} from "@/lib/article-labels-fr";
+import { articleTypeLabelFr } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { Article } from "@/lib/types";
 import { ConfidenceBadge } from "./confidence-badge";
@@ -45,7 +42,6 @@ export function ArticleCard({
   const relevanceLabel = editorialRelevanceLabel(article.editorial_relevance);
   const cc = (article.country_code ?? "").trim().toUpperCase();
   const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
-  const picto = articleTypePictogramFr(article.article_type);
   const typeLbl = typeLabel(article.article_type);
 
   const date = article.published_at
@@ -67,7 +63,7 @@ export function ArticleCard({
       className={
         variant === "grid"
           ? selected
-            ? "rounded-sm bg-highlight/20"
+            ? "rounded-sm ring-1 ring-accent/35 bg-accent-tint/60"
             : ""
           : `border-b border-border-light py-4 ${selected ? "bg-accent-tint/50" : ""}`
       }
@@ -89,18 +85,27 @@ export function ArticleCard({
 
         <div className="min-w-0 flex-1">
           {variant === "grid" ? (
-            <p className="mb-1 text-[11px] font-semibold leading-snug text-foreground">
-              {flag ? <span className="mr-1">{flag}</span> : null}
-              <span className="tabular-nums text-muted-foreground">{cc || "—"}</span>
-              <span className="mx-1.5 text-border">·</span>
-              <span>{article.media_name}</span>
-              {typeLbl ? (
-                <span className="font-normal text-muted-foreground">
-                  {" "}
-                  · {picto} {typeLbl}
+            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {flag || cc ? (
+                <span className="inline-flex items-center rounded border border-border-light bg-surface px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                  {flag ? <span className="mr-1">{flag}</span> : null}
+                  {cc || "—"}
                 </span>
               ) : null}
-            </p>
+              <span className="text-[11px] font-semibold text-foreground">
+                {article.media_name}
+              </span>
+              {article.country?.trim() ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {article.country.trim()}
+                </span>
+              ) : null}
+              {typeLbl ? (
+                <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+                  {typeLbl}
+                </span>
+              ) : null}
+            </div>
           ) : null}
           <div className="flex items-start gap-3">
             <div className="flex-1">

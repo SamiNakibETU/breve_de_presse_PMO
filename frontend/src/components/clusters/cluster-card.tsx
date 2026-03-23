@@ -182,7 +182,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
         });
       }}
     >
-      <article className="flex h-full flex-col border border-border-light bg-card/40 p-5 transition-colors hover:bg-muted/35 sm:p-6">
+      <article className="flex h-full flex-col rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:border-info/40 hover:shadow-md sm:p-6">
         {cluster.is_emerging ? (
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
             Nouveau sujet

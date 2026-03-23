@@ -48,7 +48,7 @@ function ThemeArticleRow({
 }) {
   const title = article.title.trim() || "Sans titre";
   return (
-    <div className="border-b border-border-light py-2.5 text-[12px] last:border-b-0">
+    <div className="px-3 py-3 text-[12px] sm:px-4">
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
@@ -142,11 +142,11 @@ export function EditionThemesView({
             <li
               key={row.cluster_id}
               className={cn(
-                "border border-border",
-                multi ? "bg-background" : "bg-muted/15 opacity-95",
+                "overflow-hidden rounded-lg border border-border bg-card shadow-sm",
+                multi && "ring-1 ring-accent/20",
               )}
             >
-              <div className="border-b border-border-light px-4 py-3">
+              <div className="border-b border-border-light bg-surface/50 px-4 py-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <Link
                     href={`/clusters/${row.cluster_id}`}
@@ -160,11 +160,11 @@ export function EditionThemesView({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
                   {multi ? (
-                    <span className="border-l-2 border-accent pl-2 font-medium text-foreground">
+                    <span className="rounded-md bg-info/12 px-2 py-0.5 font-semibold text-foreground">
                       Multi-perspective
                     </span>
                   ) : (
-                    <span className="border-l border-border pl-2 text-muted-foreground">
+                    <span className="rounded-md border border-border bg-background px-2 py-0.5 text-muted-foreground">
                       Perspective limitée
                     </span>
                   )}
@@ -192,7 +192,7 @@ export function EditionThemesView({
                       <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         {flag ? `${flag} ${label}` : label}
                       </p>
-                      <div className="rounded border border-border-light bg-surface/40">
+                      <div className="divide-y divide-border-light rounded-md border border-border-light bg-card">
                         {arts.map((a) => (
                           <ThemeArticleRow
                             key={a.id}

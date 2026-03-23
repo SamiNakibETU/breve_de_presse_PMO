@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   FLAGSHIP_BADGE_LABEL,
   articleTypeLabelFr,
-  articleTypePictogramFr,
   formatArticleMetaLine,
 } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -74,9 +73,10 @@ function TopicArticleLine({
 }) {
   const title = preview.title_fr || preview.title_original;
   const typeFr = articleTypeLabelFr(preview.article_type);
-  const picto = articleTypePictogramFr(preview.article_type);
+  const cc = (preview.country_code ?? "").trim().toUpperCase();
+  const flag = cc && cc !== "XX" ? REGION_FLAG_EMOJI[cc] : null;
   return (
-    <div className="border-b border-border-light py-2.5 text-[13px] last:border-b-0">
+    <div className="px-3 py-3 text-[13px] sm:px-4">
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
@@ -86,17 +86,31 @@ function TopicArticleLine({
           aria-label={`Inclure ${title}`}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold leading-snug text-foreground">
-            <span className="text-muted-foreground">{picto}</span>{" "}
-            {preview.media_name}
-            {typeFr ? (
-              <span className="font-normal text-muted-foreground">
-                {" "}
-                · {typeFr}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {flag ? (
+              <span
+                className="inline-flex items-center rounded border border-border-light bg-surface px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+                title={preview.country ?? cc}
+              >
+                <span className="mr-1">{flag}</span>
+                {cc || "—"}
               </span>
             ) : null}
-          </p>
-          <span className="mt-1 block font-[family-name:var(--font-serif)] font-medium leading-snug text-foreground">
+            <span className="text-[11px] font-semibold text-foreground">
+              {preview.media_name}
+            </span>
+            {preview.country?.trim() && (
+              <span className="text-[11px] text-muted-foreground">
+                {preview.country.trim()}
+              </span>
+            )}
+            {typeFr ? (
+              <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+                {typeFr}
+              </span>
+            ) : null}
+          </div>
+          <span className="mt-2 block font-[family-name:var(--font-serif)] text-[15px] font-medium leading-snug text-foreground">
             {title}
           </span>
           {!compact && preview.thesis_summary_fr ? (
@@ -217,15 +231,15 @@ export function TopicSection({
 
   const sectionClass =
     mode === "summary"
-      ? "border-b border-border pb-8 pt-3"
-      : "border-b border-border pb-10 pt-4";
+      ? "border-b border-border pb-10 pt-6"
+      : "border-b border-border pb-12 pt-6";
 
   return (
     <section
-      className={`${sectionClass} ${multiPays ? "border-l-4 border-accent pl-4 sm:pl-5" : "border-l-4 border-border pl-4 sm:pl-5"}`}
+      className={`${sectionClass} ${multiPays ? "border-l-[3px] border-accent pl-5 sm:pl-6" : "border-l-[3px] border-border pl-5 sm:pl-6"}`}
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-8">
-        <div className="min-w-0 space-y-3">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 lg:items-start">
+        <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="tabular-nums text-[11px] font-medium text-muted-foreground">
               {topic.rank}
@@ -250,9 +264,9 @@ export function TopicSection({
               {topic.dominant_angle.trim()}
             </p>
           ) : null}
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2">
             {topic.is_multi_perspective ? (
-              <span className="border-l border-info pl-2 text-[11px] font-medium text-foreground">
+              <span className="inline-flex items-center rounded-md bg-info/12 px-2.5 py-1 text-[11px] font-semibold text-foreground">
                 Plusieurs regards
                 {nCountryCodes > 1
                   ? ` · ${nCountryCodes} pays`
@@ -261,26 +275,28 @@ export function TopicSection({
                     : null}
               </span>
             ) : (
-              <span className="border-l border-border pl-2 text-foreground-body">
+              <span className="inline-flex rounded-md border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-foreground-body">
                 Point de vue national
               </span>
             )}
             {nCountryCodes === 1 && articleTotal <= 1 ? (
-              <span className="rounded bg-highlight/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+              <span className="rounded-md bg-highlight/50 px-2 py-1 text-[10px] font-semibold text-foreground">
                 Perspective unique
               </span>
             ) : null}
             {countriesText ? (
-              <span className="text-foreground-body">{countriesText}</span>
+              <span className="text-[12px] text-foreground-body">
+                {countriesText}
+              </span>
             ) : null}
             {topic.article_count != null && (
-              <span className="tabular-nums">
+              <span className="text-[12px] tabular-nums text-muted-foreground">
                 {topic.article_count} texte{topic.article_count > 1 ? "s" : ""}
               </span>
             )}
           </div>
           {showContrastingBlock ? (
-            <ul className="space-y-2 border-l border-border pl-3">
+            <ul className="space-y-3 rounded-md border border-border-light bg-surface/80 p-3 sm:p-4">
               {contrasting.map((p) => {
                 const cc = (p.country_code ?? "").trim().toUpperCase() || "";
                 const flag = REGION_FLAG_EMOJI[cc];
@@ -312,9 +328,9 @@ export function TopicSection({
           )}
         </div>
 
-        <div className="min-w-0 rounded-sm border border-border-light bg-card/60 p-3 sm:p-4">
+        <div className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
           {groups.length === 0 ? (
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-[13px] text-muted-foreground">
               Aucun aperçu d’article pour ce sujet.
             </p>
           ) : (
@@ -324,11 +340,12 @@ export function TopicSection({
               const shown = list.slice(0, MAX_ARTICLES_PER_COUNTRY);
               const more = list.length - shown.length;
               return (
-                <div key={code || "x"} className="mb-4 last:mb-0">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                    {flag ? `${flag} ${header}` : header}
+                <div key={code || "x"} className="mb-6 last:mb-0">
+                  <p className="mb-3 flex flex-wrap items-center gap-2 border-b border-border-light pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    {flag ? <span className="text-base leading-none">{flag}</span> : null}
+                    <span>{header}</span>
                   </p>
-                  <div className="rounded border border-border-light bg-background/80">
+                  <div className="divide-y divide-border-light rounded-md border border-border-light">
                     {shown.map((p) => (
                       <TopicArticleLine
                         key={p.id}

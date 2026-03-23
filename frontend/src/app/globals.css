@@ -28,13 +28,13 @@
 }
 
 @theme {
-  /* Palette OLJ étendue (brief 2026) */
-  --color-background: #eee5d4;
+  /* Palette OLJ — fond blanc, accents papier / info / alerte */
+  --color-background: #ffffff;
   --color-foreground: #1b1a1a;
-  --color-muted: #e7e3e3;
+  --color-muted: #f3f1ee;
   --color-muted-foreground: #817c7c;
   --color-border: #e7e3e3;
-  --color-border-light: #e7e3e3;
+  --color-border-light: #ece8e4;
   --color-primary: #1b1a1a;
   --color-primary-foreground: #ffffff;
   --color-accent: #dd3b31;
@@ -44,14 +44,15 @@
   --color-warning: #92400e;
   --color-card: #ffffff;
   --color-card-foreground: #1b1a1a;
-  --color-surface: #eee5d4;
+  --color-surface: #f7f5f2;
+  --color-surface-warm: #eee5d4;
   --color-info: #8eb9e4;
   --color-highlight: #ffdf8a;
   --color-foreground-muted: #817c7c;
   --color-foreground-body: #323030;
   --color-foreground-subtle: #323030;
   --color-primary-hover: #323030;
-  --color-accent-tint: #faf6f2;
+  --color-accent-tint: #fff5f4;
 
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-poynter);
@@ -114,7 +115,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-muted-foreground);
+  color: var(--color-foreground-body);
 }
 
 /* Trait de section (alternative à l’encadrement type carte) */
@@ -222,7 +223,8 @@ input[type="checkbox"] {
     border-color 0.15s ease;
 }
 .olj-btn-secondary:hover:not(:disabled) {
-  background: var(--color-surface);
+  background: var(--color-surface-warm);
+  border-color: var(--color-muted-foreground);
 }
 .olj-btn-secondary:focus-visible {
   outline: 2px solid var(--color-accent);
