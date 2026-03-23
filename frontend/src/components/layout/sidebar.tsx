@@ -43,7 +43,7 @@ export function Masthead() {
   });
 
   return (
-    <header className="border-b border-border bg-white">
+    <header className="border-b border-border bg-card">
       <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 py-4 sm:py-5">
           <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -119,7 +119,7 @@ export function Masthead() {
             href="/regie"
             prefetch
             className={cn(
-              "relative pb-1 text-[12px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:ml-auto",
+              "relative pb-1 text-[11px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:ml-auto",
               pathname.startsWith("/regie") ||
                 pathname.startsWith("/dashboard")
                 ? "font-medium text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border"

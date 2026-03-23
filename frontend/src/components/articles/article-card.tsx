@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { articleTypeLabelFr } from "@/lib/article-labels-fr";
+import {
+  articleTypeLabelFr,
+  articleTypePictogramFr,
+} from "@/lib/article-labels-fr";
+import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { Article } from "@/lib/types";
 import { ConfidenceBadge } from "./confidence-badge";
 
@@ -9,6 +13,8 @@ interface ArticleCardProps {
   article: Article;
   selected: boolean;
   onToggle: (id: string) => void;
+  /** Carte dans une grille 2 colonnes (méta pays + journal en tête). */
+  variant?: "list" | "grid";
 }
 
 const EDITORIAL_TYPES = new Set(["opinion", "editorial", "tribune"]);
@@ -27,11 +33,20 @@ function editorialRelevanceLabel(score: number | null | undefined): string | nul
   return null;
 }
 
-export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
+export function ArticleCard({
+  article,
+  selected,
+  onToggle,
+  variant = "list",
+}: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isEditorial = EDITORIAL_TYPES.has(article.article_type || "");
   const isNewsLike = NEWS_LIKE_TYPES.has(article.article_type || "");
   const relevanceLabel = editorialRelevanceLabel(article.editorial_relevance);
+  const cc = (article.country_code ?? "").trim().toUpperCase();
+  const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
+  const picto = articleTypePictogramFr(article.article_type);
+  const typeLbl = typeLabel(article.article_type);
 
   const date = article.published_at
     ? new Date(article.published_at).toLocaleDateString("fr-FR", {
@@ -49,7 +64,13 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
 
   return (
     <article
-      className={`border-b border-border-light py-4 ${selected ? "bg-accent-tint/50" : ""}`}
+      className={
+        variant === "grid"
+          ? selected
+            ? "rounded-sm bg-highlight/20"
+            : ""
+          : `border-b border-border-light py-4 ${selected ? "bg-accent-tint/50" : ""}`
+      }
     >
       <div className="flex gap-3">
         <button
@@ -67,10 +88,26 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
         </button>
 
         <div className="min-w-0 flex-1">
+          {variant === "grid" ? (
+            <p className="mb-1 text-[11px] font-semibold leading-snug text-foreground">
+              {flag ? <span className="mr-1">{flag}</span> : null}
+              <span className="tabular-nums text-muted-foreground">{cc || "—"}</span>
+              <span className="mx-1.5 text-border">·</span>
+              <span>{article.media_name}</span>
+              {typeLbl ? (
+                <span className="font-normal text-muted-foreground">
+                  {" "}
+                  · {picto} {typeLbl}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
           <div className="flex items-start gap-3">
             <div className="flex-1">
               <div className="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                {(isEditorial || isNewsLike) && article.article_type && (
+                {variant === "list" &&
+                  (isEditorial || isNewsLike) &&
+                  article.article_type && (
                   <span
                     className={`inline-block text-[10px] font-bold uppercase tracking-[0.12em] ${
                       isEditorial ? "text-accent" : "text-muted-foreground"
@@ -114,28 +151,50 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
               </p>
             )}
 
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            {article.media_name}
-            <span className="mx-1">·</span>
-            {article.country}
-            {article.author && <><span className="mx-1">·</span>{article.author}</>}
-            {date && <><span className="mx-1">·</span>{date}</>}
-            {!isEditorial && article.article_type && (
-              <span className="ml-2 border border-border-light px-1 py-px text-[10px] uppercase tracking-wider text-muted-foreground">
-                {typeLabel(article.article_type)}
-              </span>
-            )}
-            {article.is_syndicated && (
-              <span className="ml-2 text-[10px] text-muted-foreground">Reprise</span>
-            )}
-            {article.syndicate_siblings_count != null &&
-              article.syndicate_siblings_count > 0 && (
-                <span className="ml-2 text-[10px] text-muted-foreground">
-                  +{article.syndicate_siblings_count} reprise
-                  {article.syndicate_siblings_count > 1 ? "s" : ""}
+          {variant === "list" ? (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              {article.media_name}
+              <span className="mx-1">·</span>
+              {article.country}
+              {article.author && (
+                <>
+                  <span className="mx-1">·</span>
+                  {article.author}
+                </>
+              )}
+              {date && (
+                <>
+                  <span className="mx-1">·</span>
+                  {date}
+                </>
+              )}
+              {!isEditorial && article.article_type && (
+                <span className="ml-2 border border-border-light px-1 py-px text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {typeLabel(article.article_type)}
                 </span>
               )}
-          </p>
+              {article.is_syndicated && (
+                <span className="ml-2 text-[10px] text-muted-foreground">
+                  Reprise
+                </span>
+              )}
+              {article.syndicate_siblings_count != null &&
+                article.syndicate_siblings_count > 0 && (
+                  <span className="ml-2 text-[10px] text-muted-foreground">
+                    +{article.syndicate_siblings_count} reprise
+                    {article.syndicate_siblings_count > 1 ? "s" : ""}
+                  </span>
+                )}
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {article.author ? `${article.author} · ` : null}
+              {date ?? ""}
+              {article.is_syndicated ? (
+                <span className="ml-2 text-[10px]">Reprise</span>
+              ) : null}
+            </p>
+          )}
 
           {article.thesis_summary_fr && !expanded && (
             <p className="mt-2 line-clamp-2 font-[family-name:var(--font-serif)] text-[14px] italic leading-snug text-foreground">

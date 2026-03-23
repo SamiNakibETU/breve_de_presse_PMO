@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Lora } from "next/font/google";
+import localFont from "next/font/local";
+import { Inter } from "next/font/google";
 import { Masthead } from "@/components/layout/sidebar";
 import { PipelineGlobalBar } from "@/components/layout/pipeline-global-bar";
 import { Providers } from "./providers";
@@ -11,9 +12,25 @@ const inter = Inter({
   display: "swap",
 });
 
-const lora = Lora({
-  subsets: ["latin"],
-  variable: "--font-lora",
+const poynter = localFont({
+  src: [
+    {
+      path: "../../font/necto-mono-main/necto-mono-main/POYNTEROSDISP-ROMAN.TTF",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../font/necto-mono-main/necto-mono-main/POYNTEROSDISP-SEMIBOLD.TTF",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../../font/necto-mono-main/necto-mono-main/POYNTEROSDISP-ITALIC.TTF",
+      weight: "400",
+      style: "italic",
+    },
+  ],
+  variable: "--font-poynter",
   display: "swap",
 });
 
@@ -30,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className="light">
       <body
-        className={`${inter.variable} ${lora.variable} ${inter.className} bg-background text-foreground antialiased`}
+        className={`${inter.variable} ${poynter.variable} ${inter.className} bg-background text-foreground antialiased`}
       >
         <Providers>
           <Masthead />

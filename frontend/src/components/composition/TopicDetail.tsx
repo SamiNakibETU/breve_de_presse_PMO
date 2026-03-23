@@ -9,6 +9,7 @@ import {
   partitionArticlesBySelection,
   sortArticlesByTopicRefs,
 } from "@/lib/groupTopicArticles";
+import { countryCodesFromArticles } from "@/lib/topic-country-codes";
 import { ArticleRow } from "./ArticleRow";
 import { TopicGeneratedProse } from "./TopicGeneratedProse";
 import { TopicSubjectSummary } from "./TopicSubjectSummary";
@@ -192,6 +193,11 @@ export function TopicDetail({
         ? "Tous les textes liés figurent dans la sélection ci-dessus."
         : "";
 
+  const displayCountryCodes = useMemo(
+    () => countryCodesFromArticles(orderedArticles),
+    [orderedArticles],
+  );
+
   const toggle = (articleId: string, next: boolean) => {
     setSelected((prev) => {
       const n = new Set(prev);
@@ -209,6 +215,7 @@ export function TopicDetail({
         countryLabelsFr={countryLabelsFr}
         publishDate={publishDate}
         articleCount={orderedArticles.length}
+        countryCodesForDisplay={displayCountryCodes}
       />
 
       <section className="space-y-3">

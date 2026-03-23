@@ -13,8 +13,8 @@ export default function RegieCuratorPage() {
     queryFn: () =>
       api.regieLlmCallLogs({
         prompt_id: CURATOR_PROMPT_ID,
-        limit: 30,
-        include_raw: true,
+        limit: 20,
+        include_raw: false,
       }),
   });
 

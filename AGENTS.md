@@ -2,7 +2,7 @@
 
 Ce fichier est lu automatiquement par Cursor. Il définit le contexte, les règles et le plan d'implémentation pour le projet Revue de Presse OLJ.
 
-Voir `CURSOR_AGENT_PROMPT.md` à la racine pour le prompt système complet avec l'architecture, les décisions actées, et le plan phase par phase.
+Documentation longue / brouillons : dossier local `archive/` (ignoré par git).
 
 ## Règles critiques (toujours actives)
 
@@ -10,7 +10,7 @@ Voir `CURSOR_AGENT_PROMPT.md` à la racine pour le prompt système complet avec 
 2. Migrations Alembic additives uniquement — jamais de DROP
 3. Tout le frontend en français
 4. Italique pour les thèses dans l'UI, guillemets « » dans le texte généré uniquement
-5. Tailwind uniquement, rouge OLJ `#c8102e`
+5. Tailwind uniquement, rouge OLJ `#dd3b31` (tokens `--color-accent` / `accent`)
 6. Types stricts partout — pas de `any` côté TS
 
 ## Temporalités (référence unique)

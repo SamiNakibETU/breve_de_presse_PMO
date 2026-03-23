@@ -76,12 +76,15 @@ export function EditionThemesView({
   onToggleArticle,
   isLoading,
   countryLabelsFr,
+  /** Masque le titre long (utilisé quand le parent affiche déjà « Autres regroupements »). */
+  embedded = false,
 }: {
   rows: ClusterFallbackRow[];
   selectedIds: ReadonlySet<string>;
   onToggleArticle: (id: string, next: boolean) => void;
   isLoading?: boolean;
   countryLabelsFr?: Record<string, string> | null;
+  embedded?: boolean;
 }) {
   const sortedRows = useMemo(() => {
     const r = [...rows];
@@ -106,28 +109,31 @@ export function EditionThemesView({
   }
 
   if (sortedRows.length === 0) {
+    if (embedded) {
+      return null;
+    }
     return (
       <div className="max-w-2xl space-y-2">
         <h2 className="olj-rubric olj-rule">Regroupements thématiques</h2>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Aucun regroupement disponible pour cette édition. Il faut au moins
-          deux textes assignés au même thème après le traitement (embeddings et
-          clustering). Lancez le traitement complet depuis l’en-tête si besoin.
+          Aucun regroupement disponible pour cette édition. Lancez le traitement
+          complet si besoin.
         </p>
       </div>
     );
   }
 
   return (
-    <section className="space-y-6">
-      <div>
-        <h2 className="olj-rubric olj-rule mb-2">Regroupements thématiques</h2>
-        <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-          Vue complémentaire aux grands sujets : classement par similarité de
-          textes sur le corpus de l’édition. Les blocs couvrant plusieurs pays
-          sont prioritaires pour la veille régionale.
-        </p>
-      </div>
+    <section className={embedded ? "space-y-5" : "space-y-6"}>
+      {!embedded ? (
+        <div>
+          <h2 className="olj-rubric olj-rule mb-2">Regroupements thématiques</h2>
+          <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+            Regroupement par similarité (HDBSCAN). Les blocs multi-pays sont
+            mis en avant.
+          </p>
+        </div>
+      ) : null}
       <ul className="space-y-5">
         {sortedRows.map((row) => {
           const multi = row.country_count >= 2;

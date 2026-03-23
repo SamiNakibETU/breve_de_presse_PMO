@@ -8,13 +8,18 @@ type TopicSubjectSummaryProps = {
   /** Date d’édition affichée discrètement (AAAA-MM-JJ) */
   publishDate?: string;
   articleCount?: number;
+  /**
+   * Codes pays ISO dérivés des articles réels (prioritaires sur `topic.countries` du LLM).
+   * Si défini (y compris tableau vide), remplace la liste pays du sujet pour l’affichage.
+   */
+  countryCodesForDisplay?: string[] | null;
 };
 
 function countriesReadable(
-  countries: string[],
+  countryCodes: string[],
   countryLabelsFr: Record<string, string> | null | undefined,
 ): string {
-  return countries
+  return countryCodes
     .map((c) => {
       const code = c.trim().toUpperCase();
       const label = countryLabelsFr?.[code] ?? code;
@@ -29,15 +34,22 @@ export function TopicSubjectSummary({
   countryLabelsFr,
   publishDate,
   articleCount,
+  countryCodesForDisplay,
 }: TopicSubjectSummaryProps) {
   const title = topic.title_final ?? topic.title_proposed;
 
-  const countries = topic.countries ?? [];
+  const effectiveCodes =
+    countryCodesForDisplay !== undefined && countryCodesForDisplay !== null
+      ? countryCodesForDisplay
+      : (topic.countries ?? []);
+
   const showCountries =
-    topic.is_multi_perspective !== false && countries.length > 0;
+    topic.is_multi_perspective !== false && effectiveCodes.length > 0;
   const countriesLine = showCountries
-    ? countriesReadable(countries, countryLabelsFr ?? undefined)
+    ? countriesReadable(effectiveCodes, countryLabelsFr ?? undefined)
     : "";
+
+  const multiFromData = effectiveCodes.length >= 2;
 
   return (
     <header className="space-y-4 border-b border-border-light pb-6">
@@ -79,7 +91,7 @@ export function TopicSubjectSummary({
           </p>
         ) : null}
         {(topic.is_multi_perspective === true ||
-          (countries.length >= 2 && topic.is_multi_perspective !== false)) && (
+          (multiFromData && topic.is_multi_perspective !== false)) && (
           <span className="text-[11px] font-medium uppercase tracking-wide text-foreground-body">
             Plusieurs regards
           </span>

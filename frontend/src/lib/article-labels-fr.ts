@@ -42,6 +42,26 @@ export function articleTypeLabelFr(
   return ARTICLE_TYPE_FR[k] ?? code;
 }
 
+/** Pictogramme discret par type (brief OLJ, pas de lib d’icônes). */
+export function articleTypePictogramFr(
+  code: string | null | undefined,
+): string {
+  const k = (code ?? "").trim().toLowerCase();
+  const map: Record<string, string> = {
+    opinion: "✎",
+    editorial: "✎",
+    tribune: "✎",
+    column: "✎",
+    analysis: "◉",
+    news: "▪",
+    briefing: "▪",
+    interview: "◈",
+    reportage: "▸",
+    feature: "▸",
+  };
+  return map[k] ?? "▪";
+}
+
 export function sourceLanguageLabelFr(
   code: string | null | undefined,
 ): string | null {

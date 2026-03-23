@@ -19,7 +19,12 @@ const sections: { href: string; title: string; blurb: string }[] = [
   {
     href: "/regie/clustering",
     title: "Regroupements",
-    blurb: "Paramètres et documentation.",
+    blurb: "Paramètres HDBSCAN et documentation.",
+  },
+  {
+    href: "/dashboard",
+    title: "Cartes de regroupements",
+    blurb: "Vue technique des clusters en base (sous-section regroupements).",
   },
   {
     href: "/regie/curator",
@@ -31,11 +36,6 @@ const sections: { href: string; title: string; blurb: string }[] = [
     title: "Journaux",
     blurb: "Traces techniques et journal des opérations.",
   },
-  {
-    href: "/dashboard",
-    title: "Sujets automatiques",
-    blurb: "Vue technique des regroupements en base.",
-  },
 ];
 
 export default function RegieHubPage() {
@@ -45,22 +45,23 @@ export default function RegieHubPage() {
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
           Régie
         </h1>
-        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-foreground-body">
-          Outils internes pour la revue de presse : sources, pipeline, suivi et
-          journaux.
+        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-foreground-body">
+          Accès aux outils internes : chaîne de collecte, qualité des textes,
+          regroupements automatiques et suivi technique — sans surcouche
+          «&nbsp;tableau de bord&nbsp;».
         </p>
       </div>
-      <ul className="divide-y divide-border border-t border-border">
+      <ul className="grid gap-px border border-border bg-border sm:grid-cols-2">
         {sections.map((s) => (
-          <li key={s.href}>
+          <li key={s.href} className="bg-background">
             <Link
               href={s.href}
-              className="block py-4 transition-colors hover:bg-muted/30"
+              className="block h-full p-4 transition-colors hover:bg-muted/25 sm:p-5"
             >
-              <h2 className="font-[family-name:var(--font-serif)] text-[16px] font-semibold text-foreground">
+              <h2 className="font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
                 {s.title}
               </h2>
-              <p className="mt-1 text-[12px] leading-relaxed text-foreground-body">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-foreground-body">
                 {s.blurb}
               </p>
             </Link>

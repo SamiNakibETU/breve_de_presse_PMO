@@ -1,34 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  /* MEMW : fond papier OLJ, accent #c8102e */
-  --color-background: #f7f5f0;
-  --color-foreground: #1a1a1a;
-  --color-muted: #efede6;
-  --color-muted-foreground: #6f6d68;
-  --color-border: #d9d6cf;
-  --color-border-light: #e8e5de;
-  --color-primary: #1a1a1a;
+  /* Palette OLJ étendue (brief 2026) */
+  --color-background: #eee5d4;
+  --color-foreground: #1b1a1a;
+  --color-muted: #e7e3e3;
+  --color-muted-foreground: #817c7c;
+  --color-border: #e7e3e3;
+  --color-border-light: #e7e3e3;
+  --color-primary: #1b1a1a;
   --color-primary-foreground: #ffffff;
-  --color-accent: #c8102e;
+  --color-accent: #dd3b31;
   --color-accent-foreground: #ffffff;
-  --color-destructive: #c8102e;
+  --color-destructive: #dd3b31;
   --color-success: #2d6a4f;
   --color-warning: #92400e;
   --color-card: #ffffff;
-  --color-card-foreground: #1a1a1a;
-  --color-surface: #f3f1eb;
-  /* Texte secondaire / corps (aligné DESIGN_SYSTEM, évite hex dans les pages) */
-  --color-foreground-muted: #666666;
-  --color-foreground-body: #555555;
-  --color-foreground-subtle: #444444;
-  --color-primary-hover: #333333;
-  /* Fond discret lié à l’accent (bandeau pipeline) */
-  --color-accent-tint: #faf7f6;
+  --color-card-foreground: #1b1a1a;
+  --color-surface: #eee5d4;
+  --color-info: #8eb9e4;
+  --color-highlight: #ffdf8a;
+  --color-foreground-muted: #817c7c;
+  --color-foreground-body: #323030;
+  --color-foreground-subtle: #323030;
+  --color-primary-hover: #323030;
+  --color-accent-tint: #faf6f2;
 
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-lora), "Lora", "Georgia", serif;
-  --font-narrow: var(--font-lora), "Lora", "Georgia", serif;
+  --font-serif: var(--font-poynter), "Poynter OS Display", "Georgia", serif;
+  --font-narrow: var(--font-poynter), "Poynter OS Display", "Georgia", serif;
 }
 
 * {

@@ -53,3 +53,6 @@ alembic/versions/__pycache__/
 # Database
 *.db
 *.sqlite3
+
+# Archives locales (specs obsoletes, brouillons — voir plan refonte)
+archive/
