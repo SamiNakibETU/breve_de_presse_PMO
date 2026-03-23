@@ -24,10 +24,12 @@ from src.services.edition_review_generator import (
     generate_edition_topic_review,
 )
 from src.services.edition_schedule import find_edition_for_calendar_date
+from src.services.topic_detector import run_topic_detection_for_edition_id
 
 router = APIRouter(prefix="/api/editions", tags=["editions"])
 
-TOPIC_ARTICLE_PREVIEW_LIMIT = 6
+TOPIC_ARTICLE_PREVIEW_DEFAULT = 6
+TOPIC_ARTICLE_PREVIEW_MAX = 200
 
 
 class EditionOut(BaseModel):
@@ -44,6 +46,7 @@ class EditionOut(BaseModel):
     curator_run_id: Optional[UUID] = None
     pipeline_trace_id: Optional[UUID] = None
     generated_text: Optional[str] = None
+    detection_status: str = "pending"
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -63,6 +66,15 @@ class TopicArticlePreviewOut(BaseModel):
     title_original: str
     media_name: str
     url: str
+    thesis_summary_fr: Optional[str] = None
+    country: Optional[str] = None
+    country_code: Optional[str] = None
+    editorial_relevance: Optional[int] = None
+    article_type: Optional[str] = None
+    source_language: Optional[str] = None
+    author: Optional[str] = None
+    editorial_angle: Optional[str] = None
+    is_flagship: Optional[bool] = None
 
 
 class EditionTopicOut(BaseModel):
@@ -78,6 +90,10 @@ class EditionTopicOut(BaseModel):
     editorial_note: Optional[str] = None
     country_coverage: Optional[dict[str, Any]] = None
     generated_text: Optional[str] = None
+    angle_id: Optional[str] = None
+    description: Optional[str] = None
+    is_multi_perspective: bool = False
+    countries: Optional[list[str]] = None
     article_count: Optional[int] = None
     article_previews: Optional[list[TopicArticlePreviewOut]] = None
 
@@ -87,6 +103,9 @@ class TopicArticleRef(BaseModel):
     is_selected: bool
     is_recommended: bool
     rank_in_topic: Optional[int] = None
+    fit_confidence: Optional[float] = None
+    perspective_rarity: Optional[int] = None
+    display_order: Optional[int] = None
 
 
 class TopicSelectionBody(BaseModel):
@@ -97,6 +116,12 @@ class TopicSelectionBody(BaseModel):
 
 class GenerateTopicBody(BaseModel):
     article_ids: Optional[list[UUID]] = None
+
+
+def _article_relevance_int(art: Article) -> Optional[int]:
+    if art.relevance_score is None:
+        return None
+    return int(round(float(art.relevance_score)))
 
 
 def _edition_topic_to_out(
@@ -116,6 +141,10 @@ def _edition_topic_to_out(
         editorial_note=t.editorial_note,
         country_coverage=t.country_coverage,
         generated_text=t.generated_text,
+        angle_id=t.angle_id,
+        description=t.development_description,
+        is_multi_perspective=bool(t.is_multi_perspective),
+        countries=list(t.countries) if t.countries else None,
         article_count=article_count,
         article_previews=article_previews,
     )
@@ -134,6 +163,7 @@ def _edition_to_out(e: Edition) -> EditionOut:
         curator_run_id=e.curator_run_id,
         pipeline_trace_id=e.pipeline_trace_id,
         generated_text=e.generated_text,
+        detection_status=getattr(e, "detection_status", "pending") or "pending",
         created_at=e.created_at.isoformat() if e.created_at else None,
         updated_at=e.updated_at.isoformat() if e.updated_at else None,
     )
@@ -177,7 +207,13 @@ async def list_edition_topics(
     edition_id: UUID,
     include_article_previews: bool = Query(
         default=False,
-        description="Inclut article_count et jusqu’à 6 aperçus (titre, source, URL) par sujet.",
+        description="Inclut article_count et des aperçus enrichis par sujet.",
+    ),
+    max_article_previews_per_topic: int = Query(
+        default=TOPIC_ARTICLE_PREVIEW_DEFAULT,
+        ge=1,
+        le=TOPIC_ARTICLE_PREVIEW_MAX,
+        description="Nombre max d’articles par sujet (page édition : utiliser 200).",
     ),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -196,36 +232,54 @@ async def list_edition_topics(
     if include_article_previews and rows:
         topic_ids = [t.id for t in rows]
         jstmt = (
-            select(EditionTopicArticle, Article, MediaSource.name)
+            select(EditionTopicArticle, Article, MediaSource)
             .join(Article, EditionTopicArticle.article_id == Article.id)
             .join(MediaSource, Article.media_source_id == MediaSource.id)
             .where(EditionTopicArticle.edition_topic_id.in_(topic_ids))
         )
         jres = await db.execute(jstmt)
 
-        grouped: dict[UUID, list[tuple[Optional[int], Article, str]]] = defaultdict(list)
-        for link, art, media_name in jres.all():
+        grouped: dict[
+            UUID,
+            list[tuple[Optional[int], Optional[int], Article, MediaSource]],
+        ] = defaultdict(list)
+        for link, art, src in jres.all():
             grouped[link.edition_topic_id].append(
-                (link.rank_in_topic, art, str(media_name)),
+                (
+                    link.display_order,
+                    link.rank_in_topic,
+                    art,
+                    src,
+                ),
             )
         for tid, items in grouped.items():
             items.sort(
                 key=lambda x: (
                     x[0] if x[0] is not None else 999,
-                    str(x[1].id),
+                    x[1] if x[1] is not None else 999,
+                    str(x[2].id),
                 ),
             )
             count = len(items)
-            prev_slice = items[:TOPIC_ARTICLE_PREVIEW_LIMIT]
+            prev_slice = items[:max_article_previews_per_topic]
             previews = [
                 TopicArticlePreviewOut(
                     id=a.id,
                     title_fr=a.title_fr,
                     title_original=a.title_original,
-                    media_name=mn,
+                    media_name=str(ms.name),
                     url=a.url,
+                    thesis_summary_fr=a.thesis_summary_fr,
+                    country=ms.country,
+                    country_code=ms.country_code,
+                    editorial_relevance=_article_relevance_int(a),
+                    article_type=a.article_type,
+                    source_language=a.source_language,
+                    author=a.author,
+                    editorial_angle=a.editorial_angle,
+                    is_flagship=bool(a.is_flagship),
                 )
-                for _rnk, a, mn in prev_slice
+                for _do, _rnk, a, ms in prev_slice
             ]
             preview_by_topic[tid] = (count, previews)
 
@@ -252,12 +306,13 @@ async def get_edition_topic(
         select(EditionTopicArticle, Article)
         .join(Article, EditionTopicArticle.article_id == Article.id)
         .where(EditionTopicArticle.edition_topic_id == topic_id)
-        .order_by(EditionTopicArticle.rank_in_topic.asc())
+        .order_by(EditionTopicArticle.display_order.asc().nullslast())
     )
     res = await db.execute(stmt)
     pairs = list(res.all())
     pairs.sort(
         key=lambda p: (
+            p[0].display_order if p[0].display_order is not None else 999,
             p[0].rank_in_topic if p[0].rank_in_topic is not None else 999,
             str(p[1].id),
         ),
@@ -268,6 +323,9 @@ async def get_edition_topic(
             is_selected=link.is_selected,
             is_recommended=link.is_recommended,
             rank_in_topic=link.rank_in_topic,
+            fit_confidence=link.fit_confidence,
+            perspective_rarity=link.perspective_rarity,
+            display_order=link.display_order,
         )
         for link, _art in pairs
     ]
@@ -332,6 +390,25 @@ async def trigger_curate(
     _: None = Depends(require_internal_key),
 ) -> Any:
     return await run_curator_for_edition(db, edition_id)
+
+
+@router.post("/{edition_id}/detect-topics")
+async def post_detect_topics(
+    edition_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    """Relance la détection LLM des sujets (développements) pour cette édition."""
+    e = await db.get(Edition, edition_id)
+    if not e:
+        raise HTTPException(status_code=404, detail="Edition not found")
+    topics_created = await run_topic_detection_for_edition_id(db, edition_id)
+    await db.refresh(e)
+    return {
+        "status": "ok",
+        "topics_created": topics_created,
+        "detection_status": getattr(e, "detection_status", "pending"),
+    }
 
 
 @router.get("/{edition_id}/clusters-fallback")

@@ -39,4 +39,14 @@ system_prompt: |
   truncated_content, mixed_languages, paywall_detected, opinion_piece, wire_copy, clean
   (aligné sur la spec prompts v2 / translate_summarize_v2).
 
+  RÈGLES editorial_angle, event_tags, is_flagship :
+  - editorial_angle : 3-8 mots en français, style manchette, SPÉCIFIQUE à cet article
+    (ce qui le distingue des autres du jour). Bon : « Critique israélienne de la stratégie
+    de décapitation », « Koweït défend sa neutralité face à l'Iran ». Mauvais : « Guerre
+    au Moyen-Orient », « Tensions régionales ». Pas de verbe conjugué.
+  - event_tags : 1 à 4 identifiants courts (snake_case ou un seul mot) pour l'événement
+    ou l'acteur (ex. frappes_iran, ormuz, knesset).
+  - is_flagship : true si l'article porte une thèse forte, originale, d'un auteur ou d'un
+    média remarquable — un texte qu'un rédacteur en chef remarquerait.
+
   Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.

@@ -11,6 +11,7 @@ import type {
   ClusterListResponse,
   DedupFeedbackItem,
   ClusterRefreshResponse,
+  CoverageTargetsResponse,
   Edition,
   EditionTopic,
   EditionTopicDetailResponse,
@@ -214,6 +215,9 @@ export async function pollPipelineTaskUntilDone(
 export const api = {
   health: () => request<{ status: string }>("/health"),
 
+  coverageTargets: () =>
+    request<CoverageTargetsResponse>("/api/config/coverage-targets"),
+
   status: () => request<AppStatus>("/api/status"),
 
   stats: () => request<Stats>("/api/stats"),
@@ -333,14 +337,33 @@ export const api = {
 
   editionTopics: (
     editionId: string,
-    opts?: { includeArticlePreviews?: boolean },
+    opts?: {
+      includeArticlePreviews?: boolean;
+      maxArticlePreviewsPerTopic?: number;
+    },
   ) => {
-    const qs =
-      opts?.includeArticlePreviews === true
-        ? "?include_article_previews=true"
-        : "";
-    return request<EditionTopic[]>(`/api/editions/${editionId}/topics${qs}`);
+    const q = new URLSearchParams();
+    if (opts?.includeArticlePreviews === true) {
+      q.set("include_article_previews", "true");
+    }
+    if (opts?.maxArticlePreviewsPerTopic != null) {
+      q.set(
+        "max_article_previews_per_topic",
+        String(opts.maxArticlePreviewsPerTopic),
+      );
+    }
+    const qs = q.toString();
+    return request<EditionTopic[]>(
+      `/api/editions/${editionId}/topics${qs ? `?${qs}` : ""}`,
+    );
   },
+
+  editionDetectTopics: (editionId: string) =>
+    request<{
+      status: string;
+      topics_created: number;
+      detection_status: string;
+    }>(`/api/editions/${editionId}/detect-topics`, { method: "POST" }),
 
   editionTopicDetail: (editionId: string, topicId: string) =>
     request<EditionTopicDetailResponse>(

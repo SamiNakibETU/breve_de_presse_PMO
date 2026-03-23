@@ -52,6 +52,9 @@ class ArticleResponse(BaseModel):
         description="Nombre de reprises pointant vers cet article (si group_syndicated=true)",
     )
     cluster_soft_assigned: Optional[bool] = None
+    editorial_angle: Optional[str] = None
+    event_tags: Optional[list[str]] = None
+    is_flagship: Optional[bool] = None
 
 
 class ArticleListResponse(BaseModel):

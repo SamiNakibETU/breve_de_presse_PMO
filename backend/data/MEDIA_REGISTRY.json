@@ -93,7 +93,7 @@
     {
       "id": "il_jpost",
       "name": "The Jerusalem Post",
-      "country": "Israël",
+      "country": "Israel",
       "country_code": "IL",
       "tier": 0,
       "languages": [
@@ -120,7 +120,7 @@
     {
       "id": "il_timesofisrael",
       "name": "The Times of Israel",
-      "country": "Israël",
+      "country": "Israel",
       "country_code": "IL",
       "tier": 0,
       "languages": [
@@ -147,7 +147,7 @@
     {
       "id": "il_israelhayom",
       "name": "Israel Hayom",
-      "country": "Israël",
+      "country": "Israel",
       "country_code": "IL",
       "tier": 1,
       "languages": [
@@ -174,7 +174,7 @@
     {
       "id": "il_haaretz",
       "name": "Haaretz",
-      "country": "Israël",
+      "country": "Israel",
       "country_code": "IL",
       "tier": 0,
       "languages": [
@@ -285,7 +285,7 @@
     {
       "id": "ae_gulfnews",
       "name": "Gulf News",
-      "country": "EAU",
+      "country": "Emirats arabes unis",
       "country_code": "AE",
       "tier": 0,
       "languages": [
@@ -312,7 +312,7 @@
     {
       "id": "ae_national",
       "name": "The National",
-      "country": "EAU",
+      "country": "Emirats arabes unis",
       "country_code": "AE",
       "tier": 1,
       "languages": [
@@ -339,7 +339,7 @@
     {
       "id": "ae_khaleej",
       "name": "Khaleej Times",
-      "country": "EAU",
+      "country": "Emirats arabes unis",
       "country_code": "AE",
       "tier": 1,
       "languages": [
@@ -366,7 +366,7 @@
     {
       "id": "sa_asharq",
       "name": "Asharq Al-Awsat",
-      "country": "Arabie Saoudite",
+      "country": "Arabie saoudite",
       "country_code": "SA",
       "tier": 0,
       "languages": [
@@ -395,7 +395,7 @@
     {
       "id": "sa_saudigazette",
       "name": "Saudi Gazette",
-      "country": "Arabie Saoudite",
+      "country": "Arabie saoudite",
       "country_code": "SA",
       "tier": 1,
       "languages": [
@@ -422,7 +422,7 @@
     {
       "id": "sa_arabnews",
       "name": "Arab News",
-      "country": "Arabie Saoudite",
+      "country": "Arabie saoudite",
       "country_code": "SA",
       "tier": 0,
       "languages": [
@@ -778,7 +778,7 @@
     {
       "id": "kw_kuwaittimes",
       "name": "Kuwait Times",
-      "country": "Koweït",
+      "country": "Koweit",
       "country_code": "KW",
       "tier": 1,
       "languages": [
@@ -804,7 +804,7 @@
     {
       "id": "kw_arabtimes",
       "name": "Arab Times",
-      "country": "Koweït",
+      "country": "Koweit",
       "country_code": "KW",
       "tier": 1,
       "languages": [
@@ -830,7 +830,7 @@
     {
       "id": "kw_kuna",
       "name": "KUNA",
-      "country": "Koweït",
+      "country": "Koweit",
       "country_code": "KW",
       "tier": 1,
       "languages": [
@@ -936,7 +936,7 @@
     {
       "id": "eg_dailynews",
       "name": "Daily News Egypt",
-      "country": "Égypte",
+      "country": "Egypte",
       "country_code": "EG",
       "tier": 1,
       "languages": [
@@ -962,7 +962,7 @@
     {
       "id": "eg_madamasr",
       "name": "Mada Masr",
-      "country": "Égypte",
+      "country": "Egypte",
       "country_code": "EG",
       "tier": 1,
       "languages": [
@@ -990,7 +990,7 @@
     {
       "id": "eg_ahram",
       "name": "Al-Ahram (English)",
-      "country": "Égypte",
+      "country": "Egypte",
       "country_code": "EG",
       "tier": 1,
       "languages": [
@@ -1018,7 +1018,7 @@
     {
       "id": "int_almonitor",
       "name": "Al-Monitor",
-      "country": "États-Unis",
+      "country": "Etats-Unis",
       "country_code": "US",
       "tier": 0,
       "languages": [
@@ -1075,7 +1075,7 @@
     {
       "id": "int_newlinesmag",
       "name": "New Lines Magazine",
-      "country": "États-Unis",
+      "country": "Etats-Unis",
       "country_code": "US",
       "tier": 1,
       "languages": [

@@ -141,6 +141,9 @@ def _build_translate_prompt(article: Article, media_name: str) -> str:
             "prescription": "ce que l'auteur recommande",
             "one_line_fr": "UNE phrase cadrage pour mise en regard pays (français)",
         },
+        "editorial_angle": "angle éditorial en 3-8 mots FR, style manchette, SPÉCIFIQUE à cet article (ex. « Réaction saoudienne aux frappes iraniennes »). PAS un thème générique type « guerre au Moyen-Orient ».",
+        "event_tags": ["tag_court_1", "tag_court_2"],
+        "is_flagship": True,
     }
     if cfg.store_full_translation_fr and not en_summary_only:
         required_output["content_translated_fr"] = (
@@ -221,6 +224,9 @@ def _build_french_prompt(article: Article, media_name: str) -> str:
             "prescription": "recommandation",
             "one_line_fr": "UNE phrase cadrage (français)",
         },
+        "editorial_angle": "angle éditorial 3-8 mots FR, spécifique à cet article, style manchette",
+        "event_tags": ["tag1", "tag2"],
+        "is_flagship": False,
     }
     if get_settings().store_full_translation_fr:
         required_output["content_translated_fr"] = (
@@ -413,7 +419,7 @@ class TranslationPipeline:
     def __init__(self) -> None:
         self._router = get_llm_router()
         self._factory = get_session_factory()
-        self._semaphore = asyncio.Semaphore(2)
+        self._semaphore = asyncio.Semaphore(6)
         self._stats_lock = asyncio.Lock()
 
     async def process_pending(
@@ -716,6 +722,18 @@ class TranslationPipeline:
             art.processed_at = datetime.now(timezone.utc)
             art.translation_failure_count = 0
             art.processing_error = None
+            ea = data.get("editorial_angle")
+            art.editorial_angle = (
+                str(ea).strip()[:300] if isinstance(ea, str) and ea.strip() else None
+            )
+            et = data.get("event_tags")
+            if isinstance(et, list):
+                art.event_tags = [
+                    str(x).strip()[:100] for x in et[:12] if str(x).strip()
+                ] or None
+            else:
+                art.event_tags = None
+            art.is_flagship = bool(data.get("is_flagship", False))
             await db.commit()
 
         entities_raw = data.get("entities", [])

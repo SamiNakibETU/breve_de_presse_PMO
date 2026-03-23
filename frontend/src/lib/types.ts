@@ -36,6 +36,9 @@ export interface Article {
   /** Présent si l’API est appelée avec group_syndicated=true */
   syndicate_siblings_count?: number | null;
   cluster_soft_assigned?: boolean | null;
+  editorial_angle?: string | null;
+  event_tags?: string[] | null;
+  is_flagship?: boolean | null;
 }
 
 export interface ArticleListResponse {
@@ -224,6 +227,12 @@ export interface PipelineTaskStatus {
   updated_at: string;
 }
 
+export type EditionDetectionStatus =
+  | "pending"
+  | "running"
+  | "done"
+  | "failed";
+
 /** MEMW v2 — édition */
 export interface Edition {
   id: string;
@@ -237,6 +246,8 @@ export interface Edition {
   curator_run_id: string | null;
   pipeline_trace_id: string | null;
   generated_text: string | null;
+  /** Détection sujets LLM (migration MEMW v2). */
+  detection_status?: EditionDetectionStatus;
 }
 
 export interface TopicArticlePreview {
@@ -245,6 +256,15 @@ export interface TopicArticlePreview {
   title_original: string;
   media_name: string;
   url: string;
+  thesis_summary_fr?: string | null;
+  country?: string | null;
+  country_code?: string | null;
+  editorial_relevance?: number | null;
+  article_type?: string | null;
+  source_language?: string | null;
+  author?: string | null;
+  editorial_angle?: string | null;
+  is_flagship?: boolean | null;
 }
 
 export interface EditionTopic {
@@ -258,6 +278,10 @@ export interface EditionTopic {
   editorial_note: string | null;
   country_coverage: Record<string, number> | null;
   generated_text: string | null;
+  angle_id?: string | null;
+  description?: string | null;
+  is_multi_perspective?: boolean;
+  countries?: string[] | null;
   article_count?: number | null;
   article_previews?: TopicArticlePreview[] | null;
 }
@@ -267,6 +291,15 @@ export interface TopicArticleRef {
   is_selected: boolean;
   is_recommended: boolean;
   rank_in_topic: number | null;
+  fit_confidence?: number | null;
+  perspective_rarity?: number | null;
+  display_order?: number | null;
+}
+
+/** GET /api/config/coverage-targets */
+export interface CoverageTargetsResponse {
+  country_codes: string[];
+  labels_fr: Record<string, string>;
 }
 
 export interface EditionTopicDetailResponse {

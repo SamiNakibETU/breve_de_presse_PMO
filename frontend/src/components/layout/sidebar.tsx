@@ -7,13 +7,19 @@ import { usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+const PRIMARY_NAV = [
   { href: "/", label: "Sommaire" },
-  { href: "/dashboard", label: "Sujets du jour" },
   { href: "/articles", label: "Articles" },
-  { href: "/review", label: "Revue de presse" },
+] as const;
+
+const REGIE_NAV = [
   { href: "/regie", label: "Régie" },
-];
+  { href: "/dashboard", label: "Sujets HDBSCAN" },
+  { href: "/regie/sources", label: "Sources" },
+  { href: "/regie/pipeline", label: "Pipeline" },
+  { href: "/regie/clustering", label: "Clustering" },
+  { href: "/regie/logs", label: "Logs" },
+] as const;
 
 function prefetchDashboardData(queryClient: ReturnType<typeof useQueryClient>) {
   void Promise.all([
@@ -37,8 +43,8 @@ export function Masthead() {
   const queryClient = useQueryClient();
 
   return (
-    <header className="border-b border-border-light bg-background">
-      <div className="mx-auto max-w-[960px] px-5 sm:px-6">
+    <header className="border-b border-border bg-background">
+      <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
         <div className="flex items-center justify-between py-5">
           <Link
             href="/"
@@ -54,16 +60,16 @@ export function Masthead() {
               className="h-[28px] w-auto"
             />
           </Link>
-          <span className="max-w-[11rem] text-right text-[11px] leading-snug tracking-wide text-muted-foreground sm:max-w-none">
-            Revue de presse régionale
+          <span className="max-w-[11rem] text-right text-[11px] font-medium leading-snug tracking-wide text-muted-foreground sm:max-w-none">
+            Outil revue de presse
           </span>
         </div>
 
         <nav
-          className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border-light py-3"
+          className="flex flex-wrap gap-x-8 gap-y-1 border-t border-border py-3.5"
           aria-label="Navigation principale"
         >
-          {NAV_ITEMS.map(({ href, label }) => {
+          {PRIMARY_NAV.map(({ href, label }) => {
             const active =
               href === "/"
                 ? pathname === "/" || pathname.startsWith("/edition")
@@ -76,18 +82,43 @@ export function Masthead() {
                 prefetch
                 onMouseEnter={() => {
                   if (href === "/") prefetchDashboardData(queryClient);
-                  if (href === "/review") {
-                    void queryClient.prefetchQuery({
-                      queryKey: ["reviews"] as const,
-                      queryFn: () => api.reviews(),
-                    });
-                  }
                 }}
                 className={cn(
-                  "border-b border-transparent pb-0.5 text-[13px] transition-colors",
+                  "relative pb-1 text-[13px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent",
                   active
-                    ? "border-foreground font-medium text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "font-semibold text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-accent"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <nav
+          className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border py-2.5"
+          aria-label="Régie et outils"
+        >
+          <span className="w-full text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:w-auto sm:self-center sm:py-0">
+            Régie
+          </span>
+          {REGIE_NAV.map(({ href, label }) => {
+            const active =
+              href === "/regie"
+                ? pathname === "/regie"
+                : pathname.startsWith(href);
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                prefetch
+                className={cn(
+                  "text-[12px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                  active
+                    ? "font-semibold text-accent underline decoration-accent underline-offset-4"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {label}

@@ -26,6 +26,10 @@ def test_edition_topic_out_with_previews() -> None:
         editorial_note=None,
         country_coverage=None,
         generated_text=None,
+        angle_id=None,
+        description=None,
+        is_multi_perspective=False,
+        countries=None,
         article_count=2,
         article_previews=[prev],
     )

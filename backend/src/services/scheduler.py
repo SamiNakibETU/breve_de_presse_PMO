@@ -3,6 +3,7 @@ Daily pipeline scheduler using APScheduler AsyncIOScheduler.
 Runs collection + translation + embedding + clustering at 06:00 and 14:00 UTC.
 """
 
+import asyncio
 import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -152,6 +153,32 @@ async def daily_pipeline(
         )
         pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
 
+    async def _topic_detection_job() -> dict:
+        from src.models.edition import Edition
+        from src.services.edition_schedule import resolve_edition_id_for_timestamp
+        from src.services.topic_detector import TopicDetector
+
+        factory = get_session_factory()
+        async with factory() as db:
+            eid = await resolve_edition_id_for_timestamp(
+                db, datetime.now(timezone.utc),
+            )
+            if not eid:
+                return {"topics_created": 0, "note": "no_edition"}
+            edition = await db.get(Edition, eid)
+            if not edition:
+                return {"topics_created": 0, "note": "edition_missing"}
+            detector = TopicDetector()
+            t0 = time.monotonic()
+            n = await detector.build_edition_topics(db, edition)
+            return {
+                "topics_created": n,
+                "duration_s": round(time.monotonic() - t0, 2),
+            }
+
+    p("topic_detection", "Détection des développements (LLM)…")
+    topic_detection_task = asyncio.create_task(_topic_detection_job())
+
     cohere_key = settings.cohere_api_key
     if not cohere_key:
         logger.error(
@@ -274,6 +301,18 @@ async def daily_pipeline(
             logger.error("pipeline.embedding_clustering_failed", error=str(e))
             p("embedding", f"Erreur embeddings / clusters : {str(e)[:80]}")
             pipeline_result["embedding"] = {"error": str(e)}
+
+    try:
+        topic_result = await topic_detection_task
+        pipeline_result["topic_detection"] = topic_result
+        await log_pipeline_step(
+            await resolve_current_edition_id(),
+            "topic_detection",
+            compact_payload(topic_result),
+        )
+    except Exception as e:
+        logger.warning("pipeline.topic_detection_failed", error=str(e)[:200])
+        pipeline_result["topic_detection"] = {"error": str(e)[:200]}
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     pipeline_result["elapsed_seconds"] = elapsed

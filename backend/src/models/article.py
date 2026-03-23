@@ -114,6 +114,13 @@ class Article(Base):
     syndication_group_sources: Mapped[Optional[list[str]]] = mapped_column(
         JSON, nullable=True
     )
+    editorial_angle: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    event_tags: Mapped[Optional[list[str]]] = mapped_column(
+        ARRAY(String(100)), nullable=True
+    )
+    is_flagship: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     status: Mapped[str] = mapped_column(
         String(64), nullable=False, default="raw"

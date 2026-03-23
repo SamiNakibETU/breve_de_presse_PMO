@@ -14,42 +14,68 @@ export function ArticleRow({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border-b border-border-light py-2 text-[13px]">
-      <div className="flex items-start gap-2">
+    <div className="border-b border-border-light py-3 text-[13px]">
+      <div className="flex items-start gap-3">
         <input
           type="checkbox"
-          className="mt-1"
+          className="olj-focus mt-1.5 size-[15px] shrink-0 rounded-sm border-border"
           checked={selected}
           onChange={(e) => onSelectedChange(e.target.checked)}
           aria-label={`Inclure ${article.title_fr || article.title_original}`}
         />
         <button
           type="button"
-          className="flex-1 text-left"
+          className="olj-focus min-w-0 flex-1 rounded-sm text-left focus:outline-none"
           onClick={() => setOpen(!open)}
+          aria-expanded={open}
         >
-          <span className="font-medium text-foreground">
+          <span className="font-medium leading-snug text-foreground">
             {article.title_fr || article.title_original}
           </span>
-          <span className="ml-2 text-[13px] text-muted-foreground">
-            {article.media_name}
-            {article.is_syndicated ? " · syndiqué" : ""}
-          </span>
+          {article.thesis_summary_fr && (
+            <p className="mt-1.5 italic leading-relaxed text-foreground-body">
+              {article.thesis_summary_fr}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
+            <span>
+              {article.media_name}
+              {article.country ? ` · ${article.country}` : ""}
+              {article.article_type ? ` · ${article.article_type}` : ""}
+              {article.source_language ? ` · ${article.source_language}` : ""}
+              {article.is_syndicated ? " · syndiqué" : ""}
+            </span>
+            {article.editorial_angle && (
+              <span className="text-[11px] text-foreground-subtle">
+                · {article.editorial_angle}
+              </span>
+            )}
+            {article.is_flagship ? (
+              <span className="border-l-2 border-accent pl-2 text-[11px] font-semibold text-accent">
+                Marquant
+              </span>
+            ) : null}
+            {article.editorial_relevance != null && (
+              <span className="ml-auto shrink-0 tabular-nums text-[11px] font-medium text-foreground">
+                {article.editorial_relevance}
+              </span>
+            )}
+          </div>
         </button>
         {article.url && (
           <a
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-0.5 shrink-0 text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+            className="olj-focus mt-1 shrink-0 text-[11px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
             onClick={(e) => e.stopPropagation()}
           >
-            Article original ↗
+            Source ↗
           </a>
         )}
       </div>
       {open && article.summary_fr && (
-        <p className="mt-2 pl-6 text-[13px] leading-relaxed text-foreground-body">
+        <p className="mt-3 max-w-2xl border-l border-border-light pl-4 text-[13px] leading-relaxed text-foreground-body">
           {article.summary_fr}
         </p>
       )}

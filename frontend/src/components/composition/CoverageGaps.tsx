@@ -1,15 +1,85 @@
-export function CoverageGaps({ countries }: { countries: string[] }) {
-  if (countries.length === 0) {
+import type { CoverageTargetsResponse } from "@/lib/types";
+
+const FALLBACK_TARGETS = [
+  "LB",
+  "IL",
+  "IR",
+  "SA",
+  "TR",
+  "IQ",
+  "QA",
+  "AE",
+  "KW",
+] as const;
+
+const FLAG_EMOJI: Record<string, string> = {
+  LB: "🇱🇧",
+  IL: "🇮🇱",
+  IR: "🇮🇷",
+  SA: "🇸🇦",
+  TR: "🇹🇷",
+  IQ: "🇮🇶",
+  QA: "🇶🇦",
+  AE: "🇦🇪",
+  KW: "🇰🇼",
+};
+
+/**
+ * Compare les pays des articles sélectionnés aux cibles de couverture (API ou liste par défaut).
+ */
+export function CoverageGaps({
+  selectedCountryCodes,
+  targets,
+}: {
+  selectedCountryCodes: string[];
+  targets?: CoverageTargetsResponse | null;
+}) {
+  const codes =
+    targets?.country_codes?.length && targets.country_codes.length > 0
+      ? targets.country_codes
+      : [...FALLBACK_TARGETS];
+  const labels = targets?.labels_fr ?? {};
+
+  const covered = new Set(
+    selectedCountryCodes.map((c) => c.trim().toUpperCase()).filter(Boolean),
+  );
+  const missing = codes.filter((c) => !covered.has(c.toUpperCase()));
+  const present = codes.filter((c) => covered.has(c.toUpperCase()));
+
+  if (codes.length === 0) {
     return null;
   }
+
   return (
-    <div className="border-l-2 border-accent/40 pl-3 text-[13px] text-foreground-body">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Couverture
-      </span>
-      <p className="mt-1">
-        Pays absents ou peu couverts : {countries.join(", ")}.
-      </p>
+    <div className="max-w-md border-l-2 border-border pl-3 text-[13px] text-foreground-body">
+      <p className="olj-rubric">Couverture régionale (sélection)</p>
+      <div
+        className="mt-2 flex flex-wrap gap-1.5"
+        aria-label="Pays couverts par la sélection"
+      >
+        {present.map((c) => (
+          <span
+            key={c}
+            title={labels[c] ?? c}
+            className="text-[1.15rem] leading-none opacity-90"
+          >
+            {FLAG_EMOJI[c] ?? c}
+          </span>
+        ))}
+      </div>
+      {missing.length > 0 && (
+        <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
+          À compléter si possible :{" "}
+          {missing.map((c) => labels[c] ?? c).join(", ")}.
+        </p>
+      )}
+      {missing.length === 0 &&
+        present.length === codes.length &&
+        selectedCountryCodes.length > 0 && (
+          <p className="mt-2 text-[12px] text-muted-foreground">
+            Tous les pays cibles sont représentés dans la sélection.
+          </p>
+        )}
     </div>
   );
 }

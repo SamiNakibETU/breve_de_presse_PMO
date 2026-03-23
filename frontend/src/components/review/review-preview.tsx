@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 
 interface ReviewPreviewProps {
   text: string;
+  /** Barre d’actions fixée en tête du panneau (scroll du texte en dessous). */
+  stickyToolbar?: boolean;
 }
 
-export function ReviewPreview({ text }: ReviewPreviewProps) {
+export function ReviewPreview({ text, stickyToolbar }: ReviewPreviewProps) {
   const [edited, setEdited] = useState(text);
   const [copied, setCopied] = useState(false);
 
@@ -39,29 +41,40 @@ export function ReviewPreview({ text }: ReviewPreviewProps) {
     URL.revokeObjectURL(url);
   }
 
-  return (
-    <div className="space-y-5">
-      <div className="flex gap-3">
-        <button onClick={copyToClipboard} className="bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90">
-          {copied ? "Copié ✓" : "Copier le texte"}
-        </button>
-        <button
-          onClick={download}
-          className="border border-border bg-card px-4 py-2 text-[13px] font-medium text-foreground hover:bg-muted"
-        >
-          Télécharger .txt
-        </button>
-      </div>
+  const toolbar = (
+    <div
+      className={
+        stickyToolbar
+          ? "sticky top-0 z-10 -mx-1 mb-4 flex flex-wrap gap-2 border-b border-border bg-background px-1 py-3"
+          : "flex flex-wrap gap-2"
+      }
+    >
+      <button
+        type="button"
+        onClick={copyToClipboard}
+        className="olj-btn-primary"
+      >
+        {copied ? "Copié ✓" : "Copier le texte"}
+      </button>
+      <button type="button" onClick={download} className="olj-btn-secondary">
+        Télécharger .txt
+      </button>
+    </div>
+  );
 
-      <article className="mx-auto max-w-2xl border-t border-border pt-6">
-        <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+  return (
+    <div className="space-y-4">
+      {toolbar}
+
+      <article className="mx-auto max-w-2xl">
+        <label className="olj-rubric mb-2 block">
           Ajustements avant copie
         </label>
         <textarea
           value={edited}
           onChange={(e) => setEdited(e.target.value)}
           spellCheck
-          className="min-h-[280px] w-full resize-y border border-border-light bg-muted/40 px-3 py-3 font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-foreground focus:border-border focus:outline-none"
+          className="min-h-[280px] w-full resize-y border-b border-border bg-surface/30 px-0 py-3 font-[family-name:var(--font-serif)] text-[15px] leading-[1.75] text-foreground transition-colors focus:border-accent focus:outline-none"
         />
       </article>
     </div>

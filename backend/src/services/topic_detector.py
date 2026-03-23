@@ -1,0 +1,405 @@
+"""
+Détection des développements du jour (2 passes LLM) — MEMW v2.
+Remplace le regroupement HDBSCAN pour la navigation « sujets » côté journaliste.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+from collections import defaultdict
+from typing import Any, Optional
+
+import structlog
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.article import Article
+from src.models.edition import Edition, EditionTopic, EditionTopicArticle
+from src.models.media_source import MediaSource
+from src.services.country_utils import COVERAGE_TARGET_COUNTRIES
+from src.services.llm_router import get_llm_router
+
+logger = structlog.get_logger(__name__)
+
+TOPIC_DETECTOR_ARTICLE_LIMIT = 80
+CLASSIFY_BATCH_SIZE = 18
+EDITORIAL_TYPES = ("opinion", "editorial", "tribune", "analysis")
+
+PASS1_SYSTEM = """Tu es rédacteur en chef à L'Orient-Le Jour. Tu prépares la revue de presse \
+régionale quotidienne. Son objectif : montrer aux lecteurs comment les médias \
+de la région REGARDENT les développements en cours.
+
+La valeur éditoriale est dans le CONTRASTE DES PERSPECTIVES : sur un même fait, \
+un éditorialiste saoudien et un éditorialiste iranien ne disent pas la même chose. \
+C'est ce contraste que tu cherches."""
+
+PASS1_USER_TEMPLATE = """Voici les {n} articles d'opinion les plus pertinents du jour \
+(titre FR, thèse, pays du média ISO2, nom du média) :
+
+{articles_block}
+
+Pays prioritaires pour la diversité de la revue (codes ISO2) : {coverage_targets}
+
+Identifie les 5-8 DÉVELOPPEMENTS FACTUELS qui génèrent le plus de regards \
+régionaux contrastés dans ce corpus.
+
+Règles :
+1. Un développement = un fait ou une situation sur lequel des médias de \
+   PLUSIEURS PAYS réagissent avec des perspectives différentes
+2. PRIORITÉ ABSOLUE aux développements couverts par 3+ pays — c'est là que \
+   le contraste est riche et que la revue a de la valeur
+3. Un développement couvert par 1 seul pays est acceptable UNIQUEMENT si \
+   c'est un regard interne fort (ex: presse israélienne sur la Knesset)
+4. Label FACTUEL et SPÉCIFIQUE :
+   BON : "Frappes iraniennes sur les pays du Golfe"
+   MAUVAIS : "Tensions régionales", "Crise au Moyen-Orient"
+5. description : UNE phrase de contexte factuel
+6. Maximum 15 articles par développement. Si un développement attire 20+ \
+   articles, le subdiviser (ex: séparer "réactions arabes" de "réponse américaine")
+7. Les articles sur la spiritualité, la culture, le sport sans dimension \
+   géopolitique vont dans un bucket "hors_sujet" — ne pas créer de \
+   développement pour eux
+
+Réponds UNIQUEMENT en JSON (pas de markdown) :
+{{
+  "developments": [
+    {{
+      "id": "slug-unique-kebab",
+      "label": "Titre factuel du développement",
+      "description": "Une phrase de contexte factuel.",
+      "countries_expected": ["SA", "KW"],
+      "priority": 1,
+      "is_multi_perspective": true
+    }}
+  ]
+}}"""
+
+
+PASS2_SYSTEM = """Tu es rédacteur en chef à L'Orient-Le Jour. Tu classes des articles \
+d'opinion dans des développements factuels du jour. Réponds uniquement en JSON valide."""
+
+PASS2_USER_TEMPLATE = """Voici les développements du jour :
+{developments_json}
+
+Classe chacun de ces articles dans UN développement (identifiant id) ou \
+"hors_sujet" si vraiment aucun ne convient :
+
+{articles_batch}
+
+Pour chaque article, indique aussi :
+- perspective_rarity : entier 1-5 (5 = ce pays est le seul à couvrir ce \
+  développement dans le corpus fourni, 1 = perspective commune à beaucoup de médias). \
+  La revue de presse valorise les regards RARES.
+
+Réponds UNIQUEMENT par un tableau JSON :
+[{{"article_id": "uuid", "development_id": "slug-ou-hors_sujet", "fit_confidence": 0.85, "perspective_rarity": 4}}]"""
+
+
+def _parse_json_loose(text: str) -> Any:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    return json.loads(text)
+
+
+def _build_articles_block(rows: list[tuple[Article, MediaSource]]) -> str:
+    lines: list[str] = []
+    for art, src in rows:
+        tid = str(art.id)
+        title = (art.title_fr or art.title_original or "")[:200]
+        thesis = (art.thesis_summary_fr or "")[:400]
+        cc = (src.country_code or "XX").upper()
+        media = src.name or ""
+        lines.append(
+            f"- id={tid} | titre={title!r} | these={thesis!r} | pays={cc} | media={media!r}",
+        )
+    return "\n".join(lines)
+
+
+def _compute_display_order(
+    items: list[tuple[Article, str, int, float]],
+) -> dict[uuid.UUID, int]:
+    """
+    items: (article, country_code, perspective_rarity, relevance_score)
+    Un représentant par pays (meilleur score), triés par rareté DESC, puis le reste par score.
+    """
+    by_cc: dict[str, list[tuple[Article, int, float]]] = defaultdict(list)
+    for art, cc, pr, rel in items:
+        code = (cc or "XX").upper()
+        by_cc[code].append((art, pr, rel))
+
+    reps: list[tuple[uuid.UUID, int, float]] = []
+    for _cc, group in by_cc.items():
+        best_art, best_pr, best_rel = max(group, key=lambda x: x[2])
+        reps.append((best_art.id, best_pr, best_rel))
+
+    reps.sort(key=lambda x: (-x[1], -x[2]))
+    ordered: list[uuid.UUID] = [r[0] for r in reps]
+    seen = set(ordered)
+    remaining: list[tuple[uuid.UUID, float]] = []
+    for art, _cc, _pr, rel in items:
+        if art.id not in seen:
+            remaining.append((art.id, rel))
+    remaining.sort(key=lambda x: -x[1])
+    ordered.extend(aid for aid, _ in remaining)
+    return {aid: idx for idx, aid in enumerate(ordered)}
+
+
+class TopicDetector:
+    """Détecte les développements du jour en 2 passes LLM."""
+
+    async def detect_developments(
+        self,
+        articles_block: str,
+        n: int,
+    ) -> list[dict[str, Any]]:
+        router = get_llm_router()
+        user = PASS1_USER_TEMPLATE.format(
+            n=n,
+            articles_block=articles_block,
+            coverage_targets=", ".join(COVERAGE_TARGET_COUNTRIES),
+        )
+        raw = await router.generate_anthropic_only(
+            PASS1_SYSTEM,
+            user,
+            max_tokens=8192,
+            temperature=0.3,
+        )
+        data = _parse_json_loose(raw)
+        devs = data.get("developments")
+        if not isinstance(devs, list):
+            raise ValueError("Réponse passe 1 : developments manquant ou invalide")
+        out: list[dict[str, Any]] = []
+        for d in devs:
+            if not isinstance(d, dict):
+                continue
+            did = str(d.get("id", "")).strip()
+            if not did:
+                continue
+            out.append(
+                {
+                    "id": did[:100],
+                    "label": str(d.get("label", ""))[:500],
+                    "description": str(d.get("description", ""))[:5000],
+                    "countries_expected": d.get("countries_expected")
+                    if isinstance(d.get("countries_expected"), list)
+                    else [],
+                    "priority": int(d.get("priority", 99)),
+                    "is_multi_perspective": bool(d.get("is_multi_perspective", True)),
+                },
+            )
+        if not out:
+            raise ValueError("Aucun développement valide après passe 1")
+        out.sort(key=lambda x: x["priority"])
+        return out[:8]
+
+    async def classify_batch(
+        self,
+        developments: list[dict[str, Any]],
+        batch_rows: list[tuple[Article, MediaSource]],
+    ) -> list[dict[str, Any]]:
+        router = get_llm_router()
+        dev_json = json.dumps(
+            [{"id": d["id"], "label": d["label"]} for d in developments],
+            ensure_ascii=False,
+        )
+        ablock_lines = []
+        for art, src in batch_rows:
+            ablock_lines.append(
+                f"- article_id={art.id} | titre={(art.title_fr or art.title_original)[:180]!r} | "
+                f"these={(art.thesis_summary_fr or '')[:300]!r} | pays={(src.country_code or 'XX').upper()}",
+            )
+        user = PASS2_USER_TEMPLATE.format(
+            developments_json=dev_json,
+            articles_batch="\n".join(ablock_lines),
+        )
+        raw = await router.generate_anthropic_only(
+            PASS2_SYSTEM,
+            user,
+            max_tokens=4096,
+            temperature=0.2,
+        )
+        data = _parse_json_loose(raw)
+        if not isinstance(data, list):
+            raise ValueError("Réponse passe 2 : tableau attendu")
+        return data
+
+    async def build_edition_topics(self, db: AsyncSession, edition: Edition) -> int:
+        eid = edition.id
+        try:
+            edition.detection_status = "running"
+            await db.commit()
+            await db.refresh(edition)
+
+            await db.execute(delete(EditionTopic).where(EditionTopic.edition_id == eid))
+            await db.flush()
+
+            stmt = (
+                select(Article, MediaSource)
+                .join(MediaSource, Article.media_source_id == MediaSource.id)
+                .where(
+                    Article.collected_at >= edition.window_start,
+                    Article.collected_at < edition.window_end,
+                    Article.status.in_(("translated", "formatted", "needs_review")),
+                    Article.article_type.in_(EDITORIAL_TYPES),
+                    Article.is_syndicated.is_(False),
+                )
+                .order_by(Article.relevance_score.desc().nullslast())
+                .limit(TOPIC_DETECTOR_ARTICLE_LIMIT)
+            )
+            res = await db.execute(stmt)
+            rows = list(res.all())
+            if len(rows) < 5:
+                logger.warning(
+                    "topic_detector.too_few_articles",
+                    edition_id=str(eid),
+                    count=len(rows),
+                )
+                edition.detection_status = "done"
+                await db.commit()
+                return 0
+
+            articles_block = _build_articles_block(rows)
+            developments = await self.detect_developments(articles_block, len(rows))
+
+            art_by_id: dict[uuid.UUID, tuple[Article, MediaSource]] = {
+                a.id: (a, s) for a, s in rows
+            }
+
+            all_classifications: list[dict[str, Any]] = []
+            for i in range(0, len(rows), CLASSIFY_BATCH_SIZE):
+                batch = rows[i : i + CLASSIFY_BATCH_SIZE]
+                part = await self.classify_batch(developments, batch)
+                all_classifications.extend(part)
+
+            by_dev: dict[str, list[tuple[Article, MediaSource, float, int]]] = defaultdict(
+                list,
+            )
+            hors = 0
+            valid_dev_ids = {d["id"] for d in developments}
+            for item in all_classifications:
+                if not isinstance(item, dict):
+                    continue
+                aid_raw = item.get("article_id")
+                try:
+                    aid = uuid.UUID(str(aid_raw).strip())
+                except (ValueError, TypeError):
+                    continue
+                if aid not in art_by_id:
+                    continue
+                dev_id = str(item.get("development_id", "hors_sujet")).strip()
+                if dev_id == "hors_sujet" or dev_id not in valid_dev_ids:
+                    hors += 1
+                    continue
+                try:
+                    fc = float(item.get("fit_confidence", 0.5))
+                except (TypeError, ValueError):
+                    fc = 0.5
+                fc = max(0.0, min(1.0, fc))
+                try:
+                    pr = int(item.get("perspective_rarity", 3))
+                except (TypeError, ValueError):
+                    pr = 3
+                pr = max(1, min(5, pr))
+                a, s = art_by_id[aid]
+                by_dev[dev_id].append((a, s, fc, pr))
+
+            total_assigned = sum(len(v) for v in by_dev.values())
+            if total_assigned + hors > 0 and hors / (total_assigned + hors) > 0.30:
+                logger.warning(
+                    "topic_detector.high_hors_sujet_ratio",
+                    edition_id=str(eid),
+                    hors=hors,
+                    assigned=total_assigned,
+                )
+
+            topics_created = 0
+            for dev in sorted(developments, key=lambda x: x["priority"]):
+                did = dev["id"]
+                bucket = by_dev.get(did, [])
+                if not bucket:
+                    continue
+
+                items_for_order: list[tuple[Article, str, int, float]] = []
+                for a, s, fc, pr in bucket:
+                    rel = float(a.relevance_score) if a.relevance_score is not None else 0.0
+                    items_for_order.append(
+                        (a, s.country_code or "XX", pr, rel),
+                    )
+                order_map = _compute_display_order(items_for_order)
+
+                ce = dev.get("countries_expected") or []
+                codes = [str(c).upper()[:10] for c in ce if str(c).strip()][:24]
+
+                topic = EditionTopic(
+                    edition_id=eid,
+                    rank=dev["priority"],
+                    title_proposed=dev["label"] or did,
+                    status="proposed",
+                    angle_id=did,
+                    development_description=dev.get("description"),
+                    is_multi_perspective=dev["is_multi_perspective"],
+                    countries=codes if codes else None,
+                    dominant_angle=dev["label"][:2000] if dev.get("label") else None,
+                )
+                db.add(topic)
+                await db.flush()
+
+                by_country_best: dict[str, tuple[float, uuid.UUID]] = {}
+                for a, s, fc, pr in bucket:
+                    cc = (s.country_code or "XX").upper()
+                    prev = by_country_best.get(cc)
+                    rel = float(a.relevance_score) if a.relevance_score is not None else 0.0
+                    if prev is None or rel > prev[0]:
+                        by_country_best[cc] = (rel, a.id)
+
+                recommended_ids = {t[1] for t in by_country_best.values()}
+
+                for a, s, fc, pr in bucket:
+                    link = EditionTopicArticle(
+                        edition_topic_id=topic.id,
+                        article_id=a.id,
+                        is_recommended=a.id in recommended_ids,
+                        is_selected=False,
+                        rank_in_topic=order_map.get(a.id),
+                        fit_confidence=fc,
+                        perspective_rarity=pr,
+                        display_order=order_map.get(a.id),
+                    )
+                    db.add(link)
+
+                topics_created += 1
+
+            edition.detection_status = "done"
+            await db.commit()
+            logger.info(
+                "topic_detector.done",
+                edition_id=str(eid),
+                topics=topics_created,
+            )
+            return topics_created
+
+        except Exception as exc:
+            logger.exception("topic_detector.failed", edition_id=str(eid), error=str(exc))
+            try:
+                edition = await db.get(Edition, eid)
+                if edition:
+                    edition.detection_status = "failed"
+                    await db.commit()
+            except Exception:
+                await db.rollback()
+            return 0
+
+
+async def run_topic_detection_for_edition_id(
+    db: AsyncSession,
+    edition_id: uuid.UUID,
+) -> int:
+    """Utilisé par la route POST detect-topics."""
+    edition = await db.get(Edition, edition_id)
+    if not edition:
+        return 0
+    detector = TopicDetector()
+    return await detector.build_edition_topics(db, edition)

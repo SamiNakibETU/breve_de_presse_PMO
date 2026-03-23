@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -40,6 +40,12 @@ class Edition(Base):
         UUID(as_uuid=True), nullable=True
     )
     generated_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    detection_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending",
+        server_default="pending",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -81,6 +87,14 @@ class EditionTopic(Base):
     counter_angle: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     editorial_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     generated_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    angle_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    development_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_multi_perspective: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    countries: Mapped[Optional[list[str]]] = mapped_column(
+        "topic_country_codes", ARRAY(String(10)), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -111,6 +125,9 @@ class EditionTopicArticle(Base):
     is_recommended: Mapped[bool] = mapped_column(default=False, nullable=False)
     is_selected: Mapped[bool] = mapped_column(default=False, nullable=False)
     rank_in_topic: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    fit_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    perspective_rarity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    display_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     edition_topic: Mapped["EditionTopic"] = relationship(
         "EditionTopic", back_populates="article_links"

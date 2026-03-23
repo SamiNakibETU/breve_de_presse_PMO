@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
@@ -41,6 +41,7 @@ def _article_list_conditions(
     include_low_quality: bool,
     hide_syndicated: bool,
     group_syndicated: bool,
+    q: Optional[str] = None,
 ):
     conds = [Article.collected_at >= cutoff]
     if status:
@@ -64,6 +65,16 @@ def _article_list_conditions(
         conds.append(Article.translation_confidence >= min_confidence)
     if hide_syndicated or group_syndicated:
         conds.append(Article.is_syndicated.is_(False))
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        conds.append(
+            or_(
+                Article.title_fr.ilike(term),
+                Article.summary_fr.ilike(term),
+                Article.thesis_summary_fr.ilike(term),
+                Article.editorial_angle.ilike(term),
+            ),
+        )
     return conds
 
 
@@ -133,6 +144,9 @@ def _to_response(
         ),
         syndicate_siblings_count=syndicate_siblings_count,
         cluster_soft_assigned=getattr(art, "cluster_soft_assigned", None),
+        editorial_angle=getattr(art, "editorial_angle", None),
+        event_tags=art.event_tags if isinstance(getattr(art, "event_tags", None), list) else None,
+        is_flagship=bool(getattr(art, "is_flagship", False)),
     )
 
 
@@ -163,6 +177,10 @@ async def list_articles(
         default=False,
         description="Vue canonique : masque les reprises et ajoute syndicate_siblings_count",
     ),
+    q: Optional[str] = Query(
+        default=None,
+        description="Recherche texte (titre, résumé, thèse, angle éditorial)",
+    ),
 ):
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     conds = _article_list_conditions(
@@ -175,6 +193,7 @@ async def list_articles(
         include_low_quality=include_low_quality,
         hide_syndicated=hide_syndicated,
         group_syndicated=group_syndicated,
+        q=q,
     )
 
     query = (
@@ -207,6 +226,8 @@ async def list_articles(
         query = query.order_by(Article.translation_confidence.desc().nullslast())
     elif sort == "confidence_asc":
         query = query.order_by(Article.translation_confidence.asc().nullslast())
+    elif sort == "relevance":
+        query = query.order_by(Article.relevance_score.desc().nullslast())
     else:
         query = query.order_by(Article.published_at.desc().nullslast())
 
@@ -239,9 +260,6 @@ async def list_articles(
                 syndicate_siblings_count=sib if sib else None,
             )
         )
-
-    if sort == "relevance":
-        articles.sort(key=lambda a: a.editorial_relevance or 0, reverse=True)
 
     return ArticleListResponse(
         articles=articles,

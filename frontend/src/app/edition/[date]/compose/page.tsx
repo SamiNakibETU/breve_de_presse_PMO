@@ -55,8 +55,6 @@ export default function ComposePage() {
       .join("\n\n")
       .trim();
 
-  const gaps: string[] = [];
-
   return (
     <div className="space-y-8">
       <nav className="text-[13px] text-muted-foreground">
@@ -97,7 +95,7 @@ export default function ComposePage() {
           </span>
         )}
       </div>
-      <CoverageGaps countries={gaps} />
+      <CoverageGaps selectedCountryCodes={[]} />
       <ComposePreview
         body={
           body ||
