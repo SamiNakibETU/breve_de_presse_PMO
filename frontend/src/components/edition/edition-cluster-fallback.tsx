@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { clusterFallbackDisplayTitle } from "@/lib/cluster-display";
 import type { ClusterFallbackRow } from "@/lib/types";
 
 /**
@@ -35,7 +36,7 @@ export function EditionClusterFallback({
                 href={`/clusters/${row.cluster_id}`}
                 className="font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                {row.label?.trim() || "Thème sans libellé"}
+                {clusterFallbackDisplayTitle(row)}
               </Link>
               <span className="tabular-nums text-[11px] text-muted-foreground">
                 {row.article_count} texte{row.article_count > 1 ? "s" : ""}

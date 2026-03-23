@@ -25,6 +25,7 @@ from src.schemas.clusters import (
 from src.services.cluster_insights import enrich_cluster_insights
 from src.services.cluster_labeller import label_clusters
 from src.services.clustering_service import ClusteringService, REGIONAL_COUNTRIES
+from src.services.curator_service import _cluster_display_label
 from src.services.embedding_service import EmbeddingService
 
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
@@ -72,6 +73,23 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         return ClusterListResponse(clusters=[], total=0, noise_count=noise_count)
 
     cluster_ids = [c.id for c in clusters]
+
+    title_stmt = (
+        select(Article.cluster_id, Article.title_fr, Article.title_original)
+        .where(Article.cluster_id.in_(cluster_ids))
+        .order_by(
+            Article.translation_confidence.desc().nullslast(),
+            Article.published_at.desc().nullslast(),
+        )
+    )
+    title_rows = (await db.execute(title_stmt)).all()
+    first_title_by_cluster: dict[UUID, str] = {}
+    for cid, tf, to in title_rows:
+        if cid in first_title_by_cluster:
+            continue
+        t = (tf or to or "").strip()
+        if t:
+            first_title_by_cluster[cid] = t[:300]
 
     thesis_stmt = (
         select(
@@ -158,10 +176,16 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         meta = cluster.insight_metadata or {}
         is_emerging = bool(meta.get("is_emerging"))
 
+        title_for_display: list[str] = []
+        ft = first_title_by_cluster.get(cluster.id)
+        if ft:
+            title_for_display.append(ft)
+        display_label = _cluster_display_label(cluster, title_for_display)
+
         cluster_responses.append(
             ClusterResponse(
                 id=cluster.id,
-                label=cluster.label,
+                label=display_label,
                 article_count=cluster.article_count,
                 country_count=country_count,
                 avg_relevance=cluster.avg_relevance,
@@ -248,9 +272,12 @@ async def get_cluster_articles(
     regional = [c for c in by_country.keys() if c in REGIONAL_COUNTRIES]
     other = [c for c in by_country.keys() if c not in REGIONAL_COUNTRIES]
 
+    title_candidates = [(a.title_fr or a.title_original or "") for a in articles]
+    cluster_label_out = _cluster_display_label(cluster, title_candidates)
+
     return {
         "cluster_id": cluster_id,
-        "cluster_label": cluster.label if cluster else None,
+        "cluster_label": cluster_label_out,
         "articles_by_country": by_country,
         "total_articles": len(articles),
         "countries": sorted(regional),

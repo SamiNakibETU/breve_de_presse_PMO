@@ -145,7 +145,8 @@ async def run_curator_for_edition(
     clusters_payload: list[dict[str, Any]] = []
     for cid, arts in by_cluster.items():
         tc = await db.get(TopicCluster, cid)
-        label = (tc.label if tc else None) or ""
+        title_candidates = [(x.title_fr or x.title_original or "") for x in arts]
+        label = _cluster_display_label(tc, title_candidates)
         top = sorted(
             arts,
             key=lambda x: (x.translation_confidence or 0, len(x.summary_fr or "")),
@@ -326,6 +327,33 @@ async def run_curator_for_edition(
     return {"status": "ok", "topics": len(topics), "llm_call_log_id": str(log.id)}
 
 
+FALLBACK_CLUSTER_DISPLAY_LABEL = "Textes regroupés (titres manquants)"
+
+
+def _cluster_display_label(
+    cl: TopicCluster | None,
+    title_candidates: list[str],
+) -> str:
+    """Libellé affiché : en base si non vide, sinon premier titre, sinon repli fixe (jamais vide)."""
+    raw = (cl.label if cl else None) or ""
+    if raw.strip():
+        return raw.strip()[:300]
+    for t in title_candidates:
+        s = (t or "").strip()
+        if s:
+            return s[:300]
+    return FALLBACK_CLUSTER_DISPLAY_LABEL
+
+
+def _display_cluster_label(
+    cl: TopicCluster | None,
+    article_rows: list[dict[str, Any]],
+) -> str:
+    """Libellé pour l’API édition (dict articles déjà sérialisés)."""
+    titles = [str(row.get("title") or "") for row in article_rows]
+    return _cluster_display_label(cl, titles)
+
+
 def _article_country_code(article: Article) -> str:
     ms = article.media_source
     if not ms:
@@ -387,7 +415,7 @@ async def list_clusters_fallback_for_edition(
         out.append(
             {
                 "cluster_id": str(cid),
-                "label": cl.label if cl else None,
+                "label": _display_cluster_label(cl, article_rows),
                 "article_count": len(group),
                 "country_count": country_count,
                 "countries": countries_sorted,

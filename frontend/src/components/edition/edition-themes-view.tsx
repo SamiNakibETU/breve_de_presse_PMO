@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { clusterFallbackDisplayTitle } from "@/lib/cluster-display";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { ClusterFallbackArticle, ClusterFallbackRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -145,7 +146,7 @@ export function EditionThemesView({
                     href={`/clusters/${row.cluster_id}`}
                     className="font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
-                    {row.label?.trim() || "Thème sans libellé"}
+                    {clusterFallbackDisplayTitle(row)}
                   </Link>
                   <span className="tabular-nums text-[11px] text-muted-foreground">
                     {row.article_count} texte{row.article_count > 1 ? "s" : ""}
