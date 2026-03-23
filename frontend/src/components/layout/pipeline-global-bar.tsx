@@ -17,7 +17,7 @@ export function PipelineGlobalBar() {
   return (
     <div className="border-b border-border-light bg-accent-tint/80">
       <div className="mx-auto flex max-w-[960px] flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 text-[12px] text-foreground sm:px-6">
-        <span className="font-semibold text-accent">Traitement en cours</span>
+        <span className="font-semibold text-accent">Opération en cours</span>
         <span className="text-foreground-subtle">{running.label}</span>
         {running.stepLabel ? (
           <span className="min-w-0 text-foreground-body">
@@ -25,14 +25,14 @@ export function PipelineGlobalBar() {
           </span>
         ) : null}
         <span className="text-[11px] text-muted-foreground">
-          (le traitement serveur continue si vous changez de page)
+          (vous pouvez continuer à naviguer pendant ce temps)
         </span>
         {!onHome ? (
           <Link
             href="/"
             className="ml-auto shrink-0 underline decoration-border underline-offset-2 hover:text-accent"
           >
-            Voir sujets du jour
+            Retour au sommaire du jour
           </Link>
         ) : null}
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const COUNTRIES: Record<string, string> = {
@@ -29,8 +30,8 @@ const ARTICLE_TYPES: Record<string, string> = {
   editorial: "Éditorial",
   tribune: "Tribune",
   analysis: "Analyse",
-  news: "News",
-  interview: "Interview",
+  news: "Actualité",
+  interview: "Entretien",
   reportage: "Reportage",
 };
 
@@ -59,6 +60,8 @@ export function ArticleFilters({
   onChange,
   countsByCountry,
 }: ArticleFiltersProps) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
   return (
     <div className="space-y-4 border-b border-border-light pb-4">
       <div>
@@ -115,54 +118,66 @@ export function ArticleFilters({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border-light pt-4">
-        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
-          <input
-            type="checkbox"
-            checked={filters.includeLowQuality}
-            onChange={(e) =>
-              onChange({ ...filters, includeLowQuality: e.target.checked })
-            }
-            className="border-border text-foreground accent-foreground"
-          />
-          Inclure basse qualité (&lt; 50 % confiance)
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
-          <input
-            type="checkbox"
-            checked={filters.hideSyndicated}
-            onChange={(e) => {
-              const v = e.target.checked;
-              onChange({
-                ...filters,
-                hideSyndicated: v,
-                groupSyndicated: v ? filters.groupSyndicated : false,
-              });
-            }}
-            className="border-border accent-foreground"
-          />
-          Masquer reprises / syndiqués
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
-          <input
-            type="checkbox"
-            checked={filters.groupSyndicated}
-            onChange={(e) => {
-              const v = e.target.checked;
-              onChange({
-                ...filters,
-                groupSyndicated: v,
-                hideSyndicated: v ? true : filters.hideSyndicated,
-              });
-            }}
-            className="border-border accent-foreground"
-          />
-          Vue groupée (+N reprises sur l’article source)
-        </label>
-      </div>
-      {filters.hideSyndicated && (
+      <button
+        type="button"
+        onClick={() => setAdvancedOpen((v) => !v)}
+        className="text-[12px] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
+        aria-expanded={advancedOpen}
+      >
+        {advancedOpen ? "Masquer les filtres avancés" : "Plus de filtres"}
+      </button>
+
+      {advancedOpen ? (
+        <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border-light pt-4">
+          <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
+            <input
+              type="checkbox"
+              checked={filters.includeLowQuality}
+              onChange={(e) =>
+                onChange({ ...filters, includeLowQuality: e.target.checked })
+              }
+              className="border-border text-foreground accent-foreground"
+            />
+            Inclure textes à faible confiance de traduction
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
+            <input
+              type="checkbox"
+              checked={filters.hideSyndicated}
+              onChange={(e) => {
+                const v = e.target.checked;
+                onChange({
+                  ...filters,
+                  hideSyndicated: v,
+                  groupSyndicated: v ? filters.groupSyndicated : false,
+                });
+              }}
+              className="border-border accent-foreground"
+            />
+            Masquer les reprises
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
+            <input
+              type="checkbox"
+              checked={filters.groupSyndicated}
+              onChange={(e) => {
+                const v = e.target.checked;
+                onChange({
+                  ...filters,
+                  groupSyndicated: v,
+                  hideSyndicated: v ? true : filters.hideSyndicated,
+                });
+              }}
+              className="border-border accent-foreground"
+            />
+            Regrouper les reprises sous l’article source
+          </label>
+        </div>
+      ) : null}
+
+      {advancedOpen && filters.hideSyndicated && (
         <p className="text-[10px] leading-snug text-muted-foreground">
-          Par défaut, les reprises d’agence ne sont pas listées. Décochez « Masquer
+          Par défaut, les reprises ne sont pas listées. Décochez « Masquer les
           reprises » pour tout afficher.
         </p>
       )}

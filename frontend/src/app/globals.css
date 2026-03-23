@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  /* MEMW : fond blanc, accent #c8102e */
-  --color-background: #ffffff;
+  /* MEMW : fond papier OLJ, accent #c8102e */
+  --color-background: #f7f5f0;
   --color-foreground: #1a1a1a;
   --color-muted: #efede6;
   --color-muted-foreground: #6f6d68;
@@ -15,7 +15,7 @@
   --color-destructive: #c8102e;
   --color-success: #2d6a4f;
   --color-warning: #92400e;
-  --color-card: #fdfcf9;
+  --color-card: #ffffff;
   --color-card-foreground: #1a1a1a;
   --color-surface: #f3f1eb;
   /* Texte secondaire / corps (aligné DESIGN_SYSTEM, évite hex dans les pages) */

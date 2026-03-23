@@ -3,38 +3,38 @@ import Link from "next/link";
 const sections: { href: string; title: string; blurb: string }[] = [
   {
     href: "/regie/sources",
-    title: "Santé des sources",
-    blurb: "Tiers P0/P1/P2, derniers articles collectés, état.",
+    title: "Sources",
+    blurb: "État des médias, dernières collectes et alertes.",
   },
   {
     href: "/dashboard",
-    title: "Sujets du jour",
-    blurb: "Vue technique : traitements, sujets thématiques et inventaire.",
+    title: "Sujets automatiques",
+    blurb: "Vue technique : regroupements et inventaire.",
   },
   {
     href: "/regie/pipeline",
-    title: "Étapes pipeline",
-    blurb: "Rapports JSON par étape (collecte, dédup, regroupement…) depuis la base.",
+    title: "Collecte et traduction",
+    blurb: "Rapports par étape (collecte, dédoublonnage, regroupement…).",
   },
   {
     href: "/regie/dedup",
-    title: "Déduplication",
-    blurb: "Filtre sur les étapes dédup + signalements faux positifs.",
+    title: "Dédoublonnage",
+    blurb: "Étapes de fusion et signalements.",
   },
   {
     href: "/regie/clustering",
-    title: "Clustering",
-    blurb: "Paramètres et documentation — métriques dans les logs pipeline.",
+    title: "Regroupements",
+    blurb: "Paramètres et documentation — indicateurs dans les journaux.",
   },
   {
     href: "/regie/curator",
     title: "Curateur",
-    blurb: "Historique des appels LLM du curateur (prompt dédié).",
+    blurb: "Historique des propositions de sujets (appels automatisés).",
   },
   {
     href: "/regie/logs",
-    title: "Logs",
-    blurb: "Vue combinée : étapes pipeline et journal des appels LLM.",
+    title: "Journaux",
+    blurb: "Traces techniques et journal des opérations.",
   },
 ];
 
@@ -43,10 +43,10 @@ export default function RegieHubPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
-          Régie technique
+          Administration
         </h1>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-foreground-body">
-          Espace séparé du chemin critique (composition). Les vues listées
+          Outils réservés à l’équipe technique et à la maintenance. Les vues
           s’appuient sur les tables{" "}
           <code className="text-[12px]">pipeline_debug_logs</code>,{" "}
           <code className="text-[12px]">llm_call_logs</code> et l’API{" "}

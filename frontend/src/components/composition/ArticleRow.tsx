@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import {
+  FLAGSHIP_BADGE_LABEL,
+  formatArticleMetaLine,
+} from "@/lib/article-labels-fr";
 import type { Article } from "@/lib/types";
 
 export function ArticleRow({
@@ -39,27 +43,23 @@ export function ArticleRow({
           )}
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
             <span>
-              {article.media_name}
-              {article.country ? ` · ${article.country}` : ""}
-              {article.article_type ? ` · ${article.article_type}` : ""}
-              {article.source_language ? ` · ${article.source_language}` : ""}
-              {article.is_syndicated ? " · syndiqué" : ""}
+              {formatArticleMetaLine({
+                mediaName: article.media_name,
+                country: article.country,
+                articleType: article.article_type,
+                sourceLanguage: article.source_language,
+              })}
             </span>
             {article.editorial_angle && (
-              <span className="text-[11px] text-foreground-subtle">
-                · {article.editorial_angle}
+              <span className="block w-full text-[11px] leading-snug text-foreground-subtle">
+                {article.editorial_angle}
               </span>
             )}
             {article.is_flagship ? (
               <span className="border-l-2 border-accent pl-2 text-[11px] font-semibold text-accent">
-                Marquant
+                {FLAGSHIP_BADGE_LABEL}
               </span>
             ) : null}
-            {article.editorial_relevance != null && (
-              <span className="ml-auto shrink-0 tabular-nums text-[11px] font-medium text-foreground">
-                {article.editorial_relevance}
-              </span>
-            )}
           </div>
         </button>
         {article.url && (

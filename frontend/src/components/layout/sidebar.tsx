@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -13,12 +13,11 @@ const PRIMARY_NAV = [
 ] as const;
 
 const REGIE_NAV = [
-  { href: "/regie", label: "Régie" },
-  { href: "/dashboard", label: "Sujets HDBSCAN" },
+  { href: "/regie", label: "Vue d’ensemble" },
+  { href: "/dashboard", label: "Sujets automatiques" },
   { href: "/regie/sources", label: "Sources" },
-  { href: "/regie/pipeline", label: "Pipeline" },
-  { href: "/regie/clustering", label: "Clustering" },
-  { href: "/regie/logs", label: "Logs" },
+  { href: "/regie/pipeline", label: "Collecte et traduction" },
+  { href: "/regie/logs", label: "Journaux" },
 ] as const;
 
 function prefetchDashboardData(queryClient: ReturnType<typeof useQueryClient>) {
@@ -42,8 +41,19 @@ export function Masthead() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
 
+  const statsQ = useQuery({
+    queryKey: ["stats"] as const,
+    queryFn: () => api.stats(),
+    staleTime: 60_000,
+  });
+
+  const collectHint =
+    statsQ.data != null
+      ? `${statsQ.data.total_collected_24h.toLocaleString("fr-FR")} article(s) collecté(s) sur les dernières 24 h`
+      : null;
+
   return (
-    <header className="border-b border-border bg-background">
+    <header className="border-b border-border bg-white">
       <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
         <div className="flex items-center justify-between py-5">
           <Link
@@ -98,10 +108,10 @@ export function Masthead() {
 
         <nav
           className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border py-2.5"
-          aria-label="Régie et outils"
+          aria-label="Administration"
         >
           <span className="w-full text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:w-auto sm:self-center sm:py-0">
-            Régie
+            Administration
           </span>
           {REGIE_NAV.map(({ href, label }) => {
             const active =
@@ -126,6 +136,11 @@ export function Masthead() {
             );
           })}
         </nav>
+        {collectHint ? (
+          <p className="border-t border-border py-2 text-[10px] tabular-nums text-muted-foreground">
+            {collectHint}
+          </p>
+        ) : null}
       </div>
     </header>
   );

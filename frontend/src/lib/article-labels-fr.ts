@@ -1,0 +1,70 @@
+/**
+ * Libellés éditoriaux en français (type d’article, langue, badge).
+ * Partagé par ArticleRow, TopicSection, etc.
+ */
+
+export const FLAGSHIP_BADGE_LABEL = "À la une";
+
+const ARTICLE_TYPE_FR: Record<string, string> = {
+  news: "Actualité",
+  opinion: "Opinion",
+  editorial: "Éditorial",
+  analysis: "Analyse",
+  interview: "Entretien",
+  reportage: "Reportage",
+  tribune: "Tribune",
+  feature: "Enquête",
+  column: "Chronique",
+  blog: "Blog",
+  briefing: "Brève",
+  review: "Compte rendu",
+};
+
+const SOURCE_LANGUAGE_FR: Record<string, string> = {
+  ar: "arabe",
+  en: "anglais",
+  fr: "français",
+  he: "hébreu",
+  tr: "turc",
+  fa: "persan",
+  ku: "kurde",
+  de: "allemand",
+  es: "espagnol",
+  it: "italien",
+  ru: "russe",
+};
+
+export function articleTypeLabelFr(
+  code: string | null | undefined,
+): string | null {
+  if (!code) return null;
+  const k = code.trim().toLowerCase();
+  return ARTICLE_TYPE_FR[k] ?? code;
+}
+
+export function sourceLanguageLabelFr(
+  code: string | null | undefined,
+): string | null {
+  if (!code) return null;
+  const k = code.trim().toLowerCase();
+  return SOURCE_LANGUAGE_FR[k] ?? code;
+}
+
+export function formatArticleMetaLine(opts: {
+  mediaName: string;
+  country?: string | null;
+  articleType?: string | null;
+  sourceLanguage?: string | null;
+  /** Par défaut : masqué (pas affiché en vue éditoriale). */
+  includeSyndicated?: boolean;
+  isSyndicated?: boolean | null;
+}): string {
+  const parts: string[] = [opts.mediaName];
+  if (opts.country) parts.push(opts.country);
+  const t = articleTypeLabelFr(opts.articleType ?? undefined);
+  if (t) parts.push(t);
+  const l = sourceLanguageLabelFr(opts.sourceLanguage ?? undefined);
+  if (l) parts.push(l);
+  if (opts.includeSyndicated && opts.isSyndicated) parts.push("reprise");
+  return parts.join(" · ");
+}

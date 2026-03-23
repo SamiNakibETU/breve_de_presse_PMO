@@ -35,6 +35,11 @@ export default function EditionTopicPage() {
     enabled: ids.length > 0,
   });
 
+  const coverageQ = useQuery({
+    queryKey: ["coverageTargets"] as const,
+    queryFn: () => api.coverageTargets(),
+  });
+
   const topic = detailQ.data?.topic ?? null;
   const articles = articlesQ.data?.articles ?? [];
   const refs = detailQ.data?.article_refs ?? [];
@@ -46,7 +51,7 @@ export default function EditionTopicPage() {
           href={`/edition/${date}`}
           className="underline-offset-4 hover:underline"
         >
-          ← Sommaire
+          Sommaire de l’édition
         </Link>
       </nav>
       {topic && editionId && (
@@ -57,6 +62,7 @@ export default function EditionTopicPage() {
           articles={articles}
           articleRefs={refs}
           articleIdsOrder={ids}
+          countryLabelsFr={coverageQ.data?.labels_fr ?? null}
         />
       )}
       {detailQ.isPending && (

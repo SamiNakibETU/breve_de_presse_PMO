@@ -24,6 +24,7 @@ def test_edition_topic_out_with_previews() -> None:
         dominant_angle=None,
         counter_angle=None,
         editorial_note=None,
+        angle_summary=None,
         country_coverage=None,
         generated_text=None,
         angle_id=None,

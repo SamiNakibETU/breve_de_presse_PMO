@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
@@ -15,15 +15,9 @@ const PAGE_SIZE = 40;
 
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   editorial: { label: "Éditorial", value: "translated,formatted,needs_review" },
-  all_processed: { label: "Tous traduits", value: "translated,formatted,needs_review" },
   needs_review: { label: "À relire", value: "needs_review" },
-  dead_letter: {
-    label: "Traduction (erreurs)",
-    value: "error,translation_abandoned",
-  },
-  collected: { label: "Bruts", value: "collected" },
   all: {
-    label: "Tout",
+    label: "Tous",
     value:
       "collected,translated,formatted,needs_review,error,translation_abandoned",
   },
@@ -31,7 +25,7 @@ const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
 
 const SORT_OPTIONS: Record<string, { label: string; value: string }> = {
   relevance: { label: "Pertinence", value: "relevance" },
-  date: { label: "Date (collecte)", value: "date" },
+  date: { label: "Date de collecte", value: "date" },
   confidence: { label: "Confiance ↓", value: "confidence" },
   confidence_asc: { label: "Confiance ↑", value: "confidence_asc" },
 };
@@ -61,7 +55,6 @@ function buildArticleParams(
 
 export default function ArticlesPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const {
     selectedIds: selected,
     toggleArticle: toggle,
@@ -78,7 +71,6 @@ export default function ArticlesPage() {
     hideSyndicated: true,
     groupSyndicated: false,
   });
-  const [batchBusy, setBatchBusy] = useState(false);
 
   const queryKey = useMemo(
     () =>
@@ -132,31 +124,6 @@ export default function ArticlesPage() {
     router.push("/review");
   }
 
-  async function runBatch(
-    fn: (ids: string[]) => Promise<{ updated: number }>,
-  ) {
-    const ids = Array.from(selected);
-    if (!ids.length) return;
-    setBatchBusy(true);
-    try {
-      const r = await fn(ids);
-      await queryClient.invalidateQueries({ queryKey: ["articles"] });
-      await queryClient.invalidateQueries({ queryKey: ["stats"] });
-      clearSelection();
-      if (typeof window !== "undefined") {
-        window.alert(`Mis à jour : ${r.updated} article(s).`);
-      }
-    } catch (e) {
-      if (typeof window !== "undefined") {
-        window.alert(
-          e instanceof Error ? e.message : "Erreur lors de l’action groupée",
-        );
-      }
-    } finally {
-      setBatchBusy(false);
-    }
-  }
-
   return (
     <div className="space-y-5">
       <header>
@@ -174,6 +141,14 @@ export default function ArticlesPage() {
             : ""}
         </p>
       </header>
+
+      <p className="text-[12px] text-muted-foreground">
+        Actions groupées sur les traductions (marquer relu, réessayer) : espace{" "}
+        <a href="/regie" className="underline underline-offset-2 hover:text-foreground">
+          Administration
+        </a>
+        .
+      </p>
 
       {error && (
         <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
@@ -264,36 +239,6 @@ export default function ArticlesPage() {
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {statusFilter === "needs_review" && (
-                <button
-                  type="button"
-                  disabled={batchBusy}
-                  onClick={() => void runBatch(api.batchMarkReviewed)}
-                  className="border border-foreground bg-card px-3 py-2 text-[12px] font-medium text-foreground hover:bg-muted disabled:opacity-40"
-                >
-                  Marquer relus (translated)
-                </button>
-              )}
-              {statusFilter === "dead_letter" && (
-                <>
-                  <button
-                    type="button"
-                    disabled={batchBusy}
-                    onClick={() => void runBatch(api.batchRetryTranslation)}
-                    className="border border-foreground bg-card px-3 py-2 text-[12px] font-medium text-foreground hover:bg-muted disabled:opacity-40"
-                  >
-                    Réessayer traduction
-                  </button>
-                  <button
-                    type="button"
-                    disabled={batchBusy}
-                    onClick={() => void runBatch(api.batchAbandonTranslation)}
-                    className="border border-border px-3 py-2 text-[12px] text-foreground-body hover:bg-muted disabled:opacity-40"
-                  >
-                    Abandonner
-                  </button>
-                </>
-              )}
               <button
                 type="button"
                 onClick={goToReview}

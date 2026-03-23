@@ -276,6 +276,8 @@ export interface EditionTopic {
   dominant_angle: string | null;
   counter_angle: string | null;
   editorial_note: string | null;
+  /** Fil conducteur / chapô en une phrase (API éditions). */
+  angle_summary?: string | null;
   country_coverage: Record<string, number> | null;
   generated_text: string | null;
   angle_id?: string | null;

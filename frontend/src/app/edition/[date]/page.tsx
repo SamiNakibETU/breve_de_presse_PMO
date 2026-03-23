@@ -33,16 +33,16 @@ function formatDateFr(iso: string): string {
   }).format(dt);
 }
 
-function detectionLabel(s: EditionDetectionStatus | undefined): string {
+function detectionLabel(s: EditionDetectionStatus | undefined): string | null {
   switch (s) {
     case "done":
-      return "Détection des sujets terminée";
+      return null;
     case "running":
-      return "Détection des sujets en cours…";
+      return "Organisation des sujets en cours…";
     case "failed":
-      return "Échec de la détection des sujets";
+      return "L’organisation automatique n’est pas disponible pour cette édition.";
     default:
-      return "Détection des sujets en attente";
+      return "Les grands sujets seront disponibles après la prochaine collecte.";
   }
 }
 
@@ -245,6 +245,7 @@ export default function EditionSommairePage() {
   const loading =
     editionQ.isPending || (editionQ.data && topicsQ.isPending);
   const edition = editionQ.data ?? null;
+  const detectionMessage = detectionLabel(detectionStatus);
   const err =
     editionQ.error?.message ??
     topicsQ.error?.message ??
@@ -254,29 +255,32 @@ export default function EditionSommairePage() {
   return (
     <div className="space-y-10 pb-44">
       <header className="max-w-2xl">
-        <p className="olj-rubric">Revue de presse — édition du jour</p>
+        <p className="olj-rubric">Revue de presse — Édition du jour</p>
         <h1 className="mt-3 font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-[1.2] tracking-tight text-foreground capitalize sm:text-[32px]">
           {date ? formatDateFr(date) : "—"}
         </h1>
         {edition && (
           <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
             <span className="tabular-nums">{stats.articles}</span>{" "}
-            article{stats.articles > 1 ? "s" : ""} dans la fenêtre ·{" "}
+            article{stats.articles > 1 ? "s" : ""}{" "}
+            {stats.articles > 1 ? "disponibles" : "disponible"} ·{" "}
             <span className="tabular-nums">{stats.countries}</span> pays
             représentés
             {stats.developments > 0 ? (
               <>
                 {" "}
                 · <span className="tabular-nums">{stats.developments}</span>{" "}
-                développement{stats.developments > 1 ? "s" : ""} détecté
+                grand{stats.developments > 1 ? "s" : ""} sujet
                 {stats.developments > 1 ? "s" : ""}
               </>
             ) : null}
           </p>
         )}
-        <p className="mt-2 text-[12px] text-muted-foreground">
-          {detectionLabel(detectionStatus)}
-        </p>
+        {detectionMessage ? (
+          <p className="mt-2 text-[12px] text-muted-foreground">
+            {detectionMessage}
+          </p>
+        ) : null}
       </header>
 
       {err && (
@@ -333,7 +337,7 @@ export default function EditionSommairePage() {
             setDebouncedQ("");
           }}
         >
-          Par développements
+          Grands sujets du jour
         </button>
         <button
           type="button"
@@ -392,7 +396,7 @@ export default function EditionSommairePage() {
 
       {!loading && effectiveView === "topics" && topics.length === 0 && (
         <p className="max-w-xl text-[13px] leading-relaxed text-foreground-body">
-          Aucun développement groupé pour cette date. Passez en{" "}
+          Aucun sujet identifié pour cette date. Consultez la{" "}
           <button
             type="button"
             className="olj-link-action inline p-0 align-baseline"
@@ -402,9 +406,9 @@ export default function EditionSommairePage() {
               setDebouncedQ("");
             }}
           >
-            liste complète
-          </button>{" "}
-          ou relancez la détection depuis la barre du bas.
+            liste complète des articles
+          </button>
+          .
         </p>
       )}
 
@@ -462,14 +466,14 @@ export default function EditionSommairePage() {
           href={`/edition/${date}/compose`}
           className="underline decoration-border underline-offset-4 hover:text-foreground"
         >
-          Composition multi-sujets
+          Voir le texte complet
         </Link>
         <span className="mx-2 text-border">·</span>
         <Link
           href="/regie"
           className="underline decoration-border underline-offset-4 hover:text-foreground"
         >
-          Régie
+          Administration
         </Link>
       </nav>
 
@@ -485,20 +489,10 @@ export default function EditionSommairePage() {
                 <span className="tabular-nums font-medium text-foreground">
                   {selectedIds.size}
                 </span>{" "}
-                article{selectedIds.size > 1 ? "s" : ""} retenu
-                {selectedIds.size > 1 ? "s" : ""} pour la génération
+                article{selectedIds.size > 1 ? "s" : ""} sélectionné
+                {selectedIds.size > 1 ? "s" : ""}
               </p>
               <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  type="button"
-                  className="olj-btn-secondary"
-                  disabled={!editionId || detectMutation.isPending}
-                  onClick={() => detectMutation.mutate()}
-                >
-                  {detectMutation.isPending
-                    ? "Détection…"
-                    : "Redétecter les sujets"}
-                </button>
                 <button
                   type="button"
                   className="olj-btn-primary"

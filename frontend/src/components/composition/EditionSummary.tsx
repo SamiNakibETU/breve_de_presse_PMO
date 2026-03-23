@@ -34,7 +34,7 @@ export function EditionSummary({
       </p>
       <nav className="mb-3 border-b border-border pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         <Link href={`/edition/${date}/compose`} className="text-foreground">
-          Composition
+          Texte final
         </Link>
       </nav>
       <ol className="list-none">

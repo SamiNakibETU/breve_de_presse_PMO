@@ -24,9 +24,9 @@ export function TopicCard({
           <span className="font-[family-name:var(--font-serif)] text-[17px] leading-snug text-foreground group-hover:underline">
             {topic.title_final ?? topic.title_proposed}
           </span>
-          {topic.dominant_angle && (
+          {(topic.angle_summary?.trim() || topic.dominant_angle) && (
             <p className="mt-2 text-[13px] leading-relaxed text-foreground-body line-clamp-3">
-              {topic.dominant_angle}
+              {topic.angle_summary?.trim() || topic.dominant_angle}
             </p>
           )}
         </Link>
@@ -67,7 +67,7 @@ export function TopicCard({
           href={`/edition/${date}/topic/${topic.id}`}
           className="mt-3 inline-block text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
-          Ouvrir le sujet — sélection et génération
+          Voir le sujet
         </Link>
       </div>
     </li>

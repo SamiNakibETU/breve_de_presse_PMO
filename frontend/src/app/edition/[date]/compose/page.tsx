@@ -67,10 +67,10 @@ export default function ComposePage() {
       </nav>
       <header>
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold">
-          Composition
+          Texte final
         </h1>
         <p className="mt-1 text-[13px] text-foreground-muted">
-          Texte prêt à copier pour le CMS (génération par sujet, format OLJ).
+          Texte prêt à copier pour publication (assemblage des sujets de l’édition).
         </p>
       </header>
       <div className="flex flex-wrap items-center gap-3">
@@ -81,8 +81,8 @@ export default function ComposePage() {
           onClick={() => genAllMutation.mutate()}
         >
           {genAllMutation.isPending
-            ? "Génération de tous les sujets…"
-            : "Générer tous les sujets"}
+            ? "Génération du texte complet…"
+            : "Générer le texte complet"}
         </button>
         {genAllMutation.isError && (
           <span className="text-[12px] text-accent" role="alert" aria-live="polite">

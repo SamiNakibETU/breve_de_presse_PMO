@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { articleTypeLabelFr } from "@/lib/article-labels-fr";
 import type { Article } from "@/lib/types";
 import { ConfidenceBadge } from "./confidence-badge";
 
@@ -14,15 +15,9 @@ const EDITORIAL_TYPES = new Set(["opinion", "editorial", "tribune"]);
 /** News / reportage / interview : hiérarchie visuelle plus discrète (MEMW §2.5.4) */
 const NEWS_LIKE_TYPES = new Set(["news", "reportage", "interview"]);
 
-const TYPE_LABELS: Record<string, string> = {
-  opinion: "Opinion",
-  editorial: "Éditorial",
-  tribune: "Tribune",
-  analysis: "Analyse",
-  news: "News",
-  interview: "Interview",
-  reportage: "Reportage",
-};
+function typeLabel(type: string | null | undefined): string {
+  return articleTypeLabelFr(type ?? undefined) ?? type ?? "";
+}
 
 /** Seuils alignés sur cod_multi_pass_min_relevance (80) — sans afficher le score (MEMW §2.5.4). */
 function editorialRelevanceLabel(score: number | null | undefined): string | null {
@@ -81,7 +76,7 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
                       isEditorial ? "text-accent" : "text-muted-foreground"
                     }`}
                   >
-                    {TYPE_LABELS[article.article_type] || article.article_type}
+                    {typeLabel(article.article_type)}
                   </span>
                 )}
                 {relevanceLabel && (
@@ -119,19 +114,6 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
               </p>
             )}
 
-          {article.olj_topic_ids && article.olj_topic_ids.length > 0 && (
-            <p className="mt-1 flex flex-wrap gap-1">
-              {article.olj_topic_ids.map((tid) => (
-                <span
-                  key={tid}
-                  className="border border-border-light bg-muted/50 px-1.5 py-px font-mono text-[9px] text-foreground-body"
-                >
-                  {tid}
-                </span>
-              ))}
-            </p>
-          )}
-
           <p className="mt-1 text-[12px] text-muted-foreground">
             {article.media_name}
             <span className="mx-1">·</span>
@@ -140,7 +122,7 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
             {date && <><span className="mx-1">·</span>{date}</>}
             {!isEditorial && article.article_type && (
               <span className="ml-2 border border-border-light px-1 py-px text-[10px] uppercase tracking-wider text-muted-foreground">
-                {TYPE_LABELS[article.article_type] || article.article_type}
+                {typeLabel(article.article_type)}
               </span>
             )}
             {article.is_syndicated && (
@@ -155,15 +137,9 @@ export function ArticleCard({ article, selected, onToggle }: ArticleCardProps) {
               )}
           </p>
 
-          {article.en_translation_summary_only && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Corps conservé en langue d’origine (anglais).
-            </p>
-          )}
-
           {article.thesis_summary_fr && !expanded && (
             <p className="mt-2 line-clamp-2 font-[family-name:var(--font-serif)] text-[14px] italic leading-snug text-foreground">
-              «&nbsp;{article.thesis_summary_fr}&nbsp;»
+              {article.thesis_summary_fr}
             </p>
           )}
 

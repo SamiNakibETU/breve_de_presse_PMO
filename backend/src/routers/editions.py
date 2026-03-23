@@ -88,6 +88,7 @@ class EditionTopicOut(BaseModel):
     dominant_angle: Optional[str] = None
     counter_angle: Optional[str] = None
     editorial_note: Optional[str] = None
+    angle_summary: Optional[str] = None
     country_coverage: Optional[dict[str, Any]] = None
     generated_text: Optional[str] = None
     angle_id: Optional[str] = None
@@ -139,6 +140,7 @@ def _edition_topic_to_out(
         dominant_angle=t.dominant_angle,
         counter_angle=t.counter_angle,
         editorial_note=t.editorial_note,
+        angle_summary=t.angle_summary,
         country_coverage=t.country_coverage,
         generated_text=t.generated_text,
         angle_id=t.angle_id,

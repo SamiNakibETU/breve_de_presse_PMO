@@ -1,32 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import {
+  FLAGSHIP_BADGE_LABEL,
+  formatArticleMetaLine,
+} from "@/lib/article-labels-fr";
+import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
 
 /** Nombre d’articles visibles par défaut avant « + N autres regards ». */
 export const VISIBLE_PER_TOPIC = 3;
-
-const FLAG_EMOJI: Record<string, string> = {
-  LB: "🇱🇧",
-  IL: "🇮🇱",
-  IR: "🇮🇷",
-  SA: "🇸🇦",
-  AE: "🇦🇪",
-  TR: "🇹🇷",
-  IQ: "🇮🇶",
-  SY: "🇸🇾",
-  QA: "🇶🇦",
-  JO: "🇯🇴",
-  KW: "🇰🇼",
-  BH: "🇧🇭",
-  OM: "🇴🇲",
-  EG: "🇪🇬",
-  US: "🇺🇸",
-  GB: "🇬🇧",
-  FR: "🇫🇷",
-  DZ: "🇩🇿",
-  YE: "🇾🇪",
-};
 
 function TopicArticleLine({
   preview,
@@ -59,26 +42,23 @@ function TopicArticleLine({
           )}
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
             <span className="min-w-0">
-              {preview.media_name}
-              {preview.country ? ` · ${preview.country}` : ""}
-              {preview.article_type ? ` · ${preview.article_type}` : ""}
-              {preview.source_language ? ` · ${preview.source_language}` : ""}
+              {formatArticleMetaLine({
+                mediaName: preview.media_name,
+                country: preview.country,
+                articleType: preview.article_type,
+                sourceLanguage: preview.source_language,
+              })}
             </span>
             {preview.editorial_angle && (
-              <span className="text-[11px] text-foreground-subtle">
-                · {preview.editorial_angle}
+              <span className="block w-full text-[11px] leading-snug text-foreground-subtle">
+                {preview.editorial_angle}
               </span>
             )}
             {preview.is_flagship ? (
               <span className="border-l-2 border-accent pl-2 text-[11px] font-semibold text-accent">
-                Marquant
+                {FLAGSHIP_BADGE_LABEL}
               </span>
             ) : null}
-            {preview.editorial_relevance != null && (
-              <span className="ml-auto shrink-0 tabular-nums text-[11px] font-medium text-foreground">
-                {preview.editorial_relevance}
-              </span>
-            )}
           </div>
           {preview.url && (
             <a
@@ -115,7 +95,7 @@ export function TopicSection({
   const flags =
     topic.countries?.map((c) => (
       <span key={c} title={c} className="text-lg leading-none">
-        {FLAG_EMOJI[c.toUpperCase()] ?? c}
+        {REGION_FLAG_EMOJI[c.toUpperCase()] ?? c}
       </span>
     )) ?? [];
 
@@ -137,7 +117,7 @@ export function TopicSection({
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
         {topic.is_multi_perspective === false ? (
           <span className="border-l-2 border-border pl-2 text-foreground-body">
-            Regard interne au pays
+            Point de vue national
           </span>
         ) : flags.length > 0 ? (
           <span className="flex gap-1.5" aria-label="Pays concernés">
@@ -166,8 +146,8 @@ export function TopicSection({
           className="olj-link-action mt-4"
           onClick={() => setExpanded(true)}
         >
-          Afficher {restCount} autre{restCount > 1 ? "s" : ""} regard
-          {restCount > 1 ? "s" : ""} sur ce développement
+          Voir {restCount} autre{restCount > 1 ? "s" : ""} article
+          {restCount > 1 ? "s" : ""} sur ce sujet
         </button>
       )}
     </section>
