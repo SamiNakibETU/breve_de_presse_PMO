@@ -118,6 +118,20 @@ body {
   color: var(--color-foreground-body);
 }
 
+/* Type d’article (édition / sujets) — bordure discrète, pas pastille « badge UI » */
+.olj-type-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.25rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 0.125rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--color-foreground-body);
+}
+
 /* Trait de section (alternative à l’encadrement type carte) */
 .olj-rule {
   border-bottom: 1px solid var(--color-border);

@@ -512,9 +512,6 @@ export default function EditionSommairePage() {
             <h1 className="mt-2 font-[family-name:var(--font-serif)] text-[28px] font-semibold capitalize leading-[1.2] tracking-tight text-foreground sm:text-[32px]">
               {date ? formatDateFr(date) : "Date non renseignée"}
             </h1>
-            <p className="mt-1.5 text-[12px] text-muted-foreground">
-              Date de l’édition affichée (calendrier éditorial).
-            </p>
           </div>
           {pipeline ? (
             <button
@@ -534,40 +531,32 @@ export default function EditionSommairePage() {
 
         {edition ? (
           <>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-border-light bg-background/80 px-4 py-3">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Articles dans cette vue
-                </p>
-                <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-foreground">
-                  {stats.articles}
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                  Liés aux grands sujets ou au corpus listé plus bas.
-                </p>
+            <div className="mt-6 border-t border-border pt-5">
+              <div className="flex flex-wrap gap-x-12 gap-y-5 sm:gap-x-16">
+                <div>
+                  <p className="olj-rubric">Articles</p>
+                  <p className="mt-1.5 font-[family-name:var(--font-serif)] text-3xl font-semibold tabular-nums leading-none text-foreground">
+                    {stats.articles}
+                  </p>
+                </div>
+                <div>
+                  <p className="olj-rubric">Pays</p>
+                  <p className="mt-1.5 font-[family-name:var(--font-serif)] text-3xl font-semibold tabular-nums leading-none text-foreground">
+                    {stats.countries}
+                  </p>
+                </div>
+                <div>
+                  <p className="olj-rubric">Grands sujets</p>
+                  <p className="mt-1.5 font-[family-name:var(--font-serif)] text-3xl font-semibold tabular-nums leading-none text-foreground">
+                    {stats.developments}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-lg border border-border-light bg-background/80 px-4 py-3">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Pays représentés
-                </p>
-                <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-foreground">
-                  {stats.countries}
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                  Codes pays distincts dans cette édition.
-                </p>
-              </div>
-              <div className="rounded-lg border border-border-light bg-background/80 px-4 py-3">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Grands sujets
-                </p>
-                <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-foreground">
-                  {stats.developments}
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                  Fils rédactionnels détectés (0 si pas encore lancé).
-                </p>
-              </div>
+              <p className="mt-4 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                Compteur <strong className="font-medium text-foreground/90">Grands sujets</strong> : entrées du sommaire
+                (opinion, analyse, éditorial, tribune), au plus {edition.target_topics_max}. Le reste du corpus est plus
+                bas, avec ou sans rattachement à un sujet.
+              </p>
             </div>
 
             {editionWindowLabel ? (
@@ -593,16 +582,30 @@ export default function EditionSommairePage() {
                 id="edition-page-guide-heading"
                 className="text-[12px] font-semibold uppercase tracking-wide text-foreground"
               >
-                Ce que vous avez sous les yeux
+                Parcours de la page
               </h2>
               <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-foreground-body">
-                D’abord les <strong className="font-medium text-foreground">grands sujets</strong> (sommaire
-                rédactionnel), puis d’autres <strong className="font-medium text-foreground">regroupements</strong>{" "}
-                automatiques, puis la liste complète du <strong className="font-medium text-foreground">corpus</strong>.
-                En bas de page : la couverture par pays et le bouton pour{" "}
-                <strong className="font-medium text-foreground">générer</strong> le texte de revue à partir des articles
-                que vous cochez.
+                <span className="font-medium text-foreground">1.</span> Grands sujets (sommaire éditorial) ·{" "}
+                <span className="font-medium text-foreground">2.</span> Autres regroupements (similarité automatique) ·{" "}
+                <span className="font-medium text-foreground">3.</span> Corpus complet. En bas : couverture pays et
+                génération de revue (articles cochés).
               </p>
+              <details className="mt-3 max-w-2xl rounded-md border border-border-light bg-background/70 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground-body">
+                  « Sujet » et « développement » : la même chose ?
+                </summary>
+                <p className="mt-2">
+                  Oui, côté outil : un <strong className="text-foreground">grand sujet</strong> affiché ici correspond à
+                  ce qu’on appelle en interne un <strong className="text-foreground">développement</strong> du jour — une
+                  actualité regroupant des textes d’opinion. Le vocabulaire « sujet » est celui du journal ; «
+                  développement » est surtout technique.
+                </p>
+                <p className="mt-2">
+                  Ce n’est <strong className="text-foreground">pas</strong> la même chose que les{" "}
+                  <strong className="text-foreground">autres regroupements</strong> (clusters par similarité), affichés
+                  ensuite sur la page.
+                </p>
+              </details>
             </section>
 
             {vigieGlobaleHint ? (
@@ -791,8 +794,8 @@ export default function EditionSommairePage() {
                 <section>
                   <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>
                   <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                    Numérotation : ordre proposé pour le brief (1 = premier
-                    sujet).
+                    Ordre d’affichage proposé pour le brief : <strong className="font-medium text-foreground/90">Sujet 1</strong>{" "}
+                    en tête. Chaque bloc est un sujet d’édition (synonyme technique : développement du jour).
                   </p>
                   <div className="space-y-10">
                     {topics.map((t: EditionTopic) => (
@@ -833,9 +836,13 @@ export default function EditionSommairePage() {
 
               {clusterRows.length > 0 && (
                 <section>
-                  <h2 className="olj-rubric olj-rule mb-4">
+                  <h2 className="olj-rubric olj-rule mb-2">
                     Autres regroupements
                   </h2>
+                  <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                    Complément aux <strong className="font-medium text-foreground/90">grands sujets</strong> : familles
+                    de textes proches par similarité (pas la même logique que le sommaire éditorial).
+                  </p>
                   <EditionThemesView
                     rows={clusterRows}
                     selectedIds={selectedIds}

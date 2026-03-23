@@ -53,10 +53,10 @@ function countryHeaderLabel(
   labelsFr: Record<string, string> | null | undefined,
 ): string {
   if (code === "—") return "Pays non renseigné";
-  const fromApi = labelsFr?.[code];
-  if (fromApi) return fromApi.toUpperCase();
+  const fromApi = labelsFr?.[code]?.trim();
+  if (fromApi) return fromApi;
   const name = previewsInGroup[0]?.country?.trim();
-  if (name) return name.toUpperCase();
+  if (name) return name;
   return code;
 }
 
@@ -95,11 +95,7 @@ function TopicArticleLine({
                 <span className="text-[12px] font-semibold text-foreground">
                   {preview.media_name}
                 </span>
-                {typeFr ? (
-                  <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
-                    {typeFr}
-                  </span>
-                ) : null}
+                {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
               </>
             ) : (
               <>
@@ -120,11 +116,7 @@ function TopicArticleLine({
                     {cc}
                   </span>
                 ) : null}
-                {typeFr ? (
-                  <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
-                    {typeFr}
-                  </span>
-                ) : null}
+                {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
               </>
             )}
           </div>
@@ -265,7 +257,7 @@ export function TopicSection({
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span
               className="shrink-0 tabular-nums text-[11px] font-semibold text-muted-foreground"
-              title="Ordre sur la page du jour (sommaire du brief)"
+              title="Rang du sommaire (1 = tête). Équivalent technique : développement du jour enregistré comme sujet d’édition."
             >
               Sujet {topic.rank}
             </span>
@@ -291,7 +283,7 @@ export function TopicSection({
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             {topic.is_multi_perspective ? (
-              <span className="inline-flex items-center rounded-md bg-info/12 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+              <span className="inline-flex items-center rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground-body">
                 Plusieurs regards
                 {nCountryCodes > 1
                   ? ` · ${nCountryCodes} pays`
@@ -300,12 +292,12 @@ export function TopicSection({
                     : null}
               </span>
             ) : (
-              <span className="inline-flex rounded-md border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-foreground-body">
+              <span className="inline-flex rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground-body">
                 Point de vue national
               </span>
             )}
             {nCountryCodes === 1 && articleTotal <= 1 ? (
-              <span className="rounded-md bg-highlight/50 px-2 py-1 text-[10px] font-semibold text-foreground">
+              <span className="inline-flex rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-medium text-foreground-body">
                 Perspective unique
               </span>
             ) : null}
@@ -342,11 +334,7 @@ export function TopicSection({
                       <span className="text-muted-foreground">
                         {flag ? `${flag} ${place}` : place}
                       </span>
-                      {typeFr ? (
-                        <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
-                          {typeFr}
-                        </span>
-                      ) : null}
+                      {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
                     </div>
                     {p.thesis_summary_fr ? (
                       <p className="mt-1.5 font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-body line-clamp-2">
@@ -387,8 +375,12 @@ export function TopicSection({
                   key={code || "x"}
                   className="mb-8 border-b border-border-light pb-8 last:mb-0 last:border-b-0 last:pb-0"
                 >
-                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    {flag ? <span className="mr-1.5">{flag}</span> : null}
+                  <p className="mb-3 flex flex-wrap items-baseline gap-x-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground">
+                    {flag ? (
+                      <span className="text-[13px] leading-none" aria-hidden>
+                        {flag}
+                      </span>
+                    ) : null}
                     {header}
                   </p>
                   <div className="divide-y divide-border-light">
