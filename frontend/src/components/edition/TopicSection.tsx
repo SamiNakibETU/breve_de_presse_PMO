@@ -65,18 +65,21 @@ function TopicArticleLine({
   selected,
   onToggle,
   compact,
+  /** Le groupe parent affiche déjà le pays : pas de répétition drapeau / code / pays. */
+  countryShownInGroupHeader,
 }: {
   preview: TopicArticlePreview;
   selected: boolean;
   onToggle: (next: boolean) => void;
   compact?: boolean;
+  countryShownInGroupHeader?: boolean;
 }) {
   const title = preview.title_fr || preview.title_original;
   const typeFr = articleTypeLabelFr(preview.article_type);
   const cc = (preview.country_code ?? "").trim().toUpperCase();
   const flag = cc && cc !== "XX" ? REGION_FLAG_EMOJI[cc] : null;
   return (
-    <div className="px-3 py-3 text-[13px] sm:px-4">
+    <div className="py-3 text-[13px] first:pt-0 last:pb-0">
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
@@ -86,31 +89,46 @@ function TopicArticleLine({
           aria-label={`Inclure ${title}`}
         />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {flag ? (
-              <span
-                className="inline-flex items-center rounded border border-border-light bg-surface px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground"
-                title={preview.country ?? cc}
-              >
-                <span className="mr-1">{flag}</span>
-                {cc || "—"}
-              </span>
-            ) : null}
-            <span className="text-[11px] font-semibold text-foreground">
-              {preview.media_name}
-            </span>
-            {preview.country?.trim() && (
-              <span className="text-[11px] text-muted-foreground">
-                {preview.country.trim()}
-              </span>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            {countryShownInGroupHeader ? (
+              <>
+                <span className="text-[12px] font-semibold text-foreground">
+                  {preview.media_name}
+                </span>
+                {typeFr ? (
+                  <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+                    {typeFr}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {flag ? (
+                  <span className="text-[13px] leading-none" aria-hidden>
+                    {flag}
+                  </span>
+                ) : null}
+                <span className="text-[12px] font-semibold text-foreground">
+                  {preview.media_name}
+                </span>
+                {preview.country?.trim() ? (
+                  <span className="text-[12px] text-muted-foreground">
+                    {preview.country.trim()}
+                  </span>
+                ) : cc ? (
+                  <span className="text-[12px] tabular-nums text-muted-foreground">
+                    {cc}
+                  </span>
+                ) : null}
+                {typeFr ? (
+                  <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+                    {typeFr}
+                  </span>
+                ) : null}
+              </>
             )}
-            {typeFr ? (
-              <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
-                {typeFr}
-              </span>
-            ) : null}
           </div>
-          <span className="mt-2 block font-[family-name:var(--font-serif)] text-[15px] font-medium leading-snug text-foreground">
+          <span className="mt-1.5 block font-[family-name:var(--font-serif)] text-[15px] font-medium leading-snug text-foreground">
             {title}
           </span>
           {!compact && preview.thesis_summary_fr ? (
@@ -156,15 +174,19 @@ function TopicArticleLine({
   );
 }
 
-function countriesInlineFromCodes(codes: string[]): string {
+function countriesInlineFromCodes(
+  codes: string[],
+  labelsFr?: Record<string, string> | null,
+): string {
   if (!codes.length) return "";
   return codes
     .map((c) => {
       const u = c.trim().toUpperCase();
       const flag = REGION_FLAG_EMOJI[u];
-      return flag ? `${flag} ${u}` : u;
+      const name = labelsFr?.[u]?.trim() || u;
+      return flag ? `${flag} ${name}` : name;
     })
-    .join(", ");
+    .join(" · ");
 }
 
 export function TopicSection({
@@ -203,10 +225,12 @@ export function TopicSection({
     () => countryCodesFromPreviews(previews),
     [previews],
   );
-  const countriesText = countriesInlineFromCodes(derivedCodes);
+  const countriesText = countriesInlineFromCodes(
+    derivedCodes,
+    countryLabelsFr,
+  );
   const articleTotal = topic.article_count ?? previews.length;
   const nCountryCodes = derivedCodes.length;
-  const multiPays = nCountryCodes >= 2;
   const contrasting = pickContrastingPreviews(previews, 3);
   const showContrastingBlock =
     mode === "summary" && previews.length > 0 && contrasting.length >= 2;
@@ -235,9 +259,7 @@ export function TopicSection({
       : "border-b border-border pb-12 pt-6";
 
   return (
-    <section
-      className={`${sectionClass} ${multiPays ? "border-l-[3px] border-accent pl-5 sm:pl-6" : "border-l-[3px] border-border pl-5 sm:pl-6"}`}
-    >
+    <section className={sectionClass}>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 lg:items-start">
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -296,18 +318,35 @@ export function TopicSection({
             )}
           </div>
           {showContrastingBlock ? (
-            <ul className="space-y-3 rounded-md border border-border-light bg-surface/80 p-3 sm:p-4">
+            <ul className="space-y-3 border-t border-border-light pt-4">
               {contrasting.map((p) => {
                 const cc = (p.country_code ?? "").trim().toUpperCase() || "";
                 const flag = REGION_FLAG_EMOJI[cc];
                 const place = p.country?.trim() || cc || "Région";
+                const typeFr = articleTypeLabelFr(p.article_type);
+                const journal = p.media_name?.trim();
                 return (
-                  <li key={p.id} className="text-[11px] leading-snug">
-                    <span className="font-medium text-foreground">
-                      {flag ? `${flag} ${place}` : place}
-                    </span>
+                  <li
+                    key={p.id}
+                    className="border-b border-border-light pb-3 last:border-b-0 last:pb-0"
+                  >
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[12px]">
+                      {journal ? (
+                        <span className="font-semibold text-foreground">
+                          {journal}
+                        </span>
+                      ) : null}
+                      <span className="text-muted-foreground">
+                        {flag ? `${flag} ${place}` : place}
+                      </span>
+                      {typeFr ? (
+                        <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+                          {typeFr}
+                        </span>
+                      ) : null}
+                    </div>
                     {p.thesis_summary_fr ? (
-                      <p className="mt-0.5 italic text-foreground-body line-clamp-2">
+                      <p className="mt-1.5 font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-body line-clamp-2">
                         {p.thesis_summary_fr}
                       </p>
                     ) : null}
@@ -328,7 +367,7 @@ export function TopicSection({
           )}
         </div>
 
-        <div className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
+        <div className="min-w-0 lg:border-l lg:border-border lg:pl-8">
           {groups.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
               Aucun aperçu d’article pour ce sujet.
@@ -339,25 +378,30 @@ export function TopicSection({
               const flag = code !== "—" ? REGION_FLAG_EMOJI[code] : null;
               const shown = list.slice(0, MAX_ARTICLES_PER_COUNTRY);
               const more = list.length - shown.length;
+              const inEditionSummary = mode === "summary";
               return (
-                <div key={code || "x"} className="mb-6 last:mb-0">
-                  <p className="mb-3 flex flex-wrap items-center gap-2 border-b border-border-light pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    {flag ? <span className="text-base leading-none">{flag}</span> : null}
-                    <span>{header}</span>
+                <div
+                  key={code || "x"}
+                  className="mb-8 border-b border-border-light pb-8 last:mb-0 last:border-b-0 last:pb-0"
+                >
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {flag ? <span className="mr-1.5">{flag}</span> : null}
+                    {header}
                   </p>
-                  <div className="divide-y divide-border-light rounded-md border border-border-light">
+                  <div className="divide-y divide-border-light">
                     {shown.map((p) => (
                       <TopicArticleLine
                         key={p.id}
                         preview={p}
                         selected={selectedIds.has(p.id)}
                         onToggle={(next) => onToggleArticle(p.id, next)}
-                        compact={mode === "summary"}
+                        compact={inEditionSummary}
+                        countryShownInGroupHeader={inEditionSummary}
                       />
                     ))}
                   </div>
                   {more > 0 ? (
-                    <p className="mt-1 text-[10px] text-muted-foreground">
+                    <p className="mt-2 text-[11px] text-muted-foreground">
                       + {more} autre{more > 1 ? "s" : ""} texte
                       {more > 1 ? "s" : ""} ({header})
                     </p>
