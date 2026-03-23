@@ -254,10 +254,11 @@ class Settings(BaseSettings):
         description="Nombre minimum de pays distincts pour marquer un cluster émergent",
     )
     cluster_merge_centroid_cosine: float = Field(
-        default=0.80,
+        default=0.88,
         ge=0.5,
         le=0.99,
-        description="MEMW v2 §4 : fusionner deux clusters si similarité cosinus des centroïdes > seuil",
+        description="MEMW v2 §4 : fusionner deux clusters si similarité cosinus des centroïdes > seuil ; "
+        "0.88 limite les méga-fusions (0.80 trop agressif sur corpus régional). Surcharge : CLUSTER_MERGE_CENTROID_COSINE.",
     )
     semantic_dedup_cosine: float = Field(
         default=0.92,

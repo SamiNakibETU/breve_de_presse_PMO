@@ -116,7 +116,7 @@ class Article(Base):
     )
 
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="raw"
+        String(64), nullable=False, default="raw"
     )
     processing_error: Mapped[Optional[str]] = mapped_column(Text)
     translation_failure_count: Mapped[int] = mapped_column(

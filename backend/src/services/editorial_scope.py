@@ -92,6 +92,41 @@ LEISURE_SUBSTRINGS: tuple[str, ...] = (
     "met gala",
     "fashion week",
     "celebrity ",
+    # Sport (MEMW audit 23 mars — hors angle géopolitique explicite)
+    "basketball",
+    "football match",
+    "volleyball",
+    "tennis ",
+    "super lig",
+    "süper lig",
+    "euroleague",
+    "basket turc",
+    "süper lig",
+    "basketbol",
+    "voleybol",
+    "world cup qualif",
+    "uefa",
+    "fifa",
+    # Cinéma / culture pure
+    "film review",
+    "movie review",
+    "book review",
+    "oscar ",
+    "emmy ",
+    "box office",
+    "film festival",
+    "sinema",
+    "film eleştiri",
+    # Religion / lifestyle (hors politique)
+    "ramadan recipe",
+    "iftar ",
+    # Nécrologie / hommages (hors dossier géopol)
+    "hommage à",
+    "in memoriam",
+    "funeral of",
+    "obituary",
+    "Décès de",
+    "وفاة ",
 )
 
 # Mots-clés géopolitiques (union EN/FR/AR) — sans pays « seuls » trop ambigus

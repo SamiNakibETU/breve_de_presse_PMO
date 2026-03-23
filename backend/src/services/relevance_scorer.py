@@ -7,7 +7,7 @@ import uuid
 from typing import Any
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -114,7 +114,10 @@ async def run_relevance_scoring_pipeline(
         .where(Article.relevance_band.is_(None))
     )
     if edition_id is not None:
-        stmt = stmt.where(Article.edition_id == edition_id)
+        # Inclure les articles sans édition (orphelins) pour ne pas bloquer le scoring pertinence
+        stmt = stmt.where(
+            or_(Article.edition_id == edition_id, Article.edition_id.is_(None))
+        )
     stmt = stmt.order_by(Article.collected_at.desc()).limit(limit)
     result = await db.execute(stmt)
     rows = list(result.scalars().all())

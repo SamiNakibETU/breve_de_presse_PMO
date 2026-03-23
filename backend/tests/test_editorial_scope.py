@@ -10,6 +10,10 @@ from src.services.editorial_scope import (
 )
 
 
+def test_leisure_super_lig_rejected():
+    assert is_out_of_scope_lifestyle("Galatasaray super lig match report and standings")
+
+
 def test_lifestyle_turkey_travel_rejected():
     assert is_out_of_scope_lifestyle("Voyage et cuisine en Turquie et Asie")
     assert not should_ingest_rss_entry(
@@ -43,6 +47,12 @@ def test_war_not_award_false_positive():
         "Film wins award at Cannes",
         "Best director prize",
     )
+
+
+def test_leisure_sport_and_obituary_marked_lifestyle():
+    assert is_out_of_scope_lifestyle("Euroleague finals recap and standings")
+    assert is_out_of_scope_lifestyle("In memoriam: a tribute to the poet")
+    assert is_out_of_scope_lifestyle("Obituary: former minister dies at 88")
 
 
 def test_opinion_feed_allows_geopolitical():
