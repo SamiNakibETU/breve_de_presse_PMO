@@ -14,6 +14,23 @@ export const VISIBLE_PER_TOPIC = 3;
 
 const SUMMARY_PREVIEW_COUNT = 2;
 
+/** Jusqu’à `max` aperçus, un par pays, pour montrer le contraste des regards. */
+function pickContrastingPreviews(
+  previews: TopicArticlePreview[],
+  max: number,
+): TopicArticlePreview[] {
+  const seen = new Set<string>();
+  const out: TopicArticlePreview[] = [];
+  for (const p of previews) {
+    const cc = (p.country_code ?? "").trim().toUpperCase() || "XX";
+    if (seen.has(cc)) continue;
+    seen.add(cc);
+    out.push(p);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 function TopicArticleLine({
   preview,
   selected,
@@ -156,11 +173,16 @@ export function TopicSection({
         </p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-        {topic.is_multi_perspective === false ? (
+        {topic.is_multi_perspective ? (
+          <span className="border-l border-accent pl-2 text-[11px] font-medium text-foreground">
+            Plusieurs regards
+          </span>
+        ) : (
           <span className="border-l border-border pl-2 text-foreground-body">
             Point de vue national
           </span>
-        ) : countriesText ? (
+        )}
+        {countriesText ? (
           <span className="text-foreground-body">{countriesText}</span>
         ) : null}
         {topic.article_count != null && (
@@ -169,6 +191,27 @@ export function TopicSection({
           </span>
         )}
       </div>
+      {mode === "summary" && previews.length > 0 ? (
+        <ul className="mt-4 space-y-3 border-l border-border pl-3">
+          {pickContrastingPreviews(previews, 3).map((p) => {
+            const cc = (p.country_code ?? "").trim().toUpperCase() || "";
+            const flag = REGION_FLAG_EMOJI[cc];
+            const place = p.country?.trim() || cc || "Région";
+            return (
+              <li key={p.id} className="text-[12px] leading-snug">
+                <span className="font-medium text-foreground">
+                  {flag ? `${flag} ${place}` : place}
+                </span>
+                {p.thesis_summary_fr ? (
+                  <p className="mt-1 italic leading-relaxed text-foreground-body">
+                    {p.thesis_summary_fr}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </>
   );
 

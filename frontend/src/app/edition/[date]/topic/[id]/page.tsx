@@ -16,6 +16,7 @@ export default function EditionTopicPage() {
     queryKey: ["edition", date] as const,
     queryFn: (): Promise<Edition> => api.editionByDate(date),
     enabled: Boolean(date),
+    staleTime: 5 * 60 * 1000,
   });
 
   const editionId = editionQ.data?.id;
@@ -51,7 +52,7 @@ export default function EditionTopicPage() {
           href={`/edition/${date}`}
           className="underline-offset-4 hover:underline"
         >
-          Sommaire de l’édition
+          Sujets du jour
         </Link>
       </nav>
       {topic && editionId && (

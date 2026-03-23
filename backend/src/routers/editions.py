@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
@@ -23,7 +23,10 @@ from src.services.edition_review_generator import (
     generate_all_edition_topics,
     generate_edition_topic_review,
 )
-from src.services.edition_schedule import find_edition_for_calendar_date
+from src.services.edition_schedule import (
+    ensure_edition_for_publish_date,
+    find_edition_for_calendar_date,
+)
 from src.services.topic_detector import run_topic_detection_for_edition_id
 
 router = APIRouter(prefix="/api/editions", tags=["editions"])
@@ -49,6 +52,8 @@ class EditionOut(BaseModel):
     detection_status: str = "pending"
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    corpus_article_count: Optional[int] = None
+    corpus_country_count: Optional[int] = None
 
 
 class EditionPatch(BaseModel):
@@ -152,7 +157,12 @@ def _edition_topic_to_out(
     )
 
 
-def _edition_to_out(e: Edition) -> EditionOut:
+def _edition_to_out(
+    e: Edition,
+    *,
+    corpus_article_count: Optional[int] = None,
+    corpus_country_count: Optional[int] = None,
+) -> EditionOut:
     return EditionOut(
         id=e.id,
         publish_date=e.publish_date,
@@ -168,7 +178,33 @@ def _edition_to_out(e: Edition) -> EditionOut:
         detection_status=getattr(e, "detection_status", "pending") or "pending",
         created_at=e.created_at.isoformat() if e.created_at else None,
         updated_at=e.updated_at.isoformat() if e.updated_at else None,
+        corpus_article_count=corpus_article_count,
+        corpus_country_count=corpus_country_count,
     )
+
+
+async def _count_corpus_for_edition_window(
+    db: AsyncSession,
+    edition: Edition,
+) -> tuple[int, int]:
+    """Articles traduits, non syndiqués, dans la fenêtre d’édition (aligné sujets / journaliste)."""
+    stmt = (
+        select(
+            func.count(Article.id),
+            func.count(func.distinct(MediaSource.country_code)),
+        )
+        .select_from(Article)
+        .join(MediaSource, Article.media_source_id == MediaSource.id)
+        .where(
+            Article.collected_at >= edition.window_start,
+            Article.collected_at < edition.window_end,
+            Article.status.in_(("translated", "formatted", "needs_review")),
+            Article.is_syndicated.is_(False),
+        )
+    )
+    res = await db.execute(stmt)
+    row = res.one()
+    return int(row[0] or 0), int(row[1] or 0)
 
 
 @router.get("", response_model=list[EditionOut])
@@ -189,8 +225,15 @@ async def get_edition_by_date(
 ) -> Any:
     e = await find_edition_for_calendar_date(db, publish_date)
     if not e:
-        raise HTTPException(status_code=404, detail="Edition not found for this date")
-    return _edition_to_out(e)
+        e = await ensure_edition_for_publish_date(db, publish_date)
+        await db.commit()
+        await db.refresh(e)
+    n_art, n_cc = await _count_corpus_for_edition_window(db, e)
+    return _edition_to_out(
+        e,
+        corpus_article_count=n_art,
+        corpus_country_count=n_cc,
+    )
 
 
 @router.get("/{edition_id}", response_model=EditionOut)
@@ -215,7 +258,7 @@ async def list_edition_topics(
         default=TOPIC_ARTICLE_PREVIEW_DEFAULT,
         ge=1,
         le=TOPIC_ARTICLE_PREVIEW_MAX,
-        description="Nombre max d’articles par sujet (page édition : utiliser 200).",
+        description="Nombre max d’aperçus par sujet (sommaire : 6–12 ; fiche : plus).",
     ),
     db: AsyncSession = Depends(get_db),
 ) -> Any:

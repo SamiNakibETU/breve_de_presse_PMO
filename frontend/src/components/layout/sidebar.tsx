@@ -9,7 +9,7 @@ import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
-  { href: "/", label: "Sommaire" },
+  { href: "/", label: "Sujets du jour" },
   { href: "/articles", label: "Articles" },
 ] as const;
 
@@ -74,9 +74,13 @@ export function Masthead() {
                 type="button"
                 className="olj-btn-secondary shrink-0"
                 disabled={running !== null}
-                onClick={() => pipeline.startRun("collect", "Collecte")}
+                onClick={() =>
+                  pipeline.startRun("pipeline", "Traitement complet")
+                }
               >
-                {running?.key === "collect" ? "Collecte…" : "Lancer la collecte"}
+                {running?.key === "pipeline"
+                  ? "Traitement…"
+                  : "Actualiser (traitement complet)"}
               </button>
             )}
           </div>

@@ -248,6 +248,9 @@ export interface Edition {
   generated_text: string | null;
   /** Détection sujets LLM (migration MEMW v2). */
   detection_status?: EditionDetectionStatus;
+  /** Corpus éditorial dans la fenêtre d’édition (GET by-date). */
+  corpus_article_count?: number | null;
+  corpus_country_count?: number | null;
 }
 
 export interface TopicArticlePreview {

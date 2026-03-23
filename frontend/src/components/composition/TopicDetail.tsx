@@ -153,15 +153,37 @@ export function TopicDetail({
     return out;
   }, [articleIdsOrder, articles, byId]);
 
+  const recommendedIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of articleRefs) {
+      if (r.is_recommended) {
+        s.add(r.article_id);
+      }
+    }
+    return s;
+  }, [articleRefs]);
+
+  const recommendedArticles = useMemo(
+    () => orderedArticles.filter((a) => recommendedIds.has(a.id)),
+    [orderedArticles, recommendedIds],
+  );
+
+  const articlesOutsideRecommended = useMemo(
+    () => orderedArticles.filter((a) => !recommendedIds.has(a.id)),
+    [orderedArticles, recommendedIds],
+  );
+
   const { retained, others } = useMemo(
-    () => partitionArticlesBySelection(orderedArticles, selected),
-    [orderedArticles, selected],
+    () => partitionArticlesBySelection(articlesOutsideRecommended, selected),
+    [articlesOutsideRecommended, selected],
   );
 
   const retainedEmptyMessage =
     orderedArticles.length === 0
       ? "Aucun texte n’est rattaché à ce sujet."
-      : "Aucun article sélectionné. Cochez les textes à inclure dans la revue.";
+      : articlesOutsideRecommended.length === 0
+        ? "Tous les textes figurent dans « Regards mis en avant » ci-dessus."
+        : "Aucun article sélectionné. Cochez les textes à inclure dans la revue.";
 
   const othersEmptyMessage =
     orderedArticles.length === 0
@@ -195,6 +217,18 @@ export function TopicDetail({
         </h2>
 
         <div className="space-y-8 pt-2">
+          {recommendedArticles.length > 0 ? (
+            <ArticleBlock
+              title="Regards mis en avant (un texte par pays)"
+              articles={recommendedArticles}
+              refs={articleRefs}
+              articleIdsOrder={articleIdsOrder}
+              selected={selected}
+              onToggle={toggle}
+              countryLabelsFr={countryLabelsFr}
+              emptyMessage={undefined}
+            />
+          ) : null}
           <ArticleBlock
             title="Retenus pour ce sujet"
             articles={retained}

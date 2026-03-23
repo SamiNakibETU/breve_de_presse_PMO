@@ -8,4 +8,8 @@ export function invalidateDashboardQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ["clusterArticles"] });
   void queryClient.invalidateQueries({ queryKey: ["articles"] });
   void queryClient.invalidateQueries({ queryKey: ["mediaSourcesHealth"] });
+  void queryClient.invalidateQueries({ queryKey: ["edition"] });
+  void queryClient.invalidateQueries({ queryKey: ["editionTopics"] });
+  void queryClient.invalidateQueries({ queryKey: ["editionClustersFallback"] });
+  void queryClient.invalidateQueries({ queryKey: ["editionTopicDetail"] });
 }
