@@ -13,6 +13,7 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -206,26 +207,26 @@ async def _daily_pipeline_body(
         pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
 
     async def _topic_detection_job() -> dict:
-        from src.models.edition import Edition
-        from src.services.edition_schedule import resolve_edition_id_for_timestamp
+        from src.services.edition_schedule import BEIRUT, find_edition_for_calendar_date
         from src.services.topic_detector import TopicDetector
 
         factory = get_session_factory()
         async with factory() as db:
-            eid = await resolve_edition_id_for_timestamp(
-                db, datetime.now(timezone.utc),
-            )
-            if not eid:
-                return {"topics_created": 0, "note": "no_edition"}
-            edition = await db.get(Edition, eid)
+            # Ne pas utiliser « maintenant » dans resolve_edition_id_for_timestamp : entre la fin
+            # de fenêtre (J 6h) et le début de la suivante (J 18h) à Beyrouth, aucune édition ne
+            # contient ce timestamp → pas de sujets alors que le corpus du jour existe.
+            cal = datetime.now(BEIRUT).date()
+            edition = await find_edition_for_calendar_date(db, cal)
             if not edition:
-                return {"topics_created": 0, "note": "edition_missing"}
+                return {"topics_created": 0, "note": "no_edition_for_calendar_date"}
             detector = TopicDetector()
             t0 = time.monotonic()
             n = await detector.build_edition_topics(db, edition)
             return {
                 "topics_created": n,
                 "duration_s": round(time.monotonic() - t0, 2),
+                "edition_id": str(edition.id),
+                "publish_date": edition.publish_date.isoformat(),
             }
 
     p("topic_detection", "Détection des développements (LLM)…")
@@ -357,8 +358,17 @@ async def _daily_pipeline_body(
     try:
         topic_result = await topic_detection_task
         pipeline_result["topic_detection"] = topic_result
+        topic_log_edition_id = None
+        raw_eid = topic_result.get("edition_id")
+        if isinstance(raw_eid, str):
+            try:
+                topic_log_edition_id = UUID(raw_eid)
+            except ValueError:
+                topic_log_edition_id = None
+        if topic_log_edition_id is None:
+            topic_log_edition_id = await resolve_current_edition_id()
         await log_pipeline_step(
-            await resolve_current_edition_id(),
+            topic_log_edition_id,
             "topic_detection",
             compact_payload(topic_result),
         )

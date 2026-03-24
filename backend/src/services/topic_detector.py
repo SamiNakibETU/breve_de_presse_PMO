@@ -251,11 +251,19 @@ class TopicDetector:
             )
             res = await db.execute(stmt)
             rows = list(res.all())
+            logger.info(
+                "topic_detector.editorial_candidates",
+                edition_id=str(eid),
+                count=len(rows),
+                min_required=5,
+                types=list(EDITORIAL_TYPES),
+            )
             if len(rows) < 5:
                 logger.warning(
                     "topic_detector.too_few_articles",
                     edition_id=str(eid),
                     count=len(rows),
+                    hint="Seuls opinion/editorial/tribune/analysis traduits dans la fenêtre comptent.",
                 )
                 edition.detection_status = "done"
                 await db.commit()
@@ -307,7 +315,8 @@ class TopicDetector:
                 by_dev[dev_id].append((a, s, fc, pr))
 
             total_assigned = sum(len(v) for v in by_dev.values())
-            if total_assigned + hors > 0 and hors / (total_assigned + hors) > 0.30:
+            classified = total_assigned + hors
+            if classified > 0 and hors / classified > 0.30:
                 logger.warning(
                     "topic_detector.high_hors_sujet_ratio",
                     edition_id=str(eid),
@@ -371,6 +380,16 @@ class TopicDetector:
                     db.add(link)
 
                 topics_created += 1
+
+            if topics_created == 0 and len(developments) > 0:
+                logger.warning(
+                    "topic_detector.zero_topics_after_llm",
+                    edition_id=str(eid),
+                    developments=len(developments),
+                    hors_sujet_assignments=hors,
+                    articles_classified=classified,
+                    hint="Passe 2 a tout mis hors_sujet ou les seaux ne recoupent pas les id des développements.",
+                )
 
             edition.detection_status = "done"
             await db.commit()
