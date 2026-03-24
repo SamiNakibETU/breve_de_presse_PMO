@@ -662,46 +662,44 @@ export default function EditionSommairePage() {
               ) : null}
             </div>
             {edition && editionWindowCompact ? (
-              <div className="mt-2 max-w-3xl space-y-1">
+              <div className="mt-2 max-w-3xl space-y-2">
                 <p
                   className="text-[12px] leading-snug text-foreground-body"
                   title={editionWindowLabel ?? undefined}
                 >
-                  <span className="font-semibold text-foreground">Collecte couverte (Beyrouth) :</span>{" "}
+                  <span className="font-semibold text-foreground">Fenêtre de cette édition (Beyrouth) :</span>{" "}
                   {editionWindowCompact}
                 </p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  La date du titre est le{" "}
-                  <strong className="font-medium text-foreground-body">jour de parution</strong> (jour J). Le
-                  corpus (liste et compteurs) regroupe les articles{" "}
-                  <strong className="font-medium text-foreground-body">traduits</strong> rattachés à cette
-                  édition : à l’ingestion, le serveur assigne l’édition d’après la{" "}
-                  <strong className="font-medium text-foreground-body">date de parution source</strong> dans
-                  l’intervalle ci-dessus — ce n’est pas une « journée civile » 0h–24h, et ce n’est pas l’heure
-                  exacte du passage du cron.
-                </p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  <strong className="font-medium text-foreground-body">Mardi à vendredi :</strong> veille 18h →
-                  jour J 6h (Beyrouth). Un article dont la parution source tombe après la fin de fenêtre du jour
-                  J est rattaché à l’édition ouvrée suivante, même si la collecte automatique a lieu plus tard
-                  (ex. 9h Paris).
-                </p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  <strong className="font-medium text-foreground-body">Lundi :</strong> une seule édition
-                  regroupe le <strong className="font-medium text-foreground-body">week-end</strong> : vendredi
-                  18h → lundi 6h (Beyrouth). Les samedi et dimanche ne sont pas des dates de parution séparées
-                  dans l’outil. Le volume couvert est plus large qu’une nuit seule ; le plafond de sujets au
-                  sommaire reste celui paramétré pour l’édition (souvent le même que les autres jours ouvrés).
-                </p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  <strong className="font-medium text-foreground-body">Quand le serveur lance le pipeline :</strong>{" "}
-                  <strong className="font-medium text-foreground-body">un seul passage par jour ouvré</strong>, à{" "}
-                  <strong className="font-medium text-foreground-body">9h heure de Paris</strong> (réglable via{" "}
-                  <code className="rounded bg-muted/50 px-0.5 font-mono text-[10px]">PIPELINE_PARIS_MORNING_HOUR</code>
-                  ). Le <strong className="font-medium text-foreground-body">lundi</strong> ce même créneau traite le{" "}
-                  <strong className="font-medium text-foreground-body">week-end entier</strong> (gros volume). Pas de
-                  passage automatique samedi–dimanche. Beyrouth est en général à +1h sur Paris : 9h Paris ≈ 10h Beyrouth.
-                  Ce sont les <em>horaires de lancement</em>, pas les bornes de la fenêtre éditoriale (ci-dessus).
+                <ul className="list-none space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 shrink-0 font-semibold text-accent" aria-hidden>
+                      ·
+                    </span>
+                    <span>
+                      <strong className="font-medium text-foreground-body">Jour J</strong> = date du titre. Ici on
+                      compte les articles <strong className="font-medium text-foreground-body">déjà traduits</strong>{" "}
+                      et <strong className="font-medium text-foreground-body">rattachés à cette édition</strong> selon
+                      la <strong className="font-medium text-foreground-body">date de parution chez le média</strong>,
+                      dans l’intervalle ci-dessus — pas une journée civile 0h–24h, et pas l’heure où notre serveur les
+                      enregistre.
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 shrink-0 font-semibold text-accent" aria-hidden>
+                      ·
+                    </span>
+                    <span>
+                      <strong className="font-medium text-foreground-body">Mar.–ven.</strong> veille 18h → jour J 6h.{" "}
+                      <strong className="font-medium text-foreground-body">Lundi</strong> = édition week-end (ven. 18h
+                      → lun. 6h). Un texte paru <strong className="font-medium text-foreground-body">après</strong> la
+                      fin de fenêtre est pour <strong className="font-medium text-foreground-body">l’édition suivante</strong>
+                      , même si la collecte automatique ne passe que le lendemain matin.
+                    </span>
+                  </li>
+                </ul>
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  Horaires du traitement automatique, fuseaux et détail technique : section repliable{" "}
+                  <strong className="font-medium text-foreground-body">Planificateur · historique</strong> ci-dessous.
                 </p>
               </div>
             ) : null}
@@ -748,12 +746,14 @@ export default function EditionSommairePage() {
             <div className="mt-2 space-y-2 text-[11px] leading-relaxed text-muted-foreground">
               <p>
                 <strong className="font-medium text-foreground/90">1</strong> Sommaire (grands sujets) ·{" "}
-                <strong className="font-medium text-foreground/90">2</strong> Affinités (textes proches) ·{" "}
-                <strong className="font-medium text-foreground/90">3</strong> Corpus et outils en bas de page.
+                <strong className="font-medium text-foreground/90">2</strong> Affinités (regroupements par
+                proximité) · <strong className="font-medium text-foreground/90">3</strong> Corpus et outils en bas de
+                page.
               </p>
               <p className="border-l-2 border-border pl-2">
-                <em>Sujet</em> au sommaire = <em>développement</em> côté outil. Les affinités suivent une autre logique
-                (ressemblance entre textes).
+                <em>Grands sujets</em> = choix éditorial automatique (développements du jour).{" "}
+                <em>Affinités</em> = dossiers par ressemblance entre textes ; utile pour comparer des angles, distinct du
+                sommaire.
               </p>
             </div>
           </details>
@@ -1044,8 +1044,8 @@ export default function EditionSommairePage() {
                   {editionWindowLabel ? (
                     <p className="max-w-2xl text-[12px] font-normal normal-case tracking-normal text-muted-foreground">
                       {debouncedQ
-                        ? `Filtrés dans la même fenêtre · ${editionWindowLabel}`
-                        : `Textes de la fenêtre · ${editionWindowLabel}`}
+                        ? `Même périmètre édition · ${editionWindowLabel}`
+                        : `Corpus traduit de l’édition · ${editionWindowLabel}`}
                     </p>
                   ) : null}
                 </div>

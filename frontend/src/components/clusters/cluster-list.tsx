@@ -21,10 +21,10 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
     return (
       <div className="py-12 text-center text-muted-foreground">
         <p className="font-[family-name:var(--font-serif)] text-lg text-foreground">
-          Aucun sujet thématique détecté
+          Aucun dossier d’affinités pour l’instant
         </p>
         <p className="mt-2 text-sm">
-          Lancez le traitement complet (régie) pour collecter et analyser les articles
+          Lancez le traitement complet (régie) pour collecter, traduire et regrouper les textes.
         </p>
       </div>
     );
@@ -33,13 +33,11 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
   return (
     <div className="space-y-5">
       <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
-        Chaque carte regroupe des articles proches sémantiquement (affichage en deux colonnes). Tri par{" "}
-        <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>.{" "}
-        <strong className="font-medium text-foreground-subtle">Extrait principal</strong> : thèse de
-        l’article le plus récent du sujet, avec sa source.{" "}
-        <strong className="font-medium text-foreground-subtle">Second extrait</strong> : autre article
-        du même regroupement si disponible. En bas : couverture par pays. La page du sujet détaille la
-        matrice et les textes complets.
+        Chaque carte est un <strong className="font-medium text-foreground-subtle">dossier d’affinités</strong>{" "}
+        : textes rapprochés automatiquement (ce n’est pas le sommaire éditorial). Grille en deux colonnes,
+        tri par <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>. Jusqu’à{" "}
+        <strong className="font-medium text-foreground-subtle">trois voix</strong> (pastilles Voix 1–3) : thèses
+        courtes et source — la fiche complète liste tous les articles et la couverture par pays.
       </p>
 
       <ul className="grid list-none grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
