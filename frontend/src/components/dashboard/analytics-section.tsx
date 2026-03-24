@@ -18,9 +18,12 @@ function formatUsd(n: number): string {
 export function AnalyticsSection({
   days,
   onDaysChange,
+  showSectionHeading = true,
 }: {
   days: number;
   onDaysChange: (d: number) => void;
+  /** Sur la page dédiée Régie, le titre principal est dans le layout page. */
+  showSectionHeading?: boolean;
 }) {
   const q = useQuery({
     queryKey: ["regieAnalyticsSummary", days] as const,
@@ -31,7 +34,9 @@ export function AnalyticsSection({
   if (q.isPending) {
     return (
       <section aria-busy="true">
-        <h2 className="olj-rubric olj-rule">Analytique et coûts LLM</h2>
+        {showSectionHeading ? (
+          <h2 className="olj-rubric olj-rule">Analytique et coûts LLM</h2>
+        ) : null}
         <p className="text-[13px] text-muted-foreground">Chargement des agrégats…</p>
       </section>
     );
@@ -40,7 +45,9 @@ export function AnalyticsSection({
   if (q.isError) {
     return (
       <section>
-        <h2 className="olj-rubric olj-rule">Analytique et coûts LLM</h2>
+        {showSectionHeading ? (
+          <h2 className="olj-rubric olj-rule">Analytique et coûts LLM</h2>
+        ) : null}
         <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
           {q.error.message}
           {" — "}
@@ -54,13 +61,38 @@ export function AnalyticsSection({
 
   return (
     <section className="space-y-6">
+      <div
+        className="rounded-md border border-border-light bg-muted/20 p-4 text-[12px] leading-relaxed text-muted-foreground"
+        role="note"
+      >
+        <p className="font-semibold text-foreground">Périmètre des coûts affichés</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4">
+          <li>
+            <strong className="text-foreground">Inclus (estimé)</strong> : appels enregistrés en base pour le{" "}
+            <strong className="text-foreground">curateur</strong> et la{" "}
+            <strong className="text-foreground">génération de texte revue</strong> (souvent Anthropic Sonnet),
+            à partir des tailles de texte — pas les compteurs facturés des APIs.
+          </li>
+          <li>
+            <strong className="text-foreground">Non inclus</strong> : traduction article par article (Groq,
+            Cerebras, Anthropic, etc.), embeddings <strong className="text-foreground">Cohere</strong>, et tout
+            autre LLM qui n’alimente pas la table <code className="text-[11px]">llm_call_logs</code>.
+          </li>
+        </ul>
+        <p className="mt-3 border-t border-border-light pt-3 text-[11px]">{data.note_fr}</p>
+      </div>
+
       <div className="flex flex-col gap-3 border-b border-border-light pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="olj-rubric">Analytique et coûts LLM</h2>
+          {showSectionHeading ? (
+            <h2 className="olj-rubric">Analytique et coûts LLM</h2>
+          ) : (
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Synthèse
+            </p>
+          )}
           <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-            Requêtes API enregistrées par le serveur (routes normalisées) et appels LLM
-            journalisés (curateur, génération de texte revue).{" "}
-            <span className="text-foreground/80">{data.note_fr}</span>
+            Compteurs de requêtes HTTP (middleware) et agrégats issus du journal LLM persisté.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

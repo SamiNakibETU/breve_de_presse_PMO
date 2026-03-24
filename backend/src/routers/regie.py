@@ -282,9 +282,10 @@ async def analytics_summary(
         llm_total_cost_usd_estimated=round(llm_total_cost, 6),
         llm_by_day_model=llm_rows_out,
         note_fr=(
-            "Coûts et tokens LLM sont estimés à partir des tailles de texte (pas les compteurs "
-            "fournisseurs). Seuls les appels enregistrés dans llm_call_logs (curateur, génération "
-            "revue) sont inclus."
+            "Les coûts et tokens LLM sont estimés à partir des tailles de texte (pas les compteurs "
+            "fournisseurs). Seuls les appels persistés dans llm_call_logs (curateur, génération revue) "
+            "comptent : pas la traduction (Groq/Cerebras/Anthropic), pas Cohere (embeddings), ni les "
+            "autres étapes pipeline non journalisées en base."
         ),
     )
 

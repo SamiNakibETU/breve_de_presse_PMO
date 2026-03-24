@@ -16,6 +16,7 @@ const DATA_AND_OPS: { href: string; label: string }[] = [
   { href: "/regie", label: "Vue d’ensemble" },
   { href: "/regie/sources", label: "Sources" },
   { href: "/regie/logs", label: "Journaux" },
+  { href: "/regie/analytics", label: "Analytique interne" },
 ];
 
 function linkActive(pathname: string, href: string): boolean {
