@@ -52,15 +52,12 @@ async def run_daily_pipeline(
     trigger: str,
     on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> dict:
-    """Exécute le pipeline complet ; lève PipelineBusyError si déjà en cours (hors déclencheurs cron)."""
-    acquired = False
-    try:
-        await asyncio.wait_for(_pipeline_lock.acquire(), timeout=0.0)
-        acquired = True
-    except asyncio.TimeoutError:
-        pass
+    """Exécute le pipeline complet ; lève PipelineBusyError si déjà en cours (hors déclencheurs cron).
 
-    if not acquired:
+    Ne pas utiliser ``wait_for(lock.acquire(), timeout=0)`` : en CPython cela lève presque toujours
+    ``TimeoutError`` même si le verrou est libre, ce qui bloquait tout lancement manuel.
+    """
+    if _pipeline_lock.locked():
         if trigger.startswith("cron"):
             logger.warning(
                 "pipeline.skipped_already_running",
@@ -73,13 +70,13 @@ async def run_daily_pipeline(
             }
         raise PipelineBusyError()
 
+    await _pipeline_lock.acquire()
     try:
         logger.info("pipeline.lock_acquired", trigger=trigger)
         return await _daily_pipeline_body(on_progress)
     finally:
-        if acquired:
-            _pipeline_lock.release()
-            logger.info("pipeline.lock_released", trigger=trigger)
+        _pipeline_lock.release()
+        logger.info("pipeline.lock_released", trigger=trigger)
 
 
 async def _daily_pipeline_body(

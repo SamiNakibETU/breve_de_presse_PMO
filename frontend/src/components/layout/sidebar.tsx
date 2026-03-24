@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { api } from "@/lib/api";
+import type { AppStatus } from "@/lib/types";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,15 @@ export function Masthead() {
     staleTime: 60_000,
   });
 
+  const statusQ = useQuery({
+    queryKey: ["status"] as const,
+    queryFn: () => api.status(),
+    staleTime: 30_000,
+    refetchInterval: (q) =>
+      q.state.data?.pipeline_running === true ? 4_000 : false,
+  });
+  const serverPipelineBusy = Boolean(statusQ.data?.pipeline_running);
+
   return (
     <header className="border-b border-border bg-background shadow-sm">
       <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
@@ -73,14 +83,21 @@ export function Masthead() {
               <button
                 type="button"
                 className="olj-btn-secondary shrink-0"
-                disabled={running !== null}
+                disabled={running !== null || serverPipelineBusy}
+                title={
+                  serverPipelineBusy
+                    ? "Un pipeline complet est déjà en cours sur le serveur."
+                    : undefined
+                }
                 onClick={() =>
                   pipeline.startRun("pipeline", "Traitement complet")
                 }
               >
                 {running?.key === "pipeline"
                   ? "Traitement…"
-                  : "Actualiser (traitement complet)"}
+                  : serverPipelineBusy
+                    ? "Pipeline serveur…"
+                    : "Actualiser (traitement complet)"}
               </button>
             )}
           </div>
