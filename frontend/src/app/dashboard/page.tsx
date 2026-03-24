@@ -108,7 +108,7 @@ export default function DashboardPage() {
     <div className="space-y-10">
       <header>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
-          Sujets du jour
+          Clusters & vigie
         </h1>
         <p className="mt-1 text-[13px] capitalize text-muted-foreground">
           {dateStr} · {subjectCount} sujet{subjectCount !== 1 ? "s" : ""}

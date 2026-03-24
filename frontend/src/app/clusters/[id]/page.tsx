@@ -66,10 +66,10 @@ export default function ClusterDetailPage() {
     <div className="space-y-8 pb-24">
       <header>
         <Link
-          href="/"
+          href="/dashboard"
           className="mb-4 inline-block text-[12px] text-muted-foreground hover:text-foreground"
         >
-          ← Sujets du jour
+          ← Clusters & vigie
         </Link>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           {loading ? "Chargement…" : displayClusterTitle(clusterLabel)}

@@ -39,7 +39,7 @@ export function PipelineGlobalBar() {
             href="/"
             className="ml-auto shrink-0 text-[12px] font-medium underline decoration-border underline-offset-2 hover:text-accent"
           >
-            Sujets du jour
+            Édition du jour
           </Link>
         ) : null}
       </div>

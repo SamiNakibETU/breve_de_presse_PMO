@@ -10,11 +10,12 @@ import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
-  { href: "/", label: "Sujets du jour" },
+  { href: "/", label: "Édition du jour" },
+  { href: "/dashboard", label: "Clusters & vigie" },
   { href: "/articles", label: "Articles" },
 ] as const;
 
-function prefetchDashboardData(queryClient: ReturnType<typeof useQueryClient>) {
+function prefetchNavData(queryClient: ReturnType<typeof useQueryClient>) {
   void Promise.all([
     queryClient.prefetchQuery({
       queryKey: ["stats"] as const,
@@ -60,7 +61,7 @@ export function Masthead() {
             <Link
               href="/"
               prefetch
-              onMouseEnter={() => prefetchDashboardData(queryClient)}
+              onMouseEnter={() => prefetchNavData(queryClient)}
             >
               <Image
                 src="/logo_olj.svg"
@@ -111,7 +112,7 @@ export function Masthead() {
             const active =
               href === "/"
                 ? pathname === "/" || pathname.startsWith("/edition")
-                : pathname.startsWith(href);
+                : pathname === href || pathname.startsWith(`${href}/`);
 
             return (
               <Link
@@ -119,7 +120,9 @@ export function Masthead() {
                 href={href}
                 prefetch
                 onMouseEnter={() => {
-                  if (href === "/") prefetchDashboardData(queryClient);
+                  if (href === "/" || href === "/dashboard") {
+                    prefetchNavData(queryClient);
+                  }
                 }}
                 className={cn(
                   "olj-nav-item",
@@ -135,9 +138,7 @@ export function Masthead() {
             prefetch
             className={cn(
               "olj-nav-item olj-nav-item--subtle sm:ml-auto",
-              (pathname.startsWith("/regie") ||
-                pathname.startsWith("/dashboard")) &&
-                "olj-nav-item--active",
+              pathname.startsWith("/regie") && "olj-nav-item--active",
             )}
           >
             Régie
