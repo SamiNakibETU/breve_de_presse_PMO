@@ -98,16 +98,26 @@ function parseSchedulerDate(raw: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" {
-  return jobId === "edition_daily_create_beirut" ? "Asia/Beirut" : "UTC";
+function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" | "Europe/Paris" {
+  if (jobId === "edition_daily_create_beirut") {
+    return "Asia/Beirut";
+  }
+  if (jobId === "daily_pipeline_monday" || jobId === "daily_pipeline_weekday") {
+    return "Europe/Paris";
+  }
+  return "UTC";
 }
 
 function schedulerJobTitleFr(jobId: string, fallbackName: string): string {
   switch (jobId) {
+    case "daily_pipeline_monday":
+      return "Pipeline week-end (lundi 9h Paris)";
+    case "daily_pipeline_weekday":
+      return "Pipeline mardi–vendredi (9h Paris)";
     case "daily_pipeline_morning":
-      return "Collecte et traitement du matin";
+      return "Collecte et traitement du matin (ancien cron UTC)";
     case "daily_pipeline_afternoon":
-      return "Mise à jour de l’après-midi";
+      return "Mise à jour de l’après-midi (ancien cron)";
     case "edition_daily_create_beirut":
       return "Ouverture de l’édition du lendemain";
     default:
@@ -124,7 +134,12 @@ function formatJobNextRunFr(jobId: string, nextRun: string | null): string {
     return nextRun;
   }
   const tz = schedulerJobTimeZone(jobId);
-  const suffix = tz === "UTC" ? " UTC" : " · heure de Beyrouth";
+  const suffix =
+    tz === "UTC"
+      ? " UTC"
+      : tz === "Asia/Beirut"
+        ? " · heure de Beyrouth"
+        : " · heure de Paris";
   return (
     new Intl.DateTimeFormat("fr-FR", {
       weekday: "long",
@@ -149,7 +164,12 @@ function formatJobLastRunFr(
   }
   const d = parseSchedulerDate(lastRunAt);
   const tz = schedulerJobTimeZone(jobId);
-  const suffix = tz === "UTC" ? " UTC" : " · heure de Beyrouth";
+  const suffix =
+    tz === "UTC"
+      ? " UTC"
+      : tz === "Asia/Beirut"
+        ? " · heure de Beyrouth"
+        : " · heure de Paris";
   let base: string;
   if (!d) {
     base = lastRunAt;
@@ -277,7 +297,9 @@ export default function EditionSommairePage() {
   const statusQ = useQuery({
     queryKey: ["status"] as const,
     queryFn: () => api.status(),
-    staleTime: QUERY_STALE_MS,
+    staleTime: 30_000,
+    refetchInterval: (q) =>
+      q.state.data?.pipeline_running === true ? 4_000 : false,
   });
 
   const topics = topicsQ.data ?? [];
@@ -640,13 +662,44 @@ export default function EditionSommairePage() {
               ) : null}
             </div>
             {edition && editionWindowCompact ? (
-              <p
-                className="mt-2 max-w-3xl text-[12px] leading-snug text-foreground-body"
-                title={editionWindowLabel ?? undefined}
-              >
-                <span className="font-semibold text-foreground">Collecte couverte (Beyrouth) :</span>{" "}
-                {editionWindowCompact}
-              </p>
+              <div className="mt-2 max-w-3xl space-y-1">
+                <p
+                  className="text-[12px] leading-snug text-foreground-body"
+                  title={editionWindowLabel ?? undefined}
+                >
+                  <span className="font-semibold text-foreground">Collecte couverte (Beyrouth) :</span>{" "}
+                  {editionWindowCompact}
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  La date du titre est le{" "}
+                  <strong className="font-medium text-foreground-body">jour de parution</strong> (jour J). Les
+                  articles rattachés à cette édition sont ceux dont l’entrée en base (
+                  <strong className="font-medium text-foreground-body">collecte</strong>) tombe dans
+                  l’intervalle affiché ci-dessus — ce n’est pas une « journée civile » 0h–24h.
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  <strong className="font-medium text-foreground-body">Mardi à vendredi :</strong> veille 18h →
+                  jour J 6h (Beyrouth). Un texte collecté après 6h le jour J appartient à l’édition ouvrée
+                  suivante.
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  <strong className="font-medium text-foreground-body">Lundi :</strong> une seule édition
+                  regroupe le <strong className="font-medium text-foreground-body">week-end</strong> : vendredi
+                  18h → lundi 6h (Beyrouth). Les samedi et dimanche ne sont pas des dates de parution séparées
+                  dans l’outil. Le volume couvert est plus large qu’une nuit seule ; le plafond de sujets au
+                  sommaire reste celui paramétré pour l’édition (souvent le même que les autres jours ouvrés).
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  <strong className="font-medium text-foreground-body">Quand le serveur lance le pipeline :</strong>{" "}
+                  <strong className="font-medium text-foreground-body">un seul passage par jour ouvré</strong>, à{" "}
+                  <strong className="font-medium text-foreground-body">9h heure de Paris</strong> (réglable via{" "}
+                  <code className="rounded bg-muted/50 px-0.5 font-mono text-[10px]">PIPELINE_PARIS_MORNING_HOUR</code>
+                  ). Le <strong className="font-medium text-foreground-body">lundi</strong> ce même créneau traite le{" "}
+                  <strong className="font-medium text-foreground-body">week-end entier</strong> (gros volume). Pas de
+                  passage automatique samedi–dimanche. Beyrouth est en général à +1h sur Paris : 9h Paris ≈ 10h Beyrouth.
+                  Ce sont les <em>horaires de lancement</em>, pas les bornes de la fenêtre éditoriale (ci-dessus).
+                </p>
+              </div>
             ) : null}
             {edition ? (
               <p className="mt-1.5 text-[11px] tabular-nums text-muted-foreground">
@@ -660,14 +713,24 @@ export default function EditionSommairePage() {
               <button
                 type="button"
                 className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
-                disabled={pipeline.running !== null}
+                disabled={
+                  pipeline.running !== null ||
+                  Boolean(statusQ.data?.pipeline_running)
+                }
+                title={
+                  statusQ.data?.pipeline_running
+                    ? "Un pipeline complet est déjà en cours sur le serveur (cron ou autre session)."
+                    : undefined
+                }
                 onClick={() =>
                   pipeline.startRun("pipeline", "Traitement complet")
                 }
               >
                 {pipeline.running?.key === "pipeline"
                   ? "Traitement…"
-                  : "Actualiser"}
+                  : statusQ.data?.pipeline_running
+                    ? "Pipeline serveur…"
+                    : "Actualiser"}
               </button>
             ) : null}
           </div>
@@ -697,7 +760,60 @@ export default function EditionSommairePage() {
             <summary className="cursor-pointer select-none text-[11px] font-medium text-muted-foreground marker:text-muted-foreground hover:text-foreground">
               Planificateur · historique
             </summary>
-            <div className="mt-2 space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+            <div className="mt-2 space-y-3 text-[11px] leading-relaxed text-muted-foreground">
+              <div className="border-l-2 border-border pl-2 space-y-1.5">
+                <p className="font-medium text-foreground-body">
+                  Indicateur « Traitement… » et traitements automatiques
+                </p>
+                <p className="text-[10px]">
+                  Le voyant <strong className="font-medium text-foreground-body">« Traitement… »</strong> (et
+                  le message « Traitement serveur » ci-dessous) ne concerne que les lancements déclenchés depuis
+                  cette interface via le bouton <strong className="font-medium text-foreground-body">Actualiser</strong>.
+                  Les exécutions <strong className="font-medium text-foreground-body">planifiées sur le serveur</strong>{" "}
+                  (cron APScheduler) utilisent le même pipeline mais <strong className="font-medium text-foreground-body">n’alimentent pas ce voyant</strong> : elles n’apparaissent qu’après coup dans les horaires indiqués pour chaque tâche et dans les journaux Railway.
+                </p>
+              </div>
+              <div className="border-l-2 border-border pl-2 space-y-1.5">
+                <p className="font-medium text-foreground-body">
+                  Horaires des collectes automatiques (référence code)
+                </p>
+                <p className="text-[10px]">
+                  <strong className="font-medium text-foreground-body">Un passage par jour</strong> du pipeline complet
+                  (collecte, traduction, embeddings, sujets…), planifié en{" "}
+                  <strong className="font-medium text-foreground-body">Europe/Paris</strong> à{" "}
+                  <strong className="font-medium text-foreground-body">9h00</strong> par défaut (
+                  <code className="rounded bg-muted/50 px-0.5 font-mono text-[9px]">PIPELINE_PARIS_MORNING_HOUR</code> /{" "}
+                  <code className="rounded bg-muted/50 px-0.5 font-mono text-[9px]">MINUTE</code>
+                  ). <strong className="font-medium text-foreground-body">Lundi :</strong> ce passage couvre le week-end
+                  (gros run). <strong className="font-medium text-foreground-body">Mardi à vendredi :</strong> passage
+                  quotidien. <strong className="font-medium text-foreground-body">Pas de cron</strong> samedi ni
+                  dimanche. Les lignes <em>Prochain passage</em> ci-dessous donnent l’heure exacte (affichée en heure de
+                  Paris pour ces jobs).
+                </p>
+                <p className="text-[10px]">
+                  Une tâche séparée crée l’édition du <strong className="font-medium text-foreground-body">lendemain ouvré</strong> à{" "}
+                  <strong className="font-medium text-foreground-body">minuit, heure de Beyrouth</strong> (voir la ligne
+                  « Ouverture de l’édition du lendemain » dans la liste).
+                </p>
+                <p className="text-[10px]">
+                  <strong className="font-medium text-foreground-body">Économie d’appels LLM :</strong> la traduction ne
+                  traite que les articles encore en statut <code className="font-mono text-[9px]">collected</code> /{" "}
+                  <code className="font-mono text-[9px]">error</code> ; un passage manuel avant le cron ne refait pas les
+                  textes déjà traduits. Un <strong className="font-medium text-foreground-body">verrou serveur</strong>{" "}
+                  empêche deux pipelines complets en parallèle (le bouton Actualiser est grisé si{" "}
+                  <code className="font-mono text-[9px]">pipeline_running</code>).
+                </p>
+              </div>
+              {statusQ.data?.pipeline_running && !pipeline?.running ? (
+                <p
+                  className="border-l-2 border-[#c8102e]/40 pl-2 text-[10px] text-foreground-body"
+                  role="status"
+                  aria-live="polite"
+                >
+                  Pipeline complet en cours sur le serveur (planificateur ou autre session) — le bouton Actualiser est
+                  indisponible jusqu’à la fin.
+                </p>
+              ) : null}
               {pipeline?.running ? (
                 <p
                   className="border-l-2 border-[#c8102e] pl-2 font-medium text-foreground"
@@ -737,6 +853,10 @@ export default function EditionSommairePage() {
                   {pipeline.lastRun.ok ? "" : " · erreur"}.
                 </p>
               ) : null}
+              <p className="text-[10px]">
+                Le serveur renvoie une erreur 409 si un traitement complet est déjà en cours ; l’interface désactive
+                aussi le bouton lorsque <code className="font-mono text-[9px]">pipeline_running</code> est vrai.
+              </p>
             </div>
           </details>
         ) : null}
@@ -795,14 +915,19 @@ export default function EditionSommairePage() {
                 <button
                   type="button"
                   className="olj-btn-primary mt-5 text-[13px] disabled:opacity-45"
-                  disabled={pipeline.running !== null}
+                  disabled={
+                    pipeline.running !== null ||
+                    Boolean(statusQ.data?.pipeline_running)
+                  }
                   onClick={() =>
                     pipeline.startRun("pipeline", "Traitement complet")
                   }
                 >
                   {pipeline.running?.key === "pipeline"
                     ? "Traitement…"
-                    : "Lancer le traitement complet"}
+                    : statusQ.data?.pipeline_running
+                      ? "Pipeline serveur…"
+                      : "Lancer le traitement complet"}
                 </button>
               ) : null}
               <p className="mt-4 text-[12px] text-muted-foreground">
@@ -849,14 +974,19 @@ export default function EditionSommairePage() {
                     <button
                       type="button"
                       className="olj-btn-secondary text-[12px] disabled:opacity-45"
-                      disabled={pipeline.running !== null}
+                      disabled={
+                        pipeline.running !== null ||
+                        Boolean(statusQ.data?.pipeline_running)
+                      }
                       onClick={() =>
                         pipeline.startRun("pipeline", "Traitement complet")
                       }
                     >
                       {pipeline.running?.key === "pipeline"
                         ? "Traitement…"
-                        : "Lancer le traitement complet"}
+                        : statusQ.data?.pipeline_running
+                          ? "Pipeline serveur…"
+                          : "Lancer le traitement complet"}
                     </button>
                   ) : null}
                 </section>

@@ -12,7 +12,11 @@ from src.schemas.pipeline import (
 from src.services import pipeline_task_store
 from src.services.collector import run_collection
 from src.services.pipeline_async_jobs import execute_pipeline_task
-from src.services.scheduler import daily_pipeline
+from src.services.scheduler import (
+    PipelineBusyError,
+    is_pipeline_running,
+    run_daily_pipeline,
+)
 from src.services.translator import run_translation_pipeline
 
 router = APIRouter(prefix="/api")
@@ -58,10 +62,15 @@ async def trigger_pipeline(
     _: None = Depends(require_internal_key),
 ):
     try:
-        stats = await daily_pipeline()
+        stats = await run_daily_pipeline(trigger="http_sync")
         return {"status": "ok", "stats": stats}
+    except PipelineBusyError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",
+        ) from exc
     except Exception as exc:
-        raise HTTPException(500, detail=str(exc))
+        raise HTTPException(500, detail=str(exc)) from exc
 
 
 @router.post("/pipeline/tasks", response_model=PipelineTaskStartResponse)
@@ -76,6 +85,11 @@ async def start_pipeline_task(
     Lance une tâche pipeline en arrière-plan. Suivi : **GET /api/pipeline/tasks/{task_id}**
     (polling client ~1 s). Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`.
     """
+    if body.kind.value == "full_pipeline" and is_pipeline_running():
+        raise HTTPException(
+            status_code=409,
+            detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",
+        )
     task_id = await pipeline_task_store.create_task(body.kind.value)
     background_tasks.add_task(
         execute_pipeline_task,

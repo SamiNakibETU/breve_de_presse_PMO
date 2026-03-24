@@ -8,6 +8,7 @@ from sqlalchemy import text
 from src.config import get_settings
 from src.database import get_session_factory
 from src.schemas.pipeline import SchedulerJobResponse, StatusResponse
+from src.services.scheduler import is_pipeline_running
 from src.services.metrics import prometheus_text, snapshot as metrics_snapshot
 
 router = APIRouter()
@@ -110,4 +111,5 @@ async def status(request: Request):
         status="running",
         environment=settings.environment,
         jobs=jobs,
+        pipeline_running=is_pipeline_running(),
     )

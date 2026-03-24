@@ -464,6 +464,12 @@ class TranslationPipeline:
             )
             articles = result.scalars().all()
 
+        logger.info(
+            "translation.db_queue",
+            candidates=len(articles),
+            batch_limit=limit,
+        )
+
         skipped = 0
         to_process = []
         for a in articles:

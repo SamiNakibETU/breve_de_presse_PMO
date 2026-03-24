@@ -127,6 +127,8 @@ export interface AppStatus {
   status: string;
   environment: string;
   jobs: SchedulerJob[];
+  /** True si un pipeline complet tourne (cron, POST synchrone ou tâche async). */
+  pipeline_running?: boolean;
 }
 
 export interface ReviewSummary {

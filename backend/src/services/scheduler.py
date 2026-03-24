@@ -1,12 +1,19 @@
 """
-Daily pipeline scheduler using APScheduler AsyncIOScheduler.
-Runs collection + translation + embedding + clustering at 06:00 and 14:00 UTC.
+Planificateur pipeline : APScheduler AsyncIOScheduler.
+
+- Lundi 9h Europe/Paris : passage « week-end » (fenêtre éditoriale large).
+- Mardi–vendredi 9h Europe/Paris : un seul passage par jour ouvré.
+- Plus de second passage 14h UTC ; pas de run samedi/dimanche.
+- Minuit Asia/Beirut : création de l’édition du lendemain ouvré.
+
+Un verrou asyncio empêche deux pipelines complets simultanés (cron / HTTP / tâche async).
 """
 
 import asyncio
 import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
+from zoneinfo import ZoneInfo
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -26,8 +33,56 @@ from src.services.translator import run_translation_pipeline
 logger = structlog.get_logger(__name__)
 settings = get_settings()
 
+_PARIS_TZ = ZoneInfo("Europe/Paris")
 
-async def daily_pipeline(
+_pipeline_lock = asyncio.Lock()
+
+
+class PipelineBusyError(Exception):
+    """Un pipeline complet tient déjà le verrou (cron, autre tâche ou POST /api/pipeline)."""
+
+
+def is_pipeline_running() -> bool:
+    """True tant qu’un `run_daily_pipeline` est en cours (cron, tâche async ou POST synchrone)."""
+    return _pipeline_lock.locked()
+
+
+async def run_daily_pipeline(
+    *,
+    trigger: str,
+    on_progress: Optional[Callable[[str, str], None]] = None,
+) -> dict:
+    """Exécute le pipeline complet ; lève PipelineBusyError si déjà en cours (hors déclencheurs cron)."""
+    acquired = False
+    try:
+        await asyncio.wait_for(_pipeline_lock.acquire(), timeout=0.0)
+        acquired = True
+    except asyncio.TimeoutError:
+        pass
+
+    if not acquired:
+        if trigger.startswith("cron"):
+            logger.warning(
+                "pipeline.skipped_already_running",
+                trigger=trigger,
+            )
+            return {
+                "skipped": True,
+                "reason": "pipeline_already_running",
+                "trigger": trigger,
+            }
+        raise PipelineBusyError()
+
+    try:
+        logger.info("pipeline.lock_acquired", trigger=trigger)
+        return await _daily_pipeline_body(on_progress)
+    finally:
+        if acquired:
+            _pipeline_lock.release()
+            logger.info("pipeline.lock_released", trigger=trigger)
+
+
+async def _daily_pipeline_body(
     on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> dict:
     def p(key: str, label: str) -> None:
@@ -327,11 +382,12 @@ async def daily_pipeline(
         ),
     )
 
-    hou = datetime.now(timezone.utc).hour
+    now_paris = datetime.now(_PARIS_TZ)
+    paris_h = now_paris.hour
     if (
         settings.anthropic_batch_enabled
         and (settings.anthropic_api_key or "").strip()
-        and hou == settings.collection_hour_utc
+        and 8 <= paris_h < 13
     ):
         try:
             from src.services.anthropic_batch import run_batch_hook
@@ -348,20 +404,39 @@ async def daily_pipeline(
 
 def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
+    h = settings.pipeline_paris_morning_hour
+    m = settings.pipeline_paris_morning_minute
+    tz_paris = "Europe/Paris"
+
+    async def _cron_monday() -> None:
+        await run_daily_pipeline(trigger="cron_monday")
+
+    async def _cron_weekday() -> None:
+        await run_daily_pipeline(trigger="cron_weekday")
 
     scheduler.add_job(
-        daily_pipeline,
-        trigger=CronTrigger(hour=settings.collection_hour_utc, minute=0),
-        id="daily_pipeline_morning",
-        name="Morning collection & processing",
+        _cron_monday,
+        trigger=CronTrigger(
+            day_of_week="mon",
+            hour=h,
+            minute=m,
+            timezone=tz_paris,
+        ),
+        id="daily_pipeline_monday",
+        name=f"Pipeline week-end (lun. {h:02d}:{m:02d} Paris)",
         replace_existing=True,
     )
 
     scheduler.add_job(
-        daily_pipeline,
-        trigger=CronTrigger(hour=14, minute=0),
-        id="daily_pipeline_afternoon",
-        name="Afternoon update",
+        _cron_weekday,
+        trigger=CronTrigger(
+            day_of_week="tue-fri",
+            hour=h,
+            minute=m,
+            timezone=tz_paris,
+        ),
+        id="daily_pipeline_weekday",
+        name=f"Pipeline mar.–ven. ({h:02d}:{m:02d} Paris)",
         replace_existing=True,
     )
 
@@ -380,8 +455,7 @@ def create_scheduler() -> AsyncIOScheduler:
 
     logger.info(
         "scheduler.configured",
-        morning=f"{settings.collection_hour_utc}:00 UTC",
-        afternoon="14:00 UTC",
+        paris_morning=f"{h:02d}:{m:02d} Europe/Paris (lun. + mar.–ven.)",
         edition_cron="00:00 Asia/Beirut",
     )
     return scheduler

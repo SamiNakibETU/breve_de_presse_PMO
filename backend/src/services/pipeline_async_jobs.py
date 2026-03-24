@@ -21,7 +21,7 @@ from src.services.pipeline_debug_log import (
     log_pipeline_step,
     resolve_current_edition_id,
 )
-from src.services.scheduler import daily_pipeline
+from src.services.scheduler import PipelineBusyError, run_daily_pipeline
 from src.services.translator import run_translation_pipeline
 
 
@@ -139,8 +139,16 @@ async def execute_full_pipeline_task(task_id: str) -> None:
         def on_progress(step_key: str, step_label: str) -> None:
             _schedule_update_step(task_id, step_key, step_label)
 
-        stats = await daily_pipeline(on_progress=on_progress)
+        stats = await run_daily_pipeline(
+            trigger=f"task:{task_id}",
+            on_progress=on_progress,
+        )
         await task_store.finish_ok(task_id, {"status": "ok", "stats": stats})
+    except PipelineBusyError:
+        await task_store.finish_error(
+            task_id,
+            "Un pipeline complet est déjà en cours (planificateur ou autre lancement). Réessayez plus tard.",
+        )
     except Exception as exc:  # noqa: BLE001
         await task_store.finish_error(task_id, str(exc))
 

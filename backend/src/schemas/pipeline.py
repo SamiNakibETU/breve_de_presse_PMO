@@ -59,6 +59,10 @@ class StatusResponse(BaseModel):
     status: str
     environment: str
     jobs: list[SchedulerJobResponse]
+    pipeline_running: bool = Field(
+        default=False,
+        description="True si un pipeline complet (cron, POST /api/pipeline ou tâche async) est en cours.",
+    )
 
 
 class PipelineTaskKind(str, Enum):

@@ -19,6 +19,9 @@ export default function RegiePipelinePage() {
   const statusQ = useQuery({
     queryKey: ["status"] as const,
     queryFn: (): Promise<AppStatus> => api.status(),
+    staleTime: 30_000,
+    refetchInterval: (q) =>
+      q.state.data?.pipeline_running === true ? 4_000 : false,
   });
 
   const healthQ = useQuery({

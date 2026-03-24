@@ -42,7 +42,23 @@ class Settings(BaseSettings):
     # --- Cerebras models (AR/FA/TR/KU translation) ---
     cerebras_translation_model: str = Field(default="qwen-3-235b-a22b")
 
-    collection_hour_utc: int = Field(default=6)
+    collection_hour_utc: int = Field(
+        default=6,
+        description="Déprécié : le planificateur utilise Europe/Paris 9h (voir scheduler). "
+        "Conservé pour variables d’environnement existantes ; non utilisé pour le cron matinal.",
+    )
+    pipeline_paris_morning_hour: int = Field(
+        default=9,
+        ge=0,
+        le=23,
+        description="Heure locale Paris du passage pipeline (lun. week-end + mar.–ven. ouvrés)",
+    )
+    pipeline_paris_morning_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="Minute locale Paris du passage pipeline",
+    )
     max_articles_per_source: int = Field(default=20)
     max_articles_per_general_rss: int = Field(
         default=12,

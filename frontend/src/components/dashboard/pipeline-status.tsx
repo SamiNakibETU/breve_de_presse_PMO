@@ -77,22 +77,37 @@ export function PipelineStatus({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {ACTIONS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => startRun(key, label)}
-            disabled={running !== null}
-            className="olj-btn-secondary text-[12px] disabled:opacity-40"
-          >
-            {running?.key === key ? "En cours…" : label}
-          </button>
-        ))}
+        {ACTIONS.map(({ key, label }) => {
+          const serverPipelineBusy =
+            key === "pipeline" && Boolean(status?.pipeline_running);
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => startRun(key, label)}
+              disabled={running !== null || serverPipelineBusy}
+              className="olj-btn-secondary text-[12px] disabled:opacity-40"
+              title={
+                serverPipelineBusy
+                  ? "Un pipeline complet est déjà en cours sur le serveur (planificateur ou autre session)."
+                  : undefined
+              }
+            >
+              {running?.key === key ? "En cours…" : label}
+            </button>
+          );
+        })}
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Collecte (sources), traduction, actualisation des sujets, ou traitement
         complet. Le suivi reste visible en haut de page pendant la navigation.
+        {status?.pipeline_running ? (
+          <span className="mt-1 block border-l-2 border-border pl-2 text-foreground-body">
+            Un pipeline complet est en cours sur le serveur : le bouton « Traitement complet » est désactivé
+            jusqu’à la fin du passage (cron ou autre lancement).
+          </span>
+        ) : null}
       </p>
 
       {diagnostics.length > 0 && (
