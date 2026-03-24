@@ -88,6 +88,23 @@ async def post_dead_source_alert(source_id: str, name: str, health: str) -> None
     )
 
 
+async def post_pipeline_timeout_alert(*, timeout_s: int, trigger: str) -> None:
+    """Webhook / email lorsque le pipeline complet dépasse le délai max."""
+    s = get_settings()
+    payload = {
+        "type": "pipeline_timeout",
+        "timeout_s": timeout_s,
+        "trigger": trigger,
+    }
+    await _post_json_alert(s.alert_webhook_url, payload)
+    await _post_json_alert(s.alert_email_webhook_url, payload)
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    await _send_resend_email(
+        subject=f"[MEMW] Pipeline — timeout {timeout_s}s",
+        text_body=text,
+    )
+
+
 async def post_cluster_hot_alert(
     *,
     cluster_id: str,

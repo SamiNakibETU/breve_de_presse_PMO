@@ -20,6 +20,9 @@ export interface Article {
   word_count: number | null;
   collected_at: string;
   editorial_relevance: number | null;
+  relevance_score?: number | null;
+  relevance_score_deterministic?: number | null;
+  relevance_band?: string | null;
   why_ranked?: Record<string, unknown> | null;
   olj_topic_ids?: string[] | null;
   article_family?: string | null;
@@ -278,6 +281,11 @@ export interface TopicArticlePreview {
   author?: string | null;
   editorial_angle?: string | null;
   is_flagship?: boolean | null;
+}
+
+/** GET /api/editions/{id}/selections */
+export interface EditionSelectionsResponse {
+  topics: Record<string, string[]>;
 }
 
 export interface EditionTopic {

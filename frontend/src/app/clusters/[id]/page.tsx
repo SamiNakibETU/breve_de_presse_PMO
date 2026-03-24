@@ -1,21 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { displayClusterTitle } from "@/lib/cluster-display";
+import { reviewPagePath } from "@/lib/review-url";
 import type { ClusterArticlesResponse } from "@/lib/types";
-import { saveReviewArticleIds } from "@/lib/review-selection-storage";
-import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
 
 export default function ClusterDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { selectedIds, toggleArticle, clearSelection, ready } =
-    useReviewArticleSelection(id);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+
+  const toggleArticle = useCallback((articleId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(articleId)) next.delete(articleId);
+      else next.add(articleId);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
 
   const { data, isPending, error: queryError } = useQuery({
     queryKey: ["clusterArticles", id],
@@ -27,8 +38,7 @@ export default function ClusterDetailPage() {
   const loading = isPending;
 
   function goToReview() {
-    saveReviewArticleIds(selectedIds);
-    router.push("/review");
+    router.push(reviewPagePath([...selectedIds]));
   }
 
   const clusterLabel = data?.cluster_label ?? "Sujet";
@@ -69,7 +79,7 @@ export default function ClusterDetailPage() {
           href="/dashboard"
           className="mb-4 inline-block text-[12px] text-muted-foreground hover:text-foreground"
         >
-          ← Clusters & vigie
+          ← Panorama
         </Link>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           {loading ? "Chargement…" : displayClusterTitle(clusterLabel)}
@@ -206,7 +216,7 @@ export default function ClusterDetailPage() {
           );
         })}
 
-      {ready && selectedIds.size > 0 && (
+      {selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-background px-5 py-4 sm:px-6">
           <div className="mx-auto flex max-w-[960px] items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">

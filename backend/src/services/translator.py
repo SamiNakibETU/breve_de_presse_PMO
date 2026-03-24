@@ -740,6 +740,11 @@ class TranslationPipeline:
             else:
                 art.event_tags = None
             art.is_flagship = bool(data.get("is_flagship", False))
+            # Score déterministe 0–1 (avant scoring LLM Haiku) pour tri / topic detector
+            art.relevance_score_deterministic = round(
+                float(expl["score"]) / 100.0,
+                6,
+            )
             await db.commit()
 
         entities_raw = data.get("entities", [])

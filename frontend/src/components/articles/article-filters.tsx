@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { cn } from "@/lib/utils";
 
 const COUNTRIES: Record<string, string> = {
@@ -49,6 +51,8 @@ interface ArticleFiltersProps {
   filters: Filters;
   onChange: (f: Filters) => void;
   countsByCountry?: Record<string, number> | null;
+  /** Filtre passé par l’URL (`edition_id`) depuis le sommaire d’édition. */
+  activeEditionId?: string | null;
 }
 
 function toggle(list: string[], item: string): string[] {
@@ -59,11 +63,24 @@ export function ArticleFilters({
   filters,
   onChange,
   countsByCountry,
+  activeEditionId = null,
 }: ArticleFiltersProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
     <div className="olj-sidebar-filter space-y-5 border-b border-border-light pb-4 lg:border-0 lg:pb-0">
+      {activeEditionId ? (
+        <div className="rounded-md border border-accent/20 bg-accent/5 px-3 py-2.5 text-[12px] leading-snug text-foreground-body">
+          <span className="font-semibold text-foreground">Corpus de l’édition</span>{" "}
+          : liste limitée à cette édition.{" "}
+          <Link
+            href="/articles"
+            className="font-medium text-accent underline underline-offset-2 hover:opacity-90"
+          >
+            Vue large (période glissante)
+          </Link>
+        </div>
+      ) : null}
       <div>
         <p className="olj-rubric mb-2">Pays</p>
         <ul className="max-h-[min(14rem,40vh)] space-y-1.5 overflow-y-auto lg:max-h-[min(18rem,50vh)]">
@@ -71,6 +88,7 @@ export function ArticleFilters({
             const c = countsByCountry?.[code];
             const label = c != null ? `${name} (${c})` : name;
             const on = filters.countries.includes(code);
+            const flag = REGION_FLAG_EMOJI[code];
             return (
               <li key={code}>
                 <label className="flex cursor-pointer items-start gap-2 text-[12px] leading-snug text-foreground-body">
@@ -85,8 +103,15 @@ export function ArticleFilters({
                     }
                     className="olj-focus mt-0.5 size-[14px] shrink-0 border-border"
                   />
-                  <span className={on ? "font-medium text-foreground" : ""}>
-                    {label}
+                  <span
+                    className={`flex items-center gap-2 ${on ? "font-medium text-foreground" : ""}`}
+                  >
+                    {flag ? (
+                      <span className="text-[1rem] leading-none" aria-hidden>
+                        {flag}
+                      </span>
+                    ) : null}
+                    <span>{label}</span>
                   </span>
                 </label>
               </li>

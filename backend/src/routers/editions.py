@@ -126,9 +126,21 @@ class GenerateTopicBody(BaseModel):
 
 
 def _article_relevance_int(art: Article) -> Optional[int]:
-    if art.relevance_score is None:
+    raw = art.relevance_score
+    if raw is None:
+        raw = art.relevance_score_deterministic
+    if raw is None:
         return None
-    return int(round(float(art.relevance_score)))
+    v = float(raw)
+    if v <= 1.0:
+        return int(round(v * 100))
+    return int(round(v))
+
+
+class EditionSelectionsOut(BaseModel):
+    """Articles cochés par sujet (sélection rédactionnelle)."""
+
+    topics: dict[str, list[str]]
 
 
 def _edition_topic_to_out(
@@ -245,6 +257,30 @@ async def get_edition(
     if not e:
         raise HTTPException(status_code=404, detail="Edition not found")
     return _edition_to_out(e)
+
+
+@router.get("/{edition_id}/selections", response_model=EditionSelectionsOut)
+async def get_edition_selections(
+    edition_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Liste des articles sélectionnés par sujet (pour reprise après rechargement)."""
+    e = await db.get(Edition, edition_id)
+    if not e:
+        raise HTTPException(status_code=404, detail="Edition not found")
+    stmt = (
+        select(EditionTopicArticle.edition_topic_id, EditionTopicArticle.article_id)
+        .join(EditionTopic, EditionTopicArticle.edition_topic_id == EditionTopic.id)
+        .where(
+            EditionTopic.edition_id == edition_id,
+            EditionTopicArticle.is_selected.is_(True),
+        )
+    )
+    res = await db.execute(stmt)
+    by_topic: dict[str, list[str]] = defaultdict(list)
+    for tid, aid in res.all():
+        by_topic[str(tid)].append(str(aid))
+    return EditionSelectionsOut(topics=dict(by_topic))
 
 
 @router.get("/{edition_id}/topics", response_model=list[EditionTopicOut])

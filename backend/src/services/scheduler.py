@@ -74,7 +74,35 @@ async def run_daily_pipeline(
     await _pipeline_lock.acquire()
     try:
         logger.info("pipeline.lock_acquired", trigger=trigger)
-        return await _daily_pipeline_body(on_progress)
+        pipeline_timeout_s = 3600
+        try:
+            return await asyncio.wait_for(
+                _daily_pipeline_body(on_progress),
+                timeout=pipeline_timeout_s,
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                "pipeline.timeout",
+                timeout_s=pipeline_timeout_s,
+                trigger=trigger,
+            )
+            try:
+                from src.services.alerts import post_pipeline_timeout_alert
+
+                await post_pipeline_timeout_alert(
+                    timeout_s=pipeline_timeout_s,
+                    trigger=trigger,
+                )
+            except Exception as alert_exc:
+                logger.warning(
+                    "pipeline.timeout_alert_failed",
+                    error=str(alert_exc)[:200],
+                )
+            return {
+                "error": "pipeline_timeout",
+                "timeout_s": pipeline_timeout_s,
+                "trigger": trigger,
+            }
     finally:
         _pipeline_lock.release()
         logger.info("pipeline.lock_released", trigger=trigger)

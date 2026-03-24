@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { Article, EditionTopic, TopicArticleRef } from "@/lib/types";
 import {
@@ -117,8 +117,13 @@ export function TopicDetail({
       qc.invalidateQueries({
         queryKey: ["editionTopicDetail", editionId, topic.id],
       });
+      qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
     },
   });
+
+  const selectionDebounceRef = useRef<number | null>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
 
   const genMutation = useMutation({
     mutationFn: () =>
@@ -203,12 +208,33 @@ export function TopicDetail({
     [orderedArticles],
   );
 
+  useEffect(
+    () => () => {
+      if (selectionDebounceRef.current != null) {
+        window.clearTimeout(selectionDebounceRef.current);
+        selectionDebounceRef.current = null;
+      }
+      const ids = Array.from(selectedRef.current);
+      void api.editionTopicSelection(editionId, topic.id, ids).catch(() => {
+        /* best-effort flush */
+      });
+    },
+    [editionId, topic.id],
+  );
+
   const toggle = (articleId: string, next: boolean) => {
     setSelected((prev) => {
       const n = new Set(prev);
       if (next) n.add(articleId);
       else n.delete(articleId);
-      saveMutation.mutate(Array.from(n));
+      const ids = Array.from(n);
+      if (selectionDebounceRef.current != null) {
+        window.clearTimeout(selectionDebounceRef.current);
+      }
+      selectionDebounceRef.current = window.setTimeout(() => {
+        selectionDebounceRef.current = null;
+        saveMutation.mutate(ids);
+      }, 320);
       return n;
     });
   };
@@ -242,7 +268,7 @@ export function TopicDetail({
             />
           ) : null}
           <ArticleBlock
-            title="Complément pour la revue (hors regard mis en avant)"
+            title="Autres articles"
             articles={retained}
             refs={articleRefs}
             articleIdsOrder={articleIdsOrder}
@@ -306,12 +332,11 @@ export function TopicDetail({
         )}
         {genMutation.isSuccess && genMutation.data?.status === "ok" && (
           <p className="mt-2 text-[12px] text-success">
-            Texte prêt. Vous pouvez le copier depuis la page « Texte final » ou
-            ci-dessous.
+            Texte prêt. Copiez-le ici ou depuis la page « Rédaction ».
           </p>
         )}
         {topic.generated_text ? (
-          <TopicGeneratedProse text={topic.generated_text} />
+          <TopicGeneratedProse text={topic.generated_text} showCopyButton />
         ) : null}
       </section>
     </article>

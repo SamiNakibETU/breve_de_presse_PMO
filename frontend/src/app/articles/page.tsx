@@ -1,17 +1,16 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import {
   ArticleFilters,
   ArticleFilterNavLinks,
   type Filters,
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
-import { useReviewArticleSelection } from "@/hooks/use-review-article-selection";
 import { api } from "@/lib/api";
-import { saveReviewArticleIds } from "@/lib/review-selection-storage";
+import { reviewPagePath } from "@/lib/review-url";
 import type { Article } from "@/lib/types";
 
 const PAGE_SIZE = 40;
@@ -20,7 +19,10 @@ const PAGE_SIZE = 40;
 const ARTICLES_ROLLING_DAYS: number = 2;
 
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
-  editorial: { label: "Éditorial", value: "translated,formatted,needs_review" },
+  editorial: {
+    label: "Pour la revue",
+    value: "translated,formatted,needs_review",
+  },
   needs_review: { label: "À relire", value: "needs_review" },
   all: {
     label: "Tous",
@@ -32,8 +34,11 @@ const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
 const SORT_OPTIONS: Record<string, { label: string; value: string }> = {
   relevance: { label: "Pertinence", value: "relevance" },
   date: { label: "Date de collecte", value: "date" },
-  confidence: { label: "Confiance (haute d’abord)", value: "confidence" },
-  confidence_asc: { label: "Confiance (basse d’abord)", value: "confidence_asc" },
+  confidence: { label: "Qualité de traduction", value: "confidence" },
+  confidence_asc: {
+    label: "Qualité de traduction (basse d’abord)",
+    value: "confidence_asc",
+  },
 };
 
 const STATUS_NAV = Object.entries(STATUS_OPTIONS).map(([key, { label }]) => ({
@@ -51,6 +56,7 @@ function buildArticleParams(
   sortBy: string,
   filters: Filters,
   offset: number,
+  editionId: string | null,
 ): Record<string, string> {
   const params: Record<string, string> = {
     status: STATUS_OPTIONS[statusFilter].value,
@@ -66,6 +72,7 @@ function buildArticleParams(
   if (filters.includeLowQuality) params.include_low_quality = "true";
   if (filters.hideSyndicated) params.hide_syndicated = "true";
   if (filters.groupSyndicated) params.group_syndicated = "true";
+  if (editionId) params.edition_id = editionId;
   return params;
 }
 
@@ -77,6 +84,7 @@ function FiltersColumn({
   filters,
   setFilters,
   countsByCountry,
+  activeEditionId,
 }: {
   statusFilter: string;
   sortBy: string;
@@ -85,6 +93,7 @@ function FiltersColumn({
   filters: Filters;
   setFilters: (f: Filters) => void;
   countsByCountry: Record<string, number> | null;
+  activeEditionId: string | null;
 }) {
   return (
     <div className="space-y-6">
@@ -100,6 +109,7 @@ function FiltersColumn({
         filters={filters}
         onChange={setFilters}
         countsByCountry={countsByCountry}
+        activeEditionId={activeEditionId}
       />
     </div>
   );
@@ -107,12 +117,11 @@ function FiltersColumn({
 
 export default function ArticlesPage() {
   const router = useRouter();
-  const {
-    selectedIds: selected,
-    toggleArticle: toggle,
-    clearSelection,
-    ready: selectionReady,
-  } = useReviewArticleSelection();
+  const searchParams = useSearchParams();
+  const activeEditionId =
+    searchParams.get("edition_id")?.trim().replace(/^"|"$/g, "") || null;
+
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [statusFilter, setStatusFilter] = useState<string>("editorial");
   const [sortBy, setSortBy] = useState<string>("relevance");
   const [filters, setFilters] = useState<Filters>({
@@ -139,9 +148,10 @@ export default function ArticlesPage() {
           statusFilter,
           sortBy,
           filters,
+          activeEditionId,
         },
       ] as const,
-    [statusFilter, sortBy, filters],
+    [statusFilter, sortBy, filters, activeEditionId],
   );
 
   const {
@@ -160,6 +170,7 @@ export default function ArticlesPage() {
         sortBy,
         filters,
         pageParam,
+        activeEditionId,
       );
       return api.articles(params);
     },
@@ -178,9 +189,21 @@ export default function ArticlesPage() {
   const total = data?.pages[0]?.total ?? 0;
   const countsByCountry = data?.pages[0]?.counts_by_country ?? null;
 
+  const toggle = useCallback((articleId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(articleId)) next.delete(articleId);
+      else next.add(articleId);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelected(new Set());
+  }, []);
+
   function goToReview() {
-    saveReviewArticleIds(selected);
-    router.push("/review");
+    router.push(reviewPagePath([...selected]));
   }
 
   const filterColumnProps = {
@@ -191,6 +214,7 @@ export default function ArticlesPage() {
     filters,
     setFilters,
     countsByCountry,
+    activeEditionId,
   };
 
   return (
@@ -220,17 +244,13 @@ export default function ArticlesPage() {
             Vue d’exploration, pas la fenêtre d’édition du jour.
           </p>
           <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-            Filtres et tri dans la colonne de gauche (pays, type de texte, confiance).
-            Les séparateurs « Thème · … » regroupent les articles qui partagent les
-            mêmes rubriques OLJ (taxonomie) ; vous pouvez désactiver ce groupement
-            pour une grille continue.
+            Filtres et tri dans la colonne de gauche. Les séparateurs « Thème · … »
+            regroupent les articles par rubriques OLJ ; vous pouvez désactiver ce
+            groupement pour une grille continue.
           </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
             {articles.length !== 1 ? "s" : ""}
-            {sortBy === "relevance"
-              ? " · tri partiel par pertinence (par page)"
-              : ""}
           </p>
         </header>
 
@@ -284,7 +304,7 @@ export default function ArticlesPage() {
         )}
       </div>
 
-      {selectionReady && selected.size > 0 && (
+      {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/98 shadow-[0_-6px_24px_rgba(27,26,26,0.06)] backdrop-blur-sm">
           <div className="mx-auto flex max-w-[80rem] flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">

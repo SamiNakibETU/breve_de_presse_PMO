@@ -15,6 +15,14 @@ import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
 /** Nombre d’articles visibles par défaut avant « + N autres regards ». */
 export const VISIBLE_PER_TOPIC = 3;
 
+function previewGeneratedText(raw: string, maxChars = 380): string {
+  const t = raw.replace(/\r\n/g, "\n").trim();
+  if (!t) return "";
+  const withoutLeadingHash = t.replace(/^#{1,6}\s+[^\n]+\n?/m, "").trim() || t;
+  if (withoutLeadingHash.length <= maxChars) return withoutLeadingHash;
+  return `${withoutLeadingHash.slice(0, maxChars).trim()}…`;
+}
+
 const SUMMARY_PREVIEW_COUNT = 2;
 const MAX_ARTICLES_PER_COUNTRY = 2;
 
@@ -218,6 +226,7 @@ export function TopicSection({
   countryLabelsFr?: Record<string, string> | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [copiedGen, setCopiedGen] = useState(false);
   const previews = topic.article_previews ?? [];
   const maxPreview =
     mode === "summary"
@@ -310,6 +319,9 @@ export function TopicSection({
                   : nCountryCodes === 1
                     ? " · 1 pays"
                     : null}
+                {articleTotal > 0
+                  ? ` · ${articleTotal} texte${articleTotal > 1 ? "s" : ""}`
+                  : null}
               </span>
             ) : (
               <span className="inline-flex rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground-body">
@@ -326,11 +338,11 @@ export function TopicSection({
                 {countriesText}
               </span>
             ) : null}
-            {topic.article_count != null && (
+            {topic.article_count != null && !topic.is_multi_perspective ? (
               <span className="text-[12px] tabular-nums text-muted-foreground">
                 {topic.article_count} texte{topic.article_count > 1 ? "s" : ""}
               </span>
-            )}
+            ) : null}
           </div>
           {showContrastingBlock ? (
             <ul className="space-y-3 border-t border-border-light pt-4">
@@ -366,13 +378,50 @@ export function TopicSection({
               })}
             </ul>
           ) : null}
+          {topic.generated_text?.trim() ? (
+            <div className="max-w-xl space-y-2 border-l-2 border-accent/25 pl-3 pt-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Texte pour la revue
+              </p>
+              <p className="line-clamp-5 whitespace-pre-wrap font-[family-name:var(--font-serif)] text-[13px] leading-relaxed text-foreground-body">
+                {previewGeneratedText(topic.generated_text)}
+              </p>
+              <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                <button
+                  type="button"
+                  className="olj-link-action text-[12px]"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(
+                        topic.generated_text!.trim(),
+                      );
+                      setCopiedGen(true);
+                      window.setTimeout(() => setCopiedGen(false), 2000);
+                    } catch {
+                      setCopiedGen(false);
+                    }
+                  }}
+                >
+                  {copiedGen ? "Copié" : "Copier le texte"}
+                </button>
+                {editionDate ? (
+                  <Link
+                    href={`/edition/${editionDate}/compose`}
+                    className="olj-link-action text-[12px]"
+                  >
+                    Lire la suite dans Rédaction
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {mode === "summary" && editionDate && (
             <p className="pt-1">
               <Link
                 href={`/edition/${editionDate}/topic/${topic.id}`}
                 className="olj-link-action text-[12px]"
               >
-                Fiche sujet
+                Voir le détail
               </Link>
             </p>
           )}

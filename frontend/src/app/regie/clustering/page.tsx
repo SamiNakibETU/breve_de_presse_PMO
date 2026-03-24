@@ -21,7 +21,7 @@ export default function RegieClusteringPage() {
       <p className="text-muted-foreground">
         Vue sujets côté produit :{" "}
         <Link href="/dashboard" className="underline-offset-4 hover:underline">
-          Clusters & vigie
+          Panorama
         </Link>
         .
       </p>

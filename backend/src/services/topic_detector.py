@@ -5,13 +5,14 @@ Remplace le regroupement HDBSCAN pour la navigation « sujets » côté journali
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from collections import defaultdict
 from typing import Any, Optional
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.article import Article
@@ -97,6 +98,14 @@ Réponds UNIQUEMENT par un tableau JSON :
 [{{"article_id": "uuid", "development_id": "slug-ou-hors_sujet", "fit_confidence": 0.85, "perspective_rarity": 4}}]"""
 
 
+def _article_rel_score(article: Article) -> float:
+    if article.relevance_score is not None:
+        return float(article.relevance_score)
+    if article.relevance_score_deterministic is not None:
+        return float(article.relevance_score_deterministic)
+    return 0.0
+
+
 def _parse_json_loose(text: str) -> Any:
     text = text.strip()
     if text.startswith("```"):
@@ -162,39 +171,57 @@ class TopicDetector:
             articles_block=articles_block,
             coverage_targets=", ".join(COVERAGE_TARGET_COUNTRIES),
         )
-        raw = await router.generate_anthropic_only(
-            PASS1_SYSTEM,
-            user,
-            max_tokens=8192,
-            temperature=0.3,
-        )
-        data = _parse_json_loose(raw)
-        devs = data.get("developments")
-        if not isinstance(devs, list):
-            raise ValueError("Réponse passe 1 : developments manquant ou invalide")
-        out: list[dict[str, Any]] = []
-        for d in devs:
-            if not isinstance(d, dict):
-                continue
-            did = str(d.get("id", "")).strip()
-            if not did:
-                continue
-            out.append(
-                {
-                    "id": did[:100],
-                    "label": str(d.get("label", ""))[:500],
-                    "description": str(d.get("description", ""))[:5000],
-                    "countries_expected": d.get("countries_expected")
-                    if isinstance(d.get("countries_expected"), list)
-                    else [],
-                    "priority": int(d.get("priority", 99)),
-                    "is_multi_perspective": bool(d.get("is_multi_perspective", True)),
-                },
-            )
-        if not out:
-            raise ValueError("Aucun développement valide après passe 1")
-        out.sort(key=lambda x: x["priority"])
-        return out[:8]
+        last_err: BaseException | None = None
+        for attempt in range(3):
+            try:
+                raw = await router.generate_anthropic_only(
+                    PASS1_SYSTEM,
+                    user,
+                    max_tokens=8192,
+                    temperature=0.3,
+                )
+                data = _parse_json_loose(raw)
+                devs = data.get("developments")
+                if not isinstance(devs, list):
+                    raise ValueError(
+                        "Réponse passe 1 : developments manquant ou invalide",
+                    )
+                out: list[dict[str, Any]] = []
+                for d in devs:
+                    if not isinstance(d, dict):
+                        continue
+                    did = str(d.get("id", "")).strip()
+                    if not did:
+                        continue
+                    out.append(
+                        {
+                            "id": did[:100],
+                            "label": str(d.get("label", ""))[:500],
+                            "description": str(d.get("description", ""))[:5000],
+                            "countries_expected": d.get("countries_expected")
+                            if isinstance(d.get("countries_expected"), list)
+                            else [],
+                            "priority": int(d.get("priority", 99)),
+                            "is_multi_perspective": bool(
+                                d.get("is_multi_perspective", True),
+                            ),
+                        },
+                    )
+                if not out:
+                    raise ValueError("Aucun développement valide après passe 1")
+                out.sort(key=lambda x: x["priority"])
+                return out[:8]
+            except (json.JSONDecodeError, ValueError) as exc:
+                last_err = exc
+                logger.warning(
+                    "topic_detector.pass1_retry",
+                    attempt=attempt + 1,
+                    error=str(exc)[:200],
+                )
+                if attempt < 2:
+                    await asyncio.sleep(min(30, 2 ** (attempt + 1)))
+        assert last_err is not None
+        raise last_err
 
     async def classify_batch(
         self,
@@ -216,16 +243,30 @@ class TopicDetector:
             developments_json=dev_json,
             articles_batch="\n".join(ablock_lines),
         )
-        raw = await router.generate_anthropic_only(
-            PASS2_SYSTEM,
-            user,
-            max_tokens=4096,
-            temperature=0.2,
-        )
-        data = _parse_json_loose(raw)
-        if not isinstance(data, list):
-            raise ValueError("Réponse passe 2 : tableau attendu")
-        return data
+        last_err: BaseException | None = None
+        for attempt in range(3):
+            try:
+                raw = await router.generate_anthropic_only(
+                    PASS2_SYSTEM,
+                    user,
+                    max_tokens=4096,
+                    temperature=0.2,
+                )
+                data = _parse_json_loose(raw)
+                if not isinstance(data, list):
+                    raise ValueError("Réponse passe 2 : tableau attendu")
+                return data
+            except (json.JSONDecodeError, ValueError) as exc:
+                last_err = exc
+                logger.warning(
+                    "topic_detector.pass2_retry",
+                    attempt=attempt + 1,
+                    error=str(exc)[:200],
+                )
+                if attempt < 2:
+                    await asyncio.sleep(min(30, 2 ** (attempt + 1)))
+        assert last_err is not None
+        raise last_err
 
     async def build_edition_topics(self, db: AsyncSession, edition: Edition) -> int:
         eid = edition.id
@@ -246,7 +287,12 @@ class TopicDetector:
                     Article.article_type.in_(EDITORIAL_TYPES),
                     Article.is_syndicated.is_(False),
                 )
-                .order_by(Article.relevance_score.desc().nullslast())
+                .order_by(
+                    func.coalesce(
+                        Article.relevance_score,
+                        Article.relevance_score_deterministic,
+                    ).desc().nullslast(),
+                )
                 .limit(TOPIC_DETECTOR_ARTICLE_LIMIT)
             )
             res = await db.execute(stmt)
@@ -333,7 +379,7 @@ class TopicDetector:
 
                 items_for_order: list[tuple[Article, str, int, float]] = []
                 for a, s, fc, pr in bucket:
-                    rel = float(a.relevance_score) if a.relevance_score is not None else 0.0
+                    rel = _article_rel_score(a)
                     items_for_order.append(
                         (a, s.country_code or "XX", pr, rel),
                     )
@@ -360,7 +406,7 @@ class TopicDetector:
                 for a, s, fc, pr in bucket:
                     cc = (s.country_code or "XX").upper()
                     prev = by_country_best.get(cc)
-                    rel = float(a.relevance_score) if a.relevance_score is not None else 0.0
+                    rel = _article_rel_score(a)
                     if prev is None or rel > prev[0]:
                         by_country_best[cc] = (rel, a.id)
 

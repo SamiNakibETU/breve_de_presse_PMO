@@ -51,7 +51,7 @@ async def semantic_search(
 
     try:
         service = EmbeddingService()
-        qvec = service.embed_query(body.query)
+        qvec = await service.embed_query(body.query)
     except Exception as exc:
         raise HTTPException(503, detail=f"Embedding requête: {exc!s}") from exc
 

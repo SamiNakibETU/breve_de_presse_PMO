@@ -3,24 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useMemo, useState, useEffect } from "react";
-import { ArticleRow } from "@/components/composition/ArticleRow";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { CoverageGaps } from "@/components/composition/CoverageGaps";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
-import { ReviewPreview } from "@/components/review/review-preview";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
-import {
-  CORPUS_ARTICLE_TYPE_CODES,
-  CORPUS_SOURCE_LANGUAGE_CODES,
-  articleTypeLabelFr,
-  sourceLanguageLabelFr,
-} from "@/lib/article-labels-fr";
-import { clusterFallbackDisplayTitle } from "@/lib/cluster-display";
 import { api } from "@/lib/api";
-import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type {
-  Article,
   Edition,
   EditionDetectionStatus,
   EditionTopic,
@@ -28,9 +17,6 @@ import type {
 
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
-const CORPUS_LIST_LIMIT = 250;
-
-type CorpusSortKey = "relevance" | "date" | "confidence" | "confidence_asc";
 
 function formatDateFr(iso: string): string {
   const parts = iso.split("-").map(Number);
@@ -111,13 +97,13 @@ function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" | "Europe/Pa
 function schedulerJobTitleFr(jobId: string, fallbackName: string): string {
   switch (jobId) {
     case "daily_pipeline_monday":
-      return "Pipeline week-end (lundi 9h Paris)";
+      return "Mise à jour week-end (lundi 9h Paris)";
     case "daily_pipeline_weekday":
-      return "Pipeline mardi–vendredi (9h Paris)";
+      return "Mise à jour mardi–vendredi (9h Paris)";
     case "daily_pipeline_morning":
-      return "Collecte et traitement du matin (ancien cron UTC)";
+      return "Collecte du matin (ancien horaire)";
     case "daily_pipeline_afternoon":
-      return "Mise à jour de l’après-midi (ancien cron)";
+      return "Mise à jour de l’après-midi (ancien horaire)";
     case "edition_daily_create_beirut":
       return "Ouverture de l’édition du lendemain";
     default:
@@ -240,20 +226,6 @@ function EditionSommaireSkeleton() {
   );
 }
 
-function CorpusListSkeleton() {
-  return (
-    <div className="grid animate-pulse gap-4 lg:grid-cols-2" aria-hidden>
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="rounded border border-border-light p-4">
-          <div className="h-3 w-1/2 rounded bg-muted/40" />
-          <div className="mt-2 h-4 w-full rounded bg-muted/35" />
-          <div className="mt-2 h-3 w-11/12 rounded bg-muted/25" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function EditionSommairePage() {
   const params = useParams();
   const date = typeof params.date === "string" ? params.date : "";
@@ -312,77 +284,47 @@ export default function EditionSommairePage() {
     staleTime: QUERY_STALE_MS,
   });
 
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [corpusCountry, setCorpusCountry] = useState("");
-  const [corpusLanguage, setCorpusLanguage] = useState("");
-  const [corpusType, setCorpusType] = useState("");
-  const [corpusSort, setCorpusSort] = useState<CorpusSortKey>("relevance");
+  const selectionsQ = useQuery({
+    queryKey: ["editionSelections", editionId] as const,
+    queryFn: () => api.editionSelections(editionId!),
+    enabled: Boolean(editionId),
+    staleTime: 15_000,
+  });
+
+  const [topicSelections, setTopicSelections] = useState<Map<string, Set<string>>>(
+    () => new Map(),
+  );
+  const [extraSelected, setExtraSelected] = useState<Set<string>>(new Set());
+  const patchTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(searchInput.trim()), 320);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
-  const corpusFacetsQ = useQuery({
-    queryKey: ["editionArticlesFacets", editionId, debouncedQ] as const,
-    queryFn: () =>
-      api.articles({
-        edition_id: editionId!,
-        sort: "relevance",
-        limit: "1",
-        offset: "0",
-        group_syndicated: "true",
-        ...(debouncedQ ? { q: debouncedQ } : {}),
-      }),
-    enabled: Boolean(date) && Boolean(editionId),
-    staleTime: 60_000,
-  });
-
-  const articlesListQ = useQuery({
-    queryKey: [
-      "editionArticlesList",
-      editionId,
-      debouncedQ,
-      "unified",
-      corpusCountry,
-      corpusLanguage,
-      corpusType,
-      corpusSort,
-    ] as const,
-    queryFn: () =>
-      api.articles({
-        edition_id: editionId!,
-        sort: corpusSort,
-        limit: String(CORPUS_LIST_LIMIT),
-        group_syndicated: "true",
-        ...(debouncedQ ? { q: debouncedQ } : {}),
-        ...(corpusCountry ? { country: corpusCountry } : {}),
-        ...(corpusLanguage ? { language: corpusLanguage } : {}),
-        ...(corpusType ? { article_type: corpusType } : {}),
-      }),
-    enabled: Boolean(date) && Boolean(editionId),
-    staleTime: 60_000,
-  });
-
-  const listArticles: Article[] = articlesListQ.data?.articles ?? [];
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [genOpen, setGenOpen] = useState(false);
-  const [generatedText, setGeneratedText] = useState("");
+    const raw = selectionsQ.data?.topics;
+    if (!raw) {
+      return;
+    }
+    const m = new Map<string, Set<string>>();
+    for (const [tid, ids] of Object.entries(raw)) {
+      m.set(tid, new Set(ids));
+    }
+    setTopicSelections(m);
+  }, [selectionsQ.data]);
 
   useEffect(() => {
     if (!editionId) {
       return;
     }
-    const raw = localStorage.getItem(`olj-edition-selection-${editionId}`);
-    if (!raw) {
-      return;
-    }
     try {
+      const raw = localStorage.getItem(`olj-edition-extra-${editionId}`);
+      if (!raw) {
+        return;
+      }
       const arr = JSON.parse(raw) as unknown;
       if (Array.isArray(arr)) {
-        setSelectedIds(new Set(arr.filter((x) => typeof x === "string")));
+        setExtraSelected(
+          new Set(arr.filter((x): x is string => typeof x === "string")),
+        );
       }
     } catch {
       /* ignore */
@@ -394,31 +336,82 @@ export default function EditionSommairePage() {
       return;
     }
     localStorage.setItem(
-      `olj-edition-selection-${editionId}`,
-      JSON.stringify([...selectedIds]),
+      `olj-edition-extra-${editionId}`,
+      JSON.stringify([...extraSelected]),
     );
-  }, [editionId, selectedIds]);
+  }, [editionId, extraSelected]);
+
+  const selectedIds = useMemo(() => {
+    const s = new Set<string>();
+    topicSelections.forEach((ids) => {
+      ids.forEach((id) => {
+        s.add(id);
+      });
+    });
+    extraSelected.forEach((id) => {
+      s.add(id);
+    });
+    return s;
+  }, [topicSelections, extraSelected]);
+
+  const scheduleTopicPatch = useCallback(
+    (topicId: string, ids: Set<string>) => {
+      if (!editionId) {
+        return;
+      }
+      const prev = patchTimers.current.get(topicId);
+      if (prev) {
+        clearTimeout(prev);
+      }
+      const t = setTimeout(() => {
+        void api
+          .editionTopicSelection(editionId, topicId, [...ids])
+          .then(() => {
+            void qc.invalidateQueries({
+              queryKey: ["editionSelections", editionId],
+            });
+          })
+          .catch(() => {
+            /* erreur réseau : l’état local reste ; prochain refetch corrige */
+          });
+        patchTimers.current.delete(topicId);
+      }, 320);
+      patchTimers.current.set(topicId, t);
+    },
+    [editionId, qc],
+  );
+
+  const onTopicArticleToggle = useCallback(
+    (topicId: string, articleId: string, next: boolean) => {
+      setTopicSelections((prev) => {
+        const m = new Map(prev);
+        const cur = new Set(m.get(topicId) ?? []);
+        if (next) {
+          cur.add(articleId);
+        } else {
+          cur.delete(articleId);
+        }
+        m.set(topicId, cur);
+        scheduleTopicPatch(topicId, cur);
+        return m;
+      });
+    },
+    [scheduleTopicPatch],
+  );
+
+  const toggleExtraArticle = useCallback((id: string, next: boolean) => {
+    setExtraSelected((prev) => {
+      const n = new Set(prev);
+      if (next) {
+        n.add(id);
+      } else {
+        n.delete(id);
+      }
+      return n;
+    });
+  }, []);
 
   const clusterRows = clustersFallbackQ.data ?? [];
-
-  const articleAttachmentLabels = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const t of topics) {
-      const title = t.title_final ?? t.title_proposed;
-      for (const p of t.article_previews ?? []) {
-        m.set(p.id, `Sujet : ${title}`);
-      }
-    }
-    for (const row of clusterRows) {
-      const lab = clusterFallbackDisplayTitle(row);
-      for (const ar of row.articles) {
-        if (!m.has(ar.id)) {
-          m.set(ar.id, `Thème : ${lab}`);
-        }
-      }
-    }
-    return m;
-  }, [topics, clusterRows]);
 
   const idToCountryCode = useMemo(() => {
     const m = new Map<string, string>();
@@ -429,9 +422,6 @@ export default function EditionSommairePage() {
         }
       }
     }
-    for (const a of listArticles) {
-      m.set(a.id, a.country_code);
-    }
     for (const row of clusterRows) {
       for (const ar of row.articles) {
         const c = ar.country_code?.trim();
@@ -441,7 +431,7 @@ export default function EditionSommairePage() {
       }
     }
     return m;
-  }, [topics, listArticles, clusterRows]);
+  }, [topics, clusterRows]);
 
   const selectedCountryCodes = useMemo(() => {
     const s = new Set<string>();
@@ -480,7 +470,7 @@ export default function EditionSommairePage() {
 
   const vigieGlobaleHint =
     statsQ.data != null
-      ? `Vigie globale : ${statsQ.data.total_collected_24h.toLocaleString("fr-FR")} article(s) entrés en base sur les dernières 24 h (UTC), toutes éditions confondues.`
+      ? `Vue d’ensemble : ${statsQ.data.total_collected_24h.toLocaleString("fr-FR")} article(s) en base sur les dernières 24 h (UTC), toutes éditions confondues.`
       : null;
 
   const editionWindowLabel = useMemo(() => {
@@ -543,18 +533,6 @@ export default function EditionSommairePage() {
     return { rows, next, recentServerRun };
   }, [statusQ.data?.jobs]);
 
-  const toggleArticle = useCallback((id: string, next: boolean) => {
-    setSelectedIds((prev) => {
-      const n = new Set(prev);
-      if (next) {
-        n.add(id);
-      } else {
-        n.delete(id);
-      }
-      return n;
-    });
-  }, []);
-
   const detectMutation = useMutation({
     mutationFn: () => api.editionDetectTopics(editionId!),
     onSuccess: async () => {
@@ -563,16 +541,7 @@ export default function EditionSommairePage() {
       await qc.invalidateQueries({
         queryKey: ["editionClustersFallback", editionId],
       });
-      await qc.invalidateQueries({ queryKey: ["editionArticlesList"] });
-      await qc.invalidateQueries({ queryKey: ["editionArticlesFacets"] });
-    },
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: () => api.generateReview([...selectedIds]),
-    onSuccess: (data) => {
-      setGeneratedText(data.full_text);
-      setGenOpen(true);
+      await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
     },
   });
 
@@ -583,14 +552,8 @@ export default function EditionSommairePage() {
   const err =
     editionQ.error?.message ??
     topicsQ.error?.message ??
-    articlesListQ.error?.message ??
+    selectionsQ.error?.message ??
     null;
-
-  const corpusEmpty =
-    !loading &&
-    !articlesListQ.isPending &&
-    listArticles.length === 0 &&
-    Boolean(editionId);
 
   const fullyEmpty =
     !loading &&
@@ -600,36 +563,6 @@ export default function EditionSommairePage() {
     !hasTopicFeed;
 
   const labelsFr = coverageQ.data?.labels_fr ?? null;
-
-  const corpusCountryOptions = useMemo(() => {
-    const raw = corpusFacetsQ.data?.counts_by_country;
-    if (!raw || typeof raw !== "object") {
-      return [] as { code: string; count: number }[];
-    }
-    return Object.entries(raw)
-      .map(([code, count]) => ({
-        code: code.trim().toUpperCase(),
-        count: Number(count) || 0,
-      }))
-      .filter((x) => x.code)
-      .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code, "fr"));
-  }, [corpusFacetsQ.data?.counts_by_country]);
-
-  const corpusTotalCount = articlesListQ.data?.total ?? 0;
-  const corpusTruncated = corpusTotalCount > CORPUS_LIST_LIMIT;
-
-  const resetCorpusFilters = useCallback(() => {
-    setCorpusCountry("");
-    setCorpusLanguage("");
-    setCorpusType("");
-    setCorpusSort("relevance");
-  }, []);
-
-  const corpusFiltersActive =
-    Boolean(corpusCountry) ||
-    Boolean(corpusLanguage) ||
-    Boolean(corpusType) ||
-    corpusSort !== "relevance";
 
   return (
     <div className="space-y-10 pb-36">
@@ -667,39 +600,15 @@ export default function EditionSommairePage() {
                   className="text-[12px] leading-snug text-foreground-body"
                   title={editionWindowLabel ?? undefined}
                 >
-                  <span className="font-semibold text-foreground">Fenêtre de cette édition (Beyrouth) :</span>{" "}
+                  <span className="font-semibold text-foreground">Période couverte (Beyrouth) :</span>{" "}
                   {editionWindowCompact}
                 </p>
-                <ul className="list-none space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span className="mt-0.5 shrink-0 font-semibold text-accent" aria-hidden>
-                      ·
-                    </span>
-                    <span>
-                      <strong className="font-medium text-foreground-body">Jour J</strong> = date du titre. Ici on
-                      compte les articles <strong className="font-medium text-foreground-body">déjà traduits</strong>{" "}
-                      et <strong className="font-medium text-foreground-body">rattachés à cette édition</strong> selon
-                      la <strong className="font-medium text-foreground-body">date de parution chez le média</strong>,
-                      dans l’intervalle ci-dessus — pas une journée civile 0h–24h, et pas l’heure où notre serveur les
-                      enregistre.
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="mt-0.5 shrink-0 font-semibold text-accent" aria-hidden>
-                      ·
-                    </span>
-                    <span>
-                      <strong className="font-medium text-foreground-body">Mar.–ven.</strong> veille 18h → jour J 6h.{" "}
-                      <strong className="font-medium text-foreground-body">Lundi</strong> = édition week-end (ven. 18h
-                      → lun. 6h). Un texte paru <strong className="font-medium text-foreground-body">après</strong> la
-                      fin de fenêtre est pour <strong className="font-medium text-foreground-body">l’édition suivante</strong>
-                      , même si la collecte automatique ne passe que le lendemain matin.
-                    </span>
-                  </li>
-                </ul>
-                <p className="text-[10px] leading-snug text-muted-foreground">
-                  Horaires du traitement automatique, fuseaux et détail technique : section repliable{" "}
-                  <strong className="font-medium text-foreground-body">Planificateur · historique</strong> ci-dessous.
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Les articles listés correspondent à la date de parution chez le média dans cette plage (mar.–ven. :
+                  veille 18h → jour J 6h ; lundi : week-end).{" "}
+                  <Link href="/regie/pipeline" className="olj-link-action">
+                    Horaires automatiques
+                  </Link>
                 </p>
               </div>
             ) : null}
@@ -721,148 +630,64 @@ export default function EditionSommairePage() {
                 }
                 title={
                   statusQ.data?.pipeline_running
-                    ? "Un pipeline complet est déjà en cours sur le serveur (cron ou autre session)."
+                    ? "Une mise à jour complète est déjà en cours sur le serveur."
                     : undefined
                 }
                 onClick={() =>
-                  pipeline.startRun("pipeline", "Traitement complet")
+                  pipeline.startRun("pipeline", "Mise à jour complète")
                 }
               >
                 {pipeline.running?.key === "pipeline"
-                  ? "Traitement…"
+                  ? "Mise à jour…"
                   : statusQ.data?.pipeline_running
-                    ? "Pipeline serveur…"
-                    : "Actualiser"}
+                    ? "Mise à jour serveur…"
+                    : "Mise à jour"}
               </button>
             ) : null}
           </div>
         </div>
 
-        {edition ? (
-          <details className="mt-4 border-t border-border pt-3">
-            <summary className="cursor-pointer select-none text-[11px] font-medium text-muted-foreground marker:text-muted-foreground hover:text-foreground">
-              Structure de la page · lexique
-            </summary>
-            <div className="mt-2 space-y-2 text-[11px] leading-relaxed text-muted-foreground">
-              <p>
-                <strong className="font-medium text-foreground/90">1</strong> Sommaire (grands sujets) ·{" "}
-                <strong className="font-medium text-foreground/90">2</strong> Affinités (regroupements par
-                proximité) · <strong className="font-medium text-foreground/90">3</strong> Corpus et outils en bas de
-                page.
-              </p>
-              <p className="border-l-2 border-border pl-2">
-                <em>Grands sujets</em> = choix éditorial automatique (développements du jour).{" "}
-                <em>Affinités</em> = dossiers par ressemblance entre textes ; utile pour comparer des angles, distinct du
-                sommaire.
-              </p>
-            </div>
-          </details>
-        ) : null}
-
         {date ? (
-          <details className="mt-2 border-t border-border pt-3">
-            <summary className="cursor-pointer select-none text-[11px] font-medium text-muted-foreground marker:text-muted-foreground hover:text-foreground">
-              Planificateur · historique
-            </summary>
-            <div className="mt-2 space-y-3 text-[11px] leading-relaxed text-muted-foreground">
-              <div className="border-l-2 border-border pl-2 space-y-1.5">
-                <p className="font-medium text-foreground-body">
-                  Indicateur « Traitement… » et traitements automatiques
-                </p>
-                <p className="text-[10px]">
-                  Le voyant <strong className="font-medium text-foreground-body">« Traitement… »</strong> (et
-                  le message « Traitement serveur » ci-dessous) ne concerne que les lancements déclenchés depuis
-                  cette interface via le bouton <strong className="font-medium text-foreground-body">Actualiser</strong>.
-                  Les exécutions <strong className="font-medium text-foreground-body">planifiées sur le serveur</strong>{" "}
-                  (cron APScheduler) utilisent le même pipeline mais <strong className="font-medium text-foreground-body">n’alimentent pas ce voyant</strong> : elles n’apparaissent qu’après coup dans les horaires indiqués pour chaque tâche et dans les journaux Railway.
-                </p>
-              </div>
-              <div className="border-l-2 border-border pl-2 space-y-1.5">
-                <p className="font-medium text-foreground-body">
-                  Horaires des collectes automatiques (référence code)
-                </p>
-                <p className="text-[10px]">
-                  <strong className="font-medium text-foreground-body">Un passage par jour</strong> du pipeline complet
-                  (collecte, traduction, embeddings, sujets…), planifié en{" "}
-                  <strong className="font-medium text-foreground-body">Europe/Paris</strong> à{" "}
-                  <strong className="font-medium text-foreground-body">9h00</strong> par défaut (
-                  <code className="rounded bg-muted/50 px-0.5 font-mono text-[9px]">PIPELINE_PARIS_MORNING_HOUR</code> /{" "}
-                  <code className="rounded bg-muted/50 px-0.5 font-mono text-[9px]">MINUTE</code>
-                  ). <strong className="font-medium text-foreground-body">Lundi :</strong> ce passage couvre le week-end
-                  (gros run). <strong className="font-medium text-foreground-body">Mardi à vendredi :</strong> passage
-                  quotidien. <strong className="font-medium text-foreground-body">Pas de cron</strong> samedi ni
-                  dimanche. Les lignes <em>Prochain passage</em> ci-dessous donnent l’heure exacte (affichée en heure de
-                  Paris pour ces jobs).
-                </p>
-                <p className="text-[10px]">
-                  Une tâche séparée crée l’édition du <strong className="font-medium text-foreground-body">lendemain ouvré</strong> à{" "}
-                  <strong className="font-medium text-foreground-body">minuit, heure de Beyrouth</strong> (voir la ligne
-                  « Ouverture de l’édition du lendemain » dans la liste).
-                </p>
-                <p className="text-[10px]">
-                  <strong className="font-medium text-foreground-body">Économie d’appels LLM :</strong> la traduction ne
-                  traite que les articles encore en statut <code className="font-mono text-[9px]">collected</code> /{" "}
-                  <code className="font-mono text-[9px]">error</code> ; un passage manuel avant le cron ne refait pas les
-                  textes déjà traduits. Un <strong className="font-medium text-foreground-body">verrou serveur</strong>{" "}
-                  empêche deux pipelines complets en parallèle (le bouton Actualiser est grisé si{" "}
-                  <code className="font-mono text-[9px]">pipeline_running</code>).
-                </p>
-              </div>
-              {statusQ.data?.pipeline_running && !pipeline?.running ? (
-                <p
-                  className="border-l-2 border-[#c8102e]/40 pl-2 text-[10px] text-foreground-body"
-                  role="status"
-                  aria-live="polite"
-                >
-                  Pipeline complet en cours sur le serveur (planificateur ou autre session) — le bouton Actualiser est
-                  indisponible jusqu’à la fin.
-                </p>
-              ) : null}
-              {pipeline?.running ? (
-                <p
-                  className="border-l-2 border-[#c8102e] pl-2 font-medium text-foreground"
-                  role="status"
-                  aria-live="polite"
-                >
-                  Traitement serveur : {pipeline.running.label}…
-                </p>
-              ) : null}
-              {statusQ.isError ? (
-                <p className="text-destructive">Statut planificateur indisponible (erreur API).</p>
-              ) : statusQ.isPending ? (
-                <p>Chargement du planificateur…</p>
-              ) : schedulerPreview.next ? (
-                <p>
-                  <span className="font-medium text-foreground">Prochain passage auto :</span>{" "}
-                  {schedulerPreview.next.formattedNext} ({schedulerPreview.next.title}).
-                </p>
-              ) : schedulerPreview.rows.length === 0 ? (
-                <p>Aucune tâche planifiée renvoyée par le serveur.</p>
-              ) : null}
+          <div className="mt-3 space-y-2 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
+            {statusQ.data?.pipeline_running && !pipeline?.running ? (
+              <p className="border-l-2 border-accent/40 pl-2 text-foreground-body" role="status">
+                Mise à jour en cours sur le serveur — le bouton ci-dessus est indisponible jusqu’à la fin.
+              </p>
+            ) : null}
+            {pipeline?.running ? (
+              <p className="border-l-2 border-accent pl-2 font-medium text-foreground" role="status">
+                {pipeline.running.label}…
+              </p>
+            ) : null}
+            {statusQ.isError ? (
+              <p className="text-destructive">Statut automatique indisponible.</p>
+            ) : statusQ.isPending ? (
+              <p>Chargement des horaires…</p>
+            ) : schedulerPreview.next ? (
               <p>
-                Fuseaux (UTC / Beyrouth), liste des tâches et historique :{" "}
-                <Link href="/regie/pipeline" className="olj-link-action font-medium">
-                  Régie — Collecte
-                </Link>
-                {" · "}
-                <Link href="/regie/logs" className="olj-link-action font-medium">
-                  Journaux
-                </Link>
-                .
+                <span className="font-medium text-foreground">Prochain passage automatique :</span>{" "}
+                {schedulerPreview.next.formattedNext} ({schedulerPreview.next.title}).
               </p>
-              {pipeline?.lastRun ? (
-                <p>
-                  Dernier « Actualiser » (session) : {formatSessionDateTimeFr(pipeline.lastRun.at)} —{" "}
-                  {pipeline.lastRun.label}
-                  {pipeline.lastRun.ok ? "" : " · erreur"}.
-                </p>
-              ) : null}
-              <p className="text-[10px]">
-                Le serveur renvoie une erreur 409 si un traitement complet est déjà en cours ; l’interface désactive
-                aussi le bouton lorsque <code className="font-mono text-[9px]">pipeline_running</code> est vrai.
+            ) : null}
+            <p>
+              Détail des tâches et journaux :{" "}
+              <Link href="/regie/pipeline" className="olj-link-action font-medium">
+                Régie — Collecte
+              </Link>
+              {" · "}
+              <Link href="/regie/logs" className="olj-link-action font-medium">
+                Journaux
+              </Link>
+              .
+            </p>
+            {pipeline?.lastRun ? (
+              <p>
+                Dernière mise à jour (cette session) : {formatSessionDateTimeFr(pipeline.lastRun.at)} —{" "}
+                {pipeline.lastRun.label}
+                {pipeline.lastRun.ok ? "" : " · erreur"}.
               </p>
-            </div>
-          </details>
+            ) : null}
+          </div>
         ) : null}
 
         {vigieGlobaleHint ? (
@@ -886,7 +711,7 @@ export default function EditionSommairePage() {
               >
                 {detectMutation.isPending
                   ? "Analyse en cours…"
-                  : "Détecter les grands sujets"}
+                  : "Identifier les sujets"}
               </button>
             </div>
           )}
@@ -912,14 +737,11 @@ export default function EditionSommairePage() {
                 Aucun article collecté pour cette date
               </h2>
               <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-foreground-body">
-                Le corpus affiché regroupe les articles traduits rattachés à cette
-                édition (fenêtre Beyrouth). Lancez le traitement complet
-                (collecte, traduction, regroupement) pour alimenter l’édition.
+                Les articles traduits de cette édition (fenêtre Beyrouth) ne sont pas encore disponibles. Lancez une
+                mise à jour complète pour collecter et traiter les textes.
               </p>
               <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
-                Le traitement ne peut pas être interrompu depuis l’interface : il
-                se termine seul sur le serveur (plusieurs minutes). Actualisez la
-                page ensuite.
+                La mise à jour se poursuit sur le serveur (plusieurs minutes). Rechargez la page ensuite.
               </p>
               {pipeline ? (
                 <button
@@ -930,22 +752,20 @@ export default function EditionSommairePage() {
                     Boolean(statusQ.data?.pipeline_running)
                   }
                   onClick={() =>
-                    pipeline.startRun("pipeline", "Traitement complet")
+                    pipeline.startRun("pipeline", "Mise à jour complète")
                   }
                 >
                   {pipeline.running?.key === "pipeline"
-                    ? "Traitement…"
+                    ? "Mise à jour…"
                     : statusQ.data?.pipeline_running
-                      ? "Pipeline serveur…"
-                      : "Lancer le traitement complet"}
+                      ? "Mise à jour serveur…"
+                      : "Lancer la mise à jour complète"}
                 </button>
               ) : null}
               <p className="mt-4 text-[12px] text-muted-foreground">
-                Planificateur : section repliable en haut de page ou{" "}
                 <Link href="/regie/pipeline" className="olj-link-action">
                   Régie — Collecte
                 </Link>
-                .
               </p>
             </div>
           )}
@@ -965,7 +785,9 @@ export default function EditionSommairePage() {
                         key={t.id}
                         topic={t}
                         selectedIds={selectedIds}
-                        onToggleArticle={toggleArticle}
+                        onToggleArticle={(articleId, next) =>
+                          onTopicArticleToggle(t.id, articleId, next)
+                        }
                         editionDate={date}
                         mode="summary"
                         countryLabelsFr={labelsFr}
@@ -976,9 +798,8 @@ export default function EditionSommairePage() {
               ) : (
                 <section className="max-w-xl space-y-4">
                   <p className="text-[13px] leading-relaxed text-foreground-body">
-                    Aucun grand sujet pour cette date. La section{" "}
-                    <strong className="font-medium text-foreground">Textes très proches</strong> (affinités) reste
-                    disponible ci-dessous si le corpus le permet.
+                    Aucun sujet proposé pour cette date. Les regroupements thématiques ci-dessous restent disponibles si
+                    le corpus le permet.
                   </p>
                   {pipeline ? (
                     <button
@@ -989,14 +810,14 @@ export default function EditionSommairePage() {
                         Boolean(statusQ.data?.pipeline_running)
                       }
                       onClick={() =>
-                        pipeline.startRun("pipeline", "Traitement complet")
+                        pipeline.startRun("pipeline", "Mise à jour complète")
                       }
                     >
                       {pipeline.running?.key === "pipeline"
-                        ? "Traitement…"
+                        ? "Mise à jour…"
                         : statusQ.data?.pipeline_running
-                          ? "Pipeline serveur…"
-                          : "Lancer le traitement complet"}
+                          ? "Mise à jour serveur…"
+                          : "Lancer la mise à jour complète"}
                     </button>
                   ) : null}
                 </section>
@@ -1005,26 +826,24 @@ export default function EditionSommairePage() {
               {clusterRows.length > 0 && (
                 <section
                   className="rounded-xl border border-border bg-surface-warm/30 p-5 shadow-sm sm:p-7"
-                  aria-labelledby="edition-affinity-heading"
+                  aria-labelledby="edition-thematic-heading"
                 >
                   <header className="mb-6 border-b border-border pb-5">
-                    <p className="olj-rubric">Affinités</p>
+                    <p className="olj-rubric">Regroupements</p>
                     <h2
-                      id="edition-affinity-heading"
+                      id="edition-thematic-heading"
                       className="mt-2 font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug tracking-tight text-foreground sm:text-[19px]"
                     >
-                      Textes très proches
+                      Regroupements thématiques
                     </h2>
                     <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-                      Articles rapprochés par ressemblance automatique. Par défaut, seuls les blocs{" "}
-                      <strong className="font-medium text-foreground-body">multi-pays ou multi-médias</strong> sont
-                      listés ; le filtre se règle dans le bloc ci-dessous.
+                      Textes rapprochés par thème pour comparer des angles. Complément au sommaire des grands sujets.
                     </p>
                   </header>
                   <EditionThemesView
                     rows={clusterRows}
                     selectedIds={selectedIds}
-                    onToggleArticle={toggleArticle}
+                    onToggleArticle={toggleExtraArticle}
                     isLoading={
                       clustersFallbackQ.isFetching && clusterRows.length === 0
                     }
@@ -1035,187 +854,22 @@ export default function EditionSommairePage() {
               )}
 
               <section className="border-t border-border pt-10">
-                <div className="olj-rubric olj-rule mb-4">
-                  <h2 className="mb-1 font-[family-name:var(--font-serif)] text-[15px] font-semibold tracking-wide">
-                    {debouncedQ
-                      ? "Résultats de recherche"
-                      : "Corpus de l’édition"}
-                  </h2>
-                  {editionWindowLabel ? (
-                    <p className="max-w-2xl text-[12px] font-normal normal-case tracking-normal text-muted-foreground">
-                      {debouncedQ
-                        ? `Même périmètre édition · ${editionWindowLabel}`
-                        : `Corpus traduit de l’édition · ${editionWindowLabel}`}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="space-y-4 pb-4">
-                  <div className="max-w-xl">
-                    <label
-                      className="olj-rubric mb-1 block"
-                      htmlFor="edition-search-corpus"
-                    >
-                      Recherche dans le corpus
-                    </label>
-                    <input
-                      id="edition-search-corpus"
-                      type="search"
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      placeholder="Titre, résumé, thèse, angle…"
-                      className="olj-field-search"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="max-w-4xl space-y-2">
-                    <div className="flex flex-wrap items-end gap-2">
-                      <p className="olj-rubric w-full">Filtres et tri</p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
-                        <span>Pays</span>
-                        <select
-                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
-                          value={corpusCountry}
-                          onChange={(e) => setCorpusCountry(e.target.value)}
-                          aria-label="Filtrer par pays"
-                        >
-                          <option value="">Tous les pays</option>
-                          {corpusCountryOptions.map(({ code, count }) => {
-                            const flag = REGION_FLAG_EMOJI[code];
-                            const name = labelsFr?.[code]?.trim() || code;
-                            return (
-                              <option key={code} value={code}>
-                                {flag ? `${flag} ` : ""}
-                                {name} ({count})
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
-                        <span>Langue source</span>
-                        <select
-                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
-                          value={corpusLanguage}
-                          onChange={(e) => setCorpusLanguage(e.target.value)}
-                          aria-label="Filtrer par langue source"
-                        >
-                          <option value="">Toutes</option>
-                          {CORPUS_SOURCE_LANGUAGE_CODES.map((code) => (
-                            <option key={code} value={code}>
-                              {sourceLanguageLabelFr(code) ?? code}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
-                        <span>Type d’article</span>
-                        <select
-                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
-                          value={corpusType}
-                          onChange={(e) => setCorpusType(e.target.value)}
-                          aria-label="Filtrer par type d’article"
-                        >
-                          <option value="">Tous les types</option>
-                          {CORPUS_ARTICLE_TYPE_CODES.map((code) => (
-                            <option key={code} value={code}>
-                              {articleTypeLabelFr(code) ?? code}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-[11px] text-muted-foreground sm:max-w-[14rem]">
-                        <span>Tri</span>
-                        <select
-                          className="olj-focus rounded-md border border-border bg-background px-2 py-2 text-[12px] text-foreground"
-                          value={corpusSort}
-                          onChange={(e) =>
-                            setCorpusSort(e.target.value as CorpusSortKey)
-                          }
-                          aria-label="Trier la liste"
-                        >
-                          <option value="relevance">Pertinence éditoriale</option>
-                          <option value="date">Date de collecte</option>
-                          <option value="confidence">Confiance (desc.)</option>
-                          <option value="confidence_asc">Confiance (asc.)</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {corpusFiltersActive ? (
-                        <button
-                          type="button"
-                          className="text-[11px] font-medium text-[#c8102e] underline decoration-[#c8102e]/35 underline-offset-2 hover:decoration-[#c8102e]"
-                          onClick={resetCorpusFilters}
-                        >
-                          Réinitialiser filtres et tri
-                        </button>
-                      ) : null}
-                      {!articlesListQ.isPending && listArticles.length > 0 ? (
-                        <span className="text-[11px] tabular-nums text-muted-foreground">
-                          {listArticles.length} affiché
-                          {listArticles.length > 1 ? "s" : ""}
-                          {corpusTotalCount > listArticles.length
-                            ? ` sur ${corpusTotalCount.toLocaleString("fr-FR")}`
-                            : corpusTotalCount > 0
-                              ? ` · ${corpusTotalCount.toLocaleString("fr-FR")} au total`
-                              : ""}
-                          {corpusTruncated
-                            ? ` (plafond ${CORPUS_LIST_LIMIT} — affinez les filtres)`
-                            : ""}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-                {articlesListQ.isPending && <CorpusListSkeleton />}
-                {corpusEmpty && (
-                  <p className="text-[13px] text-muted-foreground">
-                    Aucun article dans cette vue. Élargissez la recherche ou
-                    attendez la fin du traitement.
-                  </p>
-                )}
-                {!articlesListQ.isPending && listArticles.length > 0 && (
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    {listArticles.map((a) => (
-                      <div
-                        key={a.id}
-                        className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5"
-                      >
-                        <ArticleRow
-                          article={a}
-                          selected={selectedIds.has(a.id)}
-                          onSelectedChange={(next) => toggleArticle(a.id, next)}
-                          attachmentLabel={
-                            articleAttachmentLabels.get(a.id) ?? null
-                          }
-                          variant="dense"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <p className="max-w-2xl text-[13px] leading-relaxed text-foreground-body">
+                  Pour parcourir tous les articles de cette édition (filtres, recherche, lecture détaillée), ouvrez la
+                  liste dédiée.
+                </p>
+                {editionId ? (
+                  <Link
+                    href={`/articles?edition_id=${encodeURIComponent(editionId)}`}
+                    className="olj-btn-secondary mt-4 inline-flex text-[13px]"
+                  >
+                    Voir tous les articles de l’édition
+                  </Link>
+                ) : null}
               </section>
             </div>
           )}
         </>
-      )}
-
-      {genOpen && generatedText && (
-        <section className="border-t border-border bg-surface-warm/25 py-8">
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="olj-rubric">Brouillon pour le CMS</h2>
-            <button
-              type="button"
-              className="text-[12px] text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
-              onClick={() => setGenOpen(false)}
-            >
-              Masquer
-            </button>
-          </div>
-          <ReviewPreview text={generatedText} stickyToolbar />
-        </section>
       )}
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
@@ -1225,33 +879,24 @@ export default function EditionSommairePage() {
             targets={coverageQ.data ?? null}
             compact
           />
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-            <p className="text-center text-[12px] text-muted-foreground sm:text-right">
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <p className="text-center text-[12px] text-muted-foreground sm:text-left">
               <span className="tabular-nums font-medium text-foreground">
                 {selectedIds.size}
               </span>{" "}
               sélection
             </p>
-            <button
-              type="button"
-              className="olj-btn-primary w-full sm:w-auto"
-              disabled={selectedIds.size === 0 || generateMutation.isPending}
-              onClick={() => generateMutation.mutate()}
-            >
-              {generateMutation.isPending
-                ? "Rédaction…"
-                : "Générer la revue"}
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              {date ? (
+                <Link
+                  href={`/edition/${date}/compose`}
+                  className="olj-btn-primary w-full text-center sm:w-auto"
+                >
+                  Rédaction
+                </Link>
+              ) : null}
+            </div>
           </div>
-          {generateMutation.isError && (
-            <p
-              className="mt-2 border-l border-destructive pl-3 text-[12px] text-destructive"
-              role="alert"
-            >
-              {(generateMutation.error as Error)?.message ??
-                "Échec de la génération"}
-            </p>
-          )}
         </div>
       </div>
     </div>

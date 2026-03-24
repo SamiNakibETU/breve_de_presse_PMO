@@ -386,9 +386,16 @@ async def list_clusters_fallback_for_edition(
         cl = await db.get(TopicCluster, cid)
         country_codes: set[str] = set()
         source_keys: set[str] = set()
+        def _rel(a: Article) -> float:
+            if a.relevance_score is not None:
+                return float(a.relevance_score)
+            if a.relevance_score_deterministic is not None:
+                return float(a.relevance_score_deterministic)
+            return 0.0
+
         group_sorted = sorted(
             group,
-            key=lambda a: (a.relevance_score or 0.0),
+            key=_rel,
             reverse=True,
         )
         article_rows: list[dict[str, Any]] = []

@@ -98,10 +98,6 @@ export default function EditionTopicPage() {
         >
           ← Sommaire de l’édition
         </Link>
-        <span className="max-w-xl text-[12px] leading-snug text-muted-foreground">
-          Le <strong className="font-medium text-foreground/90">sommaire</strong> liste les autres sujets et le corpus —
-          la revue ne vous oblige pas à rester sur cette fiche.
-        </span>
       </nav>
 
       {editionLoading && (

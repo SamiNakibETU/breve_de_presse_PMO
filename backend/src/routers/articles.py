@@ -131,6 +131,9 @@ def _to_response(
         word_count=art.word_count,
         collected_at=art.collected_at,
         editorial_relevance=expl["score"],
+        relevance_score=art.relevance_score,
+        relevance_score_deterministic=art.relevance_score_deterministic,
+        relevance_band=art.relevance_band,
         why_ranked=expl,
         olj_topic_ids=olj_ids,
         article_family=art.article_family,
@@ -260,7 +263,12 @@ async def list_articles(
     elif sort == "confidence_asc":
         query = query.order_by(Article.translation_confidence.asc().nullslast())
     elif sort == "relevance":
-        query = query.order_by(Article.relevance_score.desc().nullslast())
+        query = query.order_by(
+            func.coalesce(
+                Article.relevance_score,
+                Article.relevance_score_deterministic,
+            ).desc().nullslast(),
+        )
     else:
         query = query.order_by(Article.published_at.desc().nullslast())
 

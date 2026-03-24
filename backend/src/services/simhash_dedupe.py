@@ -5,6 +5,7 @@ Marque is_syndicated + canonical_article_id (article le plus ancien du groupe).
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections import defaultdict
 
@@ -38,6 +39,12 @@ def _tokens(text: str) -> list[str]:
     return re.findall(r"\w{3,}", text.lower(), flags=re.UNICODE)
 
 
+def _token_hash_64(word: str) -> int:
+    """Hash déterministe sur 64 bits (évite hash() Python non reproductible entre process)."""
+    digest = hashlib.md5(word.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big") & ((1 << _SIMHASH_BITS) - 1)
+
+
 def simhash_64(text: str) -> int:
     if not text or len(text.strip()) < 40:
         return 0
@@ -49,7 +56,7 @@ def simhash_64(text: str) -> int:
         weights[t] += 1
     v = [0] * _SIMHASH_BITS
     for word, w in weights.items():
-        h = hash(word) & ((1 << _SIMHASH_BITS) - 1)
+        h = _token_hash_64(word)
         for b in range(_SIMHASH_BITS):
             if h & (1 << b):
                 v[b] += w

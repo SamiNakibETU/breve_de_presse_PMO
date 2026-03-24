@@ -81,7 +81,7 @@ function ThemeArticleRow({
 }
 
 /**
- * Affinités : familles de textes rapprochés par similarité (HDBSCAN), distinctes du sommaire LLM.
+ * Regroupements thématiques : textes rapprochés par similarité, distincts du sommaire éditorial.
  */
 export function EditionThemesView({
   rows,
@@ -89,7 +89,7 @@ export function EditionThemesView({
   onToggleArticle,
   isLoading,
   countryLabelsFr,
-  /** Masque l’en-tête interne : le parent affiche déjà « Affinités / Textes très proches ». */
+  /** Masque l’en-tête interne : le parent affiche déjà le titre de section. */
   embedded = false,
 }: {
   rows: ClusterFallbackRow[];
@@ -102,7 +102,7 @@ export function EditionThemesView({
   const [listFilter, setListFilter] = useState<"all" | "useful">("useful");
 
   const sortedRows = useMemo(() => {
-    const r = [...rows];
+    const r = rows.filter((row) => row.article_count >= 3);
     r.sort((a, b) => {
       const ma = a.country_count >= 2 ? 0 : 1;
       const mb = b.country_count >= 2 ? 0 : 1;
@@ -141,9 +141,9 @@ export function EditionThemesView({
     }
     return (
       <div className="max-w-2xl space-y-2">
-        <h2 className="olj-rubric olj-rule">Affinités</h2>
+        <h2 className="olj-rubric olj-rule">Regroupements thématiques</h2>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Aucune famille de textes très proches pour cette édition. Lancez le traitement complet si besoin.
+          Aucun regroupement suffisant pour cette édition. Lancez une mise à jour complète si besoin.
         </p>
       </div>
     );
@@ -155,8 +155,7 @@ export function EditionThemesView({
         <div>
           <h2 className="olj-rubric olj-rule mb-2">Regroupements thématiques</h2>
           <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-            Regroupement par similarité (HDBSCAN). Les blocs multi-pays sont
-            mis en avant.
+            Textes rapprochés automatiquement. Les blocs couvrant plusieurs pays sont mis en avant.
           </p>
         </div>
       ) : null}
@@ -172,7 +171,7 @@ export function EditionThemesView({
               onChange={(e) =>
                 setListFilter(e.target.value === "all" ? "all" : "useful")
               }
-              aria-label="Filtrer les blocs d’affinités"
+              aria-label="Filtrer les regroupements"
             >
               <option value="useful">
                 Utiles seulement (multi-pays ou multi-médias)

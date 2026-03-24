@@ -30,6 +30,9 @@ class ArticleResponse(BaseModel):
     word_count: Optional[int] = None
     collected_at: datetime
     editorial_relevance: Optional[int] = None
+    relevance_score: Optional[float] = None
+    relevance_score_deterministic: Optional[float] = None
+    relevance_band: Optional[str] = None
     why_ranked: Optional[dict[str, Any]] = None
     olj_topic_ids: Optional[list[str]] = None
     article_family: Optional[str] = None

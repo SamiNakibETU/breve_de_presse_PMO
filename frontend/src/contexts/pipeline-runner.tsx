@@ -99,6 +99,8 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
   const [running, setRunning] = useState<RunningState | null>(null);
   const [lastRun, setLastRun] = useState<PipelineRunRecord | null>(null);
   const [diagnostics, setDiagnostics] = useState<string[]>([]);
+  const [completionToast, setCompletionToast] = useState<string | null>(null);
+  const savedTitleRef = useRef<string | null>(null);
 
   const inFlightTaskIdRef = useRef<string | null>(null);
   const startingRef = useRef(false);
@@ -187,6 +189,10 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
           at,
           taskId,
         });
+        if (actionKey === "pipeline") {
+          setCompletionToast("Mise à jour terminée");
+          window.setTimeout(() => setCompletionToast(null), 5000);
+        }
         queueMicrotask(() => {
           invalidateDashboardQueries(queryClient);
         });
@@ -306,6 +312,18 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
     [appendDiagnostic, queryClient],
   );
 
+  useEffect(() => {
+    if (running) {
+      if (savedTitleRef.current == null) {
+        savedTitleRef.current = document.title;
+      }
+      document.title = `⏳ Mise à jour… | OLJ`;
+    } else if (savedTitleRef.current != null) {
+      document.title = savedTitleRef.current;
+      savedTitleRef.current = null;
+    }
+  }, [running]);
+
   const value = useMemo<PipelineRunnerValue>(
     () => ({
       running,
@@ -320,6 +338,14 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
   return (
     <PipelineRunnerContext.Provider value={value}>
       {children}
+      {completionToast ? (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-[100] max-w-sm -translate-x-1/2 rounded-md border border-border bg-background px-4 py-3 text-center text-[13px] font-medium text-foreground shadow-lg"
+        >
+          {completionToast}
+        </div>
+      ) : null}
     </PipelineRunnerContext.Provider>
   );
 }

@@ -1,15 +1,18 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Article, ReviewSummary } from "@/lib/types";
-import { REVIEW_ARTICLE_IDS_KEY } from "@/lib/review-selection-storage";
+import { parseArticleIdsParam, reviewPagePath } from "@/lib/review-url";
 import { SelectedArticles } from "@/components/review/selected-articles";
 import { ReviewPreview } from "@/components/review/review-preview";
 
 export default function ReviewPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [articleIds, setArticleIds] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
@@ -18,18 +21,13 @@ export default function ReviewPage() {
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(REVIEW_ARTICLE_IDS_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as unknown;
-        if (Array.isArray(parsed)) {
-          setArticleIds(parsed.filter((x): x is string => typeof x === "string"));
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }, []);
+    const fromUrl = parseArticleIdsParam(searchParams.get("ids"));
+    setArticleIds(fromUrl);
+  }, [searchParams]);
+
+  const syncUrl = useCallback((ids: string[]) => {
+    router.replace(reviewPagePath(ids), { scroll: false });
+  }, [router]);
 
   const idsKey = articleIds.slice().sort().join(",");
 
@@ -74,9 +72,11 @@ export default function ReviewPage() {
   }, [queryClient]);
 
   function removeArticle(id: string) {
-    const next = articleIds.filter((i) => i !== id);
-    setArticleIds(next);
-    sessionStorage.setItem(REVIEW_ARTICLE_IDS_KEY, JSON.stringify(next));
+    setArticleIds((prev) => {
+      const next = prev.filter((i) => i !== id);
+      queueMicrotask(() => syncUrl(next));
+      return next;
+    });
   }
 
   function reorderSelection(from: number, to: number) {
@@ -85,7 +85,7 @@ export default function ReviewPage() {
       const next = [...prev];
       const [x] = next.splice(from, 1);
       next.splice(to, 0, x);
-      sessionStorage.setItem(REVIEW_ARTICLE_IDS_KEY, JSON.stringify(next));
+      queueMicrotask(() => syncUrl(next));
       return next;
     });
   }

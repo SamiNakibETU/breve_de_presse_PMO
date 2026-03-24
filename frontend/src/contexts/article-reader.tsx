@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   createContext,
   useCallback,
@@ -13,8 +14,13 @@ import {
   articleTypeLabelFr,
   sourceLanguageLabelFr,
 } from "@/lib/article-labels-fr";
+import {
+  formatAuthorDisplay,
+  relevanceBandLabelFr,
+} from "@/lib/article-relevance-display";
 import { api } from "@/lib/api";
 import type { Article } from "@/lib/types";
+import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { cn } from "@/lib/utils";
 
 const ARTICLE_QUERY_STALE_MS = 60_000;
@@ -72,6 +78,30 @@ export function useArticleReader(): ArticleReaderContextValue {
 
 type ReaderTab = "synthesis" | "translation";
 
+function buildSynthesisPlainText(a: Article): string {
+  const parts: string[] = [];
+  if (a.thesis_summary_fr?.trim()) {
+    parts.push(`Thèse : ${a.thesis_summary_fr.trim()}`);
+  }
+  if (a.summary_fr?.trim()) {
+    parts.push(`Résumé : ${a.summary_fr.trim()}`);
+  }
+  if (a.key_quotes_fr?.length) {
+    parts.push(
+      "Citations :\n" +
+        a.key_quotes_fr.map((q) => `« ${q} »`).join("\n"),
+    );
+  }
+  return parts.join("\n\n");
+}
+
+function bodyParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 function ArticleReadModal({
   articleId,
   onClose,
@@ -80,6 +110,7 @@ function ArticleReadModal({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<ReaderTab>("synthesis");
+  const [copiedSynth, setCopiedSynth] = useState(false);
   const q = useQuery({
     queryKey: articleDetailQueryKey(articleId),
     queryFn: () => api.articleById(articleId),
@@ -89,6 +120,7 @@ function ArticleReadModal({
 
   useEffect(() => {
     setTab("synthesis");
+    setCopiedSynth(false);
   }, [articleId]);
 
   useEffect(() => {
@@ -108,6 +140,13 @@ function ArticleReadModal({
   const hasBodyFr = Boolean(a?.content_translated_fr?.trim());
   const summaryOnly =
     Boolean(a?.en_translation_summary_only) && !hasBodyFr;
+  const cc = (a?.country_code ?? "").trim().toUpperCase();
+  const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
+  const authorLine = a ? formatAuthorDisplay(a.author) : null;
+  const relevanceLbl =
+    a != null
+      ? relevanceBandLabelFr(a.relevance_band, a.editorial_relevance)
+      : null;
 
   return (
     <div
@@ -150,6 +189,39 @@ function ArticleReadModal({
           ) : a ? (
             <article className="space-y-4 text-[13px] leading-relaxed text-foreground-body">
               <header className="space-y-2 border-b border-border-light pb-4">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
+                  {flag ? (
+                    <span className="text-[1.1rem] leading-none" aria-hidden>
+                      {flag}
+                    </span>
+                  ) : null}
+                  <span>{a.country?.trim() || cc || "—"}</span>
+                  <span>·</span>
+                  <span className="font-medium text-foreground">{a.media_name}</span>
+                  {typeFr ? (
+                    <>
+                      <span>·</span>
+                      <span className="rounded-sm bg-muted/40 px-1.5 py-0.5 text-[11px] font-medium text-foreground">
+                        {typeFr}
+                      </span>
+                    </>
+                  ) : null}
+                  {a.published_at ? (
+                    <>
+                      <span>·</span>
+                      <time
+                        dateTime={a.published_at}
+                        className="tabular-nums text-[11px]"
+                      >
+                        {new Date(a.published_at).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </time>
+                    </>
+                  ) : null}
+                </p>
                 <h2
                   id="article-read-title"
                   className="font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug text-foreground"
@@ -164,28 +236,14 @@ function ArticleReadModal({
                   </p>
                 ) : null}
                 <p className="flex flex-wrap gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                    {a.media_name}
-                  </span>
-                  <span>·</span>
-                  <span>{a.country}</span>
-                  {typeFr ? (
-                    <>
-                      <span>·</span>
-                      <span>{typeFr}</span>
-                    </>
+                  {authorLine ? (
+                    <span className="font-medium text-foreground">{authorLine}</span>
                   ) : null}
                   {langFr ? (
-                    <>
-                      <span>·</span>
-                      <span>{langFr}</span>
-                    </>
-                  ) : null}
-                  {a.author?.trim() ? (
-                    <>
-                      <span>·</span>
-                      <span>{a.author.trim()}</span>
-                    </>
+                    <span>
+                      {authorLine ? " · " : null}
+                      {langFr}
+                    </span>
                   ) : null}
                 </p>
                 {a.url ? (
@@ -212,7 +270,7 @@ function ArticleReadModal({
                   className={cn(
                     "rounded-md px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors",
                     tab === "synthesis"
-                      ? "bg-[#c8102e]/12 text-[#c8102e]"
+                      ? "bg-accent/12 text-accent"
                       : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
                   )}
                   onClick={() => setTab("synthesis")}
@@ -226,7 +284,7 @@ function ArticleReadModal({
                   className={cn(
                     "rounded-md px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors",
                     tab === "translation"
-                      ? "bg-[#c8102e]/12 text-[#c8102e]"
+                      ? "bg-accent/12 text-accent"
                       : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
                   )}
                   onClick={() => setTab("translation")}
@@ -235,8 +293,46 @@ function ArticleReadModal({
                 </button>
               </div>
 
+              <div className="flex flex-wrap gap-2 border-b border-border-light pb-3">
+                <Link
+                  href={`/articles/${articleId}`}
+                  className="olj-btn-secondary inline-flex px-3 py-1.5 text-[11px]"
+                  onClick={onClose}
+                >
+                  Ouvrir en pleine page
+                </Link>
+              </div>
+
               {tab === "synthesis" ? (
                 <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {relevanceLbl ? (
+                      <span className="inline-flex rounded-md border border-border bg-muted/20 px-2 py-1 text-[10px] font-medium text-foreground-body">
+                        Pertinence : {relevanceLbl}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <button
+                      type="button"
+                      className="olj-btn-secondary px-2 py-1 text-[11px] disabled:opacity-40"
+                      disabled={!a || !buildSynthesisPlainText(a).trim()}
+                      onClick={async () => {
+                        if (!a) return;
+                        try {
+                          await navigator.clipboard.writeText(
+                            buildSynthesisPlainText(a),
+                          );
+                          setCopiedSynth(true);
+                          window.setTimeout(() => setCopiedSynth(false), 2000);
+                        } catch {
+                          setCopiedSynth(false);
+                        }
+                      }}
+                    >
+                      {copiedSynth ? "Copié" : "Copier la synthèse"}
+                    </button>
+                  </div>
                   {a.thesis_summary_fr?.trim() ? (
                     <section>
                       <p className="olj-rubric mb-2">Thèse</p>
@@ -249,9 +345,11 @@ function ArticleReadModal({
                   {a.summary_fr?.trim() ? (
                     <section>
                       <p className="olj-rubric mb-2">Résumé</p>
-                      <p className="whitespace-pre-wrap text-foreground-body">
-                        {a.summary_fr.trim()}
-                      </p>
+                      <div className="space-y-3 font-[family-name:var(--font-serif)] text-[14px] leading-[1.75] text-foreground-body">
+                        {bodyParagraphs(a.summary_fr.trim()).map((para, i) => (
+                          <p key={i}>{para}</p>
+                        ))}
+                      </div>
                     </section>
                   ) : null}
 
@@ -281,14 +379,25 @@ function ArticleReadModal({
                   {(a.framing_actor ||
                     a.framing_tone ||
                     a.framing_prescription) && (
-                    <section className="border-t border-border-light pt-4 text-[12px] text-muted-foreground">
-                      <p className="olj-rubric mb-2">Cadrage</p>
+                    <section className="border-t border-border-light pt-4 text-[12px] text-foreground-body">
+                      <p className="olj-rubric mb-2">Cadrage éditorial</p>
                       {a.framing_actor ? (
-                        <p>Acteur : {a.framing_actor}</p>
+                        <p>
+                          <span className="text-muted-foreground">Angle : </span>
+                          {a.framing_actor}
+                        </p>
                       ) : null}
-                      {a.framing_tone ? <p>Ton : {a.framing_tone}</p> : null}
+                      {a.framing_tone ? (
+                        <p>
+                          <span className="text-muted-foreground">Registre : </span>
+                          {a.framing_tone}
+                        </p>
+                      ) : null}
                       {a.framing_prescription ? (
-                        <p>Prescription : {a.framing_prescription}</p>
+                        <p>
+                          <span className="text-muted-foreground">Proposition : </span>
+                          {a.framing_prescription}
+                        </p>
                       ) : null}
                     </section>
                   )}
@@ -301,14 +410,19 @@ function ArticleReadModal({
                 </>
               ) : (
                 <section className="space-y-2">
-                  <p className="olj-rubric mb-1">Texte traduit (pipeline)</p>
+                  <p className="olj-rubric mb-1">Traduction intégrale</p>
                   <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    Version française du corps issu de la traduction automatique
-                    (hors reformulation « thèse / résumé » de l’onglet précédent).
+                    Corps traduit (distinct de la synthèse éditoriale).
                   </p>
                   {hasBodyFr ? (
-                    <div className="whitespace-pre-wrap rounded-md border border-border-light bg-surface-warm/20 p-3 text-[13px] text-foreground-body">
-                      {a.content_translated_fr!.trim()}
+                    <div className="rounded-md border border-border-light bg-surface-warm/20 p-4 font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-foreground-body">
+                      {bodyParagraphs(a.content_translated_fr!.trim()).map(
+                        (para, i) => (
+                          <p key={i} className="mb-3 last:mb-0">
+                            {para}
+                          </p>
+                        ),
+                      )}
                     </div>
                   ) : summaryOnly ? (
                     <p className="text-[13px] text-muted-foreground">

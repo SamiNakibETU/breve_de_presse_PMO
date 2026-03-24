@@ -21,10 +21,10 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
     return (
       <div className="py-12 text-center text-muted-foreground">
         <p className="font-[family-name:var(--font-serif)] text-lg text-foreground">
-          Aucun dossier d’affinités pour l’instant
+          Aucun regroupement pour l’instant
         </p>
         <p className="mt-2 text-sm">
-          Lancez le traitement complet (régie) pour collecter, traduire et regrouper les textes.
+          Lancez une mise à jour complète depuis la Régie pour collecter, traduire et rapprocher les textes.
         </p>
       </div>
     );
@@ -33,11 +33,9 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
   return (
     <div className="space-y-5">
       <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
-        Chaque carte est un <strong className="font-medium text-foreground-subtle">dossier d’affinités</strong>{" "}
-        : textes rapprochés automatiquement (ce n’est pas le sommaire éditorial). Grille en deux colonnes,
-        tri par <strong className="font-medium text-foreground-subtle">pertinence moyenne</strong>. Jusqu’à{" "}
-        <strong className="font-medium text-foreground-subtle">trois voix</strong> (pastilles Voix 1–3) : thèses
-        courtes et source — la fiche complète liste tous les articles et la couverture par pays.
+        Chaque carte regroupe des textes rapprochés automatiquement (ce n’est pas le sommaire éditorial de
+        l’édition). Grille en deux colonnes, tri par pertinence moyenne. Les pastilles « Voix » résument
+        des thèses courtes — la fiche détail liste tous les articles et la couverture par pays.
       </p>
 
       <ul className="grid list-none grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
@@ -50,7 +48,7 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
 
       {noiseCount > 0 ? (
         <div className="border-t border-border-light pt-4 text-sm text-muted-foreground">
-          + {noiseCount} articles non classés dans ces sujets
+          + {noiseCount} article{noiseCount > 1 ? "s" : ""} en marge de ces regroupements
         </div>
       ) : null}
     </div>

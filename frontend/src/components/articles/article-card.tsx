@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
 import { articleTypeLabelFr } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { Article } from "@/lib/types";
@@ -12,6 +14,8 @@ interface ArticleCardProps {
   onToggle: (id: string) => void;
   /** Carte dans une grille 2 colonnes (méta pays + journal en tête). */
   variant?: "list" | "grid";
+  /** Libellés thèmes OLJ (taxonomie). */
+  topicLabelsFr?: Record<string, string> | null;
 }
 
 const EDITORIAL_TYPES = new Set(["opinion", "editorial", "tribune"]);
@@ -22,12 +26,15 @@ function typeLabel(type: string | null | undefined): string {
   return articleTypeLabelFr(type ?? undefined) ?? type ?? "";
 }
 
-/** Seuils alignés sur cod_multi_pass_min_relevance (80) — sans afficher le score (MEMW §2.5.4). */
-function editorialRelevanceLabel(score: number | null | undefined): string | null {
-  if (score == null) return null;
-  if (score >= 80) return "Très pertinent";
-  if (score >= 50) return "Pertinent";
-  return null;
+function oljThemesLine(
+  ids: string[] | null | undefined,
+  labelsFr: Record<string, string> | null | undefined,
+): string | null {
+  if (!ids?.length) return null;
+  const parts = ids
+    .map((id) => labelsFr?.[id.trim()]?.trim() || id.trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 export function ArticleCard({
@@ -35,11 +42,15 @@ export function ArticleCard({
   selected,
   onToggle,
   variant = "list",
+  topicLabelsFr = null,
 }: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isEditorial = EDITORIAL_TYPES.has(article.article_type || "");
   const isNewsLike = NEWS_LIKE_TYPES.has(article.article_type || "");
-  const relevanceLabel = editorialRelevanceLabel(article.editorial_relevance);
+  const relevanceLabel = relevanceBandLabelFr(
+    article.relevance_band,
+    article.editorial_relevance,
+  );
   const cc = (article.country_code ?? "").trim().toUpperCase();
   const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
   const typeLbl = typeLabel(article.article_type);
@@ -105,6 +116,11 @@ export function ArticleCard({
                   {typeLbl}
                 </span>
               ) : null}
+              {variant === "grid" && article.is_flagship ? (
+                <span className="rounded-sm bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                  Référence
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div className="flex items-start gap-3">
@@ -122,13 +138,13 @@ export function ArticleCard({
                   </span>
                 )}
                 {relevanceLabel && (
-                  <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                  <span className="rounded-sm bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-foreground-body">
                     {relevanceLabel}
                   </span>
                 )}
               </div>
               <h3
-                className={`cursor-pointer leading-snug hover:text-accent ${
+                className={`flex cursor-pointer items-start gap-2 leading-snug hover:text-accent ${
                   variant === "grid"
                     ? "font-[family-name:var(--font-serif)] text-[16px] font-semibold leading-[1.35] text-foreground sm:text-[17px]"
                     : isEditorial
@@ -139,7 +155,16 @@ export function ArticleCard({
                 }`}
                 onClick={() => setExpanded(!expanded)}
               >
-                {article.title_fr || article.title_original}
+                <span
+                  className="mt-0.5 shrink-0 text-muted-foreground transition-transform"
+                  style={{ transform: expanded ? "rotate(90deg)" : "none" }}
+                  aria-hidden
+                >
+                  ›
+                </span>
+                <span className="min-w-0">
+                  {article.title_fr || article.title_original}
+                </span>
               </h3>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
@@ -180,6 +205,11 @@ export function ArticleCard({
                   {typeLabel(article.article_type)}
                 </span>
               )}
+              {article.is_flagship ? (
+                <span className="ml-2 rounded-sm bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                  Référence
+                </span>
+              ) : null}
               {article.is_syndicated && (
                 <span className="ml-2 text-[10px] text-muted-foreground">
                   Reprise
@@ -242,16 +272,40 @@ export function ArticleCard({
                   ))}
                 </div>
               )}
-              {article.url && (
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+              {article.editorial_angle?.trim() ? (
+                <p className="text-[12px] leading-relaxed text-foreground-subtle">
+                  <span className="font-medium text-muted-foreground">
+                    Angle :{" "}
+                  </span>
+                  {article.editorial_angle.trim()}
+                </p>
+              ) : null}
+              {oljThemesLine(article.olj_topic_ids, topicLabelsFr) ? (
+                <p className="text-[12px] leading-relaxed text-foreground-body">
+                  <span className="font-medium text-muted-foreground">
+                    Thèmes OLJ :{" "}
+                  </span>
+                  {oljThemesLine(article.olj_topic_ids, topicLabelsFr)}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-3 pt-1">
+                <Link
+                  href={`/articles/${article.id}`}
+                  className="text-[12px] font-medium text-accent underline underline-offset-2 hover:opacity-90"
                 >
-                  Article original ↗
-                </a>
-              )}
+                  Lire l’article complet
+                </Link>
+                {article.url ? (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+                  >
+                    Source originale ↗
+                  </a>
+                ) : null}
+              </div>
               <button
                 onClick={() => setExpanded(false)}
                 className="block text-[11px] text-muted-foreground hover:text-foreground"

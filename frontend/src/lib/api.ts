@@ -15,6 +15,7 @@ import type {
   CoverageTargetsResponse,
   OljTopicLabelsResponse,
   Edition,
+  EditionSelectionsResponse,
   EditionTopic,
   EditionTopicDetailResponse,
   GenerateAllResponse,
@@ -342,6 +343,11 @@ export const api = {
 
   editionByDate: (publishDate: string) =>
     request<Edition>(`/api/editions/by-date/${publishDate}`),
+
+  editionSelections: (editionId: string) =>
+    request<EditionSelectionsResponse>(
+      `/api/editions/${editionId}/selections`,
+    ),
 
   editionTopics: (
     editionId: string,

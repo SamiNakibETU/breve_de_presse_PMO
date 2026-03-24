@@ -171,10 +171,6 @@ export function ArticleRow({
         <p className="mt-2 pl-8 text-[10px] font-medium uppercase tracking-wide text-info">
           {attachmentLabel}
         </p>
-      ) : variant === "dense" ? (
-        <p className="mt-2 pl-8 text-[10px] uppercase tracking-wide text-muted-foreground">
-          Non classé
-        </p>
       ) : null}
       {open && article.summary_fr && (
         <p className="mt-3 max-w-2xl border-l border-border-light pl-4 text-[13px] leading-relaxed text-foreground-body sm:pl-8">

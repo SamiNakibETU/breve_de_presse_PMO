@@ -23,14 +23,14 @@ export function PipelineGlobalBar() {
             className="size-2 shrink-0 rounded-full bg-accent motion-safe:animate-pulse"
             aria-hidden
           />
-          Traitement en cours
+          Mise à jour en cours
         </span>
         <span className="text-[13px] font-semibold text-foreground">
           {running.label}
         </span>
         {running.stepLabel ? (
           <span className="min-w-0 max-w-[min(100%,36rem)] text-[13px] font-medium leading-snug text-foreground-body">
-            <span className="text-muted-foreground">Étape · </span>
+            <span className="text-muted-foreground">Étape : </span>
             {running.stepLabel}
           </span>
         ) : null}

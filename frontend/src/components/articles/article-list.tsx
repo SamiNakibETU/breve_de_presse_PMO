@@ -90,6 +90,7 @@ export function ArticleList({
         selected={selected.has(a.id)}
         onToggle={onToggle}
         variant="grid"
+        topicLabelsFr={topicLabelsFr}
       />
     </div>
   );

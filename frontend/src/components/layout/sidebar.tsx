@@ -8,10 +8,11 @@ import { api } from "@/lib/api";
 import type { AppStatus } from "@/lib/types";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
+import { todayBeirutIsoDate } from "@/lib/beirut-date";
 
 const PRIMARY_NAV = [
   { href: "/", label: "Édition du jour" },
-  { href: "/dashboard", label: "Clusters & vigie" },
+  { href: "/dashboard", label: "Panorama" },
   { href: "/articles", label: "Articles" },
 ] as const;
 
@@ -37,6 +38,7 @@ export function Masthead() {
   const queryClient = useQueryClient();
   const pipeline = usePipelineRunnerOptional();
   const running = pipeline?.running ?? null;
+  const composeHref = `/edition/${todayBeirutIsoDate()}/compose`;
 
   useQuery({
     queryKey: ["stats"] as const,
@@ -111,7 +113,8 @@ export function Masthead() {
           {PRIMARY_NAV.map(({ href, label }) => {
             const active =
               href === "/"
-                ? pathname === "/" || pathname.startsWith("/edition")
+                ? pathname === "/" ||
+                  (pathname.startsWith("/edition") && !pathname.includes("/compose"))
                 : pathname === href || pathname.startsWith(`${href}/`);
 
             return (
@@ -133,6 +136,16 @@ export function Masthead() {
               </Link>
             );
           })}
+          <Link
+            href={composeHref}
+            prefetch
+            className={cn(
+              "olj-nav-item",
+              pathname.includes("/compose") && "olj-nav-item--active",
+            )}
+          >
+            Rédaction
+          </Link>
           <Link
             href="/regie"
             prefetch

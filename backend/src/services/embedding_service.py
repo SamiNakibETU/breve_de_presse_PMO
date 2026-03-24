@@ -43,13 +43,13 @@ class EmbeddingService:
         settings = get_settings()
         if not settings.cohere_api_key:
             raise ValueError("COHERE_API_KEY is required for embedding service")
-        self.client = cohere.ClientV2(api_key=settings.cohere_api_key)
+        self.client = cohere.AsyncClientV2(api_key=settings.cohere_api_key)
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), BATCH_SIZE):
             batch = texts[i : i + BATCH_SIZE]
-            response = self.client.embed(
+            response = await self.client.embed(
                 texts=batch,
                 model=MODEL,
                 input_type=INPUT_TYPE_DOCUMENT,
@@ -60,9 +60,9 @@ class EmbeddingService:
             )
         return all_embeddings
 
-    def embed_query(self, text: str) -> list[float]:
+    async def embed_query(self, text: str) -> list[float]:
         """Vecteur pour recherche sémantique (asymétrique vs search_document)."""
-        response = self.client.embed(
+        response = await self.client.embed(
             texts=[text[:8000]],
             model=MODEL,
             input_type=INPUT_TYPE_QUERY,
@@ -96,7 +96,7 @@ class EmbeddingService:
             f"{a.title_fr or ''} {a.summary_fr or ''}".strip()
             for a in articles
         ]
-        embeddings = self.embed_texts(texts)
+        embeddings = await self.embed_texts(texts)
 
         for article, embedding in zip(articles, embeddings):
             article.embedding = embedding
