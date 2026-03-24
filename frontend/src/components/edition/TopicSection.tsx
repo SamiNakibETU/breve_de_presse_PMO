@@ -227,7 +227,10 @@ export function TopicSection({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copiedGen, setCopiedGen] = useState(false);
-  const previews = topic.article_previews ?? [];
+  const previews = useMemo(
+    () => topic.article_previews ?? [],
+    [topic.article_previews],
+  );
   const maxPreview =
     mode === "summary"
       ? expanded

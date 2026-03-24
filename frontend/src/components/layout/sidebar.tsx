@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { api } from "@/lib/api";
-import type { AppStatus } from "@/lib/types";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";

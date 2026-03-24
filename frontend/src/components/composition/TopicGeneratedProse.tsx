@@ -85,17 +85,20 @@ export function TopicGeneratedProse({
 }) {
   const [copied, setCopied] = useState(false);
   const trimmed = text.trim();
-  if (!trimmed) return null;
 
   const copy = useCallback(async () => {
+    const payload = text.trim();
+    if (!payload) return;
     try {
-      await navigator.clipboard.writeText(trimmed);
+      await navigator.clipboard.writeText(payload);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);
     }
-  }, [trimmed]);
+  }, [text]);
+
+  if (!trimmed) return null;
 
   const blocks = trimmed
     .split(/\n{2,}/)

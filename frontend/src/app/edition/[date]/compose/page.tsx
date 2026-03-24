@@ -91,8 +91,7 @@ export default function ComposePage() {
     onSettled: () => setRegeneratingTopicId(null),
   });
 
-  const edition = editionQ.data ?? null;
-  const topics = topicsQ.data ?? [];
+  const topics = useMemo(() => topicsQ.data ?? [], [topicsQ.data]);
 
   const selectedIds = useMemo(() => {
     const s = new Set<string>();

@@ -274,7 +274,7 @@ export default function EditionSommairePage() {
       q.state.data?.pipeline_running === true ? 4_000 : false,
   });
 
-  const topics = topicsQ.data ?? [];
+  const topics = useMemo(() => topicsQ.data ?? [], [topicsQ.data]);
   const hasTopicFeed = detectionStatus === "done" && topics.length > 0;
 
   const clustersFallbackQ = useQuery({
@@ -411,7 +411,10 @@ export default function EditionSommairePage() {
     });
   }, []);
 
-  const clusterRows = clustersFallbackQ.data ?? [];
+  const clusterRows = useMemo(
+    () => clustersFallbackQ.data ?? [],
+    [clustersFallbackQ.data],
+  );
 
   const idToCountryCode = useMemo(() => {
     const m = new Map<string, string>();
