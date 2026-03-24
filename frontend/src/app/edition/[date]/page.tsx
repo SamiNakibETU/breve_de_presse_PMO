@@ -672,15 +672,19 @@ export default function EditionSommairePage() {
                 </p>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   La date du titre est le{" "}
-                  <strong className="font-medium text-foreground-body">jour de parution</strong> (jour J). Les
-                  articles rattachés à cette édition sont ceux dont l’entrée en base (
-                  <strong className="font-medium text-foreground-body">collecte</strong>) tombe dans
-                  l’intervalle affiché ci-dessus — ce n’est pas une « journée civile » 0h–24h.
+                  <strong className="font-medium text-foreground-body">jour de parution</strong> (jour J). Le
+                  corpus (liste et compteurs) regroupe les articles{" "}
+                  <strong className="font-medium text-foreground-body">traduits</strong> rattachés à cette
+                  édition : à l’ingestion, le serveur assigne l’édition d’après la{" "}
+                  <strong className="font-medium text-foreground-body">date de parution source</strong> dans
+                  l’intervalle ci-dessus — ce n’est pas une « journée civile » 0h–24h, et ce n’est pas l’heure
+                  exacte du passage du cron.
                 </p>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   <strong className="font-medium text-foreground-body">Mardi à vendredi :</strong> veille 18h →
-                  jour J 6h (Beyrouth). Un texte collecté après 6h le jour J appartient à l’édition ouvrée
-                  suivante.
+                  jour J 6h (Beyrouth). Un article dont la parution source tombe après la fin de fenêtre du jour
+                  J est rattaché à l’édition ouvrée suivante, même si la collecte automatique a lieu plus tard
+                  (ex. 9h Paris).
                 </p>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   <strong className="font-medium text-foreground-body">Lundi :</strong> une seule édition
@@ -908,8 +912,14 @@ export default function EditionSommairePage() {
                 Aucun article collecté pour cette date
               </h2>
               <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-foreground-body">
-                Lancez le traitement complet (collecte, traduction,
-                regroupement) pour alimenter l’édition.
+                Le corpus affiché regroupe les articles traduits rattachés à cette
+                édition (fenêtre Beyrouth). Lancez le traitement complet
+                (collecte, traduction, regroupement) pour alimenter l’édition.
+              </p>
+              <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
+                Le traitement ne peut pas être interrompu depuis l’interface : il
+                se termine seul sur le serveur (plusieurs minutes). Actualisez la
+                page ensuite.
               </p>
               {pipeline ? (
                 <button

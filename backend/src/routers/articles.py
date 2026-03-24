@@ -11,6 +11,7 @@ from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.collection_log import CollectionLog
 from src.models.edition import Edition
+from src.services.edition_schedule import sql_article_belongs_to_edition_corpus
 from src.models.media_source import MediaSource
 from src.schemas.articles import (
     ArticleIdBatchRequest,
@@ -33,8 +34,9 @@ router = APIRouter(prefix="/api")
 
 def _article_list_conditions(
     *,
-    collected_after: datetime,
-    collected_before: Optional[datetime],
+    edition: Optional[Edition] = None,
+    collected_after: Optional[datetime] = None,
+    collected_before: Optional[datetime] = None,
     status: Optional[str],
     country: Optional[str],
     article_type: Optional[str],
@@ -45,9 +47,15 @@ def _article_list_conditions(
     group_syndicated: bool,
     q: Optional[str] = None,
 ):
-    conds = [Article.collected_at >= collected_after]
-    if collected_before is not None:
-        conds.append(Article.collected_at < collected_before)
+    conds: list = []
+    if edition is not None:
+        conds.append(sql_article_belongs_to_edition_corpus(edition))
+    else:
+        if collected_after is None:
+            raise ValueError("collected_after requis sans edition")
+        conds.append(Article.collected_at >= collected_after)
+        if collected_before is not None:
+            conds.append(Article.collected_at < collected_before)
     if status:
         statuses = [s.strip() for s in status.split(",")]
         conds.append(Article.status.in_(statuses))
@@ -188,22 +196,26 @@ async def list_articles(
     edition_id: Optional[uuid.UUID] = Query(
         default=None,
         description=(
-            "Si défini : filtre collected_at sur la fenêtre d’édition (Asia/Beirut) ; "
-            "le paramètre days est alors ignoré pour le bornage temporel."
+            "Si défini : articles du corpus de l’édition (rattachement ``edition_id`` à l’ingestion, "
+            "repli COALESCE(published_at, collected_at) dans la fenêtre Beyrouth si ``edition_id`` nul) ; "
+            "le paramètre days est ignoré pour le bornage temporel."
         ),
     ),
 ):
+    edition_for_filter: Optional[Edition] = None
     if edition_id is not None:
         ed = await db.get(Edition, edition_id)
         if not ed:
             raise HTTPException(status_code=404, detail="Edition not found")
-        collected_after = ed.window_start
-        collected_before = ed.window_end
+        edition_for_filter = ed
+        collected_after = None
+        collected_before = None
     else:
         collected_after = datetime.now(timezone.utc) - timedelta(days=days)
         collected_before = None
 
     conds = _article_list_conditions(
+        edition=edition_for_filter,
         collected_after=collected_after,
         collected_before=collected_before,
         status=status,

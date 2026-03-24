@@ -26,6 +26,7 @@ from src.services.edition_review_generator import (
 from src.services.edition_schedule import (
     ensure_edition_for_publish_date,
     find_edition_for_calendar_date,
+    sql_article_belongs_to_edition_corpus,
 )
 from src.services.topic_detector import run_topic_detection_for_edition_id
 
@@ -196,8 +197,7 @@ async def _count_corpus_for_edition_window(
         .select_from(Article)
         .join(MediaSource, Article.media_source_id == MediaSource.id)
         .where(
-            Article.collected_at >= edition.window_start,
-            Article.collected_at < edition.window_end,
+            sql_article_belongs_to_edition_corpus(edition),
             Article.status.in_(("translated", "formatted", "needs_review")),
             Article.is_syndicated.is_(False),
         )

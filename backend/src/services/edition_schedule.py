@@ -12,13 +12,32 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import ColumnElement
 
+from src.models.article import Article
 from src.models.edition import Edition
 
 logger = structlog.get_logger(__name__)
 BEIRUT = ZoneInfo("Asia/Beirut")
+
+
+def sql_article_belongs_to_edition_corpus(edition: Edition) -> ColumnElement[bool]:
+    """Article rattaché au corpus d’une édition (liste / compteurs / détection sujets).
+
+    À l’ingestion, ``edition_id`` est défini depuis ``published_at`` (collecteur). En revanche
+    ``collected_at`` est l’heure d’enregistrement : avec un cron après ``window_end`` Beyrouth,
+    un filtre *uniquement* sur ``collected_at`` exclut tous les articles. On suit donc
+    ``edition_id``, avec repli temporel pour les lignes legacy sans ``edition_id``.
+    """
+    ts = func.coalesce(Article.published_at, Article.collected_at)
+    legacy_in_window = and_(
+        Article.edition_id.is_(None),
+        ts >= edition.window_start,
+        ts < edition.window_end,
+    )
+    return or_(Article.edition_id == edition.id, legacy_in_window)
 
 
 def default_window_utc(publish_date: date) -> tuple[datetime, datetime]:

@@ -18,6 +18,7 @@ from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle
 from src.models.media_source import MediaSource
 from src.services.country_utils import COVERAGE_TARGET_COUNTRIES
+from src.services.edition_schedule import sql_article_belongs_to_edition_corpus
 from src.services.llm_router import get_llm_router
 
 logger = structlog.get_logger(__name__)
@@ -240,8 +241,7 @@ class TopicDetector:
                 select(Article, MediaSource)
                 .join(MediaSource, Article.media_source_id == MediaSource.id)
                 .where(
-                    Article.collected_at >= edition.window_start,
-                    Article.collected_at < edition.window_end,
+                    sql_article_belongs_to_edition_corpus(edition),
                     Article.status.in_(("translated", "formatted", "needs_review")),
                     Article.article_type.in_(EDITORIAL_TYPES),
                     Article.is_syndicated.is_(False),
@@ -263,7 +263,7 @@ class TopicDetector:
                     "topic_detector.too_few_articles",
                     edition_id=str(eid),
                     count=len(rows),
-                    hint="Seuls opinion/editorial/tribune/analysis traduits dans la fenêtre comptent.",
+                    hint="Seuls opinion/editorial/tribune/analysis traduits rattachés à l’édition (edition_id / fenêtre) comptent.",
                 )
                 edition.detection_status = "done"
                 await db.commit()
