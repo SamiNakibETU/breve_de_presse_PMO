@@ -18,6 +18,7 @@ from src.config import get_settings
 from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle, LLMCallLog
 from src.services.cost_estimate import estimate_llm_usage
+from src.services.provider_usage_ledger import append_provider_usage
 from src.services.generator import COUNTRY_MAP, LANGUAGE_MAP
 from src.services.llm_router import get_llm_router
 from src.services.prompt_loader import load_prompt_bundle
@@ -195,6 +196,21 @@ async def generate_edition_topic_review(
         output_parsed=None,
     )
     db.add(log)
+    await append_provider_usage(
+        db,
+        kind="llm_completion",
+        provider="anthropic",
+        model=model_id,
+        operation="generate_review_topic",
+        status="ok",
+        input_units=est_in,
+        output_units=est_out,
+        cost_usd_est=est_cost,
+        duration_ms=latency_ms,
+        edition_id=edition_id,
+        edition_topic_id=edition_topic_id,
+        meta_json={"prompt_id": bundle.prompt_id},
+    )
     await db.commit()
     await db.refresh(et)
 

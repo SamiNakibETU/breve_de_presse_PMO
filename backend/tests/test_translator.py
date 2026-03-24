@@ -81,6 +81,7 @@ class TestClassifyTranslationError:
 async def test_parse_translation_llm_json_repair(monkeypatch):
     import src.services.translator as tr
 
+    monkeypatch.setattr(tr, "append_provider_usage_commit", AsyncMock())
     monkeypatch.setattr(tr.settings, "translation_json_repair", True)
 
     valid = {

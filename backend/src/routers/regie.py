@@ -17,6 +17,7 @@ from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.dedup_feedback import DedupFeedback
 from src.models.edition import LLMCallLog, PipelineDebugLog
+from src.models.provider_usage_event import ProviderUsageEvent
 from src.models.usage_event import UsageEvent
 
 router = APIRouter(prefix="/api/regie", tags=["regie"])
@@ -174,14 +175,47 @@ class AnalyticsUsagePathRow(BaseModel):
     request_count: int
 
 
-class AnalyticsLlmDayModelRow(BaseModel):
+class AnalyticsProviderByDayRow(BaseModel):
     day: str
-    model_used: str
-    provider: Optional[str] = None
     call_count: int
-    input_tokens: int
-    output_tokens: int
     cost_usd: float
+    input_units: int
+    output_units: int
+
+
+class AnalyticsProviderByOperationRow(BaseModel):
+    operation: str
+    kind: str
+    call_count: int
+    cost_usd: float
+    input_units: int
+    output_units: int
+
+
+class AnalyticsProviderByProviderRow(BaseModel):
+    provider: str
+    kind: str
+    call_count: int
+    cost_usd: float
+    input_units: int
+    output_units: int
+
+
+class AnalyticsProviderRecentRow(BaseModel):
+    id: UUID
+    created_at: str
+    kind: str
+    provider: str
+    model: str
+    operation: str
+    status: str
+    cost_usd_est: float
+    input_units: int
+    output_units: int
+    duration_ms: Optional[int] = None
+    article_id: Optional[UUID] = None
+    edition_id: Optional[UUID] = None
+    edition_topic_id: Optional[UUID] = None
 
 
 class AnalyticsSummaryResponse(BaseModel):
@@ -190,11 +224,14 @@ class AnalyticsSummaryResponse(BaseModel):
     usage_total: int
     usage_by_day: list[AnalyticsUsageDayRow]
     usage_top_paths: list[AnalyticsUsagePathRow]
-    llm_total_calls: int
-    llm_total_input_tokens: int
-    llm_total_output_tokens: int
-    llm_total_cost_usd_estimated: float
-    llm_by_day_model: list[AnalyticsLlmDayModelRow]
+    provider_total_calls: int
+    provider_total_cost_usd: float
+    provider_total_input_units: int
+    provider_total_output_units: int
+    provider_by_day: list[AnalyticsProviderByDayRow]
+    provider_by_operation: list[AnalyticsProviderByOperationRow]
+    provider_by_provider: list[AnalyticsProviderByProviderRow]
+    provider_recent: list[AnalyticsProviderRecentRow]
     note_fr: str
 
 
@@ -228,46 +265,120 @@ async def analytics_summary(
         AnalyticsUsagePathRow(path_template=p, request_count=c) for p, c in top_paths
     ]
 
-    lres = await db.execute(
-        select(LLMCallLog).where(LLMCallLog.created_at >= since)
+    pres = await db.execute(
+        select(ProviderUsageEvent).where(ProviderUsageEvent.created_at >= since)
     )
-    lrows = list(lres.scalars().all())
+    prows = list(pres.scalars().all())
 
-    llm_group: dict[tuple[str, str, Optional[str]], dict[str, float]] = defaultdict(
+    by_day: dict[str, dict[str, float]] = defaultdict(
         lambda: {
             "call_count": 0,
-            "input_tokens": 0,
-            "output_tokens": 0,
             "cost_usd": 0.0,
+            "input_units": 0,
+            "output_units": 0,
         }
     )
-    llm_total_cost = 0.0
-    llm_in = 0
-    llm_out = 0
-    for r in lrows:
+    by_op: dict[tuple[str, str], dict[str, float]] = defaultdict(
+        lambda: {
+            "call_count": 0,
+            "cost_usd": 0.0,
+            "input_units": 0,
+            "output_units": 0,
+        }
+    )
+    by_prov: dict[tuple[str, str], dict[str, float]] = defaultdict(
+        lambda: {
+            "call_count": 0,
+            "cost_usd": 0.0,
+            "input_units": 0,
+            "output_units": 0,
+        }
+    )
+    p_total_cost = 0.0
+    p_in = 0
+    p_out = 0
+    for r in prows:
         day = r.created_at.date().isoformat() if r.created_at else ""
-        key = (day, r.model_used, r.provider)
-        g = llm_group[key]
-        g["call_count"] += 1
-        g["input_tokens"] += int(r.input_tokens or 0)
-        g["output_tokens"] += int(r.output_tokens or 0)
-        c = float(r.cost_usd or 0.0)
-        g["cost_usd"] += c
-        llm_total_cost += c
-        llm_in += int(r.input_tokens or 0)
-        llm_out += int(r.output_tokens or 0)
+        c = float(r.cost_usd_est or 0.0)
+        iu = int(r.input_units or 0)
+        ou = int(r.output_units or 0)
+        p_total_cost += c
+        p_in += iu
+        p_out += ou
+        bd = by_day[day]
+        bd["call_count"] += 1
+        bd["cost_usd"] += c
+        bd["input_units"] += iu
+        bd["output_units"] += ou
+        ko = (r.operation, r.kind)
+        go = by_op[ko]
+        go["call_count"] += 1
+        go["cost_usd"] += c
+        go["input_units"] += iu
+        go["output_units"] += ou
+        kp = (r.provider, r.kind)
+        gp = by_prov[kp]
+        gp["call_count"] += 1
+        gp["cost_usd"] += c
+        gp["input_units"] += iu
+        gp["output_units"] += ou
 
-    llm_rows_out = [
-        AnalyticsLlmDayModelRow(
-            day=k[0],
-            model_used=k[1],
-            provider=k[2],
+    provider_day_list = [
+        AnalyticsProviderByDayRow(
+            day=d,
             call_count=int(v["call_count"]),
-            input_tokens=int(v["input_tokens"]),
-            output_tokens=int(v["output_tokens"]),
             cost_usd=round(v["cost_usd"], 6),
+            input_units=int(v["input_units"]),
+            output_units=int(v["output_units"]),
         )
-        for k, v in sorted(llm_group.items(), key=lambda x: (x[0][0], x[0][1], x[0][2] or ""))
+        for d, v in sorted(by_day.items(), key=lambda x: x[0])
+    ]
+    provider_op_list = [
+        AnalyticsProviderByOperationRow(
+            operation=k[0],
+            kind=k[1],
+            call_count=int(v["call_count"]),
+            cost_usd=round(v["cost_usd"], 6),
+            input_units=int(v["input_units"]),
+            output_units=int(v["output_units"]),
+        )
+        for k, v in sorted(by_op.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1]))
+    ]
+    provider_prov_list = [
+        AnalyticsProviderByProviderRow(
+            provider=k[0],
+            kind=k[1],
+            call_count=int(v["call_count"]),
+            cost_usd=round(v["cost_usd"], 6),
+            input_units=int(v["input_units"]),
+            output_units=int(v["output_units"]),
+        )
+        for k, v in sorted(by_prov.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1]))
+    ]
+
+    recent_sorted = sorted(
+        prows,
+        key=lambda x: x.created_at.timestamp() if x.created_at else 0.0,
+        reverse=True,
+    )[:100]
+    recent_list = [
+        AnalyticsProviderRecentRow(
+            id=r.id,
+            created_at=_iso(r.created_at),
+            kind=r.kind,
+            provider=r.provider,
+            model=r.model,
+            operation=r.operation,
+            status=r.status,
+            cost_usd_est=round(float(r.cost_usd_est or 0.0), 6),
+            input_units=int(r.input_units or 0),
+            output_units=int(r.output_units or 0),
+            duration_ms=r.duration_ms,
+            article_id=r.article_id,
+            edition_id=r.edition_id,
+            edition_topic_id=r.edition_topic_id,
+        )
+        for r in recent_sorted
     ]
 
     return AnalyticsSummaryResponse(
@@ -276,16 +387,19 @@ async def analytics_summary(
         usage_total=len(urows),
         usage_by_day=usage_day_list,
         usage_top_paths=usage_path_list,
-        llm_total_calls=len(lrows),
-        llm_total_input_tokens=llm_in,
-        llm_total_output_tokens=llm_out,
-        llm_total_cost_usd_estimated=round(llm_total_cost, 6),
-        llm_by_day_model=llm_rows_out,
+        provider_total_calls=len(prows),
+        provider_total_cost_usd=round(p_total_cost, 6),
+        provider_total_input_units=p_in,
+        provider_total_output_units=p_out,
+        provider_by_day=provider_day_list,
+        provider_by_operation=provider_op_list,
+        provider_by_provider=provider_prov_list,
+        provider_recent=recent_list,
         note_fr=(
-            "Les coûts et tokens LLM sont estimés à partir des tailles de texte (pas les compteurs "
-            "fournisseurs). Seuls les appels persistés dans llm_call_logs (curateur, génération revue) "
-            "comptent : pas la traduction (Groq/Cerebras/Anthropic), pas Cohere (embeddings), ni les "
-            "autres étapes pipeline non journalisées en base."
+            "Ledger unifié `provider_usage_events` : traduction, embeddings Cohere, curateur, revue, "
+            "détection sujets, scoring pertinence, libellés clusters, gate ingestion. Coûts et unités "
+            "sont estimés (pas facture API). Exclut les appels passant uniquement par `generator.py` "
+            "(règle projet : fichier non modifié)."
         ),
     )
 

@@ -4,6 +4,8 @@ Cohere embedding service for article semantic vectors.
 
 from __future__ import annotations
 
+import time
+
 import cohere
 import structlog
 from sqlalchemy import select
@@ -11,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
 from src.models.article import Article
+from src.services.cost_estimate import estimate_cohere_embed_usage
+from src.services.provider_usage_ledger import append_provider_usage_commit
 
 logger = structlog.get_logger()
 
@@ -49,26 +53,56 @@ class EmbeddingService:
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), BATCH_SIZE):
             batch = texts[i : i + BATCH_SIZE]
+            t0 = time.perf_counter()
             response = await self.client.embed(
                 texts=batch,
                 model=MODEL,
                 input_type=INPUT_TYPE_DOCUMENT,
                 embedding_types=["float"],
             )
+            dur_ms = int((time.perf_counter() - t0) * 1000)
             all_embeddings.extend(
                 _batch_vectors_from_cohere_embeddings(response.embeddings)
+            )
+            inp_u, out_u, cost = estimate_cohere_embed_usage(texts=batch, vector_dim=1024)
+            await append_provider_usage_commit(
+                kind="embedding",
+                provider="cohere",
+                model=MODEL,
+                operation="embed_batch",
+                status="ok",
+                input_units=inp_u,
+                output_units=out_u,
+                cost_usd_est=cost,
+                duration_ms=dur_ms,
+                meta_json={"batch_size": len(batch), "input_type": INPUT_TYPE_DOCUMENT},
             )
         return all_embeddings
 
     async def embed_query(self, text: str) -> list[float]:
         """Vecteur pour recherche sémantique (asymétrique vs search_document)."""
+        t0 = time.perf_counter()
         response = await self.client.embed(
             texts=[text[:8000]],
             model=MODEL,
             input_type=INPUT_TYPE_QUERY,
             embedding_types=["float"],
         )
+        dur_ms = int((time.perf_counter() - t0) * 1000)
         batch = _batch_vectors_from_cohere_embeddings(response.embeddings)
+        inp_u, out_u, cost = estimate_cohere_embed_usage(texts=[text[:8000]], vector_dim=1024)
+        await append_provider_usage_commit(
+            kind="embedding",
+            provider="cohere",
+            model=MODEL,
+            operation="embed_query",
+            status="ok",
+            input_units=inp_u,
+            output_units=out_u,
+            cost_usd_est=cost,
+            duration_ms=dur_ms,
+            meta_json={"input_type": INPUT_TYPE_QUERY},
+        )
         if not batch:
             raise ValueError("Cohere embed returned no vectors for query")
         return batch[0]

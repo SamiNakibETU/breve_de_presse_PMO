@@ -22,6 +22,7 @@ from src.models.edition import Edition, EditionTopic, EditionTopicArticle, LLMCa
 from src.models.media_source import MediaSource
 from src.services.cost_estimate import estimate_llm_usage
 from src.services.llm_router import get_llm_router
+from src.services.provider_usage_ledger import append_provider_usage
 from src.services.prompt_loader import load_prompt_bundle
 
 logger = structlog.get_logger(__name__)
@@ -289,6 +290,20 @@ async def run_curator_for_edition(
     )
     db.add(log)
     await db.flush()
+    await append_provider_usage(
+        db,
+        kind="llm_completion",
+        provider="anthropic",
+        model=model_id,
+        operation="curate",
+        status="ok" if (parsed and not last_err) else "error",
+        input_units=est_in,
+        output_units=est_out,
+        cost_usd_est=est_cost,
+        duration_ms=latency_ms,
+        edition_id=edition_id,
+        meta_json={"prompt_id": bundle.prompt_id, "validation_errors": bool(last_err)},
+    )
 
     if not parsed or last_err:
         ed.status = "CURATION_FAILED"

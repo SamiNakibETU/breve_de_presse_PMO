@@ -64,3 +64,24 @@ def estimate_llm_usage(
         output_tokens=out,
     )
     return inp, out, cost
+
+
+def estimate_cohere_embed_usage(
+    *,
+    texts: list[str],
+    vector_dim: int = 1024,
+) -> tuple[int, int, float]:
+    """
+    Estimation pour batch d’embeddings Cohere.
+    input_units ≈ tokens (heuristique caractères), output_units = dim × nb vecteurs (unités affichables).
+    Tarif indicatif ~0,10 USD / 1M tokens entrée (ordre de grandeur ; à ajuster selon grille Cohere).
+    """
+    total_chars = sum(len(t or "") for t in texts)
+    n = len(texts)
+    if total_chars <= 0:
+        inp = 1 if n else 0
+    else:
+        inp = max(1, (total_chars + 3) // 4)
+    out = n * vector_dim
+    cost = (max(0, inp) * 0.10) / 1_000_000.0
+    return inp, out, cost

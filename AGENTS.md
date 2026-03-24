@@ -37,7 +37,7 @@ Phase 9 → tests
 
 ## Dashboard analytique & coûts API
 
-**Implémenté (v1)** : table `usage_events` + middleware FastAPI ; colonne `llm_call_logs.provider` ; enrichissement curateur / génération revue (tokens + coût estimés) ; `GET /api/regie/analytics/summary?days=` ; UI sous **Régie** → `/regie/analytics` (« Analytique interne », hors nav principale). Désactiver l’écriture : `USAGE_EVENT_LOGGING_ENABLED=false`. Les coûts LLM agrégés **ne couvrent pas** toute la pipeline (excl. traduction multi-fournisseur, Cohere, etc.) tant que ces appels ne sont pas journalisés en base.
+**Implémenté** : `usage_events` (HTTP) ; **`provider_usage_events`** (ledger unifié : traduction, Cohere embed batch/query, curateur, génération revue, détection sujets, scoring pertinence, libellés clusters, gate ingestion) ; `llm_call_logs` conservé pour audit curateur/revue ; `GET /api/regie/analytics/summary?days=` ; UI **Régie** → `/regie/analytics`. `USAGE_EVENT_LOGGING_ENABLED=false` désactive le middleware HTTP. **Exclu** : appels ne passant que par `generator.py` (fichier interdit à modifier).
 
 Objectif : monitorer l’usage rédactionnel et centraliser les coûts des appels LLM / API.
 

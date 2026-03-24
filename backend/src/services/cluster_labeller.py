@@ -2,15 +2,21 @@
 LLM-powered labelling of topic clusters.
 """
 
+import json
+import time
+
 import structlog
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.article import Article
 from src.models.cluster import TopicCluster
+from src.services.cost_estimate import estimate_llm_usage
 from src.services.editorial_scope import is_out_of_scope_lifestyle
+from src.services.llm_route_hint import hint_anthropic_generation
 from src.services.llm_router import get_llm_router
 from src.services.prompt_loader import load_prompt_bundle
+from src.services.provider_usage_ledger import append_provider_usage
 
 logger = structlog.get_logger()
 
@@ -104,6 +110,7 @@ async def label_clusters(db: AsyncSession) -> int:
                 bundle = load_prompt_bundle("cluster_label_v2")
                 user = bundle.render_user(blocks="\n".join(blocks))
                 schema = bundle.json_schema
+                t0 = time.perf_counter()
                 if schema and isinstance(schema, dict) and schema.get("properties"):
                     data = await router.generate_anthropic_tool_json(
                         bundle.system_prompt,
@@ -113,6 +120,7 @@ async def label_clusters(db: AsyncSession) -> int:
                         max_tokens=600,
                         temperature=0.2,
                     )
+                    out_text = json.dumps(data, ensure_ascii=False)
                     cleaned = str(data.get("label", "")).strip()[:300]
                 else:
                     raw = await router.generate_anthropic_only(
@@ -121,10 +129,9 @@ async def label_clusters(db: AsyncSession) -> int:
                         max_tokens=600,
                         temperature=0.2,
                     )
+                    out_text = raw or ""
                     cleaned = raw.strip()
                     try:
-                        import json
-
                         cleaned = (
                             cleaned.strip()
                             .removeprefix("```json")
@@ -138,6 +145,34 @@ async def label_clusters(db: AsyncSession) -> int:
                             cleaned = cleaned[:300]
                     except Exception:
                         cleaned = cleaned[:300]
+                dur_ms = int((time.perf_counter() - t0) * 1000)
+                prov, mod = hint_anthropic_generation()
+                inp_t, out_t, cst = estimate_llm_usage(
+                    provider=prov,
+                    model=mod,
+                    input_text=bundle.system_prompt + user,
+                    output_text=out_text,
+                )
+                await append_provider_usage(
+                    db,
+                    kind="llm_completion",
+                    provider=prov,
+                    model=mod,
+                    operation="cluster_label",
+                    status="ok",
+                    input_units=inp_t,
+                    output_units=out_t,
+                    cost_usd_est=cst,
+                    duration_ms=dur_ms,
+                    meta_json={
+                        "cluster_id": str(cluster.id),
+                        "tool_json": bool(
+                            schema
+                            and isinstance(schema, dict)
+                            and schema.get("properties")
+                        ),
+                    },
+                )
                 if not cleaned:
                     cleaned = fallback
                 if is_out_of_scope_lifestyle(cleaned):

@@ -22,7 +22,6 @@ export function AnalyticsSection({
 }: {
   days: number;
   onDaysChange: (d: number) => void;
-  /** Sur la page dédiée Régie, le titre principal est dans le layout page. */
   showSectionHeading?: boolean;
 }) {
   const q = useQuery({
@@ -60,39 +59,32 @@ export function AnalyticsSection({
   const data = q.data;
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       <div
         className="rounded-md border border-border-light bg-muted/20 p-4 text-[12px] leading-relaxed text-muted-foreground"
         role="note"
       >
-        <p className="font-semibold text-foreground">Périmètre des coûts affichés</p>
-        <ul className="mt-2 list-disc space-y-1.5 pl-4">
-          <li>
-            <strong className="text-foreground">Inclus (estimé)</strong> : appels enregistrés en base pour le{" "}
-            <strong className="text-foreground">curateur</strong> et la{" "}
-            <strong className="text-foreground">génération de texte revue</strong> (souvent Anthropic Sonnet),
-            à partir des tailles de texte — pas les compteurs facturés des APIs.
-          </li>
-          <li>
-            <strong className="text-foreground">Non inclus</strong> : traduction article par article (Groq,
-            Cerebras, Anthropic, etc.), embeddings <strong className="text-foreground">Cohere</strong>, et tout
-            autre LLM qui n’alimente pas la table <code className="text-[11px]">llm_call_logs</code>.
-          </li>
-        </ul>
-        <p className="mt-3 border-t border-border-light pt-3 text-[11px]">{data.note_fr}</p>
+        <p className="font-semibold text-foreground">Ledger unifié des coûts</p>
+        <p className="mt-2">
+          Les lignes proviennent de <code className="text-[11px]">provider_usage_events</code>{" "}
+          (traduction multi-fournisseurs, Cohere, curateur, génération revue, détection sujets,
+          scoring pertinence, libellés de clusters, gate ingestion). Les montants sont{" "}
+          <strong className="text-foreground">estimés</strong>, pas les factures API.
+        </p>
+        <p className="mt-2 border-t border-border-light pt-3 text-[11px]">{data.note_fr}</p>
       </div>
 
       <div className="flex flex-col gap-3 border-b border-border-light pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {showSectionHeading ? (
-            <h2 className="olj-rubric">Analytique et coûts LLM</h2>
+            <h2 className="olj-rubric">Analytique et coûts</h2>
           ) : (
             <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
               Synthèse
             </p>
           )}
           <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-            Compteurs de requêtes HTTP (middleware) et agrégats issus du journal LLM persisté.
+            Volume HTTP (middleware) + agrégats du ledger fournisseurs.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -124,37 +116,33 @@ export function AnalyticsSection({
           <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums">
             {data.usage_total.toLocaleString("fr-FR")}
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Depuis le {new Date(data.since_iso).toLocaleDateString("fr-FR")}
-          </p>
         </div>
         <div className="rounded-lg border border-border-light bg-card p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Appels LLM (journal)
+            Appels ledger
           </p>
           <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums">
-            {data.llm_total_calls.toLocaleString("fr-FR")}
+            {data.provider_total_calls.toLocaleString("fr-FR")}
           </p>
         </div>
         <div className="rounded-lg border border-border-light bg-card p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Tokens (estimés)
+            Unités (entrée / sortie)
           </p>
-          <p className="mt-1 text-[13px] tabular-nums text-foreground">
-            <span className="text-muted-foreground">entrée </span>
-            {data.llm_total_input_tokens.toLocaleString("fr-FR")}
+          <p className="mt-1 text-[13px] tabular-nums">
+            {data.provider_total_input_units.toLocaleString("fr-FR")} /{" "}
+            {data.provider_total_output_units.toLocaleString("fr-FR")}
           </p>
-          <p className="text-[13px] tabular-nums text-foreground">
-            <span className="text-muted-foreground">sortie </span>
-            {data.llm_total_output_tokens.toLocaleString("fr-FR")}
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Tokens estimés (LLM) ou équivalent ; sortie embeddings ≈ dim × vecteurs.
           </p>
         </div>
         <div className="rounded-lg border border-border-light bg-card p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Coût LLM estimé
+            Coût total estimé
           </p>
           <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold tabular-nums text-accent">
-            {formatUsd(data.llm_total_cost_usd_estimated)}
+            {formatUsd(data.provider_total_cost_usd)}
           </p>
         </div>
       </div>
@@ -162,10 +150,10 @@ export function AnalyticsSection({
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
           <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-foreground-subtle">
-            Requêtes par jour
+            Requêtes HTTP par jour
           </h3>
           {data.usage_by_day.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">Aucune donnée sur la période.</p>
+            <p className="text-[13px] text-muted-foreground">Aucune donnée.</p>
           ) : (
             <ul className="space-y-1.5 border border-border-light bg-card p-3 text-[13px]">
               {data.usage_by_day.map((row) => (
@@ -188,23 +176,25 @@ export function AnalyticsSection({
             </ul>
           )}
         </div>
-
         <div>
           <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-foreground-subtle">
-            Routes les plus sollicitées
+            Ledger par jour (coût)
           </h3>
-          {data.usage_top_paths.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">Aucune donnée sur la période.</p>
+          {data.provider_by_day.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">Aucun événement sur la période.</p>
           ) : (
-            <ul className="space-y-1.5 border border-border-light bg-card p-3 font-mono text-[12px] leading-snug">
-              {data.usage_top_paths.map((row) => (
+            <ul className="space-y-1.5 border border-border-light bg-card p-3 text-[13px]">
+              {data.provider_by_day.map((row) => (
                 <li
-                  key={row.path_template}
-                  className="flex justify-between gap-3 border-b border-border-light/80 py-1 last:border-b-0"
+                  key={row.day}
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border-light/80 py-1 last:border-b-0"
                 >
-                  <span className="min-w-0 break-all text-foreground/90">{row.path_template}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {row.request_count.toLocaleString("fr-FR")}
+                  <span className="text-muted-foreground">{row.day}</span>
+                  <span className="tabular-nums">
+                    <span className="font-medium text-accent">{formatUsd(row.cost_usd)}</span>
+                    <span className="ml-2 text-[11px] text-muted-foreground">
+                      ({row.call_count} appels)
+                    </span>
                   </span>
                 </li>
               ))}
@@ -215,40 +205,154 @@ export function AnalyticsSection({
 
       <div>
         <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-foreground-subtle">
-          LLM par jour et modèle
+          Routes HTTP les plus sollicitées
         </h3>
-        {data.llm_by_day_model.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">
-            Aucun appel enregistré sur la période (curateur / génération revue).
-          </p>
+        {data.usage_top_paths.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Aucune donnée.</p>
+        ) : (
+          <ul className="space-y-1.5 border border-border-light bg-card p-3 font-mono text-[12px] leading-snug">
+            {data.usage_top_paths.map((row) => (
+              <li
+                key={row.path_template}
+                className="flex justify-between gap-3 border-b border-border-light/80 py-1 last:border-b-0"
+              >
+                <span className="min-w-0 break-all text-foreground/90">{row.path_template}</span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {row.request_count.toLocaleString("fr-FR")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-foreground-subtle">
+          Par opération (tri coût décroissant)
+        </h3>
+        {data.provider_by_operation.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Aucun événement.</p>
         ) : (
           <div className="overflow-x-auto border border-border-light bg-card">
-            <table className="w-full min-w-[36rem] text-left text-[13px]">
+            <table className="w-full min-w-[40rem] text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <th className="px-3 py-2 font-semibold">Jour</th>
-                  <th className="px-3 py-2 font-semibold">Modèle</th>
+                  <th className="px-3 py-2 font-semibold">Opération</th>
+                  <th className="px-3 py-2 font-semibold">Type</th>
+                  <th className="px-3 py-2 text-right font-semibold">Appels</th>
+                  <th className="px-3 py-2 text-right font-semibold">Coût est.</th>
+                  <th className="px-3 py-2 text-right font-semibold">Unités in/out</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.provider_by_operation.map((row) => (
+                  <tr
+                    key={`${row.operation}-${row.kind}`}
+                    className="border-b border-border-light last:border-b-0"
+                  >
+                    <td className="px-3 py-2 font-mono text-[12px]">{row.operation}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.kind}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {row.call_count.toLocaleString("fr-FR")}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums font-medium text-accent">
+                      {formatUsd(row.cost_usd)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-[12px] text-muted-foreground">
+                      {row.input_units.toLocaleString("fr-FR")} /{" "}
+                      {row.output_units.toLocaleString("fr-FR")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-foreground-subtle">
+          Par fournisseur et type
+        </h3>
+        {data.provider_by_provider.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Aucun événement.</p>
+        ) : (
+          <div className="overflow-x-auto border border-border-light bg-card">
+            <table className="w-full min-w-[32rem] text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-border bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-semibold">Fournisseur</th>
+                  <th className="px-3 py-2 font-semibold">Type</th>
                   <th className="px-3 py-2 text-right font-semibold">Appels</th>
                   <th className="px-3 py-2 text-right font-semibold">Coût est.</th>
                 </tr>
               </thead>
               <tbody>
-                {data.llm_by_day_model.map((row, i) => (
+                {data.provider_by_provider.map((row) => (
                   <tr
-                    key={`${row.day}-${row.model_used}-${row.provider ?? ""}-${i}`}
+                    key={`${row.provider}-${row.kind}`}
                     className="border-b border-border-light last:border-b-0"
                   >
-                    <td className="px-3 py-2 text-muted-foreground">{row.day}</td>
-                    <td className="max-w-[14rem] truncate px-3 py-2 font-mono text-[12px]">
-                      {row.model_used}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">{row.provider ?? "—"}</td>
+                    <td className="px-3 py-2 font-medium">{row.provider}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.kind}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {row.call_count.toLocaleString("fr-FR")}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium">
                       {formatUsd(row.cost_usd)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-foreground-subtle">
+          Derniers événements (100 max)
+        </h3>
+        {data.provider_recent.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Aucun événement.</p>
+        ) : (
+          <div className="max-h-[min(28rem,70vh)] overflow-y-auto border border-border-light bg-card">
+            <table className="w-full min-w-[48rem] text-left text-[12px]">
+              <thead className="sticky top-0 border-b border-border bg-muted/40">
+                <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-2 py-2 font-semibold">Heure</th>
+                  <th className="px-2 py-2 font-semibold">Opération</th>
+                  <th className="px-2 py-2 font-semibold">Fournisseur</th>
+                  <th className="px-2 py-2 font-semibold">Modèle</th>
+                  <th className="px-2 py-2 font-semibold">Statut</th>
+                  <th className="px-2 py-2 text-right font-semibold">Coût</th>
+                  <th className="px-2 py-2 text-right font-semibold">ms</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.provider_recent.map((row) => (
+                  <tr key={row.id} className="border-b border-border-light/80">
+                    <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground">
+                      {new Date(row.created_at).toLocaleString("fr-FR", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="max-w-[10rem] truncate px-2 py-1.5 font-mono text-[11px]">
+                      {row.operation}
+                    </td>
+                    <td className="px-2 py-1.5">{row.provider}</td>
+                    <td className="max-w-[12rem] truncate px-2 py-1.5 font-mono text-[11px] text-muted-foreground">
+                      {row.model}
+                    </td>
+                    <td className="px-2 py-1.5">{row.status}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">
+                      {formatUsd(row.cost_usd_est)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                      {row.duration_ms ?? "—"}
                     </td>
                   </tr>
                 ))}

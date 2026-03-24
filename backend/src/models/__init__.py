@@ -18,6 +18,7 @@ from src.models.collection_log import CollectionLog
 from src.models.pipeline_job import PipelineJob
 from src.models.dedup_feedback import DedupFeedback
 from src.models.usage_event import UsageEvent
+from src.models.provider_usage_event import ProviderUsageEvent
 
 __all__ = [
     "Base",
@@ -40,4 +41,5 @@ __all__ = [
     "PipelineJob",
     "DedupFeedback",
     "UsageEvent",
+    "ProviderUsageEvent",
 ]

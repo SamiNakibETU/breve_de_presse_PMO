@@ -12,6 +12,8 @@ Routing per source language (voir llm_router) :
 import asyncio
 import json
 import re
+import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Literal, Optional
 
@@ -26,7 +28,13 @@ from src.models.media_source import MediaSource
 from src.services import metrics as app_metrics
 from src.services.editorial_event_service import resolve_or_create_event_for_article
 from src.services.entity_service import upsert_entities
+from src.services.cost_estimate import estimate_llm_usage
+from src.services.llm_route_hint import (
+    hint_completion_plain_primary,
+    hint_translation_primary,
+)
 from src.services.llm_router import get_llm_router
+from src.services.provider_usage_ledger import append_provider_usage_commit
 from src.services.olj_glossary import glossary_prompt_block_for_topics
 from src.services.olj_taxonomy import (
     load_topics_of_day,
@@ -292,6 +300,8 @@ async def _parse_translation_llm_json(
     router: Any,
     raw_text: str,
     language: str,
+    *,
+    article_id: uuid.UUID | None = None,
 ) -> dict:
     """Parse la réponse traduction ; une seule passe LLM de réparation si activée."""
     try:
@@ -307,11 +317,32 @@ async def _parse_translation_llm_json(
         )
         app_metrics.inc("translation.json_repair_attempts")
         logger.info("translation.json_repair_attempt", snippet_chars=len(snippet))
+        t0 = time.perf_counter()
         repaired = await router.translate(
             system=REPAIR_JSON_SYSTEM,
             prompt=repair_prompt,
             language=language,
             max_tokens=2000,
+        )
+        dur_ms = int((time.perf_counter() - t0) * 1000)
+        prov, mod = hint_translation_primary(language)
+        inp_t, out_t, cst = estimate_llm_usage(
+            provider=prov,
+            model=mod,
+            input_text=REPAIR_JSON_SYSTEM + repair_prompt,
+            output_text=repaired or "",
+        )
+        await append_provider_usage_commit(
+            kind="llm_completion",
+            provider=prov,
+            model=mod,
+            operation="translate_json_repair",
+            status="ok",
+            input_units=inp_t,
+            output_units=out_t,
+            cost_usd_est=cst,
+            duration_ms=dur_ms,
+            article_id=article_id,
         )
         try:
             data = _parse_llm_json(repaired)
@@ -512,14 +543,42 @@ class TranslationPipeline:
         )
         return stats
 
-    async def _cod_dense_pass(self, summary_fr: str, language: str) -> str:
+    async def _cod_dense_pass(
+        self,
+        summary_fr: str,
+        language: str,
+        article_id: uuid.UUID,
+    ) -> str:
         system = (
             "Tu es rédacteur à L'Orient-Le Jour. Réécris le résumé en français : "
             "150-200 mots, densité d'information maximale, sans ajouter de faits nouveaux. "
             "Texte seul, pas de JSON ni de markdown."
         )
         user = f"Résumé à densifier :\n\n{summary_fr}"
-        return (await self._router.completion_plain(system, user, max_tokens=900)).strip()
+        t0 = time.perf_counter()
+        out = (await self._router.completion_plain(system, user, max_tokens=900)).strip()
+        dur_ms = int((time.perf_counter() - t0) * 1000)
+        prov, mod = hint_completion_plain_primary()
+        inp_t, out_t, cst = estimate_llm_usage(
+            provider=prov,
+            model=mod,
+            input_text=system + user,
+            output_text=out,
+        )
+        await append_provider_usage_commit(
+            kind="llm_completion",
+            provider=prov,
+            model=mod,
+            operation="chain_of_density",
+            status="ok",
+            input_units=inp_t,
+            output_units=out_t,
+            cost_usd_est=cst,
+            duration_ms=dur_ms,
+            article_id=article_id,
+            meta_json={"source_language_hint": language},
+        )
+        return out
 
     async def _process_one(self, article: Article, stats: dict) -> None:
         structlog.contextvars.bind_contextvars(article_id=str(article.id))
@@ -604,14 +663,41 @@ class TranslationPipeline:
             tok_budget = 3500
         else:
             tok_budget = 2000
+        t_tr = time.perf_counter()
         raw_text = await self._router.translate(
             system=_augmented_system_prompt(),
             prompt=prompt,
             language=lang,
             max_tokens=tok_budget,
         )
+        tr_ms = int((time.perf_counter() - t_tr) * 1000)
+        prov, mod = hint_translation_primary(lang)
+        sys_p = _augmented_system_prompt()
+        inp_t, out_t, cst = estimate_llm_usage(
+            provider=prov,
+            model=mod,
+            input_text=sys_p + prompt,
+            output_text=raw_text or "",
+        )
+        await append_provider_usage_commit(
+            kind="llm_completion",
+            provider=prov,
+            model=mod,
+            operation="translate_article",
+            status="ok",
+            input_units=inp_t,
+            output_units=out_t,
+            cost_usd_est=cst,
+            duration_ms=tr_ms,
+            article_id=article.id,
+        )
 
-        data = await _parse_translation_llm_json(self._router, raw_text, lang)
+        data = await _parse_translation_llm_json(
+            self._router,
+            raw_text,
+            lang,
+            article_id=article.id,
+        )
 
         return await self.persist_from_parsed_translation(
             article,
@@ -653,7 +739,7 @@ class TranslationPipeline:
             summary = data.get("summary_fr") or ""
             if len(summary.split()) > 40:
                 for _ in range(2):
-                    summary = await self._cod_dense_pass(summary, lang)
+                    summary = await self._cod_dense_pass(summary, lang, art.id)
                 data["summary_fr"] = summary
 
         content = article.content_original or ""
@@ -787,7 +873,12 @@ class TranslationPipeline:
             and (article.source_language or "").lower() == "en"
             and not is_french
         )
-        data = await _parse_translation_llm_json(self._router, raw_llm_text, lang)
+        data = await _parse_translation_llm_json(
+            self._router,
+            raw_llm_text,
+            lang,
+            article_id=article.id,
+        )
         return await self.persist_from_parsed_translation(
             article,
             source,

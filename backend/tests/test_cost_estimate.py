@@ -1,5 +1,6 @@
 from src.services.cost_estimate import (
     char_to_tokens_approx,
+    estimate_cohere_embed_usage,
     estimate_cost_usd,
     estimate_llm_usage,
 )
@@ -22,6 +23,13 @@ def test_estimate_cost_usd_positive() -> None:
         output_tokens=0,
     )
     assert c > 0
+
+
+def test_estimate_cohere_embed_positive() -> None:
+    inp, out, cost = estimate_cohere_embed_usage(texts=["hello " * 100, "world"], vector_dim=1024)
+    assert inp >= 1
+    assert out == 2 * 1024
+    assert cost >= 0
 
 
 def test_estimate_llm_usage_groq_cheaper_than_sonnet() -> None:

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import uuid
 from collections import defaultdict
 from typing import Any, Optional
@@ -19,8 +20,11 @@ from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle
 from src.models.media_source import MediaSource
 from src.services.country_utils import COVERAGE_TARGET_COUNTRIES
+from src.services.cost_estimate import estimate_llm_usage
 from src.services.edition_schedule import sql_article_belongs_to_edition_corpus
+from src.services.llm_route_hint import hint_anthropic_generation
 from src.services.llm_router import get_llm_router
+from src.services.provider_usage_ledger import append_provider_usage_commit
 
 logger = structlog.get_logger(__name__)
 
@@ -164,6 +168,8 @@ class TopicDetector:
         self,
         articles_block: str,
         n: int,
+        *,
+        edition_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         router = get_llm_router()
         user = PASS1_USER_TEMPLATE.format(
@@ -174,11 +180,33 @@ class TopicDetector:
         last_err: BaseException | None = None
         for attempt in range(3):
             try:
+                t0 = time.perf_counter()
                 raw = await router.generate_anthropic_only(
                     PASS1_SYSTEM,
                     user,
                     max_tokens=8192,
                     temperature=0.3,
+                )
+                dur_ms = int((time.perf_counter() - t0) * 1000)
+                prov, mod = hint_anthropic_generation()
+                inp_t, out_t, cst = estimate_llm_usage(
+                    provider=prov,
+                    model=mod,
+                    input_text=PASS1_SYSTEM + user,
+                    output_text=raw or "",
+                )
+                await append_provider_usage_commit(
+                    kind="llm_completion",
+                    provider=prov,
+                    model=mod,
+                    operation="topic_detect_pass1",
+                    status="ok",
+                    input_units=inp_t,
+                    output_units=out_t,
+                    cost_usd_est=cst,
+                    duration_ms=dur_ms,
+                    edition_id=edition_id,
+                    meta_json={"attempt": attempt + 1},
                 )
                 data = _parse_json_loose(raw)
                 devs = data.get("developments")
@@ -227,6 +255,8 @@ class TopicDetector:
         self,
         developments: list[dict[str, Any]],
         batch_rows: list[tuple[Article, MediaSource]],
+        *,
+        edition_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         router = get_llm_router()
         dev_json = json.dumps(
@@ -246,11 +276,36 @@ class TopicDetector:
         last_err: BaseException | None = None
         for attempt in range(3):
             try:
+                t0 = time.perf_counter()
                 raw = await router.generate_anthropic_only(
                     PASS2_SYSTEM,
                     user,
                     max_tokens=4096,
                     temperature=0.2,
+                )
+                dur_ms = int((time.perf_counter() - t0) * 1000)
+                prov, mod = hint_anthropic_generation()
+                inp_t, out_t, cst = estimate_llm_usage(
+                    provider=prov,
+                    model=mod,
+                    input_text=PASS2_SYSTEM + user,
+                    output_text=raw or "",
+                )
+                await append_provider_usage_commit(
+                    kind="llm_completion",
+                    provider=prov,
+                    model=mod,
+                    operation="topic_detect_pass2",
+                    status="ok",
+                    input_units=inp_t,
+                    output_units=out_t,
+                    cost_usd_est=cst,
+                    duration_ms=dur_ms,
+                    edition_id=edition_id,
+                    meta_json={
+                        "attempt": attempt + 1,
+                        "batch_articles": len(batch_rows),
+                    },
                 )
                 data = _parse_json_loose(raw)
                 if not isinstance(data, list):
@@ -316,7 +371,11 @@ class TopicDetector:
                 return 0
 
             articles_block = _build_articles_block(rows)
-            developments = await self.detect_developments(articles_block, len(rows))
+            developments = await self.detect_developments(
+                articles_block,
+                len(rows),
+                edition_id=eid,
+            )
 
             art_by_id: dict[uuid.UUID, tuple[Article, MediaSource]] = {
                 a.id: (a, s) for a, s in rows
@@ -325,7 +384,7 @@ class TopicDetector:
             all_classifications: list[dict[str, Any]] = []
             for i in range(0, len(rows), CLASSIFY_BATCH_SIZE):
                 batch = rows[i : i + CLASSIFY_BATCH_SIZE]
-                part = await self.classify_batch(developments, batch)
+                part = await self.classify_batch(developments, batch, edition_id=eid)
                 all_classifications.extend(part)
 
             by_dev: dict[str, list[tuple[Article, MediaSource, float, int]]] = defaultdict(

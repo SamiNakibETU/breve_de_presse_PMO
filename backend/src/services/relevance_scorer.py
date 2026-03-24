@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from typing import Any
 
@@ -13,8 +14,10 @@ from sqlalchemy.orm import selectinload
 
 from src.config import get_settings
 from src.models.article import Article
+from src.services.cost_estimate import estimate_llm_usage
 from src.services.llm_router import get_llm_router
 from src.services.prompt_loader import load_prompt_bundle
+from src.services.provider_usage_ledger import append_provider_usage
 
 logger = structlog.get_logger()
 
@@ -62,6 +65,7 @@ async def score_article_relevance(
     schema = bundle.json_schema
     s = get_settings()
     haiku = (s.anthropic_translation_model or "").strip() or s.anthropic_generation_model
+    t0 = time.perf_counter()
     try:
         if schema and isinstance(schema, dict) and schema.get("properties"):
             data = await router.generate_anthropic_tool_json(
@@ -73,6 +77,7 @@ async def score_article_relevance(
                 temperature=0.0,
                 model=haiku,
             )
+            out_text = json.dumps(data, ensure_ascii=False)
         else:
             raw = await router.generate_anthropic_only(
                 bundle.system_prompt,
@@ -82,9 +87,31 @@ async def score_article_relevance(
                 model=haiku,
             )
             data = _parse_json(raw)
+            out_text = raw or ""
     except Exception as exc:
         logger.warning("relevance.parse_failed", error=str(exc)[:120])
         return {"error": "parse_failed", "detail": str(exc)[:200]}
+    dur_ms = int((time.perf_counter() - t0) * 1000)
+    inp_t, out_t, cst = estimate_llm_usage(
+        provider="anthropic",
+        model=haiku,
+        input_text=bundle.system_prompt + user,
+        output_text=out_text,
+    )
+    await append_provider_usage(
+        db,
+        kind="llm_completion",
+        provider="anthropic",
+        model=haiku,
+        operation="relevance_score",
+        status="ok",
+        input_units=inp_t,
+        output_units=out_t,
+        cost_usd_est=cst,
+        duration_ms=dur_ms,
+        article_id=article_id,
+        meta_json={"tool_json": bool(schema and isinstance(schema, dict) and schema.get("properties"))},
+    )
     score = float(data.get("relevance_score") or 0.0)
     band = _normalize_band(score, str(data.get("relevance_band") or ""))
     a.relevance_score = score

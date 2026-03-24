@@ -424,14 +424,47 @@ export interface AnalyticsUsagePathRow {
   request_count: number;
 }
 
-export interface AnalyticsLlmDayModelRow {
+export interface AnalyticsProviderByDayRow {
   day: string;
-  model_used: string;
-  provider: string | null;
   call_count: number;
-  input_tokens: number;
-  output_tokens: number;
   cost_usd: number;
+  input_units: number;
+  output_units: number;
+}
+
+export interface AnalyticsProviderByOperationRow {
+  operation: string;
+  kind: string;
+  call_count: number;
+  cost_usd: number;
+  input_units: number;
+  output_units: number;
+}
+
+export interface AnalyticsProviderByProviderRow {
+  provider: string;
+  kind: string;
+  call_count: number;
+  cost_usd: number;
+  input_units: number;
+  output_units: number;
+}
+
+export interface AnalyticsProviderRecentRow {
+  id: string;
+  created_at: string;
+  kind: string;
+  provider: string;
+  model: string;
+  operation: string;
+  status: string;
+  cost_usd_est: number;
+  input_units: number;
+  output_units: number;
+  duration_ms: number | null;
+  article_id: string | null;
+  edition_id: string | null;
+  edition_topic_id: string | null;
 }
 
 export interface AnalyticsSummaryResponse {
@@ -440,11 +473,14 @@ export interface AnalyticsSummaryResponse {
   usage_total: number;
   usage_by_day: AnalyticsUsageDayRow[];
   usage_top_paths: AnalyticsUsagePathRow[];
-  llm_total_calls: number;
-  llm_total_input_tokens: number;
-  llm_total_output_tokens: number;
-  llm_total_cost_usd_estimated: number;
-  llm_by_day_model: AnalyticsLlmDayModelRow[];
+  provider_total_calls: number;
+  provider_total_cost_usd: number;
+  provider_total_input_units: number;
+  provider_total_output_units: number;
+  provider_by_day: AnalyticsProviderByDayRow[];
+  provider_by_operation: AnalyticsProviderByOperationRow[];
+  provider_by_provider: AnalyticsProviderByProviderRow[];
+  provider_recent: AnalyticsProviderRecentRow[];
   note_fr: string;
 }
 
