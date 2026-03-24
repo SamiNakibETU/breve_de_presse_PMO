@@ -17,6 +17,7 @@ from src.models.review import Review, ReviewItem
 from src.models.collection_log import CollectionLog
 from src.models.pipeline_job import PipelineJob
 from src.models.dedup_feedback import DedupFeedback
+from src.models.usage_event import UsageEvent
 
 __all__ = [
     "Base",
@@ -38,4 +39,5 @@ __all__ = [
     "CollectionLog",
     "PipelineJob",
     "DedupFeedback",
+    "UsageEvent",
 ]

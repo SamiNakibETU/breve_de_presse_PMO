@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID
 
@@ -16,6 +17,7 @@ from src.deps.auth import require_internal_key
 from src.models.article import Article
 from src.models.dedup_feedback import DedupFeedback
 from src.models.edition import LLMCallLog, PipelineDebugLog
+from src.models.usage_event import UsageEvent
 
 router = APIRouter(prefix="/api/regie", tags=["regie"])
 
@@ -43,6 +45,7 @@ class LLMCallLogItem(BaseModel):
     prompt_id: str
     prompt_version: str
     model_used: str
+    provider: Optional[str] = None
     temperature: float
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
@@ -147,6 +150,7 @@ async def list_llm_call_logs(
                 prompt_id=r.prompt_id,
                 prompt_version=r.prompt_version,
                 model_used=r.model_used,
+                provider=r.provider,
                 temperature=float(r.temperature),
                 input_tokens=r.input_tokens,
                 output_tokens=r.output_tokens,
@@ -158,6 +162,131 @@ async def list_llm_call_logs(
             )
         )
     return LLMCallLogsResponse(items=items, total=total)
+
+
+class AnalyticsUsageDayRow(BaseModel):
+    day: str
+    request_count: int
+
+
+class AnalyticsUsagePathRow(BaseModel):
+    path_template: str
+    request_count: int
+
+
+class AnalyticsLlmDayModelRow(BaseModel):
+    day: str
+    model_used: str
+    provider: Optional[str] = None
+    call_count: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+
+
+class AnalyticsSummaryResponse(BaseModel):
+    period_days: int
+    since_iso: str
+    usage_total: int
+    usage_by_day: list[AnalyticsUsageDayRow]
+    usage_top_paths: list[AnalyticsUsagePathRow]
+    llm_total_calls: int
+    llm_total_input_tokens: int
+    llm_total_output_tokens: int
+    llm_total_cost_usd_estimated: float
+    llm_by_day_model: list[AnalyticsLlmDayModelRow]
+    note_fr: str
+
+
+@router.get("/analytics/summary", response_model=AnalyticsSummaryResponse)
+async def analytics_summary(
+    days: int = Query(7, ge=1, le=90),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> AnalyticsSummaryResponse:
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since_iso = since.isoformat()
+
+    ures = await db.execute(
+        select(UsageEvent).where(UsageEvent.created_at >= since)
+    )
+    urows = list(ures.scalars().all())
+
+    usage_by_day: dict[str, int] = defaultdict(int)
+    path_counts: dict[str, int] = defaultdict(int)
+    for r in urows:
+        if r.created_at:
+            usage_by_day[r.created_at.date().isoformat()] += 1
+        path_counts[r.path_template] += 1
+
+    usage_day_list = [
+        AnalyticsUsageDayRow(day=d, request_count=c)
+        for d, c in sorted(usage_by_day.items(), key=lambda x: x[0])
+    ]
+    top_paths = sorted(path_counts.items(), key=lambda x: -x[1])[:20]
+    usage_path_list = [
+        AnalyticsUsagePathRow(path_template=p, request_count=c) for p, c in top_paths
+    ]
+
+    lres = await db.execute(
+        select(LLMCallLog).where(LLMCallLog.created_at >= since)
+    )
+    lrows = list(lres.scalars().all())
+
+    llm_group: dict[tuple[str, str, Optional[str]], dict[str, float]] = defaultdict(
+        lambda: {
+            "call_count": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+        }
+    )
+    llm_total_cost = 0.0
+    llm_in = 0
+    llm_out = 0
+    for r in lrows:
+        day = r.created_at.date().isoformat() if r.created_at else ""
+        key = (day, r.model_used, r.provider)
+        g = llm_group[key]
+        g["call_count"] += 1
+        g["input_tokens"] += int(r.input_tokens or 0)
+        g["output_tokens"] += int(r.output_tokens or 0)
+        c = float(r.cost_usd or 0.0)
+        g["cost_usd"] += c
+        llm_total_cost += c
+        llm_in += int(r.input_tokens or 0)
+        llm_out += int(r.output_tokens or 0)
+
+    llm_rows_out = [
+        AnalyticsLlmDayModelRow(
+            day=k[0],
+            model_used=k[1],
+            provider=k[2],
+            call_count=int(v["call_count"]),
+            input_tokens=int(v["input_tokens"]),
+            output_tokens=int(v["output_tokens"]),
+            cost_usd=round(v["cost_usd"], 6),
+        )
+        for k, v in sorted(llm_group.items(), key=lambda x: (x[0][0], x[0][1], x[0][2] or ""))
+    ]
+
+    return AnalyticsSummaryResponse(
+        period_days=days,
+        since_iso=since_iso,
+        usage_total=len(urows),
+        usage_by_day=usage_day_list,
+        usage_top_paths=usage_path_list,
+        llm_total_calls=len(lrows),
+        llm_total_input_tokens=llm_in,
+        llm_total_output_tokens=llm_out,
+        llm_total_cost_usd_estimated=round(llm_total_cost, 6),
+        llm_by_day_model=llm_rows_out,
+        note_fr=(
+            "Coûts et tokens LLM sont estimés à partir des tailles de texte (pas les compteurs "
+            "fournisseurs). Seuls les appels enregistrés dans llm_call_logs (curateur, génération "
+            "revue) sont inclus."
+        ),
+    )
 
 
 class DedupFeedbackCreate(BaseModel):

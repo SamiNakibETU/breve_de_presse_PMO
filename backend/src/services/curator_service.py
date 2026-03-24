@@ -15,10 +15,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.config import get_settings
 from src.models.article import Article
 from src.models.cluster import TopicCluster
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle, LLMCallLog
 from src.models.media_source import MediaSource
+from src.services.cost_estimate import estimate_llm_usage
 from src.services.llm_router import get_llm_router
 from src.services.prompt_loader import load_prompt_bundle
 
@@ -214,6 +216,7 @@ async def run_curator_for_edition(
     last_err: list[str] = []
     parsed: dict[str, Any] | None = None
     raw_out: str = ""
+    last_user_prompt: str = user
     schema = bundle.json_schema
     t0 = time.perf_counter()
     for attempt in range(max_attempts):
@@ -223,6 +226,7 @@ async def run_curator_for_edition(
                 if attempt
                 else ""
             )
+            last_user_prompt = u
             if schema and isinstance(schema, dict) and schema.get("properties"):
                 parsed = await router.generate_anthropic_tool_json(
                     bundle.system_prompt,
@@ -259,13 +263,26 @@ async def run_curator_for_edition(
             logger.warning("curator.parse_failed", attempt=attempt, error=str(exc)[:200])
     latency_ms = int((time.perf_counter() - t0) * 1000)
 
+    settings = get_settings()
+    model_id = settings.anthropic_generation_model
+    est_in, est_out, est_cost = estimate_llm_usage(
+        provider="anthropic",
+        model=model_id,
+        input_text=bundle.system_prompt + last_user_prompt,
+        output_text=raw_out or "",
+    )
+
     log = LLMCallLog(
         edition_id=edition_id,
         prompt_id=bundle.prompt_id,
         prompt_version=bundle.version,
-        model_used="anthropic",
+        model_used=model_id,
+        provider="anthropic",
         temperature=0.2,
+        input_tokens=est_in,
+        output_tokens=est_out,
         latency_ms=latency_ms,
+        cost_usd=est_cost,
         output_raw=(raw_out[:200_000] if raw_out else None),
         output_parsed=parsed,
         validation_errors={"errors": last_err} if last_err else None,

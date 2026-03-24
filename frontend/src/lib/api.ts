@@ -4,6 +4,7 @@ import {
   isApiRequestError,
 } from "./api-request-error";
 import type {
+  AnalyticsSummaryResponse,
   AppStatus,
   Article,
   ArticleListResponse,
@@ -443,6 +444,11 @@ export const api = {
       `/api/regie/pipeline-debug-logs${qs ? `?${qs}` : ""}`,
     );
   },
+
+  regieAnalyticsSummary: (days = 7) =>
+    request<AnalyticsSummaryResponse>(
+      `/api/regie/analytics/summary?days=${encodeURIComponent(String(days))}`,
+    ),
 
   regieLlmCallLogs: (params?: {
     edition_id?: string;

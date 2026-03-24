@@ -397,6 +397,7 @@ export interface LLMCallLogItem {
   prompt_id: string;
   prompt_version: string;
   model_used: string;
+  provider?: string | null;
   temperature: number;
   input_tokens: number | null;
   output_tokens: number | null;
@@ -410,6 +411,41 @@ export interface LLMCallLogItem {
 export interface LLMCallLogsResponse {
   items: LLMCallLogItem[];
   total: number;
+}
+
+/** GET /api/regie/analytics/summary */
+export interface AnalyticsUsageDayRow {
+  day: string;
+  request_count: number;
+}
+
+export interface AnalyticsUsagePathRow {
+  path_template: string;
+  request_count: number;
+}
+
+export interface AnalyticsLlmDayModelRow {
+  day: string;
+  model_used: string;
+  provider: string | null;
+  call_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+}
+
+export interface AnalyticsSummaryResponse {
+  period_days: number;
+  since_iso: string;
+  usage_total: number;
+  usage_by_day: AnalyticsUsageDayRow[];
+  usage_top_paths: AnalyticsUsagePathRow[];
+  llm_total_calls: number;
+  llm_total_input_tokens: number;
+  llm_total_output_tokens: number;
+  llm_total_cost_usd_estimated: number;
+  llm_by_day_model: AnalyticsLlmDayModelRow[];
+  note_fr: string;
 }
 
 export interface DedupFeedbackItem {

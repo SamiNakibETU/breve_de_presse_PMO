@@ -190,6 +190,10 @@ class Settings(BaseSettings):
         default=True,
         description="Expose GET /api/metrics (désactiver si endpoint public non souhaité)",
     )
+    usage_event_logging_enabled: bool = Field(
+        default=True,
+        description="Enregistrer chaque requête API dans usage_events (dashboard analytique)",
+    )
     translation_json_repair: bool = Field(
         default=True,
         description="Une 2ᵉ passe LLM si le JSON de traduction est invalide (coût latence + tokens)",

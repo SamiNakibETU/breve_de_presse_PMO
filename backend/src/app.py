@@ -18,6 +18,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from src.config import get_settings
 from src.limiter import limiter
 from src.middleware.correlation import CorrelationIdMiddleware
+from src.middleware.usage_logging import UsageLoggingMiddleware
 from src.database import init_db
 from src.routers import articles, clusters, config, editions, health, olj_watch, pipeline, regie, reviews
 from src.services.scheduler import create_scheduler
@@ -166,6 +167,8 @@ def create_app() -> FastAPI:
     app.include_router(regie.router)
 
     instrument_fastapi_app(app)
+
+    app.add_middleware(UsageLoggingMiddleware)
 
     return app
 

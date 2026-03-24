@@ -35,7 +35,9 @@ Phase 7 → indicateur couverture géographique
 Phase 8 → concurrence traduction
 Phase 9 → tests
 
-## Dashboard analytique & coûts API (pistes — à implémenter)
+## Dashboard analytique & coûts API
+
+**Implémenté (v1)** : table `usage_events` + middleware FastAPI ; colonne `llm_call_logs.provider` ; enrichissement curateur / génération revue (tokens + coût estimés) ; `GET /api/regie/analytics/summary?days=` ; section « Analytique et coûts LLM » sur la page Panorama (`/dashboard`). Désactiver l’écriture : `USAGE_EVENT_LOGGING_ENABLED=false`.
 
 Objectif : monitorer l’usage rédactionnel et centraliser les coûts des appels LLM / API.
 

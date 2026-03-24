@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import type { AppStatus, ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
+import { AnalyticsSection } from "@/components/dashboard/analytics-section";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -64,6 +65,7 @@ function filterClusters(
 export default function DashboardPage() {
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [emergingOnly, setEmergingOnly] = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState(7);
 
   const [statsQ, statusQ, clustersQ, healthQ] = useQueries({
     queries: [
@@ -156,6 +158,8 @@ export default function DashboardPage() {
       )}
 
       <StatsCards stats={stats} loading={statsQ.isPending} />
+
+      <AnalyticsSection days={analyticsDays} onDaysChange={setAnalyticsDays} />
 
       {stats && (
         <div className="grid gap-8 sm:grid-cols-2">

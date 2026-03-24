@@ -170,6 +170,7 @@ class LLMCallLog(Base):
     prompt_id: Mapped[str] = mapped_column(String(128), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
     model_used: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     temperature: Mapped[float] = mapped_column(nullable=False)
     input_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     output_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
