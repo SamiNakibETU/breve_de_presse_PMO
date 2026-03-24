@@ -72,7 +72,8 @@ function renderBlock(block: string, i: number): ReactNode {
 
 /**
  * Rendu du texte généré en prose éditoriale (serif).
- * Variante `compose` : hauteur libre, typographie confortable pour la page Rédaction.
+ * - `card` : zone limitée en hauteur (aperçus compacts).
+ * - `compose` / `fiche` : pas de max-height (évite double ascenseur sur la page).
  */
 export function TopicGeneratedProse({
   text,
@@ -80,7 +81,7 @@ export function TopicGeneratedProse({
   showCopyButton = false,
 }: {
   text: string;
-  variant?: "card" | "compose";
+  variant?: "card" | "compose" | "fiche";
   showCopyButton?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
@@ -105,32 +106,51 @@ export function TopicGeneratedProse({
     .map((b) => b.trim())
     .filter(Boolean);
 
+  const isFullBleed = variant === "compose" || variant === "fiche";
+
   return (
     <div
       className={cn(
         variant === "card" &&
           "mt-4 max-h-[min(28rem,70vh)] overflow-y-auto border border-border-light bg-white p-4 sm:p-5",
+        variant === "fiche" &&
+          "mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6",
         variant === "compose" &&
-          "mt-3 border border-border-light bg-card p-4 sm:p-6",
+          "mt-0 border-0 bg-transparent p-0 shadow-none",
       )}
       role="region"
       aria-label="Texte généré pour ce sujet"
     >
       {showCopyButton ? (
-        <div className="mb-3 flex justify-end border-b border-border-light pb-2">
+        <div
+          className={cn(
+            "mb-4 flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between",
+            variant === "fiche" && "border-accent/20",
+          )}
+        >
+          <p className="text-[12px] leading-snug text-muted-foreground sm:max-w-md">
+            {variant === "fiche"
+              ? "Texte prêt pour la revue — copiez-le dans votre CMS."
+              : "Copiez le bloc pour le coller ailleurs."}
+          </p>
           <button
             type="button"
             onClick={() => void copy()}
-            className="olj-btn-secondary px-3 py-1 text-[12px]"
+            className={cn(
+              "shrink-0 px-4 py-2 text-[13px] font-semibold",
+              variant === "fiche" || variant === "compose"
+                ? "olj-btn-primary"
+                : "olj-btn-secondary px-3 py-1 text-[12px]",
+            )}
           >
-            {copied ? "Copié" : "Copier"}
+            {copied ? "Copié dans le presse-papiers" : "Copier tout le texte"}
           </button>
         </div>
       ) : null}
       <div
         className={cn(
           "font-[family-name:var(--font-serif)] text-[16px] leading-[1.8] text-foreground",
-          variant === "compose" && "text-[16px] leading-[1.8]",
+        isFullBleed && "text-[16px] leading-[1.8]",
         )}
       >
         {blocks.map((block, i) => renderBlock(block, i))}

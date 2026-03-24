@@ -34,3 +34,24 @@ Phase 6 → page Édition du jour (LE livrable principal)
 Phase 7 → indicateur couverture géographique
 Phase 8 → concurrence traduction
 Phase 9 → tests
+
+## Dashboard analytique & coûts API (pistes — à implémenter)
+
+Objectif : monitorer l’usage rédactionnel et centraliser les coûts des appels LLM / API.
+
+### Usage (événements côté app)
+
+- **Option A** : middleware **FastAPI** (ou équivalent) qui écrit des lignes dans une table `usage_events` : route, méthode, durée, `user_id` si auth, `edition_id` / `topic_id` quand présents dans le contexte.
+- **Option B** : hook **Next** (middleware ou instrumentation client) pour les vues / actions UI, même schéma ou envoi vers un collecteur.
+- **Option C** : outil tiers (**Plausible**, **PostHog**, etc.) pour vues et clics sans tout stocker en base — complémentaire aux événements métier.
+
+### Coûts LLM / API
+
+- À chaque appel : log structuré ou ligne en base : `provider`, `model`, `prompt_tokens`, `completion_tokens`, coût estimé (tarif connu ou table de prix).
+- **Job d’agrégation** quotidien (ou horaire) : sommes par jour / modèle / route déclencheuse.
+- **UI** : page **Régie** ou **`/dashboard`** en lecture seule sur ces agrégats (pas besoin d’édition).
+
+### Suite possible
+
+- Page dashboard dédiée : schéma SQL minimal + 2–3 endpoints (`GET` stats période, détail par modèle).
+- Affiner les **libellés de groupe thème** côté API (`labels_fr` / clés racine) si le regroupement frontend ne suffit pas.

@@ -242,20 +242,54 @@ export default function ArticleFullPage() {
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
-            <h2 className="olj-rubric mb-4">Traduction intégrale</h2>
+            <h2 className="olj-rubric mb-2">Traduction intégrale</h2>
             {hasBodyFr ? (
-              <div className="space-y-3 font-[family-name:var(--font-serif)] text-[16px] leading-[1.85] text-foreground-body">
-                {bodyParagraphs(a.content_translated_fr!.trim()).map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
-              </div>
+              <>
+                <p className="mb-4 text-[12px] text-muted-foreground">
+                  Corps traduit tel qu’enregistré après la chaîne de traitement.
+                </p>
+                <div className="space-y-3 font-[family-name:var(--font-serif)] text-[16px] leading-[1.85] text-foreground-body">
+                  {bodyParagraphs(a.content_translated_fr!.trim()).map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
+              </>
             ) : summaryOnly ? (
-              <p className="text-[13px] text-muted-foreground">
-                Seul un résumé a été conservé pour cet article ; voir la synthèse ci-dessus ou la source.
-              </p>
+              <div className="space-y-3 text-[13px] leading-relaxed text-foreground-body">
+                <p className="text-muted-foreground">
+                  Pour cet article, seul un <strong className="font-medium text-foreground">résumé</strong>{" "}
+                  a été conservé en base (pas le corps complet). La section <strong className="font-medium text-foreground">Synthèse</strong>{" "}
+                  ci-dessus concentre l’essentiel pour la revue ; ouvrez la{" "}
+                  <strong className="font-medium text-foreground">source</strong> pour le texte original.
+                </p>
+              </div>
+            ) : a.summary_fr?.trim() ? (
+              <div className="space-y-3 text-[13px] leading-relaxed text-foreground-body">
+                <p className="text-muted-foreground">
+                  Le <strong className="font-medium text-foreground">corps intégral traduit</strong> n’est pas stocké
+                  pour cet article. Le contenu exploitable en rédaction est la{" "}
+                  <strong className="font-medium text-foreground">synthèse</strong> (thèse, résumé, citations) dans
+                  la section du dessus — équivalent « lecture longue » pour la revue de presse.
+                </p>
+                {a.url ? (
+                  <p>
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-accent underline underline-offset-2"
+                    >
+                      Ouvrir l’article sur le site source
+                    </a>{" "}
+                    <span className="text-muted-foreground">
+                      ({langFr ?? "langue d’origine"}) pour la version complète.
+                    </span>
+                  </p>
+                ) : null}
+              </div>
             ) : (
               <p className="text-[13px] text-muted-foreground">
-                Aucun corps traduit disponible.
+                Aucun corps traduit ni résumé structuré : consultez la source si l’URL est disponible.
               </p>
             )}
           </section>

@@ -151,13 +151,20 @@ export default function ComposePage() {
         </Link>
       </nav>
 
-      <header className="space-y-2">
+      <header className="space-y-3">
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold">
           Rédaction · {titleFr}
         </h1>
-        <p className="max-w-2xl text-[13px] text-foreground-body">
-          Assemblage des textes générés pour chaque sujet. Copiez bloc par bloc ou l’ensemble pour publication.
-        </p>
+        <div className="max-w-2xl space-y-2 rounded-md border border-border-light bg-muted/15 px-4 py-3 text-[13px] leading-relaxed text-foreground-body">
+          <p>
+            <strong className="font-semibold text-foreground">Un bloc par sujet</strong> de l’édition
+            (les mêmes « grands sujets » que sur le sommaire). Chaque titre correspond à un
+            développement traité pour la revue.
+          </p>
+          <p className="text-[12px] text-muted-foreground">
+            Générez ou régénérez le texte sujet par sujet, copiez un bloc ou toute la revue, puis exportez en .txt si besoin.
+          </p>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -196,7 +203,13 @@ export default function ComposePage() {
         targets={coverageQ.data ?? null}
       />
 
-      <section className="space-y-12">
+      <section aria-labelledby="compose-topics-heading" className="space-y-10">
+        <h2
+          id="compose-topics-heading"
+          className="olj-rubric border-b border-border pb-2"
+        >
+          Textes par sujet ({topics.length})
+        </h2>
         {topics.map((t, idx) => {
           const title = t.title_final ?? t.title_proposed;
           const previews = t.article_previews ?? [];
@@ -212,34 +225,25 @@ export default function ComposePage() {
           return (
             <article
               key={t.id}
-              className="border-t border-border-light pt-10 first:border-t-0 first:pt-0"
+              className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
             >
-              <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-                <div>
+              <div className="mb-4 flex flex-col gap-4 border-b border-border-light pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Sujet {idx + 1}
+                    Sujet {idx + 1} sur {topics.length}
                   </p>
-                  <h2 className="mt-1 font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug text-foreground">
+                  <h3 className="mt-1 font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug text-foreground">
                     {title}
-                  </h2>
+                  </h3>
                   <p className="mt-1 text-[12px] text-muted-foreground">
                     {nTexts} texte{nTexts > 1 ? "s" : ""}
-                    {nCountries > 0
-                      ? ` · ${nCountries} pays`
-                      : ""}
+                    {nCountries > 0 ? ` · ${nCountries} pays` : ""}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-shrink-0 flex-wrap gap-2">
                   <button
                     type="button"
-                    className="olj-btn-secondary px-3 py-1.5 text-[12px]"
-                    onClick={() => void copyTopic(t)}
-                  >
-                    {copiedTopicId === t.id ? "Copié" : "Copier ce sujet"}
-                  </button>
-                  <button
-                    type="button"
-                    className="olj-btn-secondary px-3 py-1.5 text-[12px] disabled:opacity-50"
+                    className="olj-btn-primary px-3 py-2 text-[12px] disabled:opacity-50"
                     disabled={!editionId || genTopicMutation.isPending}
                     onClick={() => {
                       setRegeneratingTopicId(t.id);
@@ -247,20 +251,26 @@ export default function ComposePage() {
                     }}
                   >
                     {genTopicMutation.isPending && regeneratingTopicId === t.id
-                      ? "Régénération…"
-                      : "Régénérer"}
+                      ? "Génération…"
+                      : hasGen
+                        ? "Régénérer ce sujet"
+                        : "Générer ce sujet"}
+                  </button>
+                  <button
+                    type="button"
+                    className="olj-btn-secondary px-3 py-2 text-[12px]"
+                    onClick={() => void copyTopic(t)}
+                  >
+                    {copiedTopicId === t.id ? "Copié" : "Copier ce bloc"}
                   </button>
                 </div>
               </div>
 
               {hasGen ? (
-                <TopicGeneratedProse
-                  text={t.generated_text!}
-                  variant="compose"
-                />
+                <TopicGeneratedProse text={t.generated_text!} variant="compose" />
               ) : (
-                <p className="mt-2 rounded-md border border-dashed border-border bg-muted/10 p-4 font-[family-name:var(--font-serif)] text-[15px] leading-relaxed text-muted-foreground">
-                  Texte non encore généré — sélectionnez des articles sur l’édition ou la fiche sujet, puis utilisez « Générer tous les textes » ou « Régénérer ».
+                <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-[14px] leading-relaxed text-muted-foreground">
+                  Pas encore de texte pour ce sujet : cochez des articles sur le sommaire ou la fiche sujet, puis cliquez sur « Générer ce sujet » ou « Générer tous les textes » en haut de page.
                 </p>
               )}
             </article>

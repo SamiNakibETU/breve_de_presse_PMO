@@ -296,48 +296,59 @@ export function TopicDetail({
         )}
       </section>
 
-      <section className="border-t border-border-light pt-6">
-        <h2 className="mb-3 border-b border-border pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Texte généré
-        </h2>
-        <button
-          type="button"
-          className="olj-btn-primary disabled:opacity-50"
-          disabled={genMutation.isPending || !canGenerate}
-          onClick={() => genMutation.mutate()}
-        >
-          {genMutation.isPending ? "Génération…" : "Générer le texte"}
-        </button>
+      <section className="mt-2 space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
+        <header className="space-y-1 border-b border-border pb-4">
+          <h2 className="olj-rubric">Texte pour la revue</h2>
+          <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+            Proposition rédigée à partir de ce sujet. La page « Rédaction » assemble
+            tous les sujets de l’édition pour copier l’ensemble.
+          </p>
+        </header>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="olj-btn-primary disabled:opacity-50"
+            disabled={genMutation.isPending || !canGenerate}
+            onClick={() => genMutation.mutate()}
+          >
+            {genMutation.isPending ? "Génération…" : "Générer ou mettre à jour le texte"}
+          </button>
+        </div>
         {orderedArticles.length < 2 && (
-          <p className="mt-2 text-[12px] text-muted-foreground">
+          <p className="text-[12px] text-muted-foreground">
             Il faut au moins deux textes rattachés à ce sujet pour générer.
           </p>
         )}
         {orderedArticles.length >= 2 && selectedCount === 1 && (
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            Pour une sélection manuelle, cochez <strong className="font-medium text-foreground">au moins deux</strong>{" "}
-            textes — ou <strong className="font-medium text-foreground">décochez tout</strong> pour que le système
-            s’appuie sur les regards mis en avant (ou l’ensemble des textes du sujet).
+          <p className="text-[12px] text-muted-foreground">
+            Pour une sélection manuelle, cochez{" "}
+            <strong className="font-medium text-foreground">au moins deux</strong> textes — ou{" "}
+            <strong className="font-medium text-foreground">décochez tout</strong> pour utiliser
+            les regards mis en avant (ou tout le sujet).
           </p>
         )}
         {orderedArticles.length >= 2 && selectedCount === 0 && (
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            Aucune case cochée : la génération utilisera d’abord les textes recommandés, sinon tous les textes du sujet.
+          <p className="rounded-md bg-muted/40 px-3 py-2 text-[12px] text-foreground-body">
+            Aucune case cochée : la génération s’appuie d’abord sur les textes recommandés,
+            sinon sur l’ensemble des textes du sujet.
           </p>
         )}
         {genMutation.isError && (
-          <p className="mt-2 text-[12px] text-accent" role="alert">
+          <p className="text-[12px] text-accent" role="alert">
             {(genMutation.error as Error)?.message ?? "Échec de la génération."}
           </p>
         )}
-        {genMutation.isSuccess && genMutation.data?.status === "ok" && (
-          <p className="mt-2 text-[12px] text-success">
-            Texte prêt. Copiez-le ici ou depuis la page « Rédaction ».
+        {topic.generated_text ? (
+          <TopicGeneratedProse
+            text={topic.generated_text}
+            variant="fiche"
+            showCopyButton
+          />
+        ) : (
+          <p className="text-[12px] text-muted-foreground">
+            Une fois le texte généré, il s’affichera ici avec un bouton de copie mis en avant.
           </p>
         )}
-        {topic.generated_text ? (
-          <TopicGeneratedProse text={topic.generated_text} showCopyButton />
-        ) : null}
       </section>
     </article>
   );
