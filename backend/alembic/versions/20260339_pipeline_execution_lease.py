@@ -6,7 +6,6 @@ Revises: m20260338_pue
 
 from typing import Sequence, Union
 
-import sqlalchemy as sa
 from alembic import op
 
 revision: str = "m20260339_ple"
@@ -16,28 +15,32 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "pipeline_execution_lease",
-        sa.Column("lease_key", sa.String(length=64), nullable=False),
-        sa.Column("holder_id", sa.String(length=64), nullable=True),
-        sa.Column("trigger_label", sa.Text(), nullable=True),
-        sa.Column("acquired_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("heartbeat_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.PrimaryKeyConstraint("lease_key"),
+    """
+    Idempotent : ``init_db()`` / ``create_all`` peut avoir créé la table avant Alembic
+    (déploiement sans migration jouée), d’où ``IF NOT EXISTS``.
+    """
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pipeline_execution_lease (
+            lease_key VARCHAR(64) NOT NULL,
+            holder_id VARCHAR(64),
+            trigger_label TEXT,
+            acquired_at TIMESTAMP WITH TIME ZONE,
+            heartbeat_at TIMESTAMP WITH TIME ZONE,
+            expires_at TIMESTAMP WITH TIME ZONE,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            PRIMARY KEY (lease_key)
+        );
+        """
     )
-    op.create_index(
-        "ix_pipeline_execution_lease_expires_at",
-        "pipeline_execution_lease",
-        ["expires_at"],
-        unique=False,
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_pipeline_execution_lease_expires_at "
+        "ON pipeline_execution_lease (expires_at);"
     )
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_pipeline_debug_logs_step_created_at "
-        "ON pipeline_debug_logs (step, created_at DESC)"
+        "ON pipeline_debug_logs (step, created_at DESC);"
     )
-
     op.execute(
         """
         INSERT INTO pipeline_execution_lease (
@@ -48,7 +51,7 @@ def upgrade() -> None:
             'daily_pipeline', NULL, NULL,
             NULL, NULL, NOW() AT TIME ZONE 'utc', NOW() AT TIME ZONE 'utc'
         )
-        ON CONFLICT (lease_key) DO NOTHING
+        ON CONFLICT (lease_key) DO NOTHING;
         """
     )
 
