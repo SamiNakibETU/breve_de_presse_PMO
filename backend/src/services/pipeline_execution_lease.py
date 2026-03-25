@@ -90,6 +90,7 @@ async def renew_daily_pipeline_lease(*, holder_id: str, ttl_seconds: int) -> boo
     """Prolonge le lease ; True si encore détenteur."""
     if ttl_seconds < 60:
         ttl_seconds = 60
+    exp = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
     factory = get_session_factory()
     async with factory() as db:
         res = await db.execute(
@@ -97,7 +98,7 @@ async def renew_daily_pipeline_lease(*, holder_id: str, ttl_seconds: int) -> boo
                 """
                 UPDATE pipeline_execution_lease
                 SET heartbeat_at = NOW(),
-                    expires_at = NOW() + CAST(:ttl AS INTERVAL),
+                    expires_at = :exp,
                     updated_at = NOW()
                 WHERE lease_key = :lk AND holder_id = :hid
                 RETURNING lease_key
@@ -105,7 +106,7 @@ async def renew_daily_pipeline_lease(*, holder_id: str, ttl_seconds: int) -> boo
             ),
             {
                 "hid": holder_id,
-                "ttl": f"{int(ttl_seconds)} seconds",
+                "exp": exp,
                 "lk": DAILY_PIPELINE_LEASE_KEY,
             },
         )
