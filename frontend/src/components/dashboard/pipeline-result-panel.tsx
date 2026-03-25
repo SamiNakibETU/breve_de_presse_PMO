@@ -6,7 +6,8 @@ export type PipelineActionKey =
   | "collect"
   | "translate"
   | "refreshClusters"
-  | "pipeline";
+  | "pipeline"
+  | "resumePipeline";
 
 export interface PipelineRunRecord {
   action: PipelineActionKey;
@@ -42,7 +43,8 @@ function extractStats(
     }
     return null;
   }
-  if (root.status === "ok" && isRecord(root.stats)) {
+  const pipelineLike = action === "pipeline" || action === "resumePipeline";
+  if (pipelineLike && root.status === "ok" && isRecord(root.stats)) {
     return root.stats;
   }
   return null;
@@ -85,6 +87,10 @@ const TYPICAL_SERVER_STEPS: Record<PipelineActionKey, string[]> = {
     "Traduction et résumés (LLM)",
     "Embeddings et clustering",
     "Libellés des sujets",
+  ],
+  resumePipeline: [
+    "Reprise : collecte et traduction peuvent être ignorées si déjà enregistrées ce jour",
+    "Puis enchaînement relevance, dédup, embeddings, clustering, sujets",
   ],
 };
 
@@ -392,6 +398,46 @@ function PipelineFullSummary({ stats }: { stats: Record<string, unknown> }) {
   const timings = stats.step_timings;
   const hasTimings = isRecord(timings) && Object.keys(timings).length > 0;
 
+  if (stats.skipped === true) {
+    const reason =
+      typeof stats.reason === "string" ? stats.reason : "";
+    let msg: string;
+    switch (reason) {
+      case "pipeline_already_complete_today":
+        msg =
+          "Le pipeline du jour est déjà terminé (résumé présent dans les journaux) — aucune action.";
+        break;
+      case "pipeline_already_running":
+        msg =
+          "Un autre passage était déjà en cours — ce déclenchement a été ignoré.";
+        break;
+      default:
+        msg = reason
+          ? `Reprise sans enchaînement complet : ${reason}.`
+          : "Reprise sans enchaînement complet.";
+    }
+    return (
+      <div className="space-y-2">
+        <p className="text-[12px] text-foreground-body">{msg}</p>
+      </div>
+    );
+  }
+
+  if (
+    typeof stats.error === "string" &&
+    stats.error === "pipeline_timeout"
+  ) {
+    return (
+      <div className="space-y-2">
+        <p className="text-[12px] text-destructive">
+          Durée maximale dépassée (timeout serveur). Relancez une reprise manuelle
+          ou attendez les tentatives automatiques si elles sont configurées côté
+          serveur.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <p className="text-[12px] text-foreground-body">
@@ -544,6 +590,7 @@ export function PipelineResultPanel({
       case "refreshClusters":
         return <RefreshClustersSummary stats={stats} />;
       case "pipeline":
+      case "resumePipeline":
         return <PipelineFullSummary stats={stats} />;
     }
   }, [run]);

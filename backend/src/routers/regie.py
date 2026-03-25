@@ -201,6 +201,16 @@ class AnalyticsProviderByProviderRow(BaseModel):
     output_units: int
 
 
+class AnalyticsProviderByModelRow(BaseModel):
+    provider: str
+    model: str
+    kind: str
+    call_count: int
+    cost_usd: float
+    input_units: int
+    output_units: int
+
+
 class AnalyticsProviderRecentRow(BaseModel):
     id: UUID
     created_at: str
@@ -231,6 +241,7 @@ class AnalyticsSummaryResponse(BaseModel):
     provider_by_day: list[AnalyticsProviderByDayRow]
     provider_by_operation: list[AnalyticsProviderByOperationRow]
     provider_by_provider: list[AnalyticsProviderByProviderRow]
+    provider_by_model: list[AnalyticsProviderByModelRow]
     provider_recent: list[AnalyticsProviderRecentRow]
     note_fr: str
 
@@ -294,6 +305,14 @@ async def analytics_summary(
             "output_units": 0,
         }
     )
+    by_model: dict[tuple[str, str, str], dict[str, float]] = defaultdict(
+        lambda: {
+            "call_count": 0,
+            "cost_usd": 0.0,
+            "input_units": 0,
+            "output_units": 0,
+        }
+    )
     p_total_cost = 0.0
     p_in = 0
     p_out = 0
@@ -322,6 +341,12 @@ async def analytics_summary(
         gp["cost_usd"] += c
         gp["input_units"] += iu
         gp["output_units"] += ou
+        km = (r.provider, r.model, r.kind)
+        gm = by_model[km]
+        gm["call_count"] += 1
+        gm["cost_usd"] += c
+        gm["input_units"] += iu
+        gm["output_units"] += ou
 
     provider_day_list = [
         AnalyticsProviderByDayRow(
@@ -354,6 +379,20 @@ async def analytics_summary(
             output_units=int(v["output_units"]),
         )
         for k, v in sorted(by_prov.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1]))
+    ]
+    provider_model_list = [
+        AnalyticsProviderByModelRow(
+            provider=k[0],
+            model=k[1],
+            kind=k[2],
+            call_count=int(v["call_count"]),
+            cost_usd=round(v["cost_usd"], 6),
+            input_units=int(v["input_units"]),
+            output_units=int(v["output_units"]),
+        )
+        for k, v in sorted(
+            by_model.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1], x[0][2])
+        )
     ]
 
     recent_sorted = sorted(
@@ -394,12 +433,14 @@ async def analytics_summary(
         provider_by_day=provider_day_list,
         provider_by_operation=provider_op_list,
         provider_by_provider=provider_prov_list,
+        provider_by_model=provider_model_list,
         provider_recent=recent_list,
         note_fr=(
             "Ledger unifié `provider_usage_events` : traduction, embeddings Cohere, curateur, revue, "
             "détection sujets, scoring pertinence, libellés clusters, gate ingestion. Coûts et unités "
-            "sont estimés (pas facture API). Exclut les appels passant uniquement par `generator.py` "
-            "(règle projet : fichier non modifié)."
+            "sont estimés (pas facture API). Pour la facture réelle, utilisez les consoles fournisseurs "
+            "ou l’API Usage & Cost admin Anthropic (clé admin). Railway ne regroupe pas les coûts LLM. "
+            "Exclut les appels passant uniquement par `generator.py` (règle projet : fichier non modifié)."
         ),
     )
 

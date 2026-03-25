@@ -153,6 +153,29 @@ async def execute_full_pipeline_task(task_id: str) -> None:
         await task_store.finish_error(task_id, str(exc))
 
 
+async def execute_resume_pipeline_task(task_id: str) -> None:
+    """Même enchaînement que le pipeline complet, avec saut collecte/traduction si déjà logués."""
+
+    try:
+
+        def on_progress(step_key: str, step_label: str) -> None:
+            _schedule_update_step(task_id, step_key, step_label)
+
+        stats = await run_daily_pipeline(
+            trigger=f"task:{task_id}",
+            on_progress=on_progress,
+            resume=True,
+        )
+        await task_store.finish_ok(task_id, {"status": "ok", "stats": stats})
+    except PipelineBusyError:
+        await task_store.finish_error(
+            task_id,
+            "Un pipeline complet est déjà en cours (planificateur ou autre lancement). Réessayez plus tard.",
+        )
+    except Exception as exc:  # noqa: BLE001
+        await task_store.finish_error(task_id, str(exc))
+
+
 async def execute_pipeline_task(
     task_id: str,
     kind: str,
@@ -171,6 +194,8 @@ async def execute_pipeline_task(
             await execute_refresh_clusters_task(task_id)
         elif kind == "full_pipeline":
             await execute_full_pipeline_task(task_id)
+        elif kind == "resume_pipeline":
+            await execute_resume_pipeline_task(task_id)
         else:
             await task_store.finish_error(
                 task_id,

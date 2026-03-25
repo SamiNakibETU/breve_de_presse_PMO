@@ -86,15 +86,21 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("app.editions_bootstrap_failed", error=str(exc)[:200])
 
-    scheduler = create_scheduler()
-    attach_scheduler_run_tracker(scheduler, app)
-    scheduler.start()
-    app.state.scheduler = scheduler
-    log.info("app.scheduler_started")
+    if settings.scheduler_enabled:
+        scheduler = create_scheduler()
+        attach_scheduler_run_tracker(scheduler, app)
+        scheduler.start()
+        app.state.scheduler = scheduler
+        log.info("app.scheduler_started")
+    else:
+        app.state.scheduler = None
+        log.info("app.scheduler_disabled")
 
     yield
 
-    scheduler.shutdown(wait=False)
+    sched = getattr(app.state, "scheduler", None)
+    if sched is not None:
+        sched.shutdown(wait=False)
     log.info("app.shutdown")
 
 

@@ -88,6 +88,51 @@ async def post_dead_source_alert(source_id: str, name: str, health: str) -> None
     )
 
 
+async def post_pipeline_step_timeout_alert(
+    *,
+    step: str,
+    timeout_s: int,
+    trigger: str,
+) -> None:
+    """Webhook / email lorsqu’une étape pipeline dépasse son budget."""
+    s = get_settings()
+    payload = {
+        "type": "pipeline_step_timeout",
+        "step": step,
+        "timeout_s": timeout_s,
+        "trigger": trigger,
+    }
+    await _post_json_alert(s.alert_webhook_url, payload)
+    await _post_json_alert(s.alert_email_webhook_url, payload)
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    await _send_resend_email(
+        subject=f"[MEMW] Pipeline — timeout étape {step} ({timeout_s}s)",
+        text_body=text,
+    )
+
+
+async def post_pipeline_stalled_alert(
+    *,
+    holder_id: str | None,
+    seconds_since_heartbeat: float,
+    trigger_label: str | None,
+) -> None:
+    s = get_settings()
+    payload = {
+        "type": "pipeline_stalled",
+        "holder_id": holder_id,
+        "seconds_since_heartbeat": round(seconds_since_heartbeat, 1),
+        "trigger_label": trigger_label,
+    }
+    await _post_json_alert(s.alert_webhook_url, payload)
+    await _post_json_alert(s.alert_email_webhook_url, payload)
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    await _send_resend_email(
+        subject="[MEMW] Pipeline — progression bloquée (heartbeat)",
+        text_body=text,
+    )
+
+
 async def post_pipeline_timeout_alert(*, timeout_s: int, trigger: str) -> None:
     """Webhook / email lorsque le pipeline complet dépasse le délai max."""
     s = get_settings()

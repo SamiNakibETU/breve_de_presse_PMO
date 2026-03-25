@@ -22,6 +22,7 @@ const ACTIONS: { key: PipelineActionKey; label: string }[] = [
   { key: "translate", label: "Traduction" },
   { key: "refreshClusters", label: "Actualiser les sujets" },
   { key: "pipeline", label: "Traitement complet" },
+  { key: "resumePipeline", label: "Reprendre le pipeline" },
 ];
 
 /** Libellés métier pour les statuts API (éviter « degraded / dead » bruts). */
@@ -79,7 +80,8 @@ export function PipelineStatus({
       <div className="flex flex-wrap gap-2">
         {ACTIONS.map(({ key, label }) => {
           const serverPipelineBusy =
-            key === "pipeline" && Boolean(status?.pipeline_running);
+            (key === "pipeline" || key === "resumePipeline") &&
+            Boolean(status?.pipeline_running);
           return (
             <button
               key={key}
@@ -90,7 +92,9 @@ export function PipelineStatus({
               title={
                 serverPipelineBusy
                   ? "Un pipeline complet est déjà en cours sur le serveur (planificateur ou autre session)."
-                  : undefined
+                  : key === "resumePipeline"
+                    ? "Reprend là où les étapes sont déjà journalisées (collecte / traduction ignorées si présentes ce jour, Asia/Beirut)."
+                    : undefined
               }
             >
               {running?.key === key ? "En cours…" : label}
@@ -100,11 +104,12 @@ export function PipelineStatus({
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Collecte (sources), traduction, actualisation des sujets, ou traitement
-        complet. Le suivi reste visible en haut de page pendant la navigation.
+        Collecte (sources), traduction, actualisation des sujets, traitement
+        complet ou reprise (saut des étapes déjà enregistrées ce jour). Le suivi
+        reste visible en haut de page pendant la navigation.
         {status?.pipeline_running ? (
           <span className="mt-1 block border-l-2 border-border pl-2 text-foreground-body">
-            Un pipeline complet est en cours sur le serveur : le bouton « Traitement complet » est désactivé
+            Un pipeline complet est en cours sur le serveur : les boutons « Traitement complet » et « Reprendre le pipeline » sont désactivés
             jusqu’à la fin du passage (cron ou autre lancement).
           </span>
         ) : null}

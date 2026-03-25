@@ -132,6 +132,10 @@ export interface AppStatus {
   jobs: SchedulerJob[];
   /** True si un pipeline complet tourne (cron, POST synchrone ou tâche async). */
   pipeline_running?: boolean;
+  scheduler_enabled?: boolean;
+  pipeline_lease_active?: boolean;
+  pipeline_lease_holder_prefix?: string | null;
+  pipeline_heartbeat_age_seconds?: number | null;
 }
 
 export interface ReviewSummary {
@@ -220,7 +224,19 @@ export type PipelineTaskKind =
   | "collect"
   | "translate"
   | "refresh_clusters"
-  | "full_pipeline";
+  | "full_pipeline"
+  | "resume_pipeline";
+
+/** GET /api/pipeline/resume-status */
+export interface PipelineResumeStatus {
+  edition_id: string | null;
+  has_collect: boolean;
+  has_translate: boolean;
+  has_pipeline_summary: boolean;
+  skip_collect: boolean;
+  skip_translate: boolean;
+  beirut_day: string;
+}
 
 export interface PipelineTaskStartResponse {
   task_id: string;
@@ -450,6 +466,16 @@ export interface AnalyticsProviderByProviderRow {
   output_units: number;
 }
 
+export interface AnalyticsProviderByModelRow {
+  provider: string;
+  model: string;
+  kind: string;
+  call_count: number;
+  cost_usd: number;
+  input_units: number;
+  output_units: number;
+}
+
 export interface AnalyticsProviderRecentRow {
   id: string;
   created_at: string;
@@ -480,6 +506,7 @@ export interface AnalyticsSummaryResponse {
   provider_by_day: AnalyticsProviderByDayRow[];
   provider_by_operation: AnalyticsProviderByOperationRow[];
   provider_by_provider: AnalyticsProviderByProviderRow[];
+  provider_by_model: AnalyticsProviderByModelRow[];
   provider_recent: AnalyticsProviderRecentRow[];
   note_fr: string;
 }

@@ -26,6 +26,7 @@ import type {
   MediaSource,
   MediaSourcesHealthResponse,
   PipelineDebugLogsResponse,
+  PipelineResumeStatus,
   PipelineTaskKind,
   PipelineTaskStartResponse,
   PipelineTaskStatus,
@@ -302,6 +303,15 @@ export const api = {
     request<{ status: string; stats: unknown }>("/api/pipeline", {
       method: "POST",
     }),
+
+  /** Reprise : saute collecte/traduction si déjà loguées ce jour (Asia/Beirut). */
+  triggerPipelineResume: () =>
+    request<{ status: string; stats: unknown }>("/api/pipeline/resume", {
+      method: "POST",
+    }),
+
+  pipelineResumeStatus: () =>
+    request<PipelineResumeStatus>("/api/pipeline/resume-status"),
 
   generateReview: (articleIds: string[]) =>
     request<GenerateReviewResult>("/api/reviews/generate", {

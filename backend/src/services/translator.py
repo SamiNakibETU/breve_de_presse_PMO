@@ -452,6 +452,40 @@ class TranslationPipeline:
         self._factory = get_session_factory()
         self._semaphore = asyncio.Semaphore(6)
         self._stats_lock = asyncio.Lock()
+        self._translate_tick_lock = asyncio.Lock()
+        self._translate_article_ticks = 0
+
+    async def _bump_translate_progress(self, stats: dict) -> None:
+        every = settings.translate_progress_log_every_n
+        if every <= 0:
+            return
+        async with self._translate_tick_lock:
+            self._translate_article_ticks += 1
+            tick = self._translate_article_ticks
+        if tick % every != 0:
+            return
+        try:
+            from src.services.pipeline_debug_log import (
+                compact_payload,
+                log_pipeline_step,
+                resolve_current_edition_id,
+            )
+
+            async with self._stats_lock:
+                snap = {
+                    "articles_finished": tick,
+                    "processed": stats["processed"],
+                    "errors": stats["errors"],
+                    "needs_review": stats["needs_review"],
+                }
+            eid = await resolve_current_edition_id()
+            await log_pipeline_step(
+                eid,
+                "translate_progress",
+                compact_payload(snap),
+            )
+        except Exception:
+            pass
 
     async def process_pending(
         self,
@@ -511,6 +545,7 @@ class TranslationPipeline:
             to_process.append(a)
 
         logger.info("translation.start", article_count=len(to_process), skipped=skipped)
+        self._translate_article_ticks = 0
         stats: dict = {
             "processed": 0,
             "errors": 0,
@@ -629,6 +664,7 @@ class TranslationPipeline:
                             art.status = "error"
                         await db.commit()
             finally:
+                await self._bump_translate_progress(stats)
                 structlog.contextvars.unbind_contextvars("article_id")
                 await asyncio.sleep(0.5)
 
@@ -739,7 +775,7 @@ class TranslationPipeline:
             summary = data.get("summary_fr") or ""
             if len(summary.split()) > 40:
                 for _ in range(2):
-                    summary = await self._cod_dense_pass(summary, lang, art.id)
+                    summary = await self._cod_dense_pass(summary, lang, article.id)
                 data["summary_fr"] = summary
 
         content = article.content_original or ""

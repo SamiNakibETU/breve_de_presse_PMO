@@ -6,19 +6,22 @@ Planificateur pipeline : APScheduler AsyncIOScheduler.
 - Plus de second passage 14h UTC ; pas de run samedi/dimanche.
 - Minuit Asia/Beirut : création de l’édition du lendemain ouvré.
 
-Un verrou asyncio empêche deux pipelines complets simultanés (cron / HTTP / tâche async).
+Verrou asyncio (processus) + lease Postgres (multi-réplicas) + budgets de temps par étape.
 """
 
 import asyncio
 import time
+import uuid
+from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional, TypeVar
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from src.config import get_settings
 from src.database import get_session_factory
@@ -29,6 +32,11 @@ from src.services.pipeline_debug_log import (
     log_pipeline_step,
     resolve_current_edition_id,
 )
+from src.services.pipeline_execution_lease import (
+    release_daily_pipeline_lease,
+    renew_daily_pipeline_lease,
+    try_acquire_daily_pipeline_lease,
+)
 from src.services.translator import run_translation_pipeline
 
 logger = structlog.get_logger(__name__)
@@ -38,26 +46,161 @@ _PARIS_TZ = ZoneInfo("Europe/Paris")
 
 _pipeline_lock = asyncio.Lock()
 
+T = TypeVar("T")
+
+_last_stall_alert_monotonic: float = 0.0
+
 
 class PipelineBusyError(Exception):
     """Un pipeline complet tient déjà le verrou (cron, autre tâche ou POST /api/pipeline)."""
 
 
+class PipelineStepTimeout(Exception):
+    """Une étape a dépassé son budget ``asyncio.wait_for``."""
+
+    def __init__(self, step: str) -> None:
+        self.step = step
+        super().__init__(step)
+
+
 def is_pipeline_running() -> bool:
-    """True tant qu’un `run_daily_pipeline` est en cours (cron, tâche async ou POST synchrone)."""
+    """Verrou asyncio local uniquement (pas d’accès base). Voir ``pipeline_is_busy_async``."""
     return _pipeline_lock.locked()
+
+
+async def pipeline_is_busy_async() -> bool:
+    """True si ce processus exécute un pipeline ou si un lease Postgres actif existe."""
+    if _pipeline_lock.locked():
+        return True
+    from src.services.pipeline_execution_lease import is_daily_pipeline_lease_held_alive
+
+    try:
+        return await is_daily_pipeline_lease_held_alive()
+    except Exception as exc:
+        logger.warning("pipeline.busy_check_failed", error=str(exc)[:200])
+        return _pipeline_lock.locked()
+
+
+async def _run_step_budget(
+    step_name: str,
+    trigger: str,
+    budget_s: int,
+    factory: Callable[[], Awaitable[T]],
+) -> T:
+    if budget_s <= 0:
+        return await factory()
+    try:
+        return await asyncio.wait_for(factory(), timeout=float(budget_s))
+    except asyncio.TimeoutError:
+        eid_log = await resolve_current_edition_id()
+        await log_pipeline_step(
+            eid_log,
+            "pipeline_step_timeout",
+            compact_payload({"step": step_name, "trigger": trigger, "budget_s": budget_s}),
+        )
+        try:
+            from src.services.alerts import post_pipeline_step_timeout_alert
+
+            await post_pipeline_step_timeout_alert(
+                step=step_name,
+                timeout_s=budget_s,
+                trigger=trigger,
+            )
+        except Exception as alert_exc:
+            logger.warning(
+                "pipeline.step_timeout_alert_failed",
+                error=str(alert_exc)[:200],
+            )
+        raise PipelineStepTimeout(step_name) from None
+
+
+async def _pipeline_heartbeat_loop(holder_id: str, stop: asyncio.Event) -> None:
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=float(settings.pipeline_heartbeat_interval_seconds))
+            return
+        except asyncio.TimeoutError:
+            ok = await renew_daily_pipeline_lease(
+                holder_id=holder_id,
+                ttl_seconds=settings.pipeline_lease_ttl_seconds,
+            )
+            if not ok:
+                logger.warning(
+                    "pipeline.lease_renew_failed",
+                    holder=holder_id[:16],
+                )
+
+
+async def pipeline_lease_stall_watch_tick() -> None:
+    """Cron : alerte si lease valide mais heartbeat trop vieux."""
+    global _last_stall_alert_monotonic
+    from src.services.alerts import post_pipeline_stalled_alert
+    from src.services.pipeline_execution_lease import fetch_daily_pipeline_lease
+
+    try:
+        snap = await fetch_daily_pipeline_lease()
+    except Exception as exc:
+        logger.warning("pipeline.stall_check_failed", error=str(exc)[:200])
+        return
+    if snap is None or not snap.holder_id or snap.heartbeat_at is None or snap.expires_at is None:
+        return
+    now = datetime.now(timezone.utc)
+    exp = snap.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp <= now:
+        return
+    hb = snap.heartbeat_at
+    if hb.tzinfo is None:
+        hb = hb.replace(tzinfo=timezone.utc)
+    age = (now - hb).total_seconds()
+    if age < float(settings.pipeline_stall_alert_seconds):
+        return
+    if time.monotonic() - _last_stall_alert_monotonic < 3600.0:
+        return
+    _last_stall_alert_monotonic = time.monotonic()
+    try:
+        await post_pipeline_stalled_alert(
+            holder_id=snap.holder_id,
+            seconds_since_heartbeat=age,
+            trigger_label=snap.trigger_label,
+        )
+    except Exception as exc:
+        logger.warning("pipeline.stall_alert_failed", error=str(exc)[:200])
 
 
 async def run_daily_pipeline(
     *,
     trigger: str,
     on_progress: Optional[Callable[[str, str], None]] = None,
+    resume: bool = False,
 ) -> dict:
     """Exécute le pipeline complet ; lève PipelineBusyError si déjà en cours (hors déclencheurs cron).
+
+    ``resume=True`` : saute collecte et/ou traduction si déjà journalisées ce jour (Asia/Beirut)
+    dans ``pipeline_debug_logs`` pour l’édition courante ; inutile si ``pipeline_summary`` existe.
 
     Ne pas utiliser ``wait_for(lock.acquire(), timeout=0)`` : en CPython cela lève presque toujours
     ``TimeoutError`` même si le verrou est libre, ce qui bloquait tout lancement manuel.
     """
+    if resume:
+        from src.services.pipeline_resume import load_resume_snapshot_for_edition
+
+        eid_pre = await resolve_current_edition_id()
+        snap = await load_resume_snapshot_for_edition(eid_pre)
+        if snap.has_pipeline_summary:
+            logger.info(
+                "pipeline.resume_noop_already_complete",
+                trigger=trigger,
+                edition_id=str(eid_pre) if eid_pre else None,
+            )
+            return {
+                "skipped": True,
+                "reason": "pipeline_already_complete_today",
+                "trigger": trigger,
+                "edition_id": str(eid_pre) if eid_pre else None,
+            }
+
     if _pipeline_lock.locked():
         if trigger.startswith("cron"):
             logger.warning(
@@ -71,15 +214,71 @@ async def run_daily_pipeline(
             }
         raise PipelineBusyError()
 
+    holder_id = str(uuid.uuid4())
+    if not await try_acquire_daily_pipeline_lease(
+        holder_id=holder_id,
+        trigger=trigger,
+        ttl_seconds=settings.pipeline_lease_ttl_seconds,
+    ):
+        if trigger.startswith("cron"):
+            logger.warning(
+                "pipeline.skipped_lease_held",
+                trigger=trigger,
+            )
+            return {
+                "skipped": True,
+                "reason": "pipeline_lease_held",
+                "trigger": trigger,
+            }
+        raise PipelineBusyError()
+
     await _pipeline_lock.acquire()
+    stop_hb = asyncio.Event()
+    hb_task = asyncio.create_task(_pipeline_heartbeat_loop(holder_id, stop_hb))
     try:
-        logger.info("pipeline.lock_acquired", trigger=trigger)
-        pipeline_timeout_s = 3600
+        logger.info(
+            "pipeline.lock_acquired",
+            trigger=trigger,
+            lease_holder=holder_id[:16],
+        )
+        skip_collect = False
+        skip_translate = False
+        if resume:
+            from src.services.pipeline_resume import load_resume_snapshot_for_edition
+
+            eid_snap = await resolve_current_edition_id()
+            snap2 = await load_resume_snapshot_for_edition(eid_snap)
+            skip_collect = snap2.skip_collect
+            skip_translate = snap2.skip_translate
+            logger.info(
+                "pipeline.resume_flags",
+                trigger=trigger,
+                skip_collect=skip_collect,
+                skip_translate=skip_translate,
+                edition_id=str(eid_snap) if eid_snap else None,
+            )
+        pipeline_timeout_s = settings.pipeline_timeout_seconds
         try:
             return await asyncio.wait_for(
-                _daily_pipeline_body(on_progress),
+                _daily_pipeline_body(
+                    on_progress,
+                    skip_collect=skip_collect,
+                    skip_translate=skip_translate,
+                    pipeline_trigger=trigger,
+                ),
                 timeout=pipeline_timeout_s,
             )
+        except PipelineStepTimeout as st:
+            logger.error(
+                "pipeline.step_timeout",
+                step=st.step,
+                trigger=trigger,
+            )
+            return {
+                "error": "pipeline_step_timeout",
+                "step": st.step,
+                "trigger": trigger,
+            }
         except asyncio.TimeoutError:
             logger.error(
                 "pipeline.timeout",
@@ -104,62 +303,108 @@ async def run_daily_pipeline(
                 "trigger": trigger,
             }
     finally:
+        stop_hb.set()
+        hb_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await hb_task
+        try:
+            await release_daily_pipeline_lease(holder_id=holder_id)
+        except Exception as lease_exc:
+            logger.warning(
+                "pipeline.lease_release_failed",
+                error=str(lease_exc)[:200],
+            )
         _pipeline_lock.release()
         logger.info("pipeline.lock_released", trigger=trigger)
 
 
 async def _daily_pipeline_body(
     on_progress: Optional[Callable[[str, str], None]] = None,
+    *,
+    skip_collect: bool = False,
+    skip_translate: bool = False,
+    pipeline_trigger: str = "unknown",
 ) -> dict:
     def p(key: str, label: str) -> None:
         if on_progress:
             on_progress(key, label)
 
     start = datetime.now(timezone.utc)
-    logger.info("pipeline.start", time=start.isoformat())
+    logger.info(
+        "pipeline.start",
+        time=start.isoformat(),
+        resume_skip_collect=skip_collect,
+        resume_skip_translate=skip_translate,
+    )
 
-    logger.info("pipeline.step", step="collect")
-    p("collection", "Collecte (RSS et scrapers)…")
+    step_timings: dict[str, float] = {}
+    eid_log = await resolve_current_edition_id()
 
     def collect_pb(k: str, lbl: str) -> None:
         p(f"collection.{k}", f"Collecte · {lbl}")
 
-    step_timings: dict[str, float] = {}
+    if skip_collect:
+        logger.info("pipeline.resume_skip", step="collect")
+        p("collection", "Collecte ignorée (reprise — déjà journalisée aujourd’hui)…")
+        collection_stats = {"skipped": True, "reason": "resume"}
+        step_timings["collection_s"] = 0.0
+    else:
+        logger.info("pipeline.step", step="collect")
+        p("collection", "Collecte (RSS et scrapers)…")
+        t0 = time.monotonic()
 
-    t0 = time.monotonic()
-    collection_stats = await run_collection(
-        on_progress=collect_pb if on_progress else None,
-    )
-    step_timings["collection_s"] = round(time.monotonic() - t0, 2)
+        async def _do_collect() -> dict:
+            return await run_collection(
+                on_progress=collect_pb if on_progress else None,
+            )
 
-    eid_log = await resolve_current_edition_id()
-    await log_pipeline_step(
-        eid_log,
-        "collect",
-        compact_payload(
-            {"stats": collection_stats, "duration_s": step_timings["collection_s"]},
-        ),
-    )
-
-    logger.info("pipeline.step", step="translate")
-    p("translation", "Traduction et résumés (LLM)…")
+        collection_stats = await _run_step_budget(
+            "collect",
+            pipeline_trigger,
+            settings.pipeline_step_timeout_collect_s,
+            _do_collect,
+        )
+        step_timings["collection_s"] = round(time.monotonic() - t0, 2)
+        await log_pipeline_step(
+            eid_log,
+            "collect",
+            compact_payload(
+                {"stats": collection_stats, "duration_s": step_timings["collection_s"]},
+            ),
+        )
 
     def translate_pb(k: str, lbl: str) -> None:
         p(f"translation.{k}", f"Traduction · {lbl}")
 
-    t1 = time.monotonic()
-    translation_stats = await run_translation_pipeline(
-        on_progress=translate_pb if on_progress else None,
-    )
-    step_timings["translation_s"] = round(time.monotonic() - t1, 2)
+    if skip_translate:
+        logger.info("pipeline.resume_skip", step="translate")
+        p("translation", "Traduction ignorée (reprise — déjà journalisée aujourd’hui)…")
+        translation_stats = {"skipped": True, "reason": "resume"}
+        step_timings["translation_s"] = 0.0
+    else:
+        logger.info("pipeline.step", step="translate")
+        p("translation", "Traduction et résumés (LLM)…")
+        t1 = time.monotonic()
 
-    await log_pipeline_step(
-        eid_log,
-        "translate",
-        compact_payload(
-            {"stats": translation_stats, "duration_s": step_timings["translation_s"]},
-        ),
-    )
+        async def _do_translate() -> dict:
+            return await run_translation_pipeline(
+                on_progress=translate_pb if on_progress else None,
+            )
+
+        translation_stats = await _run_step_budget(
+            "translate",
+            pipeline_trigger,
+            settings.pipeline_step_timeout_translate_s,
+            _do_translate,
+        )
+        step_timings["translation_s"] = round(time.monotonic() - t1, 2)
+        await log_pipeline_step(
+            eid_log,
+            "translate",
+            compact_payload(
+                {"stats": translation_stats, "duration_s": step_timings["translation_s"]},
+            ),
+        )
 
     pipeline_result: dict = {
         "collection": collection_stats,
@@ -167,242 +412,250 @@ async def _daily_pipeline_body(
         "step_timings": step_timings,
     }
 
-    try:
-        from src.services.edition_schedule import resolve_edition_id_for_timestamp
-        from src.services.relevance_scorer import run_relevance_scoring_pipeline
-
-        factory = get_session_factory()
-        async with factory() as db:
-            eid_rel = await resolve_edition_id_for_timestamp(
-                db, datetime.now(timezone.utc)
-            )
-            rel_stats = await run_relevance_scoring_pipeline(
-                db,
-                edition_id=eid_rel,
-            )
-            await db.commit()
-        pipeline_result["relevance_scoring"] = rel_stats
-        pipeline_result["edition_id_relevance"] = str(eid_rel) if eid_rel else None
-        await log_pipeline_step(
-            eid_rel,
-            "relevance_scoring",
-            compact_payload({"stats": rel_stats}),
-        )
-    except Exception as e:
-        logger.warning("pipeline.relevance_scoring_failed", error=str(e)[:200])
-        pipeline_result["relevance_scoring"] = {"error": str(e)[:200]}
-
-    try:
-        from src.services.dedup_surface import run_surface_dedup
-        from src.services.edition_schedule import resolve_edition_id_for_timestamp
-
-        factory = get_session_factory()
-        async with factory() as db:
-            eid = await resolve_edition_id_for_timestamp(
-                db, datetime.now(timezone.utc)
-            )
-            dedup_stats = await run_surface_dedup(db, edition_id=eid)
-            await db.commit()
-        pipeline_result["dedup_surface"] = dedup_stats
-        pipeline_result["edition_id"] = str(eid) if eid else None
-        await log_pipeline_step(
-            eid,
-            "dedup_surface",
-            compact_payload(
-                {
-                    **dedup_stats,
-                    "threshold_jaccard": JACCARD_THRESHOLD,
-                    "num_perm": NUM_PERM,
-                },
-            ),
-        )
-    except Exception as e:
-        logger.warning("pipeline.dedup_surface_failed", error=str(e)[:200])
-        pipeline_result["dedup_surface"] = {"error": str(e)[:200]}
-    try:
-        from src.services.source_health_metrics import refresh_translation_metrics_24h
-
-        factory = get_session_factory()
-        async with factory() as db:
-            n_touch = await refresh_translation_metrics_24h(db)
-            await db.commit()
-        pipeline_result["translation_health_metrics"] = {"sources_updated": n_touch}
-    except Exception as e:
-        logger.warning(
-            "pipeline.translation_health_metrics_failed",
-            error=str(e)[:200],
-        )
-        pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
-
-    async def _topic_detection_job() -> dict:
-        from src.services.edition_schedule import BEIRUT, find_edition_for_calendar_date
-        from src.services.topic_detector import TopicDetector
-
-        factory = get_session_factory()
-        async with factory() as db:
-            # Ne pas utiliser « maintenant » dans resolve_edition_id_for_timestamp : entre la fin
-            # de fenêtre (J 6h) et le début de la suivante (J 18h) à Beyrouth, aucune édition ne
-            # contient ce timestamp → pas de sujets alors que le corpus du jour existe.
-            cal = datetime.now(BEIRUT).date()
-            edition = await find_edition_for_calendar_date(db, cal)
-            if not edition:
-                return {"topics_created": 0, "note": "no_edition_for_calendar_date"}
-            detector = TopicDetector()
-            t0 = time.monotonic()
-            n = await detector.build_edition_topics(db, edition)
-            return {
-                "topics_created": n,
-                "duration_s": round(time.monotonic() - t0, 2),
-                "edition_id": str(edition.id),
-                "publish_date": edition.publish_date.isoformat(),
-            }
-
-    p("topic_detection", "Détection des développements (LLM)…")
-    topic_detection_task = asyncio.create_task(_topic_detection_job())
-
-    cohere_key = settings.cohere_api_key
-    if not cohere_key:
-        logger.error(
-            "pipeline.cohere_key_missing",
-            message="COHERE_API_KEY not set — embedding and clustering SKIPPED. "
-            "Set it in Railway environment variables.",
-        )
-        p("embedding", "Embeddings — clé Cohere absente, étape ignorée")
-        pipeline_result["embedding"] = {"error": "COHERE_API_KEY not configured"}
-        await log_pipeline_step(
-            await resolve_current_edition_id(),
-            "embedding_skipped",
-            {"reason": "COHERE_API_KEY not configured"},
-        )
-    else:
+    async def _post_phases() -> None:
         try:
-            from src.services.cluster_labeller import label_clusters
-            from src.services.clustering_service import ClusteringService
-            from src.services.embedding_service import EmbeddingService
-
             from src.services.edition_schedule import resolve_edition_id_for_timestamp
-            from src.services.semantic_dedupe import run_semantic_dedup
+            from src.services.relevance_scorer import run_relevance_scoring_pipeline
+
+            factory = get_session_factory()
+            async with factory() as db:
+                eid_rel = await resolve_edition_id_for_timestamp(
+                    db, datetime.now(timezone.utc)
+                )
+                rel_stats = await run_relevance_scoring_pipeline(
+                    db,
+                    edition_id=eid_rel,
+                )
+                await db.commit()
+            pipeline_result["relevance_scoring"] = rel_stats
+            pipeline_result["edition_id_relevance"] = str(eid_rel) if eid_rel else None
+            await log_pipeline_step(
+                eid_rel,
+                "relevance_scoring",
+                compact_payload({"stats": rel_stats}),
+            )
+        except Exception as e:
+            logger.warning("pipeline.relevance_scoring_failed", error=str(e)[:200])
+            pipeline_result["relevance_scoring"] = {"error": str(e)[:200]}
+
+        try:
+            from src.services.dedup_surface import run_surface_dedup
+            from src.services.edition_schedule import resolve_edition_id_for_timestamp
 
             factory = get_session_factory()
             async with factory() as db:
                 eid = await resolve_edition_id_for_timestamp(
                     db, datetime.now(timezone.utc)
                 )
-                t_emb = time.monotonic()
-                p("embedding", "Embeddings articles en attente (Cohere)…")
-                embedding_service = EmbeddingService()
-                embedded = await embedding_service.embed_pending_articles(db)
-                pipeline_result["embedding"] = {"embedded": embedded}
-                step_timings["embedding_s"] = round(time.monotonic() - t_emb, 2)
-                logger.info("pipeline.embedding_done", embedded=embedded)
-                await log_pipeline_step(
-                    eid,
-                    "embedding",
-                    compact_payload(
-                        {"embedded": embedded, "duration_s": step_timings["embedding_s"]},
-                    ),
-                )
-
-                from src.services.simhash_dedupe import (
-                    mark_syndicated_from_bodies,
-                    mark_syndicated_from_summaries,
-                )
-
-                t_sy = time.monotonic()
-                syndicated_sum = await mark_syndicated_from_summaries(db)
-                syndicated_body = await mark_syndicated_from_bodies(db)
-                pipeline_result["syndication"] = {
-                    "marked_syndicated_summaries": syndicated_sum,
-                    "marked_syndicated_bodies": syndicated_body,
-                }
-                step_timings["syndication_s"] = round(time.monotonic() - t_sy, 2)
-                await log_pipeline_step(
-                    eid,
-                    "syndication_simhash",
-                    compact_payload(
-                        {
-                            "marked_syndicated_summaries": syndicated_sum,
-                            "marked_syndicated_bodies": syndicated_body,
-                            "duration_s": step_timings["syndication_s"],
-                        },
-                    ),
-                )
-
-                t_sem = time.monotonic()
-                sem_dedup = await run_semantic_dedup(db, edition_id=eid)
-                pipeline_result["dedup_semantic"] = sem_dedup
-                step_timings["dedup_semantic_s"] = round(time.monotonic() - t_sem, 2)
-                await log_pipeline_step(
-                    eid,
-                    "dedup_semantic",
-                    compact_payload(
-                        {
-                            **sem_dedup,
-                            "cosine_threshold": settings.semantic_dedup_cosine,
-                            "duration_s": step_timings["dedup_semantic_s"],
-                        },
-                    ),
-                )
-
-                t_cl = time.monotonic()
-                p("clustering", "Regroupement thématique (HDBSCAN)…")
-                clustering_service = ClusteringService()
-                clustering_result = await clustering_service.run_clustering(
-                    db, edition_id=eid
-                )
-                pipeline_result["clustering"] = clustering_result
-                step_timings["clustering_s"] = round(time.monotonic() - t_cl, 2)
-                logger.info("pipeline.clustering_done", **clustering_result)
-                await log_pipeline_step(
-                    eid,
-                    "clustering",
-                    compact_payload(
-                        {
-                            **clustering_result,
-                            "use_umap": settings.clustering_use_umap,
-                            "duration_s": step_timings["clustering_s"],
-                        },
-                    ),
-                )
-
-                t_lb = time.monotonic()
-                p("labelling", "Libellés sujets (LLM)…")
-                labeled = await label_clusters(db)
-                pipeline_result["labelling"] = {"labeled": labeled}
-                step_timings["labelling_s"] = round(time.monotonic() - t_lb, 2)
-                logger.info("pipeline.labelling_done", labeled=labeled)
-                await log_pipeline_step(
-                    eid,
-                    "cluster_labelling",
-                    compact_payload(
-                        {"labeled": labeled, "duration_s": step_timings["labelling_s"]},
-                    ),
-                )
+                dedup_stats = await run_surface_dedup(db, edition_id=eid)
+                await db.commit()
+            pipeline_result["dedup_surface"] = dedup_stats
+            pipeline_result["edition_id"] = str(eid) if eid else None
+            await log_pipeline_step(
+                eid,
+                "dedup_surface",
+                compact_payload(
+                    {
+                        **dedup_stats,
+                        "threshold_jaccard": JACCARD_THRESHOLD,
+                        "num_perm": NUM_PERM,
+                    },
+                ),
+            )
         except Exception as e:
-            logger.error("pipeline.embedding_clustering_failed", error=str(e))
-            p("embedding", f"Erreur embeddings / clusters : {str(e)[:80]}")
-            pipeline_result["embedding"] = {"error": str(e)}
+            logger.warning("pipeline.dedup_surface_failed", error=str(e)[:200])
+            pipeline_result["dedup_surface"] = {"error": str(e)[:200]}
+        try:
+            from src.services.source_health_metrics import refresh_translation_metrics_24h
 
-    try:
-        topic_result = await topic_detection_task
-        pipeline_result["topic_detection"] = topic_result
-        topic_log_edition_id = None
-        raw_eid = topic_result.get("edition_id")
-        if isinstance(raw_eid, str):
+            factory = get_session_factory()
+            async with factory() as db:
+                n_touch = await refresh_translation_metrics_24h(db)
+                await db.commit()
+            pipeline_result["translation_health_metrics"] = {"sources_updated": n_touch}
+        except Exception as e:
+            logger.warning(
+                "pipeline.translation_health_metrics_failed",
+                error=str(e)[:200],
+            )
+            pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
+
+        async def _topic_detection_job() -> dict:
+            from src.services.edition_schedule import BEIRUT, find_edition_for_calendar_date
+            from src.services.topic_detector import TopicDetector
+
+            factory = get_session_factory()
+            async with factory() as db:
+                # Ne pas utiliser « maintenant » dans resolve_edition_id_for_timestamp : entre la fin
+                # de fenêtre (J 6h) et le début de la suivante (J 18h) à Beyrouth, aucune édition ne
+                # contient ce timestamp → pas de sujets alors que le corpus du jour existe.
+                cal = datetime.now(BEIRUT).date()
+                edition = await find_edition_for_calendar_date(db, cal)
+                if not edition:
+                    return {"topics_created": 0, "note": "no_edition_for_calendar_date"}
+                detector = TopicDetector()
+                t0 = time.monotonic()
+                n = await detector.build_edition_topics(db, edition)
+                return {
+                    "topics_created": n,
+                    "duration_s": round(time.monotonic() - t0, 2),
+                    "edition_id": str(edition.id),
+                    "publish_date": edition.publish_date.isoformat(),
+                }
+
+        p("topic_detection", "Détection des développements (LLM)…")
+        topic_detection_task = asyncio.create_task(_topic_detection_job())
+
+        cohere_key = settings.cohere_api_key
+        if not cohere_key:
+            logger.error(
+                "pipeline.cohere_key_missing",
+                message="COHERE_API_KEY not set — embedding and clustering SKIPPED. "
+                "Set it in Railway environment variables.",
+            )
+            p("embedding", "Embeddings — clé Cohere absente, étape ignorée")
+            pipeline_result["embedding"] = {"error": "COHERE_API_KEY not configured"}
+            await log_pipeline_step(
+                await resolve_current_edition_id(),
+                "embedding_skipped",
+                {"reason": "COHERE_API_KEY not configured"},
+            )
+        else:
             try:
-                topic_log_edition_id = UUID(raw_eid)
-            except ValueError:
-                topic_log_edition_id = None
-        if topic_log_edition_id is None:
-            topic_log_edition_id = await resolve_current_edition_id()
-        await log_pipeline_step(
-            topic_log_edition_id,
-            "topic_detection",
-            compact_payload(topic_result),
-        )
-    except Exception as e:
-        logger.warning("pipeline.topic_detection_failed", error=str(e)[:200])
-        pipeline_result["topic_detection"] = {"error": str(e)[:200]}
+                from src.services.cluster_labeller import label_clusters
+                from src.services.clustering_service import ClusteringService
+                from src.services.embedding_service import EmbeddingService
+
+                from src.services.edition_schedule import resolve_edition_id_for_timestamp
+                from src.services.semantic_dedupe import run_semantic_dedup
+
+                factory = get_session_factory()
+                async with factory() as db:
+                    eid = await resolve_edition_id_for_timestamp(
+                        db, datetime.now(timezone.utc)
+                    )
+                    t_emb = time.monotonic()
+                    p("embedding", "Embeddings articles en attente (Cohere)…")
+                    embedding_service = EmbeddingService()
+                    embedded = await embedding_service.embed_pending_articles(db)
+                    pipeline_result["embedding"] = {"embedded": embedded}
+                    step_timings["embedding_s"] = round(time.monotonic() - t_emb, 2)
+                    logger.info("pipeline.embedding_done", embedded=embedded)
+                    await log_pipeline_step(
+                        eid,
+                        "embedding",
+                        compact_payload(
+                            {"embedded": embedded, "duration_s": step_timings["embedding_s"]},
+                        ),
+                    )
+
+                    from src.services.simhash_dedupe import (
+                        mark_syndicated_from_bodies,
+                        mark_syndicated_from_summaries,
+                    )
+
+                    t_sy = time.monotonic()
+                    syndicated_sum = await mark_syndicated_from_summaries(db)
+                    syndicated_body = await mark_syndicated_from_bodies(db)
+                    pipeline_result["syndication"] = {
+                        "marked_syndicated_summaries": syndicated_sum,
+                        "marked_syndicated_bodies": syndicated_body,
+                    }
+                    step_timings["syndication_s"] = round(time.monotonic() - t_sy, 2)
+                    await log_pipeline_step(
+                        eid,
+                        "syndication_simhash",
+                        compact_payload(
+                            {
+                                "marked_syndicated_summaries": syndicated_sum,
+                                "marked_syndicated_bodies": syndicated_body,
+                                "duration_s": step_timings["syndication_s"],
+                            },
+                        ),
+                    )
+
+                    t_sem = time.monotonic()
+                    sem_dedup = await run_semantic_dedup(db, edition_id=eid)
+                    pipeline_result["dedup_semantic"] = sem_dedup
+                    step_timings["dedup_semantic_s"] = round(time.monotonic() - t_sem, 2)
+                    await log_pipeline_step(
+                        eid,
+                        "dedup_semantic",
+                        compact_payload(
+                            {
+                                **sem_dedup,
+                                "cosine_threshold": settings.semantic_dedup_cosine,
+                                "duration_s": step_timings["dedup_semantic_s"],
+                            },
+                        ),
+                    )
+
+                    t_cl = time.monotonic()
+                    p("clustering", "Regroupement thématique (HDBSCAN)…")
+                    clustering_service = ClusteringService()
+                    clustering_result = await clustering_service.run_clustering(
+                        db, edition_id=eid
+                    )
+                    pipeline_result["clustering"] = clustering_result
+                    step_timings["clustering_s"] = round(time.monotonic() - t_cl, 2)
+                    logger.info("pipeline.clustering_done", **clustering_result)
+                    await log_pipeline_step(
+                        eid,
+                        "clustering",
+                        compact_payload(
+                            {
+                                **clustering_result,
+                                "use_umap": settings.clustering_use_umap,
+                                "duration_s": step_timings["clustering_s"],
+                            },
+                        ),
+                    )
+
+                    t_lb = time.monotonic()
+                    p("labelling", "Libellés sujets (LLM)…")
+                    labeled = await label_clusters(db)
+                    pipeline_result["labelling"] = {"labeled": labeled}
+                    step_timings["labelling_s"] = round(time.monotonic() - t_lb, 2)
+                    logger.info("pipeline.labelling_done", labeled=labeled)
+                    await log_pipeline_step(
+                        eid,
+                        "cluster_labelling",
+                        compact_payload(
+                            {"labeled": labeled, "duration_s": step_timings["labelling_s"]},
+                        ),
+                    )
+            except Exception as e:
+                logger.error("pipeline.embedding_clustering_failed", error=str(e))
+                p("embedding", f"Erreur embeddings / clusters : {str(e)[:80]}")
+                pipeline_result["embedding"] = {"error": str(e)}
+
+        try:
+            topic_result = await topic_detection_task
+            pipeline_result["topic_detection"] = topic_result
+            topic_log_edition_id = None
+            raw_eid = topic_result.get("edition_id")
+            if isinstance(raw_eid, str):
+                try:
+                    topic_log_edition_id = UUID(raw_eid)
+                except ValueError:
+                    topic_log_edition_id = None
+            if topic_log_edition_id is None:
+                topic_log_edition_id = await resolve_current_edition_id()
+            await log_pipeline_step(
+                topic_log_edition_id,
+                "topic_detection",
+                compact_payload(topic_result),
+            )
+        except Exception as e:
+            logger.warning("pipeline.topic_detection_failed", error=str(e)[:200])
+            pipeline_result["topic_detection"] = {"error": str(e)[:200]}
+
+    await _run_step_budget(
+        "post",
+        pipeline_trigger,
+        settings.pipeline_step_timeout_post_s,
+        _post_phases,
+    )
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     pipeline_result["elapsed_seconds"] = elapsed
@@ -435,6 +688,30 @@ async def _daily_pipeline_body(
             pipeline_result["anthropic_batch"] = {"error": str(e)[:200]}
 
     return pipeline_result
+
+
+async def pipeline_completion_retry_tick() -> None:
+    """Cron intervalle : relance ``run_daily_pipeline(resume=True)`` si matinée incomplète."""
+    if settings.pipeline_completion_retry_minutes <= 0:
+        return
+    from src.services.pipeline_resume import should_auto_retry_completion
+
+    now_paris = datetime.now(_PARIS_TZ)
+    try:
+        want = await should_auto_retry_completion(
+            paris_hour=now_paris.hour,
+            paris_start_hour=settings.pipeline_retry_paris_start_hour,
+            paris_end_hour=settings.pipeline_retry_paris_end_hour,
+        )
+    except Exception as exc:
+        logger.warning(
+            "pipeline.completion_retry_probe_failed",
+            error=str(exc)[:200],
+        )
+        return
+    if not want:
+        return
+    await run_daily_pipeline(trigger="cron_completion_retry", resume=True)
 
 
 def create_scheduler() -> AsyncIOScheduler:
@@ -475,6 +752,32 @@ def create_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
+    if settings.pipeline_completion_retry_minutes > 0:
+        scheduler.add_job(
+            pipeline_completion_retry_tick,
+            trigger=IntervalTrigger(
+                minutes=settings.pipeline_completion_retry_minutes,
+            ),
+            id="pipeline_completion_retry",
+            name=(
+                f"Reprise auto. pipeline (toutes les "
+                f"{settings.pipeline_completion_retry_minutes} min, Paris "
+                f"{settings.pipeline_retry_paris_start_hour:02d}h–"
+                f"{settings.pipeline_retry_paris_end_hour:02d}h)"
+            ),
+            replace_existing=True,
+        )
+
+    scheduler.add_job(
+        pipeline_lease_stall_watch_tick,
+        trigger=IntervalTrigger(
+            minutes=settings.pipeline_stall_check_interval_minutes,
+        ),
+        id="pipeline_lease_stall_watch",
+        name="Surveillance heartbeat lease pipeline",
+        replace_existing=True,
+    )
+
     try:
         from src.services.edition_schedule import ensure_next_day_edition_job
 
@@ -492,5 +795,7 @@ def create_scheduler() -> AsyncIOScheduler:
         "scheduler.configured",
         paris_morning=f"{h:02d}:{m:02d} Europe/Paris (lun. + mar.–ven.)",
         edition_cron="00:00 Asia/Beirut",
+        completion_retry_minutes=settings.pipeline_completion_retry_minutes,
+        stall_check_minutes=settings.pipeline_stall_check_interval_minutes,
     )
     return scheduler

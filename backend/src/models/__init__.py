@@ -16,6 +16,7 @@ from src.models.translation_review import TranslationReview
 from src.models.review import Review, ReviewItem
 from src.models.collection_log import CollectionLog
 from src.models.pipeline_job import PipelineJob
+from src.models.pipeline_execution_lease import PipelineExecutionLease
 from src.models.dedup_feedback import DedupFeedback
 from src.models.usage_event import UsageEvent
 from src.models.provider_usage_event import ProviderUsageEvent
@@ -39,6 +40,7 @@ __all__ = [
     "ReviewItem",
     "CollectionLog",
     "PipelineJob",
+    "PipelineExecutionLease",
     "DedupFeedback",
     "UsageEvent",
     "ProviderUsageEvent",

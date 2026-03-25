@@ -118,8 +118,19 @@ async def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS ix_articles_status_collected_at ON articles (status, collected_at)",
             "CREATE INDEX IF NOT EXISTS ix_articles_translation_failure_count ON articles (translation_failure_count)",
             "CREATE INDEX IF NOT EXISTS ix_pipeline_jobs_status_created_at ON pipeline_jobs (status, created_at)",
+            (
+                "CREATE INDEX IF NOT EXISTS ix_pipeline_debug_logs_step_created_at "
+                "ON pipeline_debug_logs (step, created_at DESC)"
+            ),
         ]:
             try:
                 await conn.execute(text(idx_stmt))
             except Exception:
                 pass
+
+    try:
+        from src.services.pipeline_execution_lease import ensure_lease_table_row
+
+        await ensure_lease_table_row()
+    except Exception as exc:
+        log.warning("init_db.lease_seed_failed", error=str(exc)[:160])

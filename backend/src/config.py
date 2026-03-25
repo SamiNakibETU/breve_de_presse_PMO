@@ -59,6 +59,85 @@ class Settings(BaseSettings):
         le=59,
         description="Minute locale Paris du passage pipeline",
     )
+    pipeline_timeout_seconds: int = Field(
+        default=10800,
+        ge=600,
+        le=28800,
+        description="Durée max. d’un run pipeline complet (cron ou POST /api/pipeline) avant asyncio timeout ; "
+        "variable d’environnement typique : PIPELINE_TIMEOUT_SECONDS (défaut 10800 = 3 h).",
+    )
+    pipeline_completion_retry_minutes: int = Field(
+        default=0,
+        ge=0,
+        le=120,
+        description="Tentatives automatiques de reprise pipeline (resume=True) toutes les N minutes si la collecte "
+        "du jour est loguée sans pipeline_summary (ex. timeout). 0 = désactivé. "
+        "Variable typique : PIPELINE_COMPLETION_RETRY_MINUTES.",
+    )
+    pipeline_retry_paris_start_hour: int = Field(
+        default=7,
+        ge=0,
+        le=23,
+        description="Heure locale Paris (incluse) : début de la fenêtre des retries auto. de complétion.",
+    )
+    pipeline_retry_paris_end_hour: int = Field(
+        default=16,
+        ge=1,
+        le=24,
+        description="Heure locale Paris (exclusive) : fin de la fenêtre des retries auto. (ex. 16 → jusqu’à 15:59).",
+    )
+    scheduler_enabled: bool = Field(
+        default=True,
+        description="Si false, APScheduler n’est pas démarré (réplicas secondaires ou worker HTTP seul).",
+    )
+    pipeline_lease_ttl_seconds: int = Field(
+        default=900,
+        ge=120,
+        le=86400,
+        description="Durée de validité du lease Postgres ; renouvelée à chaque heartbeat pendant le run.",
+    )
+    pipeline_heartbeat_interval_seconds: int = Field(
+        default=120,
+        ge=30,
+        le=3600,
+        description="Intervalle entre heartbeats lease pendant un pipeline.",
+    )
+    pipeline_stall_alert_seconds: int = Field(
+        default=600,
+        ge=120,
+        le=7200,
+        description="Alerte si heartbeat_at dépasse cet âge (secondes) alors que le lease est encore valide.",
+    )
+    pipeline_stall_check_interval_minutes: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        description="Fréquence du job « surveillance lease bloqué ».",
+    )
+    pipeline_step_timeout_collect_s: int = Field(
+        default=0,
+        ge=0,
+        le=28800,
+        description="Budget asyncio collecte seule ; 0 = pas de limite propre (repli sur timeout global).",
+    )
+    pipeline_step_timeout_translate_s: int = Field(
+        default=0,
+        ge=0,
+        le=28800,
+        description="Budget asyncio traduction seule ; 0 = pas de limite propre.",
+    )
+    pipeline_step_timeout_post_s: int = Field(
+        default=0,
+        ge=0,
+        le=28800,
+        description="Budget asyncio « post » (relevance → fin, hors collecte/traduction) ; 0 = illimité.",
+    )
+    translate_progress_log_every_n: int = Field(
+        default=25,
+        ge=0,
+        le=500,
+        description="Log pipeline_debug_logs step translate_progress tous les N articles ; 0 = désactivé.",
+    )
     max_articles_per_source: int = Field(default=20)
     max_articles_per_general_rss: int = Field(
         default=12,

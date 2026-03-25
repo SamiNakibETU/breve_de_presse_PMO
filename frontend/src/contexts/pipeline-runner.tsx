@@ -34,6 +34,7 @@ const TASK_KIND_BY_ACTION: Record<PipelineActionKey, PipelineTaskKind> = {
   translate: "translate",
   refreshClusters: "refresh_clusters",
   pipeline: "full_pipeline",
+  resumePipeline: "resume_pipeline",
 };
 
 function buildErrorRecord(
@@ -317,7 +318,10 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
       if (savedTitleRef.current == null) {
         savedTitleRef.current = document.title;
       }
-      document.title = `⏳ Mise à jour… | OLJ`;
+      document.title =
+        running.key === "resumePipeline"
+          ? `⏳ Reprise pipeline… | OLJ`
+          : `⏳ Mise à jour… | OLJ`;
     } else if (savedTitleRef.current != null) {
       document.title = savedTitleRef.current;
       savedTitleRef.current = null;

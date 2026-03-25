@@ -63,6 +63,22 @@ class StatusResponse(BaseModel):
         default=False,
         description="True si un pipeline complet (cron, POST /api/pipeline ou tâche async) est en cours.",
     )
+    scheduler_enabled: bool = Field(
+        default=True,
+        description="False si APScheduler est désactivé sur ce processus.",
+    )
+    pipeline_lease_active: bool = Field(
+        default=False,
+        description="Un lease Postgres pipeline non expiré (autre instance ou celle-ci).",
+    )
+    pipeline_lease_holder_prefix: str | None = Field(
+        default=None,
+        description="Préfixe du holder_id actif (opaque), si lease actif.",
+    )
+    pipeline_heartbeat_age_seconds: float | None = Field(
+        default=None,
+        description="Âge du dernier heartbeat lease (s) si lease actif ; null sinon.",
+    )
 
 
 class PipelineTaskKind(str, Enum):
@@ -70,6 +86,19 @@ class PipelineTaskKind(str, Enum):
     translate = "translate"
     refresh_clusters = "refresh_clusters"
     full_pipeline = "full_pipeline"
+    resume_pipeline = "resume_pipeline"
+
+
+class PipelineResumeStatusResponse(BaseModel):
+    """État des étapes journalisées aujourd’hui (Asia/Beirut) pour l’édition courante."""
+
+    edition_id: str | None = None
+    has_collect: bool
+    has_translate: bool
+    has_pipeline_summary: bool
+    skip_collect: bool
+    skip_translate: bool
+    beirut_day: str = Field(description="Date calendaire Beyrouth (ISO YYYY-MM-DD).")
 
 
 class PipelineTaskStartRequest(BaseModel):

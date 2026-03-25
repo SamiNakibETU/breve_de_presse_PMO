@@ -6,6 +6,7 @@ from src.config import get_settings
 from src.deps.auth import require_internal_key
 from src.limiter import limiter
 from src.schemas.pipeline import (
+    PipelineResumeStatusResponse,
     PipelineTaskStartRequest,
     PipelineTaskStartResponse,
 )
@@ -14,7 +15,7 @@ from src.services.collector import run_collection
 from src.services.pipeline_async_jobs import execute_pipeline_task
 from src.services.scheduler import (
     PipelineBusyError,
-    is_pipeline_running,
+    pipeline_is_busy_async,
     run_daily_pipeline,
 )
 from src.services.translator import run_translation_pipeline
@@ -73,6 +74,50 @@ async def trigger_pipeline(
         raise HTTPException(500, detail=str(exc)) from exc
 
 
+@router.post("/pipeline/resume")
+@limiter.limit("4/minute")
+async def trigger_pipeline_resume(
+    request: Request,
+    _: None = Depends(require_internal_key),
+):
+    """
+    Relance le pipeline quotidien avec reprise : saute collecte et/ou traduction si déjà
+    journalisées ce jour (Asia/Beirut) pour l’édition courante.
+    """
+    try:
+        stats = await run_daily_pipeline(trigger="http_sync_resume", resume=True)
+        return {"status": "ok", "stats": stats}
+    except PipelineBusyError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(500, detail=str(exc)) from exc
+
+
+@router.get("/pipeline/resume-status", response_model=PipelineResumeStatusResponse)
+@limiter.limit("30/minute")
+async def pipeline_resume_status(
+    request: Request,
+    _: None = Depends(require_internal_key),
+):
+    from src.services.pipeline_debug_log import resolve_current_edition_id
+    from src.services.pipeline_resume import load_resume_snapshot_for_edition
+
+    eid = await resolve_current_edition_id()
+    snap = await load_resume_snapshot_for_edition(eid)
+    return PipelineResumeStatusResponse(
+        edition_id=str(snap.edition_id) if snap.edition_id else None,
+        has_collect=snap.has_collect,
+        has_translate=snap.has_translate,
+        has_pipeline_summary=snap.has_pipeline_summary,
+        skip_collect=snap.skip_collect,
+        skip_translate=snap.skip_translate,
+        beirut_day=snap.beirut_day.isoformat(),
+    )
+
+
 @router.post("/pipeline/tasks", response_model=PipelineTaskStartResponse)
 @limiter.limit("15/minute")
 async def start_pipeline_task(
@@ -83,9 +128,10 @@ async def start_pipeline_task(
 ):
     """
     Lance une tâche pipeline en arrière-plan. Suivi : **GET /api/pipeline/tasks/{task_id}**
-    (polling client ~1 s). Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`.
+    (polling client ~1 s). Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`,
+    `resume_pipeline`.
     """
-    if body.kind.value == "full_pipeline" and is_pipeline_running():
+    if body.kind.value in ("full_pipeline", "resume_pipeline") and await pipeline_is_busy_async():
         raise HTTPException(
             status_code=409,
             detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",

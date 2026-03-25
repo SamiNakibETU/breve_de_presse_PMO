@@ -69,6 +69,26 @@ Optionnel :
 - **`TRANSLATION_AUTO_MAX_AGE_DAYS`** — traduction auto : articles hors fenêtre (parution ou collecte) ignorés ; `0` = pas de filtre.
 - **`INGESTION_RSS_ENTRY_MAX_AGE_DAYS`** — RSS : entrées plus vieilles que N jours ignorées ; `0` = pas de filtre.
 - **`TRANSLATION_PIPELINE_BATCH_LIMIT`** — plafond d’articles traduits **par passage** après les filtres ci-dessus (débit / coût).
+- **`PIPELINE_TIMEOUT_SECONDS`** — durée max. (secondes) d’un run pipeline complet (`asyncio.wait_for` autour de collecte + traduction + post-traitement). Défaut **10800** (3 h), bornes 600–28800. Si les logs montrent `pipeline.timeout` alors que la traduction est encore active, augmenter (ex. **14400**) ou réduire temporairement la file avec `TRANSLATION_PIPELINE_BATCH_LIMIT`.
+- **`PIPELINE_COMPLETION_RETRY_MINUTES`** — intervalle (minutes) entre tentatives **automatiques** de reprise (`resume=True`) tant qu’une collecte du jour est journalisée **sans** `pipeline_summary` (ex. timeout au milieu du run). **0** = désactivé. Ex. **15** pour réessayer toutes les 15 minutes.
+- **`PIPELINE_RETRY_PARIS_START_HOUR`** / **`PIPELINE_RETRY_PARIS_END_HOUR`** — fenêtre **Europe/Paris** (heure locale) dans laquelle les retries auto. ci-dessus sont autorisés : `start` incluse, `end` **exclusive** (défaut **7** → **16**, donc jusqu’à 15:59).
+
+Reprise **manuelle** : `POST /api/pipeline/resume` (synchrone) ou tâche async `kind: resume_pipeline` sur `POST /api/pipeline/tasks` ; état des étapes du jour : `GET /api/pipeline/resume-status` (même auth que les autres routes pipeline).
+
+**Robustesse pipeline (multi-réplicas / reprise)** :
+
+- Migration **`m20260339_ple`** : table `pipeline_execution_lease` + index `pipeline_debug_logs (step, created_at DESC)` — exécuter `alembic upgrade head`.
+- **`SCHEDULER_ENABLED`** — `false` sur les réplicas API qui ne doivent **pas** lancer APScheduler (évite N crons concurrents ; un seul leader ou un service worker dédié). Défaut `true`.
+- **`PIPELINE_LEASE_TTL_SECONDS`** — TTL du lease Postgres renouvelé par heartbeat pendant le run (défaut **900**).
+- **`PIPELINE_HEARTBEAT_INTERVAL_SECONDS`** — intervalle entre renouvellements (défaut **120**).
+- **`PIPELINE_STALL_ALERT_SECONDS`** — alerte webhook/e-mail si le heartbeat du lease dépasse cet âge alors que le lease est encore valide (défaut **600**).
+- **`PIPELINE_STALL_CHECK_INTERVAL_MINUTES`** — fréquence du job « surveillance stall » (défaut **5**).
+- **`PIPELINE_STEP_TIMEOUT_COLLECT_S`** / **`PIPELINE_STEP_TIMEOUT_TRANSLATE_S`** / **`PIPELINE_STEP_TIMEOUT_POST_S`** — budgets `asyncio` par phase ; **0** = désactivé (seul le timeout global `PIPELINE_TIMEOUT_SECONDS` s’applique).
+- **`TRANSLATE_PROGRESS_LOG_EVERY_N`** — journal `translate_progress` dans `pipeline_debug_logs` tous les N articles ; **0** = désactivé (défaut **25**).
+
+`GET /api/status` expose `pipeline_running` (verrou local **ou** lease actif), `scheduler_enabled`, `pipeline_lease_active`, `pipeline_heartbeat_age_seconds`.
+
+**Worker dédié (optionnel)** : même image Docker, commande qui ne lance que le scheduler (ou `SCHEDULER_ENABLED=true` sur un seul service Railway et `false` sur les services API à fort trafic).
 
 Au démarrage, `init_db()` ajoute aussi les colonnes **`media_sources.health_*`** et champs **`collection_logs`** si elles manquent (déploiement sans Alembic complet).
 

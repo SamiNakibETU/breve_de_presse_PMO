@@ -1,4 +1,8 @@
 import json
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -6,6 +10,7 @@ import pytest
 from tenacity import RetryError
 
 from src.services.translator import (
+    TranslationPipeline,
     _classify_translation_error,
     _parse_llm_json,
     _parse_translation_llm_json,
@@ -117,3 +122,77 @@ async def test_parse_translation_llm_json_no_repair(monkeypatch):
     with pytest.raises(ValueError, match="Cannot parse JSON"):
         await _parse_translation_llm_json(router, "@@@", "en")
     router.translate.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_persist_from_parsed_translation_cod_passes_article_id(monkeypatch):
+    """Régression : le bloc CoD doit utiliser article.id (pas art avant assignation)."""
+    import src.services.translator as tr
+
+    article_id = uuid.uuid4()
+    article = SimpleNamespace(
+        id=article_id,
+        published_at=datetime.now(timezone.utc),
+        source_language="en",
+        content_original="word " * 400,
+        title_original="Titre",
+        url="https://example.com/a",
+    )
+    source = SimpleNamespace(country_code="US", tier=1)
+
+    monkeypatch.setattr(tr.settings, "cod_multi_pass_enabled", True)
+    monkeypatch.setattr(tr.settings, "cod_multi_pass_min_relevance", 0)
+    monkeypatch.setattr(tr, "append_provider_usage_commit", AsyncMock())
+    monkeypatch.setattr(
+        tr,
+        "resolve_or_create_event_for_article",
+        AsyncMock(return_value=None),
+    )
+
+    calls: list[object] = []
+
+    async def fake_cod_dense_pass(summary: str, lang: str, aid: object) -> str:
+        calls.append(aid)
+        return summary + " +cod"
+
+    mock_db = MagicMock()
+    mock_db.get = AsyncMock(return_value=MagicMock())
+    mock_db.commit = AsyncMock()
+
+    @asynccontextmanager
+    async def session_factory():
+        yield mock_db
+
+    # __init__ appelle get_llm_router() (lourd / réseau) : instance minimale pour ce test.
+    pipeline = object.__new__(TranslationPipeline)
+    pipeline._router = MagicMock()
+    pipeline._factory = session_factory
+    pipeline._cod_dense_pass = fake_cod_dense_pass  # type: ignore[method-assign]
+
+    data = {
+        "translated_title": "Titre",
+        "thesis_summary": "Thèse courte.",
+        "summary_fr": " ".join(["mot"] * 50),
+        "key_quotes_fr": ["« x »"],
+        "article_type": "news",
+        "article_family": "news",
+        "olj_topic_ids": ["other"],
+        "stance_summary": "Neutre.",
+        "entities": [],
+        "translation_notes": "",
+    }
+
+    status = await pipeline.persist_from_parsed_translation(
+        article,
+        source,
+        data,
+        lang="en",
+        is_french=False,
+        en_summary_only=False,
+        run_cod=True,
+    )
+
+    assert status is not None
+    assert len(calls) == 2
+    assert all(cid == article_id for cid in calls)
+    mock_db.commit.assert_awaited()

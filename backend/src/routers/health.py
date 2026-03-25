@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -8,7 +9,8 @@ from sqlalchemy import text
 from src.config import get_settings
 from src.database import get_session_factory
 from src.schemas.pipeline import SchedulerJobResponse, StatusResponse
-from src.services.scheduler import is_pipeline_running
+from src.services.pipeline_execution_lease import seconds_since_heartbeat
+from src.services.scheduler import pipeline_is_busy_async
 from src.services.metrics import prometheus_text, snapshot as metrics_snapshot
 
 router = APIRouter()
@@ -107,9 +109,34 @@ async def status(request: Request):
                 error=str(exc)[:300],
             )
 
+    lease_active = False
+    holder_pf: str | None = None
+    hb_age: float | None = None
+    try:
+        from src.services.pipeline_execution_lease import fetch_daily_pipeline_lease
+
+        lsnap = await fetch_daily_pipeline_lease()
+        if lsnap and lsnap.holder_id and lsnap.expires_at:
+            now = datetime.now(timezone.utc)
+            exp = lsnap.expires_at
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if exp > now:
+                lease_active = True
+                holder_pf = lsnap.holder_id[:12] + "…" if len(lsnap.holder_id) > 12 else lsnap.holder_id
+        hb_age = await seconds_since_heartbeat()
+    except Exception as exc:
+        _log.warning("api.status.lease_snapshot_failed", error=str(exc)[:200])
+
+    busy = await pipeline_is_busy_async()
+
     return StatusResponse(
         status="running",
         environment=settings.environment,
         jobs=jobs,
-        pipeline_running=is_pipeline_running(),
+        pipeline_running=busy,
+        scheduler_enabled=settings.scheduler_enabled,
+        pipeline_lease_active=lease_active,
+        pipeline_lease_holder_prefix=holder_pf if lease_active else None,
+        pipeline_heartbeat_age_seconds=hb_age,
     )
