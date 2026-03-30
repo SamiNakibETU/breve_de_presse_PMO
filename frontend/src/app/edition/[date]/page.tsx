@@ -18,6 +18,9 @@ import type {
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
 
+/** Tâche de surveillance du bail (intervalle court) — ne pas l’afficher comme « prochain passage » métier. */
+const SCHEDULER_EXCLUDE_FROM_NEXT_PREVIEW = new Set(["pipeline_lease_stall_watch"]);
+
 function formatDateFr(iso: string): string {
   const parts = iso.split("-").map(Number);
   const y = parts[0] ?? 0;
@@ -106,6 +109,10 @@ function schedulerJobTitleFr(jobId: string, fallbackName: string): string {
       return "Mise à jour de l’après-midi (ancien horaire)";
     case "edition_daily_create_beirut":
       return "Ouverture de l’édition du lendemain";
+    case "pipeline_completion_retry":
+      return "Relance si pipeline incomplet";
+    case "pipeline_lease_stall_watch":
+      return "Surveillance du bail pipeline";
     default:
       return fallbackName;
   }
@@ -508,9 +515,11 @@ export default function EditionSommairePage() {
     });
     rows.sort((a, b) => a.ts - b.ts);
     const next =
-      rows.length > 0 && rows[0] !== undefined && rows[0].ts !== Number.POSITIVE_INFINITY
-        ? rows[0]
-        : null;
+      rows.find(
+        (r) =>
+          !SCHEDULER_EXCLUDE_FROM_NEXT_PREVIEW.has(r.id) &&
+          r.ts !== Number.POSITIVE_INFINITY,
+      ) ?? null;
     let recentServerRun: {
       lastTs: number;
       title: string;
@@ -586,13 +595,13 @@ export default function EditionSommairePage() {
                     href={`/edition/${editionDatePrev}`}
                     className="olj-nav-item olj-nav-item--subtle"
                   >
-                    ← Veille
+                    Veille
                   </Link>
                   <Link
                     href={`/edition/${editionDateNext}`}
                     className="olj-nav-item olj-nav-item--subtle"
                   >
-                    Lendemain →
+                    Lendemain
                   </Link>
                 </nav>
               ) : null}

@@ -9,8 +9,7 @@ import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 
-const PRIMARY_NAV = [
-  { href: "/", label: "Édition du jour" },
+const PRIMARY_NAV_REST = [
   { href: "/dashboard", label: "Panorama" },
   { href: "/articles", label: "Articles" },
 ] as const;
@@ -37,7 +36,8 @@ export function Masthead() {
   const queryClient = useQueryClient();
   const pipeline = usePipelineRunnerOptional();
   const running = pipeline?.running ?? null;
-  const composeHref = `/edition/${todayBeirutIsoDate()}/compose`;
+  const todayEditionHref = `/edition/${todayBeirutIsoDate()}`;
+  const composeHref = `${todayEditionHref}/compose`;
 
   useQuery({
     queryKey: ["stats"] as const,
@@ -60,7 +60,7 @@ export function Masthead() {
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 py-4 sm:py-5">
           <div className="flex min-w-0 flex-1 items-center gap-4">
             <Link
-              href="/"
+              href={todayEditionHref}
               prefetch
               onMouseEnter={() => prefetchNavData(queryClient)}
             >
@@ -109,12 +109,21 @@ export function Masthead() {
           className="flex flex-wrap items-center gap-2 border-t border-border py-3 sm:gap-3"
           aria-label="Navigation principale"
         >
-          {PRIMARY_NAV.map(({ href, label }) => {
-            const active =
-              href === "/"
-                ? pathname === "/" ||
-                  (pathname.startsWith("/edition") && !pathname.includes("/compose"))
-                : pathname === href || pathname.startsWith(`${href}/`);
+          <Link
+            href={todayEditionHref}
+            prefetch
+            onMouseEnter={() => prefetchNavData(queryClient)}
+            className={cn(
+              "olj-nav-item",
+              (pathname === "/" ||
+                (pathname.startsWith("/edition") && !pathname.includes("/compose"))) &&
+                "olj-nav-item--active",
+            )}
+          >
+            Édition du jour
+          </Link>
+          {PRIMARY_NAV_REST.map(({ href, label }) => {
+            const active = pathname === href || pathname.startsWith(`${href}/`);
 
             return (
               <Link
@@ -122,7 +131,7 @@ export function Masthead() {
                 href={href}
                 prefetch
                 onMouseEnter={() => {
-                  if (href === "/" || href === "/dashboard") {
+                  if (href === "/dashboard") {
                     prefetchNavData(queryClient);
                   }
                 }}

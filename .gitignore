@@ -56,3 +56,10 @@ alembic/versions/__pycache__/
 
 # Archives locales (specs obsoletes, brouillons — voir plan refonte)
 archive/
+
+# Artefacts locaux scrape / E2E / smoke (ne pas versionner)
+backend/data/SCRAPING_BATCH_*.json
+backend/data/SCRAPING_E2E_*.json
+backend/data/_tmp_*.json
+backend/data/_smoke*.json
+backend/data/_CR_*.json

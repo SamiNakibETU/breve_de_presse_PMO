@@ -184,7 +184,7 @@ export function ReviewPageClient() {
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Estimation indicative ~{Math.max(1, articleIds.length)} × 15 s (LLM)
+                Estimation indicative : environ {Math.max(1, articleIds.length)} × 15 s
               </p>
             </div>
           )}

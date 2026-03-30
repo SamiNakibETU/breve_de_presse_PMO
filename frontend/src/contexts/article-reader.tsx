@@ -355,7 +355,7 @@ function ArticleReadModal({
 
                   {!a.thesis_summary_fr?.trim() && !a.summary_fr?.trim() ? (
                     <p className="text-muted-foreground">
-                      Pas de synthèse LLM pour cet article. Voyez l’onglet{" "}
+                      Pas de synthèse disponible pour cet article. Voyez l’onglet{" "}
                       <strong className="font-medium text-foreground">
                         Traduction du corps
                       </strong>{" "}

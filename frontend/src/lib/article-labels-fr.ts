@@ -73,24 +73,12 @@ export function articleTypeLabelFr(
   return ARTICLE_TYPE_FR[k] ?? code;
 }
 
-/** Pictogramme discret par type (brief OLJ, pas de lib d’icônes). */
+/** Libellé texte uniquement (pas de pictogrammes / cadratins dans l’UI produit). */
 export function articleTypePictogramFr(
   code: string | null | undefined,
 ): string {
-  const k = (code ?? "").trim().toLowerCase();
-  const map: Record<string, string> = {
-    opinion: "✎",
-    editorial: "✎",
-    tribune: "✎",
-    column: "✎",
-    analysis: "◉",
-    news: "▪",
-    briefing: "▪",
-    interview: "◈",
-    reportage: "▸",
-    feature: "▸",
-  };
-  return map[k] ?? "▪";
+  void code;
+  return "";
 }
 
 export function sourceLanguageLabelFr(
