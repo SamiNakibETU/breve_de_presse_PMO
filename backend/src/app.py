@@ -2,9 +2,10 @@
 FastAPI application factory with lifespan, CORS, structured logging, and scheduler.
 """
 
+import asyncio
 import logging
 import traceback
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import structlog
 from fastapi import FastAPI, Request
@@ -71,32 +72,46 @@ async def lifespan(app: FastAPI):
     await init_db()
     log.info("app.db_ready")
 
-    try:
-        from src.scripts.seed_media import seed
-        await seed()
-        log.info("app.media_sources_seeded")
-    except Exception as exc:
-        log.warning("app.seed_failed", error=str(exc)[:200])
+    # Ne pas bloquer le yield : seed + bootstrap + scheduler peuvent prendre >30 s
+    # (centaines de SELECT media_sources). Sans tâche de fond, Uvicorn n’écoute pas
+    # et le proxy Next / Railway renvoie 502 « Application failed to respond ».
+    app.state.scheduler = None
 
-    try:
-        from src.services.edition_schedule import bootstrap_editions_for_two_weeks
+    async def _heavy_startup() -> None:
+        try:
+            from src.scripts.seed_media import seed
 
-        await bootstrap_editions_for_two_weeks()
-        log.info("app.editions_bootstrapped")
-    except Exception as exc:
-        log.warning("app.editions_bootstrap_failed", error=str(exc)[:200])
+            await seed()
+            log.info("app.media_sources_seeded")
+        except Exception as exc:
+            log.warning("app.seed_failed", error=str(exc)[:200])
 
-    if settings.scheduler_enabled:
-        scheduler = create_scheduler()
-        attach_scheduler_run_tracker(scheduler, app)
-        scheduler.start()
-        app.state.scheduler = scheduler
-        log.info("app.scheduler_started")
-    else:
-        app.state.scheduler = None
-        log.info("app.scheduler_disabled")
+        try:
+            from src.services.edition_schedule import bootstrap_editions_for_two_weeks
+
+            await bootstrap_editions_for_two_weeks()
+            log.info("app.editions_bootstrapped")
+        except Exception as exc:
+            log.warning("app.editions_bootstrap_failed", error=str(exc)[:200])
+
+        if settings.scheduler_enabled:
+            scheduler = create_scheduler()
+            attach_scheduler_run_tracker(scheduler, app)
+            scheduler.start()
+            app.state.scheduler = scheduler
+            log.info("app.scheduler_started")
+        else:
+            log.info("app.scheduler_disabled")
+
+    startup_bg = asyncio.create_task(_heavy_startup())
+    app.state.startup_background_task = startup_bg
+    log.info("app.listening", note="seed/bootstrap/scheduler en arrière-plan")
 
     yield
+
+    startup_bg.cancel()
+    with suppress(asyncio.CancelledError):
+        await startup_bg
 
     sched = getattr(app.state, "scheduler", None)
     if sched is not None:

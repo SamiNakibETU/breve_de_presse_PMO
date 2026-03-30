@@ -36,12 +36,27 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
     else if (body) headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body && body.length > 0 ? body : undefined,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body && body.length > 0 ? body : undefined,
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      {
+        status: "error",
+        code: 503,
+        message:
+          "Le service API ne répond pas (démarrage ou réseau interne). Réessayez dans quelques secondes.",
+        detail: msg.slice(0, 240),
+      },
+      { status: 503 },
+    );
+  }
 
   const outHeaders = new Headers();
   const resCt = res.headers.get("Content-Type");
