@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import ARRAY, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,6 +45,15 @@ class Edition(Base):
         nullable=False,
         default="pending",
         server_default="pending",
+    )
+    extra_selected_article_ids: Mapped[list] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    )
+    compose_instructions_fr: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

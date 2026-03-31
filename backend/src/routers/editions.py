@@ -6,7 +6,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,6 +55,7 @@ class EditionOut(BaseModel):
     updated_at: Optional[str] = None
     corpus_article_count: Optional[int] = None
     corpus_country_count: Optional[int] = None
+    compose_instructions_fr: Optional[str] = None
 
 
 class EditionPatch(BaseModel):
@@ -123,6 +124,14 @@ class TopicSelectionBody(BaseModel):
 
 class GenerateTopicBody(BaseModel):
     article_ids: Optional[list[UUID]] = None
+    instruction_suffix: Optional[str] = None
+
+
+class ComposePreferencesPatch(BaseModel):
+    """Mise à jour partielle : n’envoyer que les champs à modifier (exclude_unset)."""
+
+    extra_selected_article_ids: Optional[list[UUID]] = None
+    compose_instructions_fr: Optional[str] = None
 
 
 def _article_relevance_int(art: Article) -> Optional[int]:
@@ -141,6 +150,8 @@ class EditionSelectionsOut(BaseModel):
     """Articles cochés par sujet (sélection rédactionnelle)."""
 
     topics: dict[str, list[str]]
+    extra_article_ids: list[str] = Field(default_factory=list)
+    extra_articles: list[TopicArticlePreviewOut] = Field(default_factory=list)
 
 
 def _edition_topic_to_out(
@@ -193,7 +204,71 @@ def _edition_to_out(
         updated_at=e.updated_at.isoformat() if e.updated_at else None,
         corpus_article_count=corpus_article_count,
         corpus_country_count=corpus_country_count,
+        compose_instructions_fr=getattr(e, "compose_instructions_fr", None),
     )
+
+
+def _normalize_extra_article_ids(raw: Any) -> list[str]:
+    if not raw or not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for x in raw:
+        s = str(x).strip()
+        if s:
+            out.append(s)
+    return out
+
+
+def _article_to_preview_out(art: Article, ms: MediaSource) -> TopicArticlePreviewOut:
+    return TopicArticlePreviewOut(
+        id=art.id,
+        title_fr=art.title_fr,
+        title_original=art.title_original or "",
+        media_name=str(ms.name),
+        url=art.url or "",
+        thesis_summary_fr=art.thesis_summary_fr,
+        country=ms.country,
+        country_code=ms.country_code,
+        editorial_relevance=_article_relevance_int(art),
+        article_type=art.article_type,
+        source_language=art.source_language,
+        author=art.author,
+        editorial_angle=art.editorial_angle,
+        is_flagship=bool(art.is_flagship),
+    )
+
+
+async def _extra_previews_for_edition(
+    db: AsyncSession,
+    edition: Edition,
+    extra_ids: list[str],
+) -> list[TopicArticlePreviewOut]:
+    uuids: list[UUID] = []
+    for s in extra_ids:
+        try:
+            uuids.append(UUID(s))
+        except ValueError:
+            continue
+    if not uuids:
+        return []
+    stmt = (
+        select(Article, MediaSource)
+        .join(MediaSource, Article.media_source_id == MediaSource.id)
+        .where(
+            Article.id.in_(uuids),
+            sql_article_belongs_to_edition_corpus(edition),
+        )
+    )
+    res = await db.execute(stmt)
+    by_id: dict[UUID, tuple[Article, MediaSource]] = {}
+    for art, ms in res.all():
+        by_id[art.id] = (art, ms)
+    out: list[TopicArticlePreviewOut] = []
+    for u in uuids:
+        pair = by_id.get(u)
+        if pair:
+            out.append(_article_to_preview_out(pair[0], pair[1]))
+    return out
 
 
 async def _count_corpus_for_edition_window(
@@ -280,7 +355,51 @@ async def get_edition_selections(
     by_topic: dict[str, list[str]] = defaultdict(list)
     for tid, aid in res.all():
         by_topic[str(tid)].append(str(aid))
-    return EditionSelectionsOut(topics=dict(by_topic))
+    extra_raw = getattr(e, "extra_selected_article_ids", None)
+    extra_ids = _normalize_extra_article_ids(extra_raw)
+    extra_prev = await _extra_previews_for_edition(db, e, extra_ids)
+    return EditionSelectionsOut(
+        topics=dict(by_topic),
+        extra_article_ids=extra_ids,
+        extra_articles=extra_prev,
+    )
+
+
+@router.patch("/{edition_id}/compose-preferences")
+async def patch_compose_preferences(
+    edition_id: UUID,
+    body: ComposePreferencesPatch,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    """Sélections complémentaires (regroupements) + consignes LLM pour la page Rédaction."""
+    e = await db.get(Edition, edition_id)
+    if not e:
+        raise HTTPException(status_code=404, detail="Edition not found")
+    data = body.model_dump(exclude_unset=True)
+    if "extra_selected_article_ids" in data:
+        ids = body.extra_selected_article_ids or []
+        if ids:
+            stmt = (
+                select(func.count(Article.id))
+                .select_from(Article)
+                .where(
+                    Article.id.in_(ids),
+                    sql_article_belongs_to_edition_corpus(e),
+                )
+            )
+            n = int((await db.execute(stmt)).scalar_one() or 0)
+            if n != len(set(ids)):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Un ou plusieurs articles ne font pas partie du corpus de cette édition.",
+                )
+        e.extra_selected_article_ids = [str(x) for x in ids]
+    if "compose_instructions_fr" in data:
+        e.compose_instructions_fr = body.compose_instructions_fr
+    await db.commit()
+    await db.refresh(e)
+    return {"status": "ok"}
 
 
 @router.get("/{edition_id}/topics", response_model=list[EditionTopicOut])
@@ -452,7 +571,14 @@ async def post_generate_topic(
     _: None = Depends(require_internal_key),
 ) -> Any:
     ids = body.article_ids if body and body.article_ids else None
-    return await generate_edition_topic_review(db, edition_id, topic_id, article_ids=ids)
+    instr = body.instruction_suffix if body else None
+    return await generate_edition_topic_review(
+        db,
+        edition_id,
+        topic_id,
+        article_ids=ids,
+        instruction_suffix=instr,
+    )
 
 
 @router.post("/{edition_id}/generate-all")

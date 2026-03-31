@@ -105,6 +105,11 @@ async def init_db() -> None:
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS relevance_band VARCHAR(32)",
             "ALTER TABLE articles ADD COLUMN IF NOT EXISTS translation_quality_flags JSON",
             "ALTER TABLE llm_call_logs ADD COLUMN IF NOT EXISTS provider VARCHAR(32)",
+            (
+                "ALTER TABLE editions ADD COLUMN IF NOT EXISTS "
+                "extra_selected_article_ids JSONB NOT NULL DEFAULT '[]'::jsonb"
+            ),
+            "ALTER TABLE editions ADD COLUMN IF NOT EXISTS compose_instructions_fr TEXT",
         ]:
             try:
                 await conn.execute(text(stmt))

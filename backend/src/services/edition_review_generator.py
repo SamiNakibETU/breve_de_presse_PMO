@@ -125,6 +125,7 @@ async def generate_edition_topic_review(
     edition_topic_id: uuid.UUID,
     *,
     article_ids: Optional[list[uuid.UUID]] = None,
+    instruction_suffix: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Génère le texte OLJ pour un sujet, persiste et journalise l'appel LLM.
@@ -159,6 +160,13 @@ async def generate_edition_topic_review(
         counter_angle=(et.counter_angle or "")[:4000],
         articles_json=articles_json,
     )
+    suffix = (instruction_suffix or "").strip() or (
+        (getattr(ed, "compose_instructions_fr", None) or "").strip()
+    )
+    if suffix:
+        user = (
+            f"{user}\n\n— Consignes additionnelles de la rédaction —\n{suffix[:8000]}"
+        )
 
     router = get_llm_router()
     settings = get_settings()
@@ -251,8 +259,14 @@ async def generate_all_edition_topics(
 
     parts: list[str] = []
     errors: list[str] = []
+    instr = (getattr(ed, "compose_instructions_fr", None) or "").strip()
     for t in topics:
-        r = await generate_edition_topic_review(db, edition_id, t.id)
+        r = await generate_edition_topic_review(
+            db,
+            edition_id,
+            t.id,
+            instruction_suffix=instr if instr else None,
+        )
         if r.get("status") != "ok":
             errors.append(f"{t.id}: {r.get('detail', r)}")
             continue

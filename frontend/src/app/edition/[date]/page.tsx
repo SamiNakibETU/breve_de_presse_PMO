@@ -305,6 +305,8 @@ export default function EditionSommairePage() {
   const patchTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+  const extraPatchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const migratedExtrasRef = useRef(false);
 
   useEffect(() => {
     const raw = selectionsQ.data?.topics;
@@ -319,34 +321,56 @@ export default function EditionSommairePage() {
   }, [selectionsQ.data]);
 
   useEffect(() => {
-    if (!editionId) {
+    const ids = selectionsQ.data?.extra_article_ids;
+    if (ids === undefined) {
+      return;
+    }
+    setExtraSelected(new Set(ids));
+  }, [selectionsQ.data?.extra_article_ids]);
+
+  useEffect(() => {
+    if (!editionId || !selectionsQ.isSuccess || migratedExtrasRef.current) {
+      return;
+    }
+    const server = selectionsQ.data?.extra_article_ids ?? [];
+    if (server.length > 0) {
+      migratedExtrasRef.current = true;
       return;
     }
     try {
       const raw = localStorage.getItem(`olj-edition-extra-${editionId}`);
       if (!raw) {
+        migratedExtrasRef.current = true;
         return;
       }
       const arr = JSON.parse(raw) as unknown;
-      if (Array.isArray(arr)) {
-        setExtraSelected(
-          new Set(arr.filter((x): x is string => typeof x === "string")),
-        );
+      if (!Array.isArray(arr)) {
+        migratedExtrasRef.current = true;
+        return;
       }
+      const ids = arr.filter((x): x is string => typeof x === "string");
+      if (ids.length === 0) {
+        migratedExtrasRef.current = true;
+        return;
+      }
+      migratedExtrasRef.current = true;
+      void api
+        .editionComposePreferences(editionId, {
+          extra_selected_article_ids: ids,
+        })
+        .then(() => {
+          localStorage.removeItem(`olj-edition-extra-${editionId}`);
+          void qc.invalidateQueries({
+            queryKey: ["editionSelections", editionId],
+          });
+        })
+        .catch(() => {
+          /* ignore */
+        });
     } catch {
-      /* ignore */
+      migratedExtrasRef.current = true;
     }
-  }, [editionId]);
-
-  useEffect(() => {
-    if (!editionId) {
-      return;
-    }
-    localStorage.setItem(
-      `olj-edition-extra-${editionId}`,
-      JSON.stringify([...extraSelected]),
-    );
-  }, [editionId, extraSelected]);
+  }, [editionId, selectionsQ.isSuccess, selectionsQ.data, qc]);
 
   const selectedIds = useMemo(() => {
     const s = new Set<string>();
@@ -406,17 +430,48 @@ export default function EditionSommairePage() {
     [scheduleTopicPatch],
   );
 
-  const toggleExtraArticle = useCallback((id: string, next: boolean) => {
-    setExtraSelected((prev) => {
-      const n = new Set(prev);
-      if (next) {
-        n.add(id);
-      } else {
-        n.delete(id);
+  const scheduleExtraPatch = useCallback(
+    (ids: Set<string>) => {
+      if (!editionId) {
+        return;
       }
-      return n;
-    });
-  }, []);
+      if (extraPatchTimer.current) {
+        clearTimeout(extraPatchTimer.current);
+      }
+      extraPatchTimer.current = setTimeout(() => {
+        void api
+          .editionComposePreferences(editionId, {
+            extra_selected_article_ids: [...ids],
+          })
+          .then(() => {
+            void qc.invalidateQueries({
+              queryKey: ["editionSelections", editionId],
+            });
+          })
+          .catch(() => {
+            /* erreur réseau : l’état local reste ; prochain refetch corrige */
+          });
+        extraPatchTimer.current = null;
+      }, 400);
+    },
+    [editionId, qc],
+  );
+
+  const toggleExtraArticle = useCallback(
+    (id: string, next: boolean) => {
+      setExtraSelected((prev) => {
+        const n = new Set(prev);
+        if (next) {
+          n.add(id);
+        } else {
+          n.delete(id);
+        }
+        scheduleExtraPatch(n);
+        return n;
+      });
+    },
+    [scheduleExtraPatch],
+  );
 
   const clusterRows = useMemo(
     () => clustersFallbackQ.data ?? [],
@@ -440,8 +495,14 @@ export default function EditionSommairePage() {
         }
       }
     }
+    for (const p of selectionsQ.data?.extra_articles ?? []) {
+      const c = p.country_code?.trim();
+      if (c) {
+        m.set(p.id, c.toUpperCase());
+      }
+    }
     return m;
-  }, [topics, clusterRows]);
+  }, [topics, clusterRows, selectionsQ.data?.extra_articles]);
 
   const selectedCountryCodes = useMemo(() => {
     const s = new Set<string>();

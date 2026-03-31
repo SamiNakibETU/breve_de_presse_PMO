@@ -408,21 +408,44 @@ export const api = {
       },
     ),
 
+  editionComposePreferences: (
+    editionId: string,
+    body: {
+      extra_selected_article_ids?: string[];
+      compose_instructions_fr?: string;
+    },
+  ) =>
+    request<{ status: string }>(
+      `/api/editions/${editionId}/compose-preferences`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    ),
+
   editionTopicGenerate: (
     editionId: string,
     topicId: string,
     articleIds?: string[] | null,
-  ) =>
-    request<GenerateTopicResponse>(
+    instructionSuffix?: string | null,
+  ) => {
+    const payload: Record<string, unknown> = {};
+    if (articleIds && articleIds.length > 0) {
+      payload.article_ids = articleIds;
+    }
+    const suf = (instructionSuffix ?? "").trim();
+    if (suf) {
+      payload.instruction_suffix = suf;
+    }
+    return request<GenerateTopicResponse>(
       `/api/editions/${editionId}/topics/${topicId}/generate`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          articleIds && articleIds.length > 0 ? { article_ids: articleIds } : {},
-        ),
+        body: JSON.stringify(payload),
       },
-    ),
+    );
+  },
 
   editionGenerateAll: (editionId: string) =>
     request<GenerateAllResponse>(

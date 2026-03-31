@@ -280,6 +280,8 @@ export interface Edition {
   /** Corpus éditorial dans la fenêtre d’édition (GET by-date). */
   corpus_article_count?: number | null;
   corpus_country_count?: number | null;
+  /** Consignes additionnelles pour la génération revue (page Rédaction). */
+  compose_instructions_fr?: string | null;
 }
 
 export interface TopicArticlePreview {
@@ -302,6 +304,8 @@ export interface TopicArticlePreview {
 /** GET /api/editions/{id}/selections */
 export interface EditionSelectionsResponse {
   topics: Record<string, string[]>;
+  extra_article_ids: string[];
+  extra_articles: TopicArticlePreview[];
 }
 
 export interface EditionTopic {
