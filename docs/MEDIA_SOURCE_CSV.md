@@ -2,7 +2,8 @@
 
 ## Fichier canonique
 
-- **Source de vérité** : [`media revue - Sheet1.csv`](../media%20revue%20-%20Sheet1.csv) à la racine du dépôt.
+- **Source de vérité** : feuille **Sheet1** du classeur « media revue ». Pour la versionner dans git, la copier sous [`docs/sources/media-revue-sheet1.csv`](sources/README.md) (voir README du dossier).
+- À la racine du dépôt, `media revue - Sheet1.csv` peut exister en local mais n’est pas toujours suivie par git.
 - Le fichier `media revue - Sheet1 (1).csv` est un doublon exporté ; ne pas l’utiliser pour regénérer le registre.
 
 ## Liban

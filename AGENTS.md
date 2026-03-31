@@ -13,6 +13,12 @@ Documentation longue / brouillons : dossier local `archive/` (ignoré par git).
 5. Tailwind uniquement, rouge OLJ `#dd3b31` (tokens `--color-accent` / `accent`)
 6. Types stricts partout — pas de `any` côté TS
 
+## Collecte hubs « opinion » (revue de presse régionale)
+
+- **Périmètre médias validé OLJ** : les sources concernées sont exclusivement celles du registre **`backend/data/MEDIA_REVUE_REGISTRY.json`**, généré à partir du CSV **« media revue - Sheet1.csv »** (à la racine du dépôt ou sous **`archive/media revue - Sheet1.csv`**). L’**Orient-Le Jour** (rédaction, direction, **service juridique** inclus) a validé cette **liste** et son usage pour la revue de presse : la collecte automatisée ne vise que ces médias, tels qu’ils figurent dans le registre (URL de rubriques opinion, méthode `opinion_hub`, etc.).
+- **Moyens techniques** (déjà dans le dépôt) : flux **RSS/Atom** lorsqu’ils sont configurés, requêtes **HTTP** avec **curl_cffi** (empreinte type navigateur), **Playwright** pour le rendu des pages accessibles comme pour un lecteur, **`OPINION_HUB_OVERRIDES.json`** pour affiner flux, délais et extraction. Voir **`docs/MEMW_LEGITIMATE_SCRAPING_SCOPE.md`** pour le détail et les exclusions (hors liste, services tiers de dépaywallage, fermes anti-captcha payantes).
+- **Cadre juridique** : la conformité au **droit libanais** et les **validations juridiques internes** à l’OLJ relatives à cette collecte sont consignées dans les **dossiers de l’entreprise** (hors dépôt).
+
 ## Temporalités (référence unique)
 
 - **Édition du jour** : fenêtre **Asia/Beirut** (ex. mar–ven : veille 18:00 → jour J 06:00). Les sujets LLM, les compteurs `corpus_*` sur l’édition et **`GET /api/articles?edition_id=…`** filtrent sur **`collected_at`** dans `[window_start, window_end)`.

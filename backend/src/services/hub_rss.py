@@ -52,13 +52,14 @@ def extract_article_links_from_feed_body(
 
     out: list[str] = []
     seen: set[str] = set()
-    needle = (link_must_contain or "").strip() or None
+    needle_raw = (link_must_contain or "").strip() or None
+    needle_lower = needle_raw.lower() if needle_raw else None
 
     for entry in parsed.entries or []:
         link = (entry.get("link") or "").strip()
         if not link or link in seen:
             continue
-        if needle and needle not in link:
+        if needle_lower and needle_lower not in link.lower():
             continue
         seen.add(link)
         out.append(link)

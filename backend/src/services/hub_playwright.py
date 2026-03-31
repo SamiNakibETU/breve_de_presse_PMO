@@ -6,11 +6,21 @@ Une instance par « session » (validation ou opinion_hub) — mutex côté appe
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+import time
+from typing import Any, Optional
 
 import structlog
 
+from src.services.hub_fetch import sanitize_structlog_payload
+from src.services.hub_rss import is_cloudflare_interstitial_html
+
 logger = structlog.get_logger(__name__)
+
+
+def _log_ex(ctx: dict[str, Any] | None, **fields: Any) -> dict[str, Any]:
+    out = dict(ctx or {})
+    out.update({k: v for k, v in fields.items() if v is not None})
+    return sanitize_structlog_payload(out)
 
 try:
     from playwright.async_api import async_playwright
@@ -89,13 +99,55 @@ class HubPlaywrightBrowser:
         scroll_page: bool = False,
         wait_until: str = "domcontentloaded",
         wait_for_selector: str | None = None,
+        log_extra: dict[str, Any] | None = None,
+        block_heavy_assets: bool = False,
     ) -> tuple[Optional[str], str]:
         if not self._context:
+            logger.debug(
+                "hub_playwright.fetch_done",
+                **_log_ex(
+                    log_extra,
+                    stage="playwright",
+                    attempt=1,
+                    http_status=0,
+                    content_type="",
+                    html_len=0,
+                    body_bytes=0,
+                    cf_interstitial=False,
+                    elapsed_ms=0,
+                    error_code="playwright_not_started",
+                    url=url[:160],
+                ),
+            )
             return None, "playwright_not_started"
         page = await self._context.new_page()
+        t0 = time.perf_counter()
+        if block_heavy_assets:
+
+            async def _route_handler(route: Any) -> None:
+                try:
+                    rt = route.request.resource_type
+                    if rt in ("image", "media", "font"):
+                        await route.abort()
+                    else:
+                        await route.continue_()
+                except Exception:
+                    try:
+                        await route.continue_()
+                    except Exception:
+                        pass
+
+            await page.route("**/*", _route_handler)
         try:
             wu = wait_until if wait_until in ("commit", "domcontentloaded", "load", "networkidle") else "domcontentloaded"
-            await page.goto(url, wait_until=wu, timeout=timeout_ms)
+            resp = await page.goto(url, wait_until=wu, timeout=timeout_ms)
+            http_status = int(resp.status) if resp is not None else 0
+            ctype = ""
+            try:
+                if resp is not None and resp.headers:
+                    ctype = (resp.headers.get("content-type") or "")[:120]
+            except Exception:
+                ctype = ""
             await asyncio.sleep(min(1.5, wait_ms / 1000.0))
             if wait_for_selector:
                 try:
@@ -112,12 +164,72 @@ class HubPlaywrightBrowser:
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                     await asyncio.sleep(0.9)
             html = await page.content()
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            hlen = len(html) if html else 0
+            bbytes = len(html.encode("utf-8", errors="replace")) if html else 0
+            cf = bool(html and is_cloudflare_interstitial_html(html))
             if html and len(html) >= 500:
+                logger.debug(
+                    "hub_playwright.fetch_done",
+                    **_log_ex(
+                        log_extra,
+                        stage="playwright",
+                        attempt=1,
+                        http_status=http_status,
+                        content_type=ctype,
+                        html_len=hlen,
+                        body_bytes=bbytes,
+                        cf_interstitial=cf,
+                        elapsed_ms=elapsed_ms,
+                        error_code="",
+                        url=url[:160],
+                    ),
+                )
                 return html, ""
-            return None, "body_too_small"
+            ec = "body_too_small"
+            logger.debug(
+                "hub_playwright.fetch_done",
+                **_log_ex(
+                    log_extra,
+                    stage="playwright",
+                    attempt=1,
+                    http_status=http_status,
+                    content_type=ctype,
+                    html_len=hlen,
+                    body_bytes=bbytes,
+                    cf_interstitial=cf,
+                    elapsed_ms=elapsed_ms,
+                    error_code=ec,
+                    url=url[:160],
+                ),
+            )
+            return None, ec
         except Exception as exc:
-            return None, f"pw:{type(exc).__name__}:{str(exc)[:80]}"
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            ec = f"pw:{type(exc).__name__}:{str(exc)[:80]}"
+            logger.debug(
+                "hub_playwright.fetch_done",
+                **_log_ex(
+                    log_extra,
+                    stage="playwright",
+                    attempt=1,
+                    http_status=0,
+                    content_type="",
+                    html_len=0,
+                    body_bytes=0,
+                    cf_interstitial=False,
+                    elapsed_ms=elapsed_ms,
+                    error_code=ec[:120],
+                    url=url[:160],
+                ),
+            )
+            return None, ec
         finally:
+            if block_heavy_assets:
+                try:
+                    await page.unroute("**/*")
+                except Exception:
+                    pass
             await page.close()
 
     async def stop(self) -> None:

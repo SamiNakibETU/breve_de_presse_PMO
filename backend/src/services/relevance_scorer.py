@@ -15,7 +15,9 @@ from sqlalchemy.orm import selectinload
 from src.config import get_settings
 from src.models.article import Article
 from src.services.cost_estimate import estimate_llm_usage
+from src.services.llm_route_hint import hint_olj_generation_primary
 from src.services.llm_router import get_llm_router
+from src.services.olj_pipeline_llm import olj_pipeline_completion
 from src.services.prompt_loader import load_prompt_bundle
 from src.services.provider_usage_ledger import append_provider_usage
 
@@ -65,9 +67,10 @@ async def score_article_relevance(
     schema = bundle.json_schema
     s = get_settings()
     haiku = (s.anthropic_translation_model or "").strip() or s.anthropic_generation_model
+    used_tool = bool(schema and isinstance(schema, dict) and schema.get("properties"))
     t0 = time.perf_counter()
     try:
-        if schema and isinstance(schema, dict) and schema.get("properties"):
+        if used_tool:
             data = await router.generate_anthropic_tool_json(
                 bundle.system_prompt,
                 user,
@@ -79,7 +82,8 @@ async def score_article_relevance(
             )
             out_text = json.dumps(data, ensure_ascii=False)
         else:
-            raw = await router.generate_anthropic_only(
+            raw = await olj_pipeline_completion(
+                router,
                 bundle.system_prompt,
                 user,
                 max_tokens=512,
@@ -92,17 +96,21 @@ async def score_article_relevance(
         logger.warning("relevance.parse_failed", error=str(exc)[:120])
         return {"error": "parse_failed", "detail": str(exc)[:200]}
     dur_ms = int((time.perf_counter() - t0) * 1000)
+    if used_tool or s.olj_generation_anthropic_only:
+        prov_est, model_est = "anthropic", haiku
+    else:
+        prov_est, model_est = hint_olj_generation_primary()
     inp_t, out_t, cst = estimate_llm_usage(
-        provider="anthropic",
-        model=haiku,
+        provider=prov_est,
+        model=model_est,
         input_text=bundle.system_prompt + user,
         output_text=out_text,
     )
     await append_provider_usage(
         db,
         kind="llm_completion",
-        provider="anthropic",
-        model=haiku,
+        provider=prov_est,
+        model=model_est,
         operation="relevance_score",
         status="ok",
         input_units=inp_t,
@@ -110,7 +118,7 @@ async def score_article_relevance(
         cost_usd_est=cst,
         duration_ms=dur_ms,
         article_id=article_id,
-        meta_json={"tool_json": bool(schema and isinstance(schema, dict) and schema.get("properties"))},
+        meta_json={"tool_json": used_tool},
     )
     score = float(data.get("relevance_score") or 0.0)
     band = _normalize_band(score, str(data.get("relevance_band") or ""))

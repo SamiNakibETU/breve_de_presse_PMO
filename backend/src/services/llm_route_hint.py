@@ -78,3 +78,15 @@ def hint_small_json_classify_primary() -> tuple[str, str]:
 def hint_anthropic_generation() -> tuple[str, str]:
     s = get_settings()
     return "anthropic", (s.anthropic_generation_model or "claude").strip()
+
+
+def hint_olj_generation_primary() -> tuple[str, str]:
+    """Premier candidat de `LLMRouter.generate()` (même ordre que `_generation_candidates`)."""
+    s = get_settings()
+    if _has_anthropic() and (s.anthropic_generation_model or "").strip():
+        return "anthropic", s.anthropic_generation_model.strip()
+    if _has_groq() and (s.groq_generation_model or "").strip():
+        return "groq", s.groq_generation_model.strip()
+    if _has_cerebras() and (s.cerebras_translation_model or "").strip():
+        return "cerebras", s.cerebras_translation_model.strip()
+    return "unknown", "unknown"

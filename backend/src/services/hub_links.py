@@ -24,6 +24,10 @@ SKIP_PATH_FRAGMENTS = (
     "/category/",
     # Ne pas mettre "/author/" ici : la sous-chaîne matcherait aussi "/authors/" (ex. Al-Watan BH).
     "/page/",
+    # Listes de chroniqueurs (ex. akhbarelyom.com/Editors/EditorNews/…), pas un article.
+    "/editors/editornews",
+    # Pages de rubrique type « section / id / slug », pas un article (akhbarelyom.com).
+    "/news/newssection/",
     "/search",
     "/login",
     "/register",
@@ -176,6 +180,9 @@ def _article_url_with_pattern(full_url: str, hub_url: str, pattern_re: re.Patter
     if not _path_matches_regex(path, pattern_re):
         return False
     low = full_url.lower()
+    # Même avec link_pattern : exclure pagination, tags, etc. (ex. /opinion/page/2).
+    if _path_has_excluded_fragment(low):
+        return False
     if any(x in low for x in (".pdf", ".jpg", "/feed", "/rss", "/wp-json")):
         return False
     return True

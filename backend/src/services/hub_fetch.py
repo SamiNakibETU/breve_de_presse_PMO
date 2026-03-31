@@ -6,20 +6,62 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import Optional
+import time
+from typing import Any, Optional
 
 import aiohttp
 import structlog
 
+from src.config import get_settings
 from src.services import hub_html_cache
+from src.services.hub_rss import is_cloudflare_interstitial_html
 
 logger = structlog.get_logger(__name__)
 
+
+def _body_acceptable_for_hub_or_feed(ctype: str, text: str) -> bool:
+    """HTML page ou flux RSS/Atom (évite non_html sur application/rss+xml)."""
+    if not text or len(text) < 40:
+        return False
+    ct = (ctype or "").lower()
+    head = text[:1200].lower()
+    if "text/html" in ct or "<html" in head:
+        return True
+    if "application/rss+xml" in ct or "application/atom+xml" in ct:
+        return True
+    if "<rss" in head or "<feed" in head or "xmlns:atom" in head:
+        return True
+    return False
+
+
+def sanitize_structlog_payload(d: dict[str, Any]) -> dict[str, Any]:
+    """Évite UnicodeEncodeError sur console Windows (cp1252) lors de l'impression structlog."""
+    out: dict[str, Any] = {}
+    for k, v in d.items():
+        if isinstance(v, str):
+            out[k] = v.encode("ascii", errors="replace").decode("ascii")
+        elif isinstance(v, list):
+            out[k] = [
+                x.encode("ascii", errors="replace").decode("ascii") if isinstance(x, str) else x
+                for x in v
+            ]
+        else:
+            out[k] = v
+    return out
+
+
+def _log_ex(ctx: dict[str, Any] | None, **fields: Any) -> dict[str, Any]:
+    out = dict(ctx or {})
+    out.update({k: v for k, v in fields.items() if v is not None})
+    return sanitize_structlog_payload(out)
+
 USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 ]
 
 BASE_HEADERS = {
@@ -41,12 +83,14 @@ async def fetch_html_aiohttp(
     *,
     timeout_s: float = 40.0,
     max_attempts: int = 3,
+    log_extra: dict[str, Any] | None = None,
 ) -> tuple[Optional[str], str]:
     last_err = "unknown"
     timeout = aiohttp.ClientTimeout(total=timeout_s, connect=15)
 
     for attempt in range(max_attempts):
         # Une session par tentative (UA rotatif) — ne pas réutiliser un TCPConnector fermé.
+        t0 = time.perf_counter()
         try:
             async with aiohttp.ClientSession(headers=_headers()) as http:
                 async with http.get(
@@ -55,77 +99,251 @@ async def fetch_html_aiohttp(
                     allow_redirects=True,
                     max_redirects=8,
                 ) as resp:
+                    ctype0 = (resp.headers.get("Content-Type") or "").lower()
                     if resp.status == 403:
                         last_err = "http_403"
                         await resp.read()
+                        logger.debug(
+                            "hub_fetch.aiohttp_attempt",
+                            **_log_ex(
+                                log_extra,
+                                stage="aiohttp",
+                                attempt=attempt + 1,
+                                http_status=resp.status,
+                                content_type=ctype0[:120],
+                                html_len=0,
+                                body_bytes=0,
+                                cf_interstitial=False,
+                                elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                                error_code="http_403",
+                                url=url[:160],
+                            ),
+                        )
                         if attempt + 1 < max_attempts:
                             await asyncio.sleep(2 ** attempt + random.uniform(0, 1))
                         continue
                     if resp.status == 429:
                         last_err = "http_429"
                         await resp.read()
+                        logger.debug(
+                            "hub_fetch.aiohttp_attempt",
+                            **_log_ex(
+                                log_extra,
+                                stage="aiohttp",
+                                attempt=attempt + 1,
+                                http_status=resp.status,
+                                content_type=ctype0[:120],
+                                html_len=0,
+                                body_bytes=0,
+                                cf_interstitial=False,
+                                elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                                error_code="http_429",
+                                url=url[:160],
+                            ),
+                        )
                         await asyncio.sleep(5 + attempt * 3)
                         continue
                     if resp.status >= 400:
                         await resp.read()
-                        return None, f"http_{resp.status}"
+                        ec = f"http_{resp.status}"
+                        logger.debug(
+                            "hub_fetch.aiohttp_attempt",
+                            **_log_ex(
+                                log_extra,
+                                stage="aiohttp",
+                                attempt=attempt + 1,
+                                http_status=resp.status,
+                                content_type=ctype0[:120],
+                                html_len=0,
+                                body_bytes=0,
+                                cf_interstitial=False,
+                                elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                                error_code=ec,
+                                url=url[:160],
+                            ),
+                        )
+                        return None, ec
                     ctype = (resp.headers.get("Content-Type") or "").lower()
                     text = await resp.text()
-                    if "text/html" not in ctype and "<html" not in text[:800].lower():
+                    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                    bbytes = len(text.encode("utf-8", errors="replace")) if text else 0
+                    cf = bool(text and is_cloudflare_interstitial_html(text))
+                    if not _body_acceptable_for_hub_or_feed(ctype, text):
+                        logger.debug(
+                            "hub_fetch.aiohttp_attempt",
+                            **_log_ex(
+                                log_extra,
+                                stage="aiohttp",
+                                attempt=attempt + 1,
+                                http_status=resp.status,
+                                content_type=ctype[:120],
+                                html_len=len(text),
+                                body_bytes=bbytes,
+                                cf_interstitial=cf,
+                                elapsed_ms=elapsed_ms,
+                                error_code=f"non_html:{ctype[:50]}",
+                                url=url[:160],
+                            ),
+                        )
                         return None, f"non_html:{ctype[:50]}"
                     if len(text) < 400:
                         last_err = "body_too_small"
+                        logger.debug(
+                            "hub_fetch.aiohttp_attempt",
+                            **_log_ex(
+                                log_extra,
+                                stage="aiohttp",
+                                attempt=attempt + 1,
+                                http_status=resp.status,
+                                content_type=ctype[:120],
+                                html_len=len(text),
+                                body_bytes=bbytes,
+                                cf_interstitial=cf,
+                                elapsed_ms=elapsed_ms,
+                                error_code="body_too_small",
+                                url=url[:160],
+                            ),
+                        )
                         if attempt + 1 < max_attempts:
                             await asyncio.sleep(1.5)
                         continue
+                    logger.debug(
+                        "hub_fetch.aiohttp_attempt",
+                        **_log_ex(
+                            log_extra,
+                            stage="aiohttp",
+                            attempt=attempt + 1,
+                            http_status=resp.status,
+                            content_type=ctype[:120],
+                            html_len=len(text),
+                            body_bytes=bbytes,
+                            cf_interstitial=cf,
+                            elapsed_ms=elapsed_ms,
+                            error_code="",
+                            url=url[:160],
+                        ),
+                    )
                     return text, ""
         except asyncio.TimeoutError:
             last_err = "timeout"
+            logger.debug(
+                "hub_fetch.aiohttp_attempt",
+                **_log_ex(
+                    log_extra,
+                    stage="aiohttp",
+                    attempt=attempt + 1,
+                    http_status=0,
+                    content_type="",
+                    html_len=0,
+                    body_bytes=0,
+                    cf_interstitial=False,
+                    elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                    error_code="timeout",
+                    url=url[:160],
+                ),
+            )
         except aiohttp.ClientError as e:
             last_err = f"client:{type(e).__name__}"
+            logger.debug(
+                "hub_fetch.aiohttp_attempt",
+                **_log_ex(
+                    log_extra,
+                    stage="aiohttp",
+                    attempt=attempt + 1,
+                    http_status=0,
+                    content_type="",
+                    html_len=0,
+                    body_bytes=0,
+                    cf_interstitial=False,
+                    elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                    error_code=last_err,
+                    url=url[:160],
+                ),
+            )
         if attempt + 1 < max_attempts:
             await asyncio.sleep(2 ** attempt + random.uniform(0, 0.5))
 
+    logger.debug(
+        "hub_fetch.aiohttp_exhausted",
+        **_log_ex(
+            log_extra,
+            stage="aiohttp",
+            attempt=max_attempts,
+            error_code=last_err,
+            url=url[:160],
+        ),
+    )
     return None, last_err
 
 
-def _fetch_html_curl_cffi_sync(url: str) -> tuple[Optional[str], str]:
+def _fetch_html_curl_cffi_sync(url: str, timeout_s: float = 55.0) -> tuple[Optional[str], str, dict[str, Any]]:
     """TLS/HTTP2 « navigateur » — contourne souvent Cloudflare mieux qu’aiohttp seul."""
+    diag: dict[str, Any] = {
+        "http_status": 0,
+        "content_type": "",
+        "html_len": 0,
+        "body_bytes": 0,
+        "cf_interstitial": False,
+        "elapsed_ms": 0,
+        "error_code": "",
+    }
     try:
         from curl_cffi.requests import Session
     except ImportError:
-        return None, "curl_cffi_not_installed"
+        diag["error_code"] = "curl_cffi_not_installed"
+        return None, "curl_cffi_not_installed", diag
 
     headers = {
         "Accept": BASE_HEADERS["Accept"],
         "Accept-Language": BASE_HEADERS["Accept-Language"],
         "Upgrade-Insecure-Requests": "1",
     }
+    t0 = time.perf_counter()
     try:
         session = Session()
         resp = session.get(
             url,
             headers={**headers, "User-Agent": random.choice(USER_AGENTS)},
             impersonate="chrome131",
-            timeout=45,
+            timeout=timeout_s,
             allow_redirects=True,
         )
-        if resp.status_code == 403:
-            return None, "http_403"
-        if resp.status_code >= 400:
-            return None, f"http_{resp.status_code}"
+        diag["elapsed_ms"] = max(0, int((time.perf_counter() - t0) * 1000))
+        diag["http_status"] = resp.status_code
         text = resp.text
         ctype = (resp.headers.get("Content-Type") or "").lower()
-        if "text/html" not in ctype and "<html" not in text[:800].lower():
-            return None, f"non_html:{ctype[:50]}"
+        diag["content_type"] = ctype[:120]
+        diag["html_len"] = len(text) if text else 0
+        diag["body_bytes"] = len(text.encode("utf-8", errors="replace")) if text else 0
+        diag["cf_interstitial"] = bool(text and is_cloudflare_interstitial_html(text))
+        if resp.status_code == 403:
+            diag["error_code"] = "http_403"
+            return None, "http_403", diag
+        if resp.status_code >= 400:
+            ec = f"http_{resp.status_code}"
+            diag["error_code"] = ec
+            return None, ec, diag
+        if not _body_acceptable_for_hub_or_feed(ctype, text):
+            ec = f"non_html:{ctype[:50]}"
+            diag["error_code"] = ec
+            return None, ec, diag
         if len(text) < 400:
-            return None, "body_too_small"
-        return text, ""
+            diag["error_code"] = "body_too_small"
+            return None, "body_too_small", diag
+        diag["error_code"] = ""
+        return text, "", diag
     except Exception as exc:
-        return None, f"curl_cffi:{type(exc).__name__}"
+        diag["error_code"] = f"curl_cffi:{type(exc).__name__}"
+        diag["elapsed_ms"] = int((time.perf_counter() - t0) * 1000)
+        return None, f"curl_cffi:{type(exc).__name__}", diag
 
 
-async def fetch_html_trafilatura_thread(url: str) -> tuple[Optional[str], str]:
+async def fetch_html_trafilatura_thread(
+    url: str,
+    *,
+    log_extra: dict[str, Any] | None = None,
+) -> tuple[Optional[str], str]:
+    t0 = time.perf_counter()
     try:
         import trafilatura.downloads
 
@@ -136,36 +354,137 @@ async def fetch_html_trafilatura_thread(url: str) -> tuple[Optional[str], str]:
                 return None
 
         html = await asyncio.to_thread(_dl)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        hlen = len(html) if html else 0
+        cf = bool(html and is_cloudflare_interstitial_html(html))
         if html and len(html) >= 400:
+            logger.debug(
+                "hub_fetch.trafilatura_attempt",
+                **_log_ex(
+                    log_extra,
+                    stage="trafilatura",
+                    attempt=1,
+                    http_status=0,
+                    content_type="",
+                    html_len=hlen,
+                    body_bytes=len(html.encode("utf-8", errors="replace")),
+                    cf_interstitial=cf,
+                    elapsed_ms=elapsed_ms,
+                    error_code="",
+                    url=url[:160],
+                ),
+            )
             return html, ""
-        return None, "trafilatura_fetch_empty"
+        ec = "trafilatura_fetch_empty"
+        logger.debug(
+            "hub_fetch.trafilatura_attempt",
+            **_log_ex(
+                log_extra,
+                stage="trafilatura",
+                attempt=1,
+                http_status=0,
+                content_type="",
+                html_len=hlen,
+                body_bytes=len(html.encode("utf-8", errors="replace")) if html else 0,
+                cf_interstitial=cf,
+                elapsed_ms=elapsed_ms,
+                error_code=ec,
+                url=url[:160],
+            ),
+        )
+        return None, ec
     except Exception as exc:
-        return None, f"trafilatura:{type(exc).__name__}"
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        ec = f"trafilatura:{type(exc).__name__}"
+        logger.debug(
+            "hub_fetch.trafilatura_attempt",
+            **_log_ex(
+                log_extra,
+                stage="trafilatura",
+                attempt=1,
+                http_status=0,
+                content_type="",
+                html_len=0,
+                body_bytes=0,
+                cf_interstitial=False,
+                elapsed_ms=elapsed_ms,
+                error_code=ec,
+                url=url[:160],
+            ),
+        )
+        return None, ec
 
 
 async def fetch_html_robust(
     url: str,
     *,
-    timeout_s: float = 40.0,
+    timeout_s: float | None = None,
     try_trafilatura_fallback: bool = True,
+    log_extra: dict[str, Any] | None = None,
 ) -> tuple[Optional[str], str]:
+    st = get_settings()
+    effective_timeout = float(timeout_s) if timeout_s is not None else float(st.hub_http_timeout_seconds)
     cached = hub_html_cache.cache_get(url)
     if cached:
+        logger.debug(
+            "hub_fetch.cache_hit",
+            **_log_ex(
+                log_extra,
+                stage="cache",
+                url=url[:160],
+                html_len=len(cached),
+                body_bytes=len(cached.encode("utf-8", errors="replace")),
+                cf_interstitial=is_cloudflare_interstitial_html(cached),
+                error_code="",
+            ),
+        )
         return cached, ""
 
-    html, err = await fetch_html_aiohttp(url, timeout_s=timeout_s)
+    html, err = await fetch_html_aiohttp(
+        url,
+        timeout_s=effective_timeout,
+        max_attempts=st.hub_http_max_attempts,
+        log_extra=log_extra,
+    )
     if html:
         hub_html_cache.cache_set(url, html)
         return html, ""
-    html_cf, err_cf = await asyncio.to_thread(_fetch_html_curl_cffi_sync, url)
+    html_cf, err_cf, curl_diag = await asyncio.to_thread(
+        _fetch_html_curl_cffi_sync,
+        url,
+        float(st.hub_curl_timeout_seconds),
+    )
+    logger.debug(
+        "hub_fetch.curl_cffi_result",
+        **_log_ex(
+            log_extra,
+            stage="curl_cffi",
+            attempt=1,
+            http_status=curl_diag.get("http_status", 0),
+            content_type=(curl_diag.get("content_type") or "")[:120],
+            html_len=curl_diag.get("html_len", 0),
+            body_bytes=curl_diag.get("body_bytes", 0),
+            cf_interstitial=bool(curl_diag.get("cf_interstitial")),
+            elapsed_ms=curl_diag.get("elapsed_ms", 0),
+            error_code=(curl_diag.get("error_code") or err_cf)[:80],
+            url=url[:160],
+            after_aiohttp=err[:80] if err else "",
+        ),
+    )
     if html_cf:
-        logger.info("hub_fetch.curl_cffi_ok", url=url[:80], after_aiohttp=err)
+        logger.info(
+            "hub_fetch.curl_cffi_ok",
+            **_log_ex(log_extra, url=url[:120], after_aiohttp=err[:120] if err else ""),
+        )
         hub_html_cache.cache_set(url, html_cf)
         return html_cf, ""
     if try_trafilatura_fallback:
-        html2, err2 = await fetch_html_trafilatura_thread(url)
+        html2, err2 = await fetch_html_trafilatura_thread(url, log_extra=log_extra)
         if html2:
-            logger.info("hub_fetch.trafilatura_ok", url=url[:80], after_aiohttp=err)
+            logger.info(
+                "hub_fetch.trafilatura_ok",
+                **_log_ex(log_extra, url=url[:120], after_aiohttp=err[:120] if err else ""),
+            )
             hub_html_cache.cache_set(url, html2)
             return html2, ""
         return None, f"{err}|cffi:{err_cf}|tf:{err2}"

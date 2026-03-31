@@ -6,12 +6,15 @@ Utilisé par opinion_hub_scraper et validate_media_hubs.
 from __future__ import annotations
 
 import asyncio
+import random
 from typing import Any, Optional
 
 import structlog
 
-from src.services.hub_fetch import fetch_html_robust
+from src.config import get_settings
+from src.services.hub_fetch import fetch_html_robust, sanitize_structlog_payload
 from src.services.hub_links import extract_hub_article_links
+from src.services.hub_page_diagnostics import analyze_hub_html, merge_diagnosis_priority
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
 from src.services.hub_rss import (
     body_looks_like_rss_or_atom,
@@ -46,6 +49,25 @@ def _rss_feed_candidates(override: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def _override_keys(override: dict[str, Any]) -> list[str]:
+    return sorted(
+        k
+        for k in override
+        if isinstance(k, str) and k and not str(k).startswith("_")
+    )
+
+
+def _diag_snapshot(stage: str, body: str | None, page_url: str) -> dict[str, Any]:
+    if not body:
+        return {
+            "stage": stage,
+            "diagnosis_class": "thin_html",
+            "signals": {"html_len": 0, "reason": "no_body"},
+        }
+    r = analyze_hub_html(body, page_url)
+    return {"stage": stage, "diagnosis_class": r["diagnosis_class"], "signals": r["signals"]}
+
+
 async def fetch_html_and_extract_hub_links(
     hub_url: str,
     source_id: str,
@@ -54,6 +76,7 @@ async def fetch_html_and_extract_hub_links(
     min_links: int = 3,
     pw: HubPlaywrightBrowser | None = None,
     pw_lock: asyncio.Lock | None = None,
+    batch_id: str | None = None,
 ) -> tuple[list[str], dict[str, Any]]:
     """
     Retourne (liens_article, meta) avec meta : fetch_ok, fetch_error, strategy, html_len.
@@ -61,6 +84,7 @@ async def fetch_html_and_extract_hub_links(
     Les pages « Cloudflare challenge » (HTML trompeur) sont ignorées.
     """
     override = merge_hub_override(source_id, hub_url)
+    hub_settings = get_settings()
     ex_kw = _extract_kwargs(override)
     want_playwright = bool(override.get("playwright"))
     wait_ms = int(override.get("wait_ms") or 4500)
@@ -75,6 +99,38 @@ async def fetch_html_and_extract_hub_links(
     rss_filter = override.get("rss_link_filter")
     if not isinstance(rss_filter, str) or not rss_filter.strip():
         rss_filter = None
+    rss_exclude = override.get("rss_link_exclude")
+    if not isinstance(rss_exclude, str) or not rss_exclude.strip():
+        rss_exclude = None
+
+    override_key_list = _override_keys(override)
+    diag_classes: list[str] = []
+    page_diagnostics: list[dict[str, Any]] = []
+
+    def _fetch_log_extra(fetch_role: str, rss_feed_url: str | None = None) -> dict[str, Any]:
+        ex: dict[str, Any] = {
+            "source_id": source_id,
+            "hub_url": hub_url[:200],
+            "fetch_role": fetch_role,
+            "override_keys": override_key_list,
+        }
+        if batch_id:
+            ex["batch_id"] = batch_id
+        if rss_feed_url:
+            ex["rss_feed_url"] = rss_feed_url[:120]
+        return ex
+
+    def _log(ev: str, **kw: Any) -> None:
+        payload = {
+            "source_id": source_id,
+            "hub_url": hub_url[:200],
+            "override_keys": override_key_list,
+            "stage": kw.pop("stage", ev),
+            **kw,
+        }
+        if batch_id:
+            payload["batch_id"] = batch_id
+        logger.info(ev, **sanitize_structlog_payload(payload))
 
     meta: dict[str, Any] = {
         "fetch_ok": False,
@@ -82,6 +138,10 @@ async def fetch_html_and_extract_hub_links(
         "strategy": "",
         "html_len": 0,
         "override_playwright": want_playwright,
+        "override_keys": override_key_list,
+        "page_diagnostics": page_diagnostics,
+        "diagnosis_class": "unknown",
+        "batch_id": batch_id,
     }
 
     ordered: list[str] = []
@@ -106,43 +166,89 @@ async def fetch_html_and_extract_hub_links(
     for rss_url in rss_candidates:
         if len(ordered) >= max_links:
             break
-        rb, rerr = await fetch_html_robust(rss_url, try_trafilatura_fallback=True)
+        rb, rerr = await fetch_html_robust(
+            rss_url,
+            try_trafilatura_fallback=True,
+            log_extra=_fetch_log_extra("rss_feed", rss_url),
+        )
         if rb and body_looks_like_rss_or_atom(rb):
             rss_links = extract_article_links_from_feed_body(
                 rb,
                 max_links,
                 link_must_contain=rss_filter,
             )
+            if rss_exclude:
+                sub = rss_exclude.strip().lower()
+                rss_links = [u for u in rss_links if sub not in u.lower()]
             n_before = len(ordered)
             _add_urls(rss_links)
             last_html_len = max(last_html_len, len(rb))
             if not rss_strategy_added and len(ordered) > n_before:
                 strategies.append("rss")
                 rss_strategy_added = True
-            logger.info(
+            _log(
                 "hub_collect.rss_ok",
-                source=source_id,
-                url=rss_url[:80],
+                stage="rss",
+                rss_url=rss_url[:120],
                 n=len(rss_links),
                 merged=len(ordered),
+                error_code="",
             )
         elif rb:
             best_err = (best_err + f"|rss_not_xml:{rss_url[:40]}").strip("|")
         else:
             best_err = (best_err + f"|rss:{rerr}:{rss_url[:40]}").strip("|")
 
+    if hub_settings.hub_between_strategy_jitter_seconds > 0:
+        await asyncio.sleep(
+            random.uniform(0.0, float(hub_settings.hub_between_strategy_jitter_seconds)),
+        )
+
     # --- 2) HTML hub (aiohttp → curl_cffi → trafilatura) ---
-    html, err = await fetch_html_robust(hub_url, try_trafilatura_fallback=True)
+    html, err = await fetch_html_robust(
+        hub_url,
+        try_trafilatura_fallback=True,
+        log_extra=_fetch_log_extra("hub_html"),
+    )
     if html and is_cloudflare_interstitial_html(html):
-        logger.info("hub_collect.html_cloudflare_skip", source=source_id, url=hub_url[:80])
+        snap = _diag_snapshot("http_cloudflare_rejected", html, hub_url)
+        page_diagnostics.append(snap)
+        diag_classes.append(snap["diagnosis_class"])
+        _log(
+            "hub_collect.html_cloudflare_skip",
+            stage="http",
+            error_code="cloudflare_interstitial",
+            html_len=len(html),
+            diagnosis_class=snap["diagnosis_class"],
+        )
         html = None
         err = (err or "ok") + "|cloudflare_interstitial"
     if html:
+        snap = _diag_snapshot("http", html, hub_url)
+        page_diagnostics.append(snap)
+        diag_classes.append(snap["diagnosis_class"])
         strategies.append("aiohttp")
         last_html_len = max(last_html_len, len(html))
         _add_urls(extract_hub_article_links(html, hub_url, max_links=max_links, **ex_kw))
+        _log(
+            "hub_collect.http_html_ok",
+            stage="http",
+            html_len=len(html),
+            diagnosis_class=snap["diagnosis_class"],
+            link_candidates=len(ordered),
+            error_code="",
+        )
     else:
         best_err = (best_err + f"|{err}").strip("|")
+        if err:
+            ec = err.split("|")[0][:80]
+            if "cloudflare_interstitial" in err:
+                ec = "cloudflare_interstitial"
+            _log(
+                "hub_collect.http_failed",
+                stage="http",
+                error_code=ec,
+            )
 
     # --- 3) Playwright ---
     need_pw = (
@@ -164,6 +270,7 @@ async def fetch_html_and_extract_hub_links(
                 ok = await pw.start()
                 if not ok and not ordered and not html:
                     meta["fetch_error"] = best_err or "playwright_start_failed"
+                    meta["diagnosis_class"] = merge_diagnosis_priority(diag_classes)
                     return [], meta
                 if not ok:
                     best_err = (best_err + "|playwright_unavailable").strip("|")
@@ -175,23 +282,68 @@ async def fetch_html_and_extract_hub_links(
                     wait_until=wait_until,
                     timeout_ms=pw_timeout_ms,
                     wait_for_selector=wait_for_selector,
+                    log_extra=_fetch_log_extra("hub_playwright"),
                 )
+                if (
+                    html2
+                    and is_cloudflare_interstitial_html(html2)
+                    and hub_settings.hub_playwright_cf_relaxed_retry
+                ):
+                    html2, err2 = await pw.fetch_html(
+                        hub_url,
+                        wait_ms=min(wait_ms + 5000, 22000),
+                        scroll_page=True,
+                        wait_until="load",
+                        timeout_ms=min(pw_timeout_ms + 20000, 120000),
+                        wait_for_selector=wait_for_selector,
+                        log_extra=_fetch_log_extra("hub_playwright_retry"),
+                    )
         if html2 and is_cloudflare_interstitial_html(html2):
-            logger.info("hub_collect.pw_cloudflare_skip", source=source_id, url=hub_url[:80])
+            snap = _diag_snapshot("playwright_cloudflare_rejected", html2, hub_url)
+            page_diagnostics.append(snap)
+            diag_classes.append(snap["diagnosis_class"])
+            _log(
+                "hub_collect.pw_cloudflare_skip",
+                stage="playwright",
+                error_code="cloudflare_interstitial",
+                html_len=len(html2),
+                diagnosis_class=snap["diagnosis_class"],
+            )
             html2 = None
             err2 = "cloudflare_interstitial"
         if html2:
+            snap = _diag_snapshot("playwright", html2, hub_url)
+            page_diagnostics.append(snap)
+            diag_classes.append(snap["diagnosis_class"])
             strategies.append("playwright")
             last_html_len = max(last_html_len, len(html2))
             _add_urls(
                 extract_hub_article_links(html2, hub_url, max_links=max_links, **ex_kw),
             )
+            _log(
+                "hub_collect.playwright_html_ok",
+                stage="playwright",
+                html_len=len(html2),
+                diagnosis_class=snap["diagnosis_class"],
+                link_candidates=len(ordered),
+                error_code="",
+            )
         elif not html and not ordered:
             best_err = (best_err + f"|pw:{err2}").strip("|")
+            if err2:
+                _log(
+                    "hub_collect.playwright_failed",
+                    stage="playwright",
+                    error_code=(err2 or "pw_error")[:120],
+                )
 
     meta["strategy"] = "+".join(strategies) if strategies else ""
     meta["html_len"] = last_html_len
     meta["link_count"] = len(ordered)
+    meta["page_diagnostics"] = page_diagnostics
+    meta["diagnosis_class"] = merge_diagnosis_priority(diag_classes) if diag_classes else "unknown"
+    if meta["strategy"] == "rss" and ordered:
+        meta["diagnosis_class"] = "rss_feed"
 
     if not ordered:
         meta["fetch_error"] = best_err or "no_links"

@@ -18,9 +18,11 @@ from src.config import get_settings
 from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle, LLMCallLog
 from src.services.cost_estimate import estimate_llm_usage
+from src.services.llm_route_hint import hint_olj_generation_primary
 from src.services.provider_usage_ledger import append_provider_usage
 from src.services.generator import COUNTRY_MAP, LANGUAGE_MAP
 from src.services.llm_router import get_llm_router
+from src.services.olj_pipeline_llm import olj_pipeline_completion
 from src.services.prompt_loader import load_prompt_bundle
 
 
@@ -161,7 +163,8 @@ async def generate_edition_topic_review(
     router = get_llm_router()
     settings = get_settings()
     t0 = time.perf_counter()
-    text = await router.generate_anthropic_only(
+    text = await olj_pipeline_completion(
+        router,
         bundle.system_prompt,
         user,
         max_tokens=4096,
@@ -173,9 +176,13 @@ async def generate_edition_topic_review(
     if ed.status in ("CURATING", "SCHEDULED", "COLLECTING"):
         ed.status = "COMPOSING"
 
-    model_id = settings.anthropic_generation_model
+    if settings.olj_generation_anthropic_only:
+        prov_log = "anthropic"
+        model_id = settings.anthropic_generation_model
+    else:
+        prov_log, model_id = hint_olj_generation_primary()
     est_in, est_out, est_cost = estimate_llm_usage(
-        provider="anthropic",
+        provider=prov_log,
         model=model_id,
         input_text=bundle.system_prompt + user,
         output_text=text or "",
@@ -186,7 +193,7 @@ async def generate_edition_topic_review(
         prompt_id=bundle.prompt_id,
         prompt_version=bundle.version,
         model_used=model_id,
-        provider="anthropic",
+        provider=prov_log,
         temperature=0.4,
         input_tokens=est_in,
         output_tokens=est_out,
@@ -199,7 +206,7 @@ async def generate_edition_topic_review(
     await append_provider_usage(
         db,
         kind="llm_completion",
-        provider="anthropic",
+        provider=prov_log,
         model=model_id,
         operation="generate_review_topic",
         status="ok",

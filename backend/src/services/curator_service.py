@@ -21,7 +21,9 @@ from src.models.cluster import TopicCluster
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle, LLMCallLog
 from src.models.media_source import MediaSource
 from src.services.cost_estimate import estimate_llm_usage
+from src.services.llm_route_hint import hint_olj_generation_primary
 from src.services.llm_router import get_llm_router
+from src.services.olj_pipeline_llm import olj_pipeline_completion
 from src.services.provider_usage_ledger import append_provider_usage
 from src.services.prompt_loader import load_prompt_bundle
 
@@ -219,6 +221,9 @@ async def run_curator_for_edition(
     raw_out: str = ""
     last_user_prompt: str = user
     schema = bundle.json_schema
+    curator_tool_json = bool(
+        schema and isinstance(schema, dict) and schema.get("properties"),
+    )
     t0 = time.perf_counter()
     for attempt in range(max_attempts):
         try:
@@ -228,7 +233,7 @@ async def run_curator_for_edition(
                 else ""
             )
             last_user_prompt = u
-            if schema and isinstance(schema, dict) and schema.get("properties"):
+            if curator_tool_json:
                 parsed = await router.generate_anthropic_tool_json(
                     bundle.system_prompt,
                     u,
@@ -239,7 +244,8 @@ async def run_curator_for_edition(
                 )
                 raw_out = json.dumps(parsed, ensure_ascii=False)[:200_000]
             else:
-                raw_out = await router.generate_anthropic_only(
+                raw_out = await olj_pipeline_completion(
+                    router,
                     bundle.system_prompt,
                     u,
                     max_tokens=8192,
@@ -265,9 +271,13 @@ async def run_curator_for_edition(
     latency_ms = int((time.perf_counter() - t0) * 1000)
 
     settings = get_settings()
-    model_id = settings.anthropic_generation_model
+    if curator_tool_json or settings.olj_generation_anthropic_only:
+        prov_log = "anthropic"
+        model_id = settings.anthropic_generation_model
+    else:
+        prov_log, model_id = hint_olj_generation_primary()
     est_in, est_out, est_cost = estimate_llm_usage(
-        provider="anthropic",
+        provider=prov_log,
         model=model_id,
         input_text=bundle.system_prompt + last_user_prompt,
         output_text=raw_out or "",
@@ -278,7 +288,7 @@ async def run_curator_for_edition(
         prompt_id=bundle.prompt_id,
         prompt_version=bundle.version,
         model_used=model_id,
-        provider="anthropic",
+        provider=prov_log,
         temperature=0.2,
         input_tokens=est_in,
         output_tokens=est_out,
@@ -293,7 +303,7 @@ async def run_curator_for_edition(
     await append_provider_usage(
         db,
         kind="llm_completion",
-        provider="anthropic",
+        provider=prov_log,
         model=model_id,
         operation="curate",
         status="ok" if (parsed and not last_err) else "error",

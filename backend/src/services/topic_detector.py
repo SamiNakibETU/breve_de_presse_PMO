@@ -19,11 +19,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.article import Article
 from src.models.edition import Edition, EditionTopic, EditionTopicArticle
 from src.models.media_source import MediaSource
+from src.config import get_settings
 from src.services.country_utils import COVERAGE_TARGET_COUNTRIES
 from src.services.cost_estimate import estimate_llm_usage
 from src.services.edition_schedule import sql_article_belongs_to_edition_corpus
-from src.services.llm_route_hint import hint_anthropic_generation
+from src.services.llm_route_hint import hint_anthropic_generation, hint_olj_generation_primary
 from src.services.llm_router import get_llm_router
+from src.services.olj_pipeline_llm import olj_pipeline_completion
 from src.services.provider_usage_ledger import append_provider_usage_commit
 
 logger = structlog.get_logger(__name__)
@@ -181,14 +183,19 @@ class TopicDetector:
         for attempt in range(3):
             try:
                 t0 = time.perf_counter()
-                raw = await router.generate_anthropic_only(
+                raw = await olj_pipeline_completion(
+                    router,
                     PASS1_SYSTEM,
                     user,
                     max_tokens=8192,
                     temperature=0.3,
                 )
                 dur_ms = int((time.perf_counter() - t0) * 1000)
-                prov, mod = hint_anthropic_generation()
+                prov, mod = (
+                    hint_anthropic_generation()
+                    if get_settings().olj_generation_anthropic_only
+                    else hint_olj_generation_primary()
+                )
                 inp_t, out_t, cst = estimate_llm_usage(
                     provider=prov,
                     model=mod,
@@ -277,14 +284,19 @@ class TopicDetector:
         for attempt in range(3):
             try:
                 t0 = time.perf_counter()
-                raw = await router.generate_anthropic_only(
+                raw = await olj_pipeline_completion(
+                    router,
                     PASS2_SYSTEM,
                     user,
                     max_tokens=4096,
                     temperature=0.2,
                 )
                 dur_ms = int((time.perf_counter() - t0) * 1000)
-                prov, mod = hint_anthropic_generation()
+                prov, mod = (
+                    hint_anthropic_generation()
+                    if get_settings().olj_generation_anthropic_only
+                    else hint_olj_generation_primary()
+                )
                 inp_t, out_t, cst = estimate_llm_usage(
                     provider=prov,
                     model=mod,

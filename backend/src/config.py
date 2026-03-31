@@ -163,6 +163,53 @@ class Settings(BaseSettings):
         le=150,
         description="Nombre minimum de mots pour accepter un corps d’article (hubs)",
     )
+    hub_http_timeout_seconds: float = Field(
+        default=55.0,
+        ge=15.0,
+        le=180.0,
+        description="Timeout total aiohttp par URL (hub_fetch robust) ; variable HUB_HTTP_TIMEOUT_SECONDS",
+    )
+    hub_http_max_attempts: int = Field(
+        default=4,
+        ge=1,
+        le=10,
+        description="Tentatives aiohttp avant fallback curl_cffi ; variable HUB_HTTP_MAX_ATTEMPTS",
+    )
+    hub_curl_timeout_seconds: float = Field(
+        default=55.0,
+        ge=15.0,
+        le=180.0,
+        description="Timeout curl_cffi (hub_fetch) ; variable HUB_CURL_TIMEOUT_SECONDS",
+    )
+    hub_playwright_cf_relaxed_retry: bool = Field(
+        default=True,
+        description="Si la 1re capture Playwright ressemble à une page Cloudflare challenge, "
+        "une 2e tentative avec wait_until=load et délai plus long (hubs + articles)",
+    )
+    hub_between_strategy_jitter_seconds: float = Field(
+        default=0.35,
+        ge=0.0,
+        le=5.0,
+        description="Pause aléatoire uniforme 0..N s entre fin flux RSS et fetch HTML hub (politesse)",
+    )
+    hub_validation_inter_probe_base_delay_seconds: float = Field(
+        default=1.0,
+        ge=0.2,
+        le=30.0,
+        description="Pause de base entre deux hubs en validate_media_hubs",
+    )
+    hub_validation_inter_probe_jitter_seconds: float = Field(
+        default=0.55,
+        ge=0.0,
+        le=10.0,
+        description="Jitter ajouté à la pause entre probes (uniforme 0..jitter + base)",
+    )
+    hub_wayback_timeout_seconds: float = Field(
+        default=12.0,
+        ge=3.0,
+        le=45.0,
+        description="Timeout requête API archive.org wayback/available (diagnostic)",
+    )
     request_delay_seconds: float = Field(default=1.5)
     user_agent: str = Field(
         default="OLJ-PressReview/1.0 (editorial-research; contact@lorientlejour.com)",
@@ -324,7 +371,11 @@ class Settings(BaseSettings):
     )
     olj_generation_anthropic_only: bool = Field(
         default=False,
-        description="Revue OLJ : uniquement Claude Sonnet, échec si pas de clé Anthropic",
+        description=(
+            "Si True : génération revue + passes pipeline (sujets, libellés JSON simples, etc.) "
+            "uniquement via Sonnet ; pas de repli Groq/Cerebras. "
+            "Si False (recommandé prod.) : même chaîne que `LLMRouter.generate()`."
+        ),
     )
     olj_generation_thesis_sonnet_summary_groq: bool = Field(
         default=False,

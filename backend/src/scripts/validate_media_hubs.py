@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import random
 import sys
 import time
 
@@ -29,6 +30,7 @@ def _print_safe(msg: str) -> None:
         print(msg.encode("ascii", errors="replace").decode("ascii"))
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from src.config import get_settings
 from src.services.article_body_format import (
@@ -40,6 +42,7 @@ from src.services.hub_article_extract import extract_hub_article_page
 from src.services.hub_collect import fetch_html_and_extract_hub_links
 from src.services.hub_playwright import HubPlaywrightBrowser
 from src.services.opinion_hub_overrides import clear_override_cache
+from src.services.wayback_availability import fetch_wayback_availability
 
 REGISTRY_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_REVUE_REGISTRY.json"
 DEFAULT_OUT = Path(__file__).resolve().parent.parent.parent / "data" / "HUB_VALIDATION_REPORT.json"
@@ -49,7 +52,30 @@ def _ascii_preview(text: str, max_len: int = 280) -> str:
     if not text:
         return ""
     one_line = " ".join(text.split())
-    return one_line.encode("ascii", errors="replace").decode("ascii")[:max_len]
+    ascii_line = one_line.encode("ascii", errors="replace").decode("ascii")
+    if not ascii_line:
+        return ""
+    head = ascii_line[: min(500, len(ascii_line))].lower()
+    # Bandeaux cookies / CMP souvent au debut du texte extrait (ex. Gulf News + Playwright).
+    if any(
+        x in head
+        for x in (
+            "cookie",
+            "vendors",
+            "consent",
+            "privacy policy",
+            "we and our",
+            "similar technologies",
+        )
+    ):
+        for start in (1200, 800, 400):
+            if len(ascii_line) > start + max_len:
+                chunk = ascii_line[start : start + max_len].lstrip()
+                if len(chunk) >= 40:
+                    return chunk[:max_len]
+        mid = max(0, len(ascii_line) // 3)
+        return ascii_line[mid : mid + max_len]
+    return ascii_line[:max_len]
 
 
 async def _probe_article(
@@ -99,6 +125,37 @@ async def _probe_article(
 
 MIN_HUB_LINKS = 3
 
+# Sous-chaînes d’URL : si le hub est une rubrique opinion, on évite de prendre le 1er lien RSS hors rubrique.
+_HUB_PATH_HINT_TO_LINK_NEEDLE: list[tuple[str, tuple[str, ...]]] = [
+    ("opinion", ("/opinion/", "/views/", "/column", "/editorial", "/blogs/")),
+    ("views", ("/views/", "/opinion/")),
+    ("column", ("/column", "/opinion/", "/مقالات",)),
+    ("editorial", ("/editorial", "/opinion/")),
+    ("رأي", ("/opinion/", "/views/", "/ar/opinion")),
+]
+
+
+def _preferred_sample_article_url(hub_url: str, links: list[str]) -> str:
+    if not links:
+        return ""
+    try:
+        path = (urlparse(hub_url).path or "").lower()
+    except Exception:
+        path = ""
+    needles: tuple[str, ...] = ()
+    for hint, n in _HUB_PATH_HINT_TO_LINK_NEEDLE:
+        if hint in path:
+            needles = n
+            break
+    if not needles:
+        return links[0]
+    low_links = [(u, u.lower()) for u in links]
+    for needle in needles:
+        for u, low in low_links:
+            if needle in low:
+                return u
+    return links[0]
+
 
 async def _probe_hub(
     hub_url: str,
@@ -107,6 +164,8 @@ async def _probe_hub(
     sample_article: bool,
     pw: HubPlaywrightBrowser,
     pw_lock: asyncio.Lock,
+    batch_id: str | None = None,
+    wayback_on_failure: bool = False,
 ) -> dict:
     t0 = time.perf_counter()
     links, meta = await fetch_html_and_extract_hub_links(
@@ -116,8 +175,17 @@ async def _probe_hub(
         min_links=MIN_HUB_LINKS,
         pw=pw,
         pw_lock=pw_lock,
+        batch_id=batch_id,
     )
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    diagnostics = {
+        "diagnosis_class": meta.get("diagnosis_class"),
+        "override_keys": meta.get("override_keys"),
+        "page_diagnostics": meta.get("page_diagnostics"),
+        "html_len": meta.get("html_len"),
+        "strategy": meta.get("strategy"),
+        "batch_id": meta.get("batch_id"),
+    }
     out: dict = {
         "hub_url": hub_url,
         "fetch_ok": bool(meta.get("fetch_ok")),
@@ -128,11 +196,24 @@ async def _probe_hub(
         "sample_links": links[:5],
         "article_sample": None,
         "elapsed_ms": elapsed_ms,
+        "diagnostics": diagnostics,
+        "diagnosis_class": meta.get("diagnosis_class"),
     }
     if sample_article and links:
-        out["article_sample"] = await _probe_article(links[0], pw, pw_lock)
-        out["article_sample"]["url"] = links[0][:500]
-    await asyncio.sleep(1.2)
+        sample_url = _preferred_sample_article_url(hub_url, links)
+        out["article_sample"] = await _probe_article(sample_url, pw, pw_lock)
+        out["article_sample"]["url"] = sample_url[:500]
+    st_probe = get_settings()
+    if wayback_on_failure and not out["fetch_ok"]:
+        out["wayback_availability"] = await fetch_wayback_availability(
+            hub_url,
+            timeout_s=float(st_probe.hub_wayback_timeout_seconds),
+        )
+    pause = float(st_probe.hub_validation_inter_probe_base_delay_seconds) + random.uniform(
+        0.0,
+        float(st_probe.hub_validation_inter_probe_jitter_seconds),
+    )
+    await asyncio.sleep(max(0.2, pause))
     return out
 
 
@@ -142,13 +223,19 @@ async def run_validation(
     sample_article: bool,
     only_active: bool,
     only_ids: list[str] | None,
+    registry_path: Path | None = None,
+    batch_id: str | None = None,
+    batch_index: int | None = None,
+    batch_size: int | None = None,
+    wayback_on_failure: bool = False,
 ) -> dict:
     clear_override_cache()
-    if not REGISTRY_PATH.exists():
-        print(f"Manquant: {REGISTRY_PATH} — lance d’abord import_media_revue_csv.", file=sys.stderr)
+    reg = registry_path or REGISTRY_PATH
+    if not reg.is_file():
+        print(f"Manquant: {reg} — lance d’abord import_media_revue_csv.", file=sys.stderr)
         sys.exit(1)
 
-    data = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    data = json.loads(reg.read_text(encoding="utf-8"))
     media_list = data.get("media", [])
     if only_active:
         media_list = [m for m in media_list if m.get("is_active", True)]
@@ -191,6 +278,8 @@ async def run_validation(
                     sample_article=sample_article,
                     pw=pw,
                     pw_lock=pw_lock,
+                    batch_id=batch_id,
+                    wayback_on_failure=wayback_on_failure,
                 )
                 entry["hubs"].append(hreport)
                 if hreport["fetch_ok"]:
@@ -214,12 +303,19 @@ async def run_validation(
     finally:
         await pw.stop()
 
-    return {
+    report: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "source_registry": str(REGISTRY_PATH),
+        "source_registry": str(reg.resolve()),
         "summary": summary,
         "media": results,
     }
+    if batch_id is not None:
+        report["batch_id"] = batch_id
+    if batch_index is not None:
+        report["batch_index"] = batch_index
+    if batch_size is not None:
+        report["batch_size"] = batch_size
+    return report
 
 
 def main() -> None:
@@ -237,10 +333,21 @@ def main() -> None:
     )
     ap.add_argument("--output", type=Path, default=DEFAULT_OUT, help="Rapport JSON")
     ap.add_argument(
+        "--registry",
+        type=Path,
+        default=None,
+        help="Chemin vers MEDIA_REVUE_REGISTRY.json (défaut: data/MEDIA_REVUE_REGISTRY.json)",
+    )
+    ap.add_argument(
         "--ids",
         type=str,
         default=None,
         help="Filtrer par id média (séparés par des virgules), ex. bh_al_watan,jo_al_ghad",
+    )
+    ap.add_argument(
+        "--wayback-on-failure",
+        action="store_true",
+        help="Si fetch hub en échec, ajouter wayback_availability au rapport (API archive.org).",
     )
     args = ap.parse_args()
     only_ids = [x.strip() for x in args.ids.split(",")] if args.ids else None
@@ -251,6 +358,8 @@ def main() -> None:
             sample_article=not args.no_article_sample,
             only_active=not args.include_inactive,
             only_ids=only_ids,
+            registry_path=args.registry,
+            wayback_on_failure=args.wayback_on_failure,
         )
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -9,12 +9,14 @@ import structlog
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import get_settings
 from src.models.article import Article
 from src.models.cluster import TopicCluster
 from src.services.cost_estimate import estimate_llm_usage
 from src.services.editorial_scope import is_out_of_scope_lifestyle
-from src.services.llm_route_hint import hint_anthropic_generation
+from src.services.llm_route_hint import hint_anthropic_generation, hint_olj_generation_primary
 from src.services.llm_router import get_llm_router
+from src.services.olj_pipeline_llm import olj_pipeline_completion
 from src.services.prompt_loader import load_prompt_bundle
 from src.services.provider_usage_ledger import append_provider_usage
 
@@ -123,7 +125,8 @@ async def label_clusters(db: AsyncSession) -> int:
                     out_text = json.dumps(data, ensure_ascii=False)
                     cleaned = str(data.get("label", "")).strip()[:300]
                 else:
-                    raw = await router.generate_anthropic_only(
+                    raw = await olj_pipeline_completion(
+                        router,
                         bundle.system_prompt,
                         user,
                         max_tokens=600,
@@ -146,7 +149,14 @@ async def label_clusters(db: AsyncSession) -> int:
                     except Exception:
                         cleaned = cleaned[:300]
                 dur_ms = int((time.perf_counter() - t0) * 1000)
-                prov, mod = hint_anthropic_generation()
+                used_tool = bool(
+                    schema and isinstance(schema, dict) and schema.get("properties"),
+                )
+                prov, mod = (
+                    hint_anthropic_generation()
+                    if used_tool or get_settings().olj_generation_anthropic_only
+                    else hint_olj_generation_primary()
+                )
                 inp_t, out_t, cst = estimate_llm_usage(
                     provider=prov,
                     model=mod,

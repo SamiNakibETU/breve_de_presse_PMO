@@ -31,6 +31,25 @@ def test_extract_from_html_anchor():
     assert any("/opinion/2024/" in u for u in links)
 
 
+def test_link_pattern_excludes_pagination_even_when_regex_matches_opinion():
+    """Bugfix : le 2e passage pattern-only ne doit pas réintroduire /opinion/page/N."""
+    html = """
+    <html><body>
+    <a href="https://www.example.com/opinion/page/2">p2</a>
+    <a href="https://www.example.com/opinion/2024/03/20/real-slug-here">ok</a>
+    </body></html>
+    """
+    links = extract_hub_article_links(
+        html,
+        "https://www.example.com/opinion/",
+        max_links=10,
+        link_pattern=r"/opinion/|/[0-9]{4}/",
+        strict_link_pattern=False,
+    )
+    assert any("real-slug" in u for u in links)
+    assert not any("/opinion/page/" in u for u in links)
+
+
 def test_strict_link_pattern_sabah_excludes_column_hub_pages():
     """Pages /yazarlar/gunaydin (2 segments) vs /yazarlar/author/slug (3+)."""
     html = """

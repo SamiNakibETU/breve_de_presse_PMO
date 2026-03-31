@@ -19,7 +19,7 @@ from src.services.article_body_format import (
     format_plain_article_text,
     is_substantial_article_body,
 )
-from src.services.hub_fetch import fetch_html_robust
+from src.services.hub_fetch import fetch_html_robust, sanitize_structlog_payload
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
 from src.services.hub_rss import is_cloudflare_interstitial_html
 from src.services.web_scraper import (
@@ -87,7 +87,10 @@ async def extract_hub_article_page(
 
     html, err = await fetch_html_robust(url, try_trafilatura_fallback=True)
     if html and is_cloudflare_interstitial_html(html):
-        logger.debug("hub_article_extract.cf_skip_http", url=url[:80])
+        logger.debug(
+            "hub_article_extract.cf_skip_http",
+            **sanitize_structlog_payload({"url": url[:80]}),
+        )
         html = None
     if html and len(html) >= 500:
         strategy.append("aiohttp")
@@ -96,7 +99,12 @@ async def extract_hub_article_page(
         title = _extract_title_from_html(html)
         body = await asyncio.to_thread(html_to_article_body_sync, html)
     else:
-        logger.debug("hub_article_extract.http_weak", url=url[:80], err=err[:60] if err else "")
+        logger.debug(
+            "hub_article_extract.http_weak",
+            **sanitize_structlog_payload(
+                {"url": url[:80], "err": err[:60] if err else ""},
+            ),
+        )
 
     need_pw = PLAYWRIGHT_AVAILABLE and pw is not None and (
         not body
@@ -113,12 +121,31 @@ async def extract_hub_article_page(
                 html2, pw_err = await pw.fetch_html(
                     url,
                     wait_ms=4500,
-                    scroll_page=True,
+                    scroll_page=False,
                     wait_until="domcontentloaded",
                     timeout_ms=90000,
+                    block_heavy_assets=True,
                 )
+                if (
+                    html2
+                    and is_cloudflare_interstitial_html(html2)
+                    and settings.hub_playwright_cf_relaxed_retry
+                ):
+                    html2, pw_err = await pw.fetch_html(
+                        url,
+                        wait_ms=9500,
+                        scroll_page=False,
+                        wait_until="load",
+                        timeout_ms=105000,
+                        block_heavy_assets=True,
+                    )
                 if not html2:
-                    logger.debug("hub_article_extract.pw_fetch", url=url[:80], err=pw_err[:60])
+                    logger.debug(
+                        "hub_article_extract.pw_fetch",
+                        **sanitize_structlog_payload(
+                            {"url": url[:80], "err": pw_err[:60]},
+                        ),
+                    )
         if html2 and is_cloudflare_interstitial_html(html2):
             html2 = None
         if html2 and len(html2) >= 500:

@@ -18,6 +18,12 @@ import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
+from src.scripts.media_revue_paths import (
+    DEFAULT_MEDIA_REVUE_CSV_NAME,
+    default_media_revue_csv_path,
+    resolve_media_revue_csv_path,
+)
+
 OUT_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_REVUE_REGISTRY.json"
 TIER_OVERRIDES_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "MEDIA_TIER_OVERRIDES.json"
 
@@ -291,16 +297,28 @@ def build_media_list(merged: dict[tuple[str, str], dict]) -> list[dict]:
     return media
 
 
+def load_revue_media_entries_from_csv(csv_path: Path) -> list[dict]:
+    """Parse le CSV revue et retourne la liste `media` (même logique que l’export JSON)."""
+    merged = _merge_rows(csv_path)
+    return build_media_list(merged)
+
+
 def main() -> None:
-    root = Path(__file__).resolve().parent.parent.parent.parent
-    default_csv = root / "media revue - Sheet1.csv"
-    csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_csv
+    if len(sys.argv) > 1:
+        csv_path = Path(sys.argv[1])
+    else:
+        resolved = resolve_media_revue_csv_path()
+        csv_path = resolved if resolved is not None else default_media_revue_csv_path()
     if not csv_path.is_file():
-        print(f"Fichier introuvable: {csv_path}")
+        root = Path(__file__).resolve().parent.parent.parent.parent
+        print(
+            f"Fichier introuvable: {csv_path}\n"
+            f"  Placez « {DEFAULT_MEDIA_REVUE_CSV_NAME} » sous {root} "
+            f"ou sous {root / 'archive'}.",
+        )
         sys.exit(1)
 
-    merged = _merge_rows(csv_path)
-    media = build_media_list(merged)
+    media = load_revue_media_entries_from_csv(csv_path)
     payload = {
         "metadata": {
             "source_csv": str(csv_path.name),

@@ -43,4 +43,4 @@ histogram_quantile(0.95, sum(rate(olj_pipeline_task_duration_seconds_bucket{kind
 - `olj_pipeline_tasks_terminal_total{status="error"}` ↑ soutenue après un déploiement.
 - `olj_llm_requests_total{outcome="rate_limited"}` ↑ : quota / besoin de 2ᵉ clé ou autre provider.
 
-Voir aussi [RUNBOOK.md](RUNBOOK.md).
+Voir aussi [RUNBOOK.md](RUNBOOK.md) et [MEMW_SOURCE_SLA.md](MEMW_SOURCE_SLA.md) (objectifs santé des sources / gate scraping optionnel).
