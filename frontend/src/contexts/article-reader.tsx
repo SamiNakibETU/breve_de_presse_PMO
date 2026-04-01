@@ -21,6 +21,10 @@ import {
 import { api } from "@/lib/api";
 import type { Article } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
+import {
+  decodeHtmlEntities,
+  formatQuoteForDisplay,
+} from "@/lib/text-utils";
 import { cn } from "@/lib/utils";
 
 const ARTICLE_QUERY_STALE_MS = 60_000;
@@ -89,7 +93,9 @@ function buildSynthesisPlainText(a: Article): string {
   if (a.key_quotes_fr?.length) {
     parts.push(
       "Citations :\n" +
-        a.key_quotes_fr.map((q) => `« ${q} »`).join("\n"),
+        a.key_quotes_fr
+          .map((q) => `« ${formatQuoteForDisplay(q)} »`)
+          .join("\n"),
     );
   }
   return parts.join("\n\n");
@@ -145,7 +151,14 @@ function ArticleReadModal({
     setTab(hasAnalysis ? "analysis" : "synthesis");
   }, [a]);
 
-  const title = a?.title_fr || a?.title_original || "Article";
+  const title = a
+    ? decodeHtmlEntities(
+        (a.title_fr?.trim() || a.title_original || "Article").trim(),
+      )
+    : "Article";
+  const titleOriginalDisplay = a
+    ? decodeHtmlEntities(a.title_original || "")
+    : "";
   const typeFr = articleTypeLabelFr(a?.article_type);
   const langFr = sourceLanguageLabelFr(a?.source_language);
   const hasBodyFr = Boolean(a?.content_translated_fr?.trim());
@@ -243,7 +256,7 @@ function ArticleReadModal({
                 a.title_original &&
                 a.title_fr !== a.title_original ? (
                   <p className="text-[12px] text-muted-foreground">
-                    Titre d’origine : {a.title_original}
+                    Titre d’origine : {titleOriginalDisplay}
                   </p>
                 ) : null}
                 <p className="flex flex-wrap gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
@@ -425,7 +438,7 @@ function ArticleReadModal({
                       <ul className="list-inside list-disc space-y-2 text-foreground-body">
                         {a.key_quotes_fr.map((quote, i) => (
                           <li key={i} className="whitespace-pre-wrap">
-                            « {quote} »
+                            « {formatQuoteForDisplay(quote)} »
                           </li>
                         ))}
                       </ul>
@@ -513,7 +526,7 @@ function ArticleReadModal({
                   )}
                   <p className="text-[12px] text-muted-foreground">
                     <span className="font-medium text-foreground">Titre d’origine : </span>
-                    {a.title_original}
+                    {titleOriginalDisplay}
                   </p>
                 </section>
               )}

@@ -38,7 +38,7 @@ function topicPlainText(t: EditionTopic): string {
   if (body) {
     return `« ${title} »\n\n${body}`;
   }
-  return `« ${title} »\n\n(Texte non encore généré — utilisez « Rédiger ce sujet ».)`;
+  return `« ${title} »\n\n(Texte non encore généré — utilisez « Rédiger ce bloc ».)`;
 }
 
 function editionTitleLine(date: string): string {
@@ -285,7 +285,10 @@ export default function ComposePage() {
     return [...codes];
   }, [topics, selectedIds, selectionsQ.data?.extra_articles]);
 
-  const topicsSelectionMap = selectionsQ.data?.topics ?? {};
+  const topicsSelectionMap = useMemo(
+    () => selectionsQ.data?.topics ?? {},
+    [selectionsQ.data],
+  );
 
   const selectionByTopic = useMemo(() => {
     const out: {
@@ -305,6 +308,19 @@ export default function ComposePage() {
     () => selectionsQ.data?.extra_articles ?? [],
     [selectionsQ.data?.extra_articles],
   );
+
+  /** Au moins un grand sujet avec 2+ articles cochés (condition serveur pour générer). */
+  const topicsWithTwoPlusSelections = useMemo(() => {
+    let n = 0;
+    for (const t of topics) {
+      if (
+        orderedSelectedPreviewsForTopic(t, topicsSelectionMap).length >= 2
+      ) {
+        n += 1;
+      }
+    }
+    return n;
+  }, [topics, topicsSelectionMap]);
 
   const assembledPlain = useMemo(
     () => topics.map((t) => topicPlainText(t)).join("\n\n\n\n"),
@@ -374,7 +390,7 @@ export default function ComposePage() {
             Optionnel : consignes pour le modèle (ton, angles, exclusions).
           </li>
           <li>
-            <strong className="font-semibold text-foreground">Rédiger</strong> génère les paragraphes revue OLJ <strong className="font-semibold text-foreground">par grand sujet</strong> (un bloc par sujet).
+            <strong className="font-semibold text-foreground">Rédiger</strong> produit un bloc par <strong className="font-semibold text-foreground">grand sujet</strong> : pour chaque article coché, une phrase-thèse, un résumé et une fiche technique (ordre des coches respecté). Il faut <strong className="font-semibold text-foreground">au moins deux articles sélectionnés par sujet</strong>.
           </li>
         </ol>
       </header>
@@ -484,12 +500,22 @@ export default function ComposePage() {
         <button
           type="button"
           className="border border-foreground bg-foreground px-4 py-2 text-[13px] text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-          disabled={!editionId || genAllMutation.isPending || topics.length === 0}
+          disabled={
+            !editionId ||
+            genAllMutation.isPending ||
+            topics.length === 0 ||
+            topicsWithTwoPlusSelections === 0
+          }
           onClick={() => void genAllMutation.mutateAsync()}
+          title={
+            topicsWithTwoPlusSelections === 0
+              ? "Cochez au moins deux articles dans un ou plusieurs grands sujets au sommaire."
+              : undefined
+          }
         >
           {genAllMutation.isPending
             ? "Rédaction en cours…"
-            : "Rédiger toute la revue"}
+            : "Rédiger les articles sélectionnés"}
         </button>
         <button
           type="button"
@@ -523,7 +549,7 @@ export default function ComposePage() {
           id="compose-topics-heading"
           className="olj-rubric border-b border-border pb-2"
         >
-          Paragraphes par grand sujet ({topics.length})
+          Revue par article · grands sujets ({topics.length})
         </h2>
         {topics.map((t, idx) => {
           const title = t.title_final ?? t.title_proposed;
@@ -542,16 +568,22 @@ export default function ComposePage() {
           );
           const nSelectedInTopic = orderedForTopic.length;
 
+          const canGenerateTopic = nSelectedInTopic >= 2;
+
           return (
             <article
               key={t.id}
-              className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
+              className={
+                nSelectedInTopic === 0
+                  ? "rounded-lg border border-dashed border-border bg-muted/15 p-5 opacity-90 shadow-sm sm:p-6"
+                  : "rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
+              }
             >
               <div className="mb-4 flex flex-col gap-4 border-b border-border-light pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Sujet {idx + 1} sur {topics.length}
+                      Grand sujet {idx + 1} sur {topics.length}
                     </p>
                     <ReadinessIndicator
                       level={topicReadiness(orderedForTopic)}
@@ -564,15 +596,33 @@ export default function ComposePage() {
                     {nTexts} texte{nTexts > 1 ? "s" : ""} lié{nTexts > 1 ? "s" : ""}
                     {nCountries > 0 ? ` · ${nCountries} pays` : ""}
                     {nSelectedInTopic > 0
-                      ? ` · ${nSelectedInTopic} sélectionné${nSelectedInTopic > 1 ? "s" : ""} pour la rédaction`
-                      : " · aucune sélection explicite (repli sur les recommandations)"}
+                      ? ` · ${nSelectedInTopic} article${nSelectedInTopic > 1 ? "s" : ""} sélectionné${nSelectedInTopic > 1 ? "s" : ""} pour ce bloc`
+                      : " · aucun article sélectionné — cochez au moins deux textes au sommaire"}
                   </p>
+                  {nSelectedInTopic === 0 ? (
+                    <p className="mt-2 text-[12px] text-muted-foreground">
+                      Retournez au{" "}
+                      <Link href={`/edition/${date}`} className="olj-link-action">
+                        sommaire
+                      </Link>{" "}
+                      pour cocher les articles à inclure dans la revue pour ce sujet.
+                    </p>
+                  ) : null}
+                  {nSelectedInTopic === 1 ? (
+                    <p className="mt-2 text-[12px] text-warning">
+                      Cochez au moins un article de plus dans ce sujet (deux au minimum pour générer le bloc).
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap gap-2">
                   <button
                     type="button"
                     className="olj-btn-primary px-3 py-2 text-[12px] disabled:opacity-50"
-                    disabled={!editionId || genTopicMutation.isPending}
+                    disabled={
+                      !editionId ||
+                      genTopicMutation.isPending ||
+                      !canGenerateTopic
+                    }
                     onClick={() => {
                       setRegeneratingTopicId(t.id);
                       void genTopicMutation.mutateAsync({ topicId: t.id });
@@ -581,8 +631,8 @@ export default function ComposePage() {
                     {genTopicMutation.isPending && regeneratingTopicId === t.id
                       ? "Rédaction…"
                       : hasGen
-                        ? "Rédiger à nouveau ce sujet"
-                        : "Rédiger ce sujet"}
+                        ? "Rédiger à nouveau ce bloc"
+                        : "Rédiger ce bloc"}
                   </button>
                   <button
                     type="button"
@@ -598,7 +648,7 @@ export default function ComposePage() {
                 <TopicGeneratedProse text={t.generated_text!} variant="compose" />
               ) : (
                 <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-[14px] leading-relaxed text-muted-foreground">
-                  Pas encore de texte : au moins deux articles doivent être disponibles pour ce sujet (sélection ou recommandations). Ajustez les coches sur le sommaire si besoin, puis cliquez sur « Rédiger ce sujet ».
+                  Pas encore de texte : cochez au moins deux articles pour ce grand sujet au sommaire, puis cliquez sur « Rédiger ce bloc ».
                 </p>
               )}
             </article>

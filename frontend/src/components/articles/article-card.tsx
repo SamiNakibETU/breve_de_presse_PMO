@@ -6,6 +6,7 @@ import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
 import { articleTypeLabelFr } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { Article } from "@/lib/types";
+import { formatQuoteForDisplay } from "@/lib/text-utils";
 import { ConfidenceBadge } from "./confidence-badge";
 
 interface ArticleCardProps {
@@ -267,7 +268,7 @@ export function ArticleCard({
                       key={i}
                       className="font-[family-name:var(--font-serif)] text-[13px] italic text-foreground-subtle"
                     >
-                      «&nbsp;{q}&nbsp;»
+                      «&nbsp;{formatQuoteForDisplay(q)}&nbsp;»
                     </p>
                   ))}
                 </div>

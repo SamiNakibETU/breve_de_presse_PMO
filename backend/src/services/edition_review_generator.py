@@ -264,10 +264,26 @@ async def generate_all_edition_topics(
     errors: list[str] = []
     instr = (getattr(ed, "compose_instructions_fr", None) or "").strip()
     for t in topics:
+        stmt_sel = (
+            select(EditionTopicArticle.article_id)
+            .where(
+                EditionTopicArticle.edition_topic_id == t.id,
+                EditionTopicArticle.is_selected.is_(True),
+            )
+            .order_by(
+                EditionTopicArticle.display_order.asc().nullslast(),
+                EditionTopicArticle.article_id,
+            )
+        )
+        res_sel = await db.execute(stmt_sel)
+        sel_ids = [row[0] for row in res_sel.all()]
+        if len(sel_ids) < 2:
+            continue
         r = await generate_edition_topic_review(
             db,
             edition_id,
             t.id,
+            article_ids=sel_ids,
             instruction_suffix=instr if instr else None,
         )
         if r.get("status") != "ok":
@@ -281,6 +297,18 @@ async def generate_all_edition_topics(
         ed.generated_text = "\n\n\n".join(parts)
         await db.commit()
         await db.refresh(ed)
+
+    if not parts and not errors:
+        return {
+            "status": "error",
+            "detail": (
+                "Aucun sujet avec au moins deux articles sélectionnés. "
+                "Cochez les textes au sommaire, puis relancez."
+            ),
+            "topics_ok": 0,
+            "topics_failed": [],
+            "generated_text": ed.generated_text if ed else None,
+        }
 
     if not parts and errors:
         out_status = "error"

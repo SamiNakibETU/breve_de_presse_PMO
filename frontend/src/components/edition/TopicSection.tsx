@@ -11,6 +11,7 @@ import {
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { countryCodesFromPreviews } from "@/lib/topic-country-codes";
 import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
+import { decodeHtmlEntities } from "@/lib/text-utils";
 
 /** Nombre d’articles visibles par défaut avant « + N autres regards ». */
 export const VISIBLE_PER_TOPIC = 3;
@@ -84,7 +85,9 @@ function TopicArticleLine({
   countryShownInGroupHeader?: boolean;
 }) {
   const { openArticle, prefetchArticle } = useArticleReader();
-  const title = preview.title_fr || preview.title_original;
+  const title = decodeHtmlEntities(
+    (preview.title_fr || preview.title_original || "").trim(),
+  );
   const typeFr = articleTypeLabelFr(preview.article_type);
   const cc = (preview.country_code ?? "").trim().toUpperCase();
   const flag = cc && cc !== "XX" ? REGION_FLAG_EMOJI[cc] : null;
@@ -485,8 +488,9 @@ export function TopicSection({
                   </div>
                   {more > 0 ? (
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      + {more} autre{more > 1 ? "s" : ""} texte
-                      {more > 1 ? "s" : ""} ({header})
+                      {more === 1
+                        ? `+ 1 autre texte (${header})`
+                        : `+ ${more} autres textes (${header})`}
                     </p>
                   ) : null}
                 </div>
@@ -502,8 +506,9 @@ export function TopicSection({
           className="olj-link-action mt-4"
           onClick={() => setExpanded(true)}
         >
-          Voir {restCount} autre{restCount > 1 ? "s" : ""} article
-          {restCount > 1 ? "s" : ""} sur ce sujet
+          {restCount === 1
+            ? "Voir 1 autre article sur ce sujet"
+            : `Voir ${restCount} autres articles sur ce sujet`}
         </button>
       )}
       {!expanded && restCount > 0 && mode === "summary" && (
@@ -512,8 +517,9 @@ export function TopicSection({
           className="olj-link-action mt-4 text-[12px]"
           onClick={() => setExpanded(true)}
         >
-          Afficher les {restCount} autre{restCount > 1 ? "s" : ""} texte
-          {restCount > 1 ? "s" : ""}
+          {restCount === 1
+            ? "Afficher 1 autre texte"
+            : `Afficher les ${restCount} autres textes`}
         </button>
       )}
     </section>

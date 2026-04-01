@@ -16,6 +16,10 @@ import { articleDetailQueryKey } from "@/contexts/article-reader";
 import { api } from "@/lib/api";
 import type { Article } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
+import {
+  decodeHtmlEntities,
+  formatQuoteForDisplay,
+} from "@/lib/text-utils";
 
 const STALE_MS = 60_000;
 
@@ -29,7 +33,10 @@ function buildSynthesisPlainText(a: Article): string {
   }
   if (a.key_quotes_fr?.length) {
     parts.push(
-      "Citations :\n" + a.key_quotes_fr.map((q) => `« ${q} »`).join("\n"),
+      "Citations :\n" +
+        a.key_quotes_fr
+          .map((q) => `« ${formatQuoteForDisplay(q)} »`)
+          .join("\n"),
     );
   }
   return parts.join("\n\n");
@@ -84,7 +91,14 @@ export default function ArticleFullPage() {
   }, [q.data]);
 
   const a = q.data;
-  const title = a?.title_fr || a?.title_original || "Article";
+  const title = a
+    ? decodeHtmlEntities(
+        (a.title_fr?.trim() || a.title_original || "Article").trim(),
+      )
+    : "Article";
+  const titleOriginalDisplay = a
+    ? decodeHtmlEntities(a.title_original || "")
+    : "";
   const typeFr = articleTypeLabelFr(a?.article_type);
   const langFr = sourceLanguageLabelFr(a?.source_language);
   const cc = (a?.country_code ?? "").trim().toUpperCase();
@@ -150,7 +164,7 @@ export default function ArticleFullPage() {
                 <span className="font-medium text-foreground-body">
                   Titre original :{" "}
                 </span>
-                {a.title_original}
+                {titleOriginalDisplay}
               </p>
             ) : null}
             <p className="flex flex-wrap gap-x-2 text-[13px] text-foreground-body">
@@ -273,7 +287,7 @@ export default function ArticleFullPage() {
                   <ul className="space-y-2 border-l-2 border-accent/20 pl-4">
                     {a.key_quotes_fr.map((quote, i) => (
                       <li key={i} className="italic">
-                        «&nbsp;{quote}&nbsp;»
+                        «&nbsp;{formatQuoteForDisplay(quote)}&nbsp;»
                       </li>
                     ))}
                   </ul>
