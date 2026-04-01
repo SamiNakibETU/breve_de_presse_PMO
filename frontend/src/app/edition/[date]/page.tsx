@@ -3,12 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useMemo, useState, useEffect, useRef } from "react";
-import { CoverageGaps } from "@/components/composition/CoverageGaps";
+import { useCallback, useMemo, useEffect, useRef } from "react";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { api } from "@/lib/api";
+import { useSelectionStore } from "@/stores/selection-store";
 import type {
   Edition,
   EditionDetectionStatus,
@@ -298,10 +298,15 @@ export default function EditionSommairePage() {
     staleTime: 15_000,
   });
 
-  const [topicSelections, setTopicSelections] = useState<Map<string, Set<string>>>(
-    () => new Map(),
+  const hydrateFromServer = useSelectionStore((s) => s.hydrateFromServer);
+  const setTopicArticlesStore = useSelectionStore((s) => s.setTopicArticles);
+  const setExtraArticlesStore = useSelectionStore((s) => s.setExtraArticles);
+  const selectionBundle = useSelectionStore(
+    useCallback(
+      (s) => (editionId ? s.byEditionId[editionId] : undefined),
+      [editionId],
+    ),
   );
-  const [extraSelected, setExtraSelected] = useState<Set<string>>(new Set());
   const patchTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
@@ -309,24 +314,11 @@ export default function EditionSommairePage() {
   const migratedExtrasRef = useRef(false);
 
   useEffect(() => {
-    const raw = selectionsQ.data?.topics;
-    if (!raw) {
+    if (!editionId || !selectionsQ.data) {
       return;
     }
-    const m = new Map<string, Set<string>>();
-    for (const [tid, ids] of Object.entries(raw)) {
-      m.set(tid, new Set(ids));
-    }
-    setTopicSelections(m);
-  }, [selectionsQ.data]);
-
-  useEffect(() => {
-    const ids = selectionsQ.data?.extra_article_ids;
-    if (ids === undefined) {
-      return;
-    }
-    setExtraSelected(new Set(ids));
-  }, [selectionsQ.data?.extra_article_ids]);
+    hydrateFromServer(editionId, selectionsQ.data);
+  }, [editionId, selectionsQ.data, hydrateFromServer]);
 
   useEffect(() => {
     if (!editionId || !selectionsQ.isSuccess || migratedExtrasRef.current) {
@@ -374,19 +366,20 @@ export default function EditionSommairePage() {
 
   const selectedIds = useMemo(() => {
     const s = new Set<string>();
-    topicSelections.forEach((ids) => {
-      ids.forEach((id) => {
+    const topics = selectionBundle?.topics ?? {};
+    for (const ids of Object.values(topics)) {
+      for (const id of ids) {
         s.add(id);
-      });
-    });
-    extraSelected.forEach((id) => {
+      }
+    }
+    for (const id of selectionBundle?.extra_article_ids ?? []) {
       s.add(id);
-    });
+    }
     return s;
-  }, [topicSelections, extraSelected]);
+  }, [selectionBundle]);
 
   const scheduleTopicPatch = useCallback(
-    (topicId: string, ids: Set<string>) => {
+    (topicId: string, ids: string[]) => {
       if (!editionId) {
         return;
       }
@@ -396,7 +389,7 @@ export default function EditionSommairePage() {
       }
       const t = setTimeout(() => {
         void api
-          .editionTopicSelection(editionId, topicId, [...ids])
+          .editionTopicSelection(editionId, topicId, ids)
           .then(() => {
             void qc.invalidateQueries({
               queryKey: ["editionSelections", editionId],
@@ -414,20 +407,24 @@ export default function EditionSommairePage() {
 
   const onTopicArticleToggle = useCallback(
     (topicId: string, articleId: string, next: boolean) => {
-      setTopicSelections((prev) => {
-        const m = new Map(prev);
-        const cur = new Set(m.get(topicId) ?? []);
-        if (next) {
-          cur.add(articleId);
-        } else {
-          cur.delete(articleId);
+      if (!editionId) {
+        return;
+      }
+      const cur = [...(selectionBundle?.topics[topicId] ?? [])];
+      if (next) {
+        if (!cur.includes(articleId)) {
+          cur.push(articleId);
         }
-        m.set(topicId, cur);
-        scheduleTopicPatch(topicId, cur);
-        return m;
-      });
+      } else {
+        const ix = cur.indexOf(articleId);
+        if (ix >= 0) {
+          cur.splice(ix, 1);
+        }
+      }
+      setTopicArticlesStore(editionId, topicId, cur);
+      scheduleTopicPatch(topicId, cur);
     },
-    [scheduleTopicPatch],
+    [editionId, selectionBundle?.topics, setTopicArticlesStore, scheduleTopicPatch],
   );
 
   const scheduleExtraPatch = useCallback(
@@ -459,61 +456,27 @@ export default function EditionSommairePage() {
 
   const toggleExtraArticle = useCallback(
     (id: string, next: boolean) => {
-      setExtraSelected((prev) => {
-        const n = new Set(prev);
-        if (next) {
-          n.add(id);
-        } else {
-          n.delete(id);
-        }
-        scheduleExtraPatch(n);
-        return n;
-      });
+      if (!editionId) {
+        return;
+      }
+      const prev = selectionBundle?.extra_article_ids ?? [];
+      const n = new Set(prev);
+      if (next) {
+        n.add(id);
+      } else {
+        n.delete(id);
+      }
+      const arr = [...n];
+      setExtraArticlesStore(editionId, arr);
+      scheduleExtraPatch(n);
     },
-    [scheduleExtraPatch],
+    [editionId, selectionBundle?.extra_article_ids, setExtraArticlesStore, scheduleExtraPatch],
   );
 
   const clusterRows = useMemo(
     () => clustersFallbackQ.data ?? [],
     [clustersFallbackQ.data],
   );
-
-  const idToCountryCode = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const t of topics) {
-      for (const p of t.article_previews ?? []) {
-        if (p.country_code) {
-          m.set(p.id, p.country_code);
-        }
-      }
-    }
-    for (const row of clusterRows) {
-      for (const ar of row.articles) {
-        const c = ar.country_code?.trim();
-        if (c) {
-          m.set(ar.id, c.toUpperCase());
-        }
-      }
-    }
-    for (const p of selectionsQ.data?.extra_articles ?? []) {
-      const c = p.country_code?.trim();
-      if (c) {
-        m.set(p.id, c.toUpperCase());
-      }
-    }
-    return m;
-  }, [topics, clusterRows, selectionsQ.data?.extra_articles]);
-
-  const selectedCountryCodes = useMemo(() => {
-    const s = new Set<string>();
-    for (const id of selectedIds) {
-      const c = idToCountryCode.get(id);
-      if (c) {
-        s.add(c.toUpperCase());
-      }
-    }
-    return [...s];
-  }, [selectedIds, idToCountryCode]);
 
   const edition = editionQ.data ?? null;
 
@@ -638,7 +601,7 @@ export default function EditionSommairePage() {
   const labelsFr = coverageQ.data?.labels_fr ?? null;
 
   return (
-    <div className="space-y-10 pb-36">
+    <div className="space-y-10">
       <header className="max-w-4xl border-b border-border pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -945,33 +908,6 @@ export default function EditionSommairePage() {
         </>
       )}
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
-        <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background px-5 py-3 shadow-[0_-6px_24px_rgba(27,26,26,0.06)] sm:px-6">
-          <CoverageGaps
-            selectedCountryCodes={selectedCountryCodes}
-            targets={coverageQ.data ?? null}
-            compact
-          />
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <p className="text-center text-[12px] text-muted-foreground sm:text-left">
-              <span className="tabular-nums font-medium text-foreground">
-                {selectedIds.size}
-              </span>{" "}
-              sélection
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              {date ? (
-                <Link
-                  href={`/edition/${date}/compose`}
-                  className="olj-btn-primary w-full text-center sm:w-auto"
-                >
-                  Rédaction
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

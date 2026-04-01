@@ -1,0 +1,9 @@
+# Scraper standalone — pas de dépendance au backend du projet
+aiohttp>=3.11.0
+beautifulsoup4>=4.12
+lxml>=5.0
+curl-cffi>=0.7.0
+feedparser>=6.0.11
+playwright>=1.49
+PyYAML>=6.0
+trafilatura>=2.0.0

@@ -1,0 +1,18 @@
+# Exemple de fichier URLs pour scraping manuel
+# Format: une URL par ligne, lignes vides ignorées, # pour commentaires
+
+# Al-Ittihad (Emirats Arabes Unis)
+# https://www.aletihad.ae/coverage/ARTICLE_ID
+# A compléter avec URLs collectées manuellement depuis le navigateur
+
+# Gulf News (Emirats Arabes Unis)
+# https://gulfnews.com/opinion/op-eds/ARTICLE_SLUG
+# A compléter avec URLs collectées manuellement
+
+# The National (Emirats Arabes Unis)
+# https://www.thenationalnews.com/opinion/comment/YYYY/MM/DD/ARTICLE_SLUG/
+# A compléter avec URLs collectées manuellement
+
+# Exemples (à remplacer par de vraies URLs):
+# https://www.aletihad.ae/opinion/2024/01/example-article-12345
+# https://gulfnews.com/opinion/columnists/example-opinion-piece-1.123456789

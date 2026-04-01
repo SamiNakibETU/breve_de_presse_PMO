@@ -27,6 +27,7 @@ from src.services.llm_route_hint import hint_anthropic_generation, hint_olj_gene
 from src.services.llm_router import get_llm_router
 from src.services.olj_pipeline_llm import olj_pipeline_completion
 from src.services.provider_usage_ledger import append_provider_usage_commit
+from src.services.alerts import post_topic_detector_low_articles_alert
 
 logger = structlog.get_logger(__name__)
 
@@ -378,6 +379,17 @@ class TopicDetector:
                     count=len(rows),
                     hint="Seuls opinion/editorial/tribune/analysis traduits rattachés à l’édition (edition_id / fenêtre) comptent.",
                 )
+                try:
+                    await post_topic_detector_low_articles_alert(
+                        edition_id=str(eid),
+                        count=len(rows),
+                        min_required=5,
+                    )
+                except Exception as alert_exc:
+                    logger.warning(
+                        "topic_detector.low_articles_alert_failed",
+                        error=str(alert_exc)[:120],
+                    )
                 edition.detection_status = "done"
                 await db.commit()
                 return 0

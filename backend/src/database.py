@@ -110,6 +110,18 @@ async def init_db() -> None:
                 "extra_selected_article_ids JSONB NOT NULL DEFAULT '[]'::jsonb"
             ),
             "ALTER TABLE editions ADD COLUMN IF NOT EXISTS compose_instructions_fr TEXT",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analysis_bullets_fr JSONB",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS author_thesis_explicit_fr TEXT",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS factual_context_fr TEXT",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analysis_tone VARCHAR(32)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS fact_opinion_quality VARCHAR(32)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analysis_version VARCHAR(16)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analyzed_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS retention_until TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS retention_reason VARCHAR(64)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS scrape_method VARCHAR(32)",
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS scrape_cascade_attempts INTEGER",
+            "ALTER TABLE edition_topics ADD COLUMN IF NOT EXISTS user_rank INTEGER",
         ]:
             try:
                 await conn.execute(text(stmt))

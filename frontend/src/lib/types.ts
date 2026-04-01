@@ -42,6 +42,16 @@ export interface Article {
   editorial_angle?: string | null;
   event_tags?: string[] | null;
   is_flagship?: boolean | null;
+  /** Analyse experte (pipeline MEMW v2). */
+  analysis_bullets_fr?: string[] | null;
+  author_thesis_explicit_fr?: string | null;
+  factual_context_fr?: string | null;
+  analysis_tone?: string | null;
+  fact_opinion_quality?: string | null;
+  analysis_version?: string | null;
+  analyzed_at?: string | null;
+  retention_until?: string | null;
+  retention_reason?: string | null;
   /** Corps traduit (souvent présent sur GET /api/articles/{id}). */
   content_translated_fr?: string | null;
   framing_actor?: string | null;
@@ -299,6 +309,12 @@ export interface TopicArticlePreview {
   author?: string | null;
   editorial_angle?: string | null;
   is_flagship?: boolean | null;
+  /** Puces d’analyse experte (aperçu sommaire). */
+  analysis_bullets_fr?: string[] | null;
+  /** Résumé éditorial (tronqué côté API pour les listes). */
+  summary_fr?: string | null;
+  /** Corps traduit disponible (hors résumé seul). */
+  has_full_translation_fr?: boolean;
 }
 
 /** GET /api/editions/{id}/selections */
@@ -311,6 +327,8 @@ export interface EditionSelectionsResponse {
 export interface EditionTopic {
   id: string;
   rank: number;
+  /** Ordre personnalisé (rédaction) ; sinon null. */
+  user_rank?: number | null;
   title_proposed: string;
   title_final: string | null;
   status: string;

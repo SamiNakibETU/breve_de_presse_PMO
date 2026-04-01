@@ -131,6 +131,30 @@ async def _pipeline_heartbeat_loop(holder_id: str, stop: asyncio.Event) -> None:
                 )
 
 
+async def run_topic_detection_job_once() -> dict:
+    """Détection des sujets du jour (édition calendaire Beyrouth)."""
+    from src.services.edition_schedule import BEIRUT, find_edition_for_calendar_date
+    from src.services.topic_detector import TopicDetector
+
+    factory = get_session_factory()
+    async with factory() as db:
+        cal = datetime.now(BEIRUT).date()
+        edition = await find_edition_for_calendar_date(db, cal)
+        if not edition:
+            return {"topics_created": 0, "note": "no_edition_for_calendar_date"}
+        detector = TopicDetector()
+        t0 = time.monotonic()
+        n = await detector.build_edition_topics(db, edition)
+        await db.refresh(edition)
+        return {
+            "topics_created": n,
+            "duration_s": round(time.monotonic() - t0, 2),
+            "edition_id": str(edition.id),
+            "publish_date": edition.publish_date.isoformat(),
+            "detection_status": edition.detection_status,
+        }
+
+
 async def pipeline_lease_stall_watch_tick() -> None:
     """Cron : alerte si lease valide mais heartbeat trop vieux."""
     global _last_stall_alert_monotonic
@@ -413,58 +437,110 @@ async def _daily_pipeline_body(
     }
 
     async def _post_phases() -> None:
-        try:
-            from src.services.edition_schedule import resolve_edition_id_for_timestamp
-            from src.services.relevance_scorer import run_relevance_scoring_pipeline
+        rel_last_error: str | None = None
+        for rel_attempt in range(3):
+            try:
+                from src.services.edition_schedule import resolve_edition_id_for_timestamp
+                from src.services.relevance_scorer import run_relevance_scoring_pipeline
 
-            factory = get_session_factory()
-            async with factory() as db:
-                eid_rel = await resolve_edition_id_for_timestamp(
-                    db, datetime.now(timezone.utc)
+                factory = get_session_factory()
+                async with factory() as db:
+                    eid_rel = await resolve_edition_id_for_timestamp(
+                        db, datetime.now(timezone.utc)
+                    )
+                    rel_stats = await run_relevance_scoring_pipeline(
+                        db,
+                        edition_id=eid_rel,
+                    )
+                    await db.commit()
+                pipeline_result["relevance_scoring"] = rel_stats
+                pipeline_result["edition_id_relevance"] = str(eid_rel) if eid_rel else None
+                await log_pipeline_step(
+                    eid_rel,
+                    "relevance_scoring",
+                    compact_payload({"stats": rel_stats}),
                 )
-                rel_stats = await run_relevance_scoring_pipeline(
-                    db,
-                    edition_id=eid_rel,
+                rel_last_error = None
+                break
+            except Exception as e:
+                rel_last_error = str(e)[:200]
+                logger.warning(
+                    "pipeline.relevance_scoring_failed",
+                    attempt=rel_attempt + 1,
+                    error=rel_last_error,
                 )
-                await db.commit()
-            pipeline_result["relevance_scoring"] = rel_stats
-            pipeline_result["edition_id_relevance"] = str(eid_rel) if eid_rel else None
-            await log_pipeline_step(
-                eid_rel,
-                "relevance_scoring",
-                compact_payload({"stats": rel_stats}),
-            )
-        except Exception as e:
-            logger.warning("pipeline.relevance_scoring_failed", error=str(e)[:200])
-            pipeline_result["relevance_scoring"] = {"error": str(e)[:200]}
+                if rel_attempt < 2:
+                    await asyncio.sleep(30.0 if rel_attempt == 0 else 60.0)
+        if rel_last_error is not None:
+            pipeline_result["relevance_scoring"] = {"error": rel_last_error}
 
-        try:
-            from src.services.dedup_surface import run_surface_dedup
-            from src.services.edition_schedule import resolve_edition_id_for_timestamp
+        analysis_last_error: str | None = None
+        for analysis_attempt in range(3):
+            try:
+                from src.services.article_analyst import run_article_analysis_pipeline
 
-            factory = get_session_factory()
-            async with factory() as db:
-                eid = await resolve_edition_id_for_timestamp(
-                    db, datetime.now(timezone.utc)
+                eid_art = await resolve_current_edition_id()
+                art_stats = await run_article_analysis_pipeline(edition_id=eid_art)
+                pipeline_result["article_analysis"] = art_stats
+                if eid_art:
+                    await log_pipeline_step(
+                        eid_art,
+                        "article_analysis",
+                        compact_payload(art_stats),
+                    )
+                analysis_last_error = None
+                break
+            except Exception as e:
+                analysis_last_error = str(e)[:200]
+                logger.warning(
+                    "pipeline.article_analysis_failed",
+                    attempt=analysis_attempt + 1,
+                    error=analysis_last_error,
                 )
-                dedup_stats = await run_surface_dedup(db, edition_id=eid)
-                await db.commit()
-            pipeline_result["dedup_surface"] = dedup_stats
-            pipeline_result["edition_id"] = str(eid) if eid else None
-            await log_pipeline_step(
-                eid,
-                "dedup_surface",
-                compact_payload(
-                    {
-                        **dedup_stats,
-                        "threshold_jaccard": JACCARD_THRESHOLD,
-                        "num_perm": NUM_PERM,
-                    },
-                ),
-            )
-        except Exception as e:
-            logger.warning("pipeline.dedup_surface_failed", error=str(e)[:200])
-            pipeline_result["dedup_surface"] = {"error": str(e)[:200]}
+                if analysis_attempt < 2:
+                    await asyncio.sleep(30.0 if analysis_attempt == 0 else 60.0)
+        if analysis_last_error is not None:
+            pipeline_result["article_analysis"] = {"error": analysis_last_error}
+
+        ded_last_error: str | None = None
+        for ded_attempt in range(3):
+            try:
+                from src.services.dedup_surface import run_surface_dedup
+                from src.services.edition_schedule import resolve_edition_id_for_timestamp
+
+                factory = get_session_factory()
+                async with factory() as db:
+                    eid = await resolve_edition_id_for_timestamp(
+                        db, datetime.now(timezone.utc)
+                    )
+                    dedup_stats = await run_surface_dedup(db, edition_id=eid)
+                    await db.commit()
+                pipeline_result["dedup_surface"] = dedup_stats
+                pipeline_result["edition_id"] = str(eid) if eid else None
+                await log_pipeline_step(
+                    eid,
+                    "dedup_surface",
+                    compact_payload(
+                        {
+                            **dedup_stats,
+                            "threshold_jaccard": JACCARD_THRESHOLD,
+                            "num_perm": NUM_PERM,
+                        },
+                    ),
+                )
+                ded_last_error = None
+                break
+            except Exception as e:
+                ded_last_error = str(e)[:200]
+                logger.warning(
+                    "pipeline.dedup_surface_failed",
+                    attempt=ded_attempt + 1,
+                    error=ded_last_error,
+                )
+                if ded_attempt < 2:
+                    await asyncio.sleep(30.0 if ded_attempt == 0 else 60.0)
+        if ded_last_error is not None:
+            pipeline_result["dedup_surface"] = {"error": ded_last_error}
         try:
             from src.services.source_health_metrics import refresh_translation_metrics_24h
 
@@ -480,31 +556,8 @@ async def _daily_pipeline_body(
             )
             pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
 
-        async def _topic_detection_job() -> dict:
-            from src.services.edition_schedule import BEIRUT, find_edition_for_calendar_date
-            from src.services.topic_detector import TopicDetector
-
-            factory = get_session_factory()
-            async with factory() as db:
-                # Ne pas utiliser « maintenant » dans resolve_edition_id_for_timestamp : entre la fin
-                # de fenêtre (J 6h) et le début de la suivante (J 18h) à Beyrouth, aucune édition ne
-                # contient ce timestamp → pas de sujets alors que le corpus du jour existe.
-                cal = datetime.now(BEIRUT).date()
-                edition = await find_edition_for_calendar_date(db, cal)
-                if not edition:
-                    return {"topics_created": 0, "note": "no_edition_for_calendar_date"}
-                detector = TopicDetector()
-                t0 = time.monotonic()
-                n = await detector.build_edition_topics(db, edition)
-                return {
-                    "topics_created": n,
-                    "duration_s": round(time.monotonic() - t0, 2),
-                    "edition_id": str(edition.id),
-                    "publish_date": edition.publish_date.isoformat(),
-                }
-
         p("topic_detection", "Détection des développements (LLM)…")
-        topic_detection_task = asyncio.create_task(_topic_detection_job())
+        topic_detection_task = asyncio.create_task(run_topic_detection_job_once())
 
         cohere_key = settings.cohere_api_key
         if not cohere_key:
@@ -631,6 +684,14 @@ async def _daily_pipeline_body(
 
         try:
             topic_result = await topic_detection_task
+            if topic_result.get("detection_status") == "failed":
+                logger.warning(
+                    "pipeline.topic_detection_retry",
+                    reason="detection_status_failed",
+                )
+                await asyncio.sleep(60.0)
+                topic_retry = await run_topic_detection_job_once()
+                topic_result["retry_after_failure"] = topic_retry
             pipeline_result["topic_detection"] = topic_result
             topic_log_edition_id = None
             raw_eid = topic_result.get("edition_id")
@@ -714,6 +775,42 @@ async def pipeline_completion_retry_tick() -> None:
     await run_daily_pipeline(trigger="cron_completion_retry", resume=True)
 
 
+async def retention_cleanup_tick() -> None:
+    """Nettoie les drapeaux ``retention_until`` expirés (TTL articles sélectionnés)."""
+    try:
+        from src.services.selected_article_retention import (
+            clear_expired_retention_flags,
+        )
+
+        factory = get_session_factory()
+        async with factory() as db:
+            n = await clear_expired_retention_flags(db)
+            await db.commit()
+        logger.info("scheduler.retention_cleanup", cleared=n)
+    except Exception as exc:
+        logger.warning(
+            "scheduler.retention_cleanup_failed",
+            error=str(exc)[:200],
+        )
+
+
+async def selected_fulltext_translation_tick() -> None:
+    """Traduction corps FR pour articles encore sélectionnés (rétention active)."""
+    try:
+        from src.services.selected_article_fulltext import (
+            run_selected_article_fulltext_job,
+        )
+
+        res = await run_selected_article_fulltext_job()
+        if not res.get("skipped"):
+            logger.info("scheduler.selected_fulltext", **{k: v for k, v in res.items()})
+    except Exception as exc:
+        logger.warning(
+            "scheduler.selected_fulltext_failed",
+            error=str(exc)[:200],
+        )
+
+
 def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     h = settings.pipeline_paris_morning_hour
@@ -726,6 +823,7 @@ def create_scheduler() -> AsyncIOScheduler:
     async def _cron_weekday() -> None:
         await run_daily_pipeline(trigger="cron_weekday")
 
+    _misfire = 3600
     scheduler.add_job(
         _cron_monday,
         trigger=CronTrigger(
@@ -737,6 +835,8 @@ def create_scheduler() -> AsyncIOScheduler:
         id="daily_pipeline_monday",
         name=f"Pipeline week-end (lun. {h:02d}:{m:02d} Paris)",
         replace_existing=True,
+        misfire_grace_time=_misfire,
+        coalesce=True,
     )
 
     scheduler.add_job(
@@ -750,6 +850,8 @@ def create_scheduler() -> AsyncIOScheduler:
         id="daily_pipeline_weekday",
         name=f"Pipeline mar.–ven. ({h:02d}:{m:02d} Paris)",
         replace_existing=True,
+        misfire_grace_time=_misfire,
+        coalesce=True,
     )
 
     if settings.pipeline_completion_retry_minutes > 0:
@@ -766,6 +868,8 @@ def create_scheduler() -> AsyncIOScheduler:
                 f"{settings.pipeline_retry_paris_end_hour:02d}h)"
             ),
             replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
         )
 
     scheduler.add_job(
@@ -776,6 +880,8 @@ def create_scheduler() -> AsyncIOScheduler:
         id="pipeline_lease_stall_watch",
         name="Surveillance heartbeat lease pipeline",
         replace_existing=True,
+        misfire_grace_time=_misfire,
+        coalesce=True,
     )
 
     try:
@@ -787,9 +893,34 @@ def create_scheduler() -> AsyncIOScheduler:
             id="edition_daily_create_beirut",
             name="Create next-day edition (00:00 Asia/Beirut)",
             replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
         )
     except Exception as exc:
         logger.warning("scheduler.edition_job_failed", error=str(exc)[:200])
+
+    scheduler.add_job(
+        retention_cleanup_tick,
+        trigger=CronTrigger(hour=3, minute=30, timezone="Asia/Beirut"),
+        id="retention_cleanup_daily",
+        name="Nettoyage rétention articles sélectionnés (TTL)",
+        replace_existing=True,
+        misfire_grace_time=_misfire,
+        coalesce=True,
+    )
+
+    if settings.selected_fulltext_job_interval_minutes > 0:
+        scheduler.add_job(
+            selected_fulltext_translation_tick,
+            trigger=IntervalTrigger(
+                minutes=settings.selected_fulltext_job_interval_minutes,
+            ),
+            id="selected_fulltext_translation",
+            name="Traduction corps articles sélectionnés (rétention)",
+            replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
+        )
 
     logger.info(
         "scheduler.configured",
@@ -797,5 +928,6 @@ def create_scheduler() -> AsyncIOScheduler:
         edition_cron="00:00 Asia/Beirut",
         completion_retry_minutes=settings.pipeline_completion_retry_minutes,
         stall_check_minutes=settings.pipeline_stall_check_interval_minutes,
+        selected_fulltext_interval_minutes=settings.selected_fulltext_job_interval_minutes,
     )
     return scheduler

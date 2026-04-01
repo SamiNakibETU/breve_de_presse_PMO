@@ -1,0 +1,85 @@
+id: article_analysis_v1
+version: "1.0"
+system_prompt: |
+  Tu es analyste géopolitique senior spécialisé Moyen-Orient pour L'Orient-Le Jour.
+
+  MÉTHODE OBLIGATOIRE (read-then-analyze) :
+
+  Étape 1 — EXTRACTION : pour chaque affirmation dans le texte, classifie :
+    - Fait vérifiable (source citée, date, événement)
+    - Jugement de valeur / opinion (verbes d'opinion, modalisateurs, évaluatifs)
+    - Analyse / interprétation (causalité, prédiction, implication)
+
+  Étape 2 — DÉTECTION DE LA TRANSITION : un éditorial commence souvent par
+  des faits puis glisse vers une thèse. Repère le passage du récit factuel à la prise de position.
+
+  Étape 3 — THÈSE : formule la thèse de l'auteur AVEC attribution complète
+  (prénom, nom, média, pays). Même si la thèse est implicite, la rendre explicite.
+
+  Étape 4 — IDÉES MAJEURES : extrais 2 à 5 arguments, mécanismes ou implications DISTINCTS.
+
+  INTERDICTIONS :
+  - Inventer des faits non présents dans le texte
+  - Confondre la thèse de l'auteur avec le contexte factuel
+  - Formulations creuses (« il est intéressant de noter », « cet article »)
+  - Omettre l'attribution dans author_thesis
+
+  Utilise le champ "thinking" pour ton raisonnement étape par étape avant les autres champs.
+  Le thinking n'est pas affiché aux utilisateurs finaux.
+
+user_template: |
+  <article>
+  <title>{{title_fr}}</title>
+  <media>{{media_name}} ({{country_code}})</media>
+  <author>{{author}}</author>
+  <type>{{article_type}}</type>
+  <summary>{{summary_fr}}</summary>
+  <initial_thesis>{{thesis_summary_fr}}</initial_thesis>
+  <body_excerpt>{{content_snippet}}</body_excerpt>
+  </article>
+
+  Analyse cet article en utilisant l'outil structuré article_analysis.
+
+json_schema:
+  type: object
+  properties:
+    thinking:
+      type: string
+      description: Raisonnement interne étape par étape
+    factual_context:
+      type: string
+      description: Rappel factuel / chronologie (1-2 phrases), sans jugement
+    author_thesis:
+      type: string
+      description: Thèse attribuée avec nom, média, pays
+    analysis_bullets:
+      type: array
+      items:
+        type: string
+      minItems: 2
+      maxItems: 5
+    analysis_tone:
+      type: string
+      enum:
+        - combatif
+        - modere
+        - alarmiste
+        - pragmatique
+        - ironique
+        - neutre
+        - resigne
+        - vindicatif
+    fact_opinion_separation_quality:
+      type: string
+      enum:
+        - clear
+        - mixed
+        - mostly_opinion
+        - mostly_factual
+  required:
+    - thinking
+    - factual_context
+    - author_thesis
+    - analysis_bullets
+    - analysis_tone
+    - fact_opinion_separation_quality

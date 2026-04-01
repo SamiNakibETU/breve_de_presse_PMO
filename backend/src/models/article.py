@@ -14,7 +14,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
@@ -124,6 +124,20 @@ class Article(Base):
     is_flagship: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+
+    analysis_bullets_fr: Mapped[Optional[list[str]]] = mapped_column(
+        JSONB, nullable=True
+    )
+    author_thesis_explicit_fr: Mapped[Optional[str]] = mapped_column(Text)
+    factual_context_fr: Mapped[Optional[str]] = mapped_column(Text)
+    analysis_tone: Mapped[Optional[str]] = mapped_column(String(32))
+    fact_opinion_quality: Mapped[Optional[str]] = mapped_column(String(32))
+    analysis_version: Mapped[Optional[str]] = mapped_column(String(16))
+    analyzed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    retention_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    retention_reason: Mapped[Optional[str]] = mapped_column(String(64))
+    scrape_method: Mapped[Optional[str]] = mapped_column(String(32))
+    scrape_cascade_attempts: Mapped[Optional[int]] = mapped_column(Integer)
 
     status: Mapped[str] = mapped_column(
         String(64), nullable=False, default="raw"

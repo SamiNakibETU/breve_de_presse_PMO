@@ -58,6 +58,17 @@ class ArticleResponse(BaseModel):
     editorial_angle: Optional[str] = None
     event_tags: Optional[list[str]] = None
     is_flagship: Optional[bool] = None
+    analysis_bullets_fr: Optional[list[str]] = None
+    author_thesis_explicit_fr: Optional[str] = None
+    factual_context_fr: Optional[str] = None
+    analysis_tone: Optional[str] = None
+    fact_opinion_quality: Optional[str] = None
+    analysis_version: Optional[str] = None
+    analyzed_at: Optional[datetime] = None
+    retention_until: Optional[datetime] = None
+    retention_reason: Optional[str] = None
+    scrape_method: Optional[str] = None
+    scrape_cascade_attempts: Optional[int] = None
 
 
 class ArticleListResponse(BaseModel):

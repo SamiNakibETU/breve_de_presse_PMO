@@ -150,6 +150,24 @@ async def post_pipeline_timeout_alert(*, timeout_s: int, trigger: str) -> None:
     )
 
 
+async def post_topic_detector_low_articles_alert(
+    *,
+    edition_id: str,
+    count: int,
+    min_required: int,
+) -> None:
+    """Webhook optionnel : corpus insuffisant pour la détection de sujets (LLM)."""
+    s = get_settings()
+    payload = {
+        "type": "topic_detector_too_few_articles",
+        "edition_id": edition_id,
+        "count": count,
+        "min_required": min_required,
+    }
+    await _post_json_alert(s.alert_webhook_url, payload)
+    await _post_json_alert(s.alert_email_webhook_url, payload)
+
+
 async def post_cluster_hot_alert(
     *,
     cluster_id: str,

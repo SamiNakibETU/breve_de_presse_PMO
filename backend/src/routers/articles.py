@@ -156,6 +156,21 @@ def _to_response(
         editorial_angle=getattr(art, "editorial_angle", None),
         event_tags=art.event_tags if isinstance(getattr(art, "event_tags", None), list) else None,
         is_flagship=bool(getattr(art, "is_flagship", False)),
+        analysis_bullets_fr=(
+            list(art.analysis_bullets_fr)
+            if isinstance(getattr(art, "analysis_bullets_fr", None), list)
+            else None
+        ),
+        author_thesis_explicit_fr=getattr(art, "author_thesis_explicit_fr", None),
+        factual_context_fr=getattr(art, "factual_context_fr", None),
+        analysis_tone=getattr(art, "analysis_tone", None),
+        fact_opinion_quality=getattr(art, "fact_opinion_quality", None),
+        analysis_version=getattr(art, "analysis_version", None),
+        analyzed_at=getattr(art, "analyzed_at", None),
+        retention_until=getattr(art, "retention_until", None),
+        retention_reason=getattr(art, "retention_reason", None),
+        scrape_method=getattr(art, "scrape_method", None),
+        scrape_cascade_attempts=getattr(art, "scrape_cascade_attempts", None),
     )
 
 

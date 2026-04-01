@@ -1,0 +1,23 @@
+{
+  "media_id": "dz_el_chourouk_el_yom",
+  "media_name": "El Chourouk el-Yom",
+  "hub_urls_tried": [
+    "https://www.echoroukonline.com/opinion"
+  ],
+  "article_urls_attempted": [
+    "https://www.echoroukonline.com/opinion/page/2",
+    "https://www.echoroukonline.com/opinion/page/3",
+    "https://www.echoroukonline.com/opinion/page/2104"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_075158Z\\dz_el_chourouk_el_yom",
+  "articles": [
+    "https://www.echoroukonline.com/opinion/page/2",
+    "https://www.echoroukonline.com/opinion/page/3",
+    "https://www.echoroukonline.com/opinion/page/2104"
+  ]
+}

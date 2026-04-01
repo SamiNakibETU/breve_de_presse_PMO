@@ -1,0 +1,118 @@
+{
+  "version": "1.0.0",
+  "description": "Sélecteurs CSS optionnels par média (ordre de priorité). Fallback Trafilatura si vide ou échec.",
+  "priority_media_ids": [
+    "qa_al_jazeera",
+    "sa_arab_news",
+    "il_haaretz",
+    "me_middle_east_eye",
+    "ae_gulf_news",
+    "il_jerusalem_post",
+    "sa_al_arabiya",
+    "qa_gulf_times",
+    "tr_daily_sabah",
+    "sy_enab_baladi"
+  ],
+  "sites": [
+    {
+      "media_id": "qa_al_jazeera",
+      "hosts": ["aljazeera.com", "www.aljazeera.com"],
+      "selectors": {
+        "title": ["h1.article-heading", "article h1", "[data-testid='article-title']"],
+        "body": ["article .wysiwyg--article-body", "div.article-p-wrapper", "article .article__body"],
+        "author": ["[data-component-name='author']", ".article-author a", "a[rel='author']"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "sa_arab_news",
+      "hosts": ["arabnews.com", "www.arabnews.com"],
+      "selectors": {
+        "title": ["h1.detail-title", "article h1", ".entry-title"],
+        "body": [".detail-text", "article .article-body", ".article-content"],
+        "author": [".detail-info .author a", ".article-author", "[itemprop='author']"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "il_haaretz",
+      "hosts": ["haaretz.com", "www.haaretz.com"],
+      "selectors": {
+        "title": ["h1", "article h1", "[data-test='article-header'] h1"],
+        "body": ["article .article__content", ".article__text", "article .text"],
+        "author": [".article-header__author", "[itemprop='author']", ".author-name"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "me_middle_east_eye",
+      "hosts": ["middleeasteye.net", "www.middleeasteye.net"],
+      "selectors": {
+        "title": ["h1.article-title", "article h1", "header h1"],
+        "body": ["article .article-content", ".field-name-body", "article .field-body"],
+        "author": [".author-name a", ".author", "[rel='author']"],
+        "date": ["time[datetime]", ".article-date", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "ae_gulf_news",
+      "hosts": ["gulfnews.com", "www.gulfnews.com"],
+      "selectors": {
+        "title": ["h1", "article h1", ".article-title"],
+        "body": [".article-body", "article .article__content", ".article__body"],
+        "author": [".article-author", ".author-name", "[itemprop='author']"],
+        "date": ["time[datetime]", ".article-date", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "il_jerusalem_post",
+      "hosts": ["jpost.com", "www.jpost.com"],
+      "selectors": {
+        "title": ["h1", "article h1", ".article-title"],
+        "body": [".article-content", "article .article-body", "#article-inner-content"],
+        "author": [".article-author", ".author", "[itemprop='author']"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "sa_al_arabiya",
+      "hosts": ["alarabiya.net", "www.alarabiya.net"],
+      "selectors": {
+        "title": ["h1", "article h1", ".article-title"],
+        "body": ["article .article-body", ".article-text", ".article__body"],
+        "author": [".article-author", ".author-name", "[itemprop='author']"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "qa_gulf_times",
+      "hosts": ["gulf-times.com", "www.gulf-times.com"],
+      "selectors": {
+        "title": ["h1", "article h1", ".article-title"],
+        "body": [".article-body", "article .content", ".article-content"],
+        "author": [".author", ".article-author", "[itemprop='author']"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "tr_daily_sabah",
+      "hosts": ["dailysabah.com", "www.dailysabah.com"],
+      "selectors": {
+        "title": ["h1", "article h1", ".article-title"],
+        "body": [".article-content", "article .text", ".news-content"],
+        "author": [".article-author", ".author", "[itemprop='author']"],
+        "date": ["time[datetime]", "meta[property='article:published_time']"]
+      }
+    },
+    {
+      "media_id": "sy_enab_baladi",
+      "hosts": ["english.enabbaladi.net", "enabbaladi.net"],
+      "selectors": {
+        "title": ["h1.entry-title", "article h1", "h1"],
+        "body": [".entry-content", "article .post-content", ".article-content"],
+        "author": [".author a", ".byline", "[rel='author']"],
+        "date": ["time[datetime]", ".published", "meta[property='article:published_time']"]
+      }
+    }
+  ]
+}

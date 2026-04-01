@@ -83,6 +83,7 @@ class EditionTopic(Base):
         nullable=False,
     )
     rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    user_rank: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     title_proposed: Mapped[str] = mapped_column(String(500), nullable=False)
     title_final: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(

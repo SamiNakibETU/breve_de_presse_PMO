@@ -313,6 +313,22 @@ export function TopicSection({
               {topic.dominant_angle.trim()}
             </p>
           ) : null}
+          {(() => {
+            const withBullets = previews.find(
+              (p) => p.analysis_bullets_fr && p.analysis_bullets_fr.length > 0,
+            );
+            const bullets = withBullets?.analysis_bullets_fr?.slice(0, 2) ?? [];
+            if (bullets.length === 0) {
+              return null;
+            }
+            return (
+              <ul className="max-w-xl space-y-1.5 border-l-2 border-accent/25 pl-3 text-[12px] leading-relaxed text-foreground-body">
+                {bullets.map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+            );
+          })()}
           <div className="flex flex-wrap items-center gap-2">
             {topic.is_multi_perspective ? (
               <span className="inline-flex items-center rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground-body">

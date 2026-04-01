@@ -76,7 +76,7 @@ export function useArticleReader(): ArticleReaderContextValue {
   };
 }
 
-type ReaderTab = "synthesis" | "translation";
+type ReaderTab = "analysis" | "synthesis" | "body" | "source";
 
 function buildSynthesisPlainText(a: Article): string {
   const parts: string[] = [];
@@ -119,7 +119,6 @@ function ArticleReadModal({
   });
 
   useEffect(() => {
-    setTab("synthesis");
     setCopiedSynth(false);
   }, [articleId]);
 
@@ -134,6 +133,18 @@ function ArticleReadModal({
   }, [onClose]);
 
   const a: Article | undefined = q.data;
+
+  useEffect(() => {
+    if (!a) {
+      return;
+    }
+    const hasAnalysis =
+      (a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) ||
+      Boolean(a.author_thesis_explicit_fr?.trim()) ||
+      Boolean(a.factual_context_fr?.trim());
+    setTab(hasAnalysis ? "analysis" : "synthesis");
+  }, [a]);
+
   const title = a?.title_fr || a?.title_original || "Article";
   const typeFr = articleTypeLabelFr(a?.article_type);
   const langFr = sourceLanguageLabelFr(a?.source_language);
@@ -263,34 +274,30 @@ function ArticleReadModal({
                 role="tablist"
                 aria-label="Mode de lecture"
               >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "synthesis"}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors",
-                    tab === "synthesis"
-                      ? "bg-accent/12 text-accent"
-                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                  )}
-                  onClick={() => setTab("synthesis")}
-                >
-                  Synthèse revue
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "translation"}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-colors",
-                    tab === "translation"
-                      ? "bg-accent/12 text-accent"
-                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                  )}
-                  onClick={() => setTab("translation")}
-                >
-                  Traduction du corps
-                </button>
+                {(
+                  [
+                    ["analysis", "Analyse"],
+                    ["synthesis", "Synthèse"],
+                    ["body", "Corps"],
+                    ["source", "Source"],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === k}
+                    className={cn(
+                      "rounded-md px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors sm:px-3",
+                      tab === k
+                        ? "bg-accent/12 text-accent"
+                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                    )}
+                    onClick={() => setTab(k)}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
 
               <div className="flex flex-wrap gap-2 border-b border-border-light pb-3">
@@ -303,7 +310,58 @@ function ArticleReadModal({
                 </Link>
               </div>
 
-              {tab === "synthesis" ? (
+              {tab === "analysis" ? (
+                <section className="space-y-4">
+                  {a.factual_context_fr?.trim() ? (
+                    <section>
+                      <p className="olj-rubric mb-2">Contexte factuel</p>
+                      <p className="text-[13px] leading-relaxed text-foreground-body">
+                        {a.factual_context_fr.trim()}
+                      </p>
+                    </section>
+                  ) : null}
+                  {a.author_thesis_explicit_fr?.trim() ? (
+                    <section>
+                      <p className="olj-rubric mb-2">Thèse (attribution)</p>
+                      <p className="font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
+                        {a.author_thesis_explicit_fr.trim()}
+                      </p>
+                    </section>
+                  ) : null}
+                  {a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0 ? (
+                    <section>
+                      <p className="olj-rubric mb-2">Idées majeures</p>
+                      <ul className="list-inside list-disc space-y-2 text-[13px] text-foreground-body">
+                        {a.analysis_bullets_fr.map((b, i) => (
+                          <li key={i} className="whitespace-pre-wrap">
+                            {b}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+                  {a.analysis_tone || a.fact_opinion_quality ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      {a.analysis_tone ? `Tonalité : ${a.analysis_tone}. ` : null}
+                      {a.fact_opinion_quality
+                        ? `Séparation fait / opinion : ${a.fact_opinion_quality}.`
+                        : null}
+                    </p>
+                  ) : null}
+                  {!a.factual_context_fr?.trim() &&
+                  !a.author_thesis_explicit_fr?.trim() &&
+                  !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) ? (
+                    <p className="text-muted-foreground">
+                      Pas encore d’analyse structurée pour cet article. Consultez
+                      l’onglet{" "}
+                      <strong className="font-medium text-foreground">
+                        Synthèse
+                      </strong>
+                      .
+                    </p>
+                  ) : null}
+                </section>
+              ) : tab === "synthesis" ? (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     {relevanceLbl ? (
@@ -356,10 +414,8 @@ function ArticleReadModal({
                   {!a.thesis_summary_fr?.trim() && !a.summary_fr?.trim() ? (
                     <p className="text-muted-foreground">
                       Pas de synthèse disponible pour cet article. Voyez l’onglet{" "}
-                      <strong className="font-medium text-foreground">
-                        Traduction du corps
-                      </strong>{" "}
-                      ou la source.
+                      <strong className="font-medium text-foreground">Corps</strong>{" "}
+                      ou <strong className="font-medium text-foreground">Source</strong>.
                     </p>
                   ) : null}
 
@@ -408,7 +464,7 @@ function ArticleReadModal({
                     </p>
                   ) : null}
                 </>
-              ) : (
+              ) : tab === "body" ? (
                 <section className="space-y-2">
                   <p className="olj-rubric mb-1">Traduction intégrale</p>
                   <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -427,11 +483,11 @@ function ArticleReadModal({
                   ) : summaryOnly ? (
                     <p className="text-[13px] text-muted-foreground">
                       Pour cet article, la chaîne n’a pas persisté le corps
-                      traduit (résumé seulement). Utilisez la{" "}
+                      traduit (résumé seulement). Utilisez l’onglet{" "}
                       <strong className="font-medium text-foreground">
-                        Synthèse revue
+                        Synthèse
                       </strong>{" "}
-                      ou le lien vers la source.
+                      ou la <strong className="font-medium text-foreground">Source</strong>.
                     </p>
                   ) : (
                     <p className="text-[13px] text-muted-foreground">
@@ -439,6 +495,26 @@ function ArticleReadModal({
                       source ou vérifiez les options de traduction côté serveur.
                     </p>
                   )}
+                </section>
+              ) : (
+                <section className="space-y-3 text-[13px] leading-relaxed text-foreground-body">
+                  <p className="olj-rubric">Source originale</p>
+                  {a.url ? (
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="olj-link-action inline-block break-all"
+                    >
+                      {a.url}
+                    </a>
+                  ) : (
+                    <p className="text-muted-foreground">URL non renseignée.</p>
+                  )}
+                  <p className="text-[12px] text-muted-foreground">
+                    <span className="font-medium text-foreground">Titre d’origine : </span>
+                    {a.title_original}
+                  </p>
                 </section>
               )}
             </article>

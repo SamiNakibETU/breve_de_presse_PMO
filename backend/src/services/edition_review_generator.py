@@ -250,7 +250,10 @@ async def generate_all_edition_topics(
     stmt = (
         select(EditionTopic)
         .where(EditionTopic.edition_id == edition_id)
-        .order_by(EditionTopic.rank.asc())
+        .order_by(
+            EditionTopic.user_rank.asc().nullslast(),
+            EditionTopic.rank.asc(),
+        )
     )
     res = await db.execute(stmt)
     topics = list(res.scalars().all())

@@ -1,0 +1,2173 @@
+{
+  "metadata": {
+    "source_csv": "media revue - Sheet1.csv",
+    "version": "1.0.0",
+    "count": 74
+  },
+  "media": [
+    {
+      "id": "ae_al_ittihad",
+      "name": "Al-Ittihad",
+      "country": "Emirats arabes unis",
+      "country_code": "AE",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "aligné avec le gouvernement, ton conservateur et institutionnel, reflète la politique intérieure et diplomatique",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.aletihad.ae/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.aletihad.ae/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ae_gulf_news",
+      "name": "Gulf News",
+      "country": "Emirats arabes unis",
+      "country_code": "AE",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "Pro-gouvernemental avec ton modéré",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://gulfnews.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://gulfnews.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ae_the_national",
+      "name": "The National",
+      "country": "Emirats arabes unis",
+      "country_code": "AE",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "mouthpiece for Abu Dhabi's worldview",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.thenationalnews.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.thenationalnews.com/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "bh_akhbar_el_khaleej",
+      "name": "Akhbar el-Khaleej",
+      "country": "Bahreïn",
+      "country_code": "BH",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "pro-gouvernement",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://akhbar-alkhaleej.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://akhbar-alkhaleej.com/news/columns"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "bh_al_watan",
+      "name": "Al-Watan",
+      "country": "Bahreïn",
+      "country_code": "BH",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "pro-gouvernement",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alwatannews.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alwatannews.net/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "dz_el_chourouk_el_yom",
+      "name": "El Chourouk el-Yom",
+      "country": "Algérie",
+      "country_code": "DZ",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "conservateur nationaliste proche du gouvernement",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.echoroukonline.com",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.echoroukonline.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "eg_al_ahram_daily",
+      "name": "Al-Ahram daily",
+      "country": "Egypte",
+      "country_code": "EG",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "conservateur et pro-état",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://gate.ahram.org.eg/Daily/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://gate.ahram.org.eg/daily/WriterArticles/5784/2026/0.aspx"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "eg_al_akhbar_el_yom",
+      "name": "Al-Akhbar el-Yom",
+      "country": "Egypte",
+      "country_code": "EG",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://akhbarelyom.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://akhbarelyom.com/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "eg_madam_masr",
+      "name": "Madam Masr",
+      "country": "Egypte",
+      "country_code": "EG",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "opposition libéral",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.madamasr.com/en/?ref=thetroubledregion.com",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.madamasr.com/en/opinion/",
+        "https://www.madamasr.com/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_haaretz",
+      "name": "Haaretz",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "libéral",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.haaretz.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.haaretz.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_israel_hayon",
+      "name": "Israel Hayon",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": [
+        "he"
+      ],
+      "editorial_line": "pro netanyahu",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.israelhayom.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.israelhayom.com/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_jerusalem_post",
+      "name": "Jerusalem Post",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "droit conservateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.jpost.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.jpost.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_maariv",
+      "name": "Maariv",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": [
+        "he"
+      ],
+      "editorial_line": "centre droit",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.maariv.co.il/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.maariv.co.il/journalists/ben-caspit-10",
+        "https://www.maariv.co.il/journalists/mati-tuchfeld-59682",
+        "https://www.maariv.co.il/journalists/avi-benayahu-9",
+        "https://www.maariv.co.il/journalists/alon-ben-david-36",
+        "https://www.maariv.co.il/journalists/ron-kofman-53",
+        "https://www.maariv.co.il/journalists/ron-maiberg-71",
+        "https://www.maariv.co.il/journalists/natan-zahavi-32"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_the_times_of_israel",
+      "name": "The times of Israel",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "droite conservatrice",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.timesofisrael.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://blogs.timesofisrael.com/?_gl=1*1svnh7d*_ga*NDI4MTQyNzUzLjE3NzIyNzEwNzU.*_ga_RJR2XWQR34*czE3NzM5MzkwNjQkbzUkZzAkdDE3NzM5MzkwNjUkajU5JGwwJGgw"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "il_yediot_aharonot",
+      "name": "Yediot Aharonot",
+      "country": "Israël",
+      "country_code": "IL",
+      "tier": 1,
+      "languages": [
+        "he"
+      ],
+      "editorial_line": "centriste grand public",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.ynet.co.il/home/0,7340,L-8,00.html",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.ynet.co.il/news/category/194"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "iq_al_mada",
+      "name": "al Mada",
+      "country": "Irak",
+      "country_code": "IQ",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "private",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://almadapaper.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://almadapaper.net/category/%D8%A7%D9%84%D8%B1%D8%A3%D9%8A/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "iq_al_sabah",
+      "name": "al-Sabah",
+      "country": "Irak",
+      "country_code": "IQ",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "state run",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alsabaah.iq/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alsabaah.iq/%D8%A2%D8%B1%D8%A7%D8%A1/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "iq_al_sabah_al_jadeed",
+      "name": "al Sabah al Jadeed",
+      "country": "Irak",
+      "country_code": "IQ",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://newsabah.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://newsabah.com/newspaper/category/opinions"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "iq_azzaman",
+      "name": "Azzaman",
+      "country": "Irak",
+      "country_code": "IQ",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "private",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.azzaman.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.azzaman.com/category/articles/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "iq_rudaw",
+      "name": "Rudaw",
+      "country": "Irak",
+      "country_code": "IQ",
+      "tier": 1,
+      "languages": [
+        "en",
+        "ku"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.rudaw.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.rudaw.net/english/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_donya_e_eqtesad",
+      "name": "Donya‑e‑Eqtesad",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "Quotidien économique centre‑droit / modéré,",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://donya-e-eqtesad.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://donya-e-eqtesad.com/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_entekhab",
+      "name": "Entekhab",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "conservateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.entekhab.ir/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.entekhab.ir/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_ettelaat",
+      "name": "Ettelaat",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "conservateur modéré",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.ettelaat.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.ettelaat.com/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_hamshahri",
+      "name": "Hamshahri",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "réformateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://hamshahrionline.ir/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://hamshahrionline.ir/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_iran_international",
+      "name": "Iran International",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "media anti régime",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.iranintl.com/en",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.iranintl.com/en/opinion",
+        "https://www.iranintl.com/en/analysis",
+        "https://www.iranintl.com/en/special-report"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_iranwire",
+      "name": "IranWire",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://iranwire.com/en/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://iranwire.com/en/category/blogs"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_jam_e_jam",
+      "name": "Jam-e Jam",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "proche du pouvoir et de l’establishment religieux.",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.jamejam.ir/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.jamejam.ir/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_kayhan",
+      "name": "Kayhan",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "conservateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://kayhan.ir/en",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://kayhan.ir/en"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "ir_shargh",
+      "name": "Shargh",
+      "country": "Iran",
+      "country_code": "IR",
+      "tier": 1,
+      "languages": [
+        "fa"
+      ],
+      "editorial_line": "réformateur",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.sharghdaily.com/fa",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.sharghdaily.com/%D8%A8%D8%AE%D8%B4-%D8%B3%D8%B1%D9%85%D9%82%D8%A7%D9%84%D9%87-243"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "jo_al_ghad",
+      "name": "Al Ghad",
+      "country": "Jordanie",
+      "country_code": "JO",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Liberal",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alghad.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alghad.com/Section-114/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA-%D8%A7%D9%84%D9%8A%D9%88%D9%85"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "jo_al_rai",
+      "name": "Al Rai",
+      "country": "Jordanie",
+      "country_code": "JO",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-gov",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alrai.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alrai.com/%D9%83%D8%AA%D8%A7%D8%A8"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "jo_assabel",
+      "name": "Assabel",
+      "country": "Jordanie",
+      "country_code": "JO",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Islamic conservative",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://assabeel.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://assabeel.net/category/articles"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "jo_jordan_times",
+      "name": "Jordan Times",
+      "country": "Jordanie",
+      "country_code": "JO",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "Independent (but gov got big shares)",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://jordantimes.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://jordantimes.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_al_anba",
+      "name": "Al Anba",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.alanba.com.kw/newspaper/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.alanba.com.kw/ar/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_al_jarida",
+      "name": "Al jarida",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.aljarida.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.aljarida.com/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_al_qabas",
+      "name": "Al Qabas",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "liberal",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.alqabas.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.alqabas.com/categories/17-%D9%83%D8%AA%D8%A7%D8%A8-%D9%88%D8%A2%D8%B1%D8%A7%D8%A1/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_al_seyassah",
+      "name": "Al Seyassah",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alseyassah.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alseyassah.com/%D9%83%D9%84-%D8%A7%D9%84%D8%A2%D8%B1%D8%A7%D8%A1/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_arab_times",
+      "name": "Arab Times",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.arabtimesonline.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.arabtimesonline.com/news/category/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "kw_kuwait_times",
+      "name": "Kuwait Times",
+      "country": "Koweït",
+      "country_code": "KW",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "Independent",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://kuwaittimes.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://kuwaittimes.com/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "me_middle_east_eye",
+      "name": "Middle East Eye",
+      "country": "régional",
+      "country_code": "ME",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.middleeasteye.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.middleeasteye.net/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "me_new_lines_magazine",
+      "name": "New Lines Magazine",
+      "country": "régional",
+      "country_code": "ME",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://newlinesmag.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://newlinesmag.com/argument/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_al_roya",
+      "name": "al Roya",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alroya.om/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alroya.om/category/71/%D8%A7%D9%84%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_al_shabiba",
+      "name": "al Shabiba",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://shabiba.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://shabiba.com/category/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA-%D8%B1%D8%A3%D9%8A-%D9%88-%D8%AA%D8%AD%D9%84%D9%8A%D9%84%D8%A7%D8%AA"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_al_watan",
+      "name": "al Watan",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "best selling",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://alwatan.om/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://alwatan.om/opinions"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_muscat_daily",
+      "name": "Muscat daily",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "pushes boundaries",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.muscatdaily.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.muscatdaily.com/category/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_oman_daily",
+      "name": "Oman Daily",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.omandaily.om/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.omandaily.om/%D8%A3%D9%81%D9%83%D8%A7%D8%B1-%D9%88%D8%A2%D8%B1%D8%A7%D8%A1"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_oman_observer",
+      "name": "Oman Observer",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "Gov",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.omanobserver.om/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.omanobserver.om/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "om_times_of_oman",
+      "name": "Times of Oman",
+      "country": "Oman",
+      "country_code": "OM",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "targets expats",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://rssfeeds.timesofoman.com/index.php",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://timesofoman.com/category/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "qa_al_jazeera",
+      "name": "al Jazeera",
+      "country": "Qatar",
+      "country_code": "QA",
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.aljazeera.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.aljazeera.com/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "qa_al_raya",
+      "name": "Al Raya",
+      "country": "Qatar",
+      "country_code": "QA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-gov",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.raya.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.raya.com/morearticles/%D8%A2%D8%B1%D8%A7%D8%A1-%D9%88%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA/%D8%B1%D8%A3%D9%8A-%D8%A7%D9%84%D8%B1%D8%A7%D9%8A%D8%A9"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "qa_al_sharq",
+      "name": "Al Sharq",
+      "country": "Qatar",
+      "country_code": "QA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-gov",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://al-sharq.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://al-sharq.com/%D8%A2%D8%B1%D8%A7%D8%A1-%D8%A7%D9%84%D9%83%D8%AA%D8%A7%D8%A8"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "qa_al_watan",
+      "name": "Al Watan",
+      "country": "Qatar",
+      "country_code": "QA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-gov",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.al-watan.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.al-watan.com/%D9%83%D8%AA%D8%A7%D8%A8-%D9%88%D8%A3%D8%B1%D8%A7%D8%A1"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "qa_gulf_times",
+      "name": "Gulf Times",
+      "country": "Qatar",
+      "country_code": "QA",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "Pro-gov",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.gulf-times.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.gulf-times.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "qa_the_peninsula",
+      "name": "The peninsula",
+      "country": "Qatar",
+      "country_code": "QA",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://thepeninsulaqatar.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://thepeninsulaqatar.com/category/views"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_al_arabiya",
+      "name": "Al-Arabiya",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-saoudienne / alignée sur la politique du Royaume, anti islam politique",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.alarabiya.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.alarabiya.net/views",
+        "https://www.alarabiya.net/ar/views",
+        "https://www.alarabiya.net/english/views"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_al_majalla",
+      "name": "Al-Majalla",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "magazine conservateur, aligné sur les intérêts de la monarchie",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.majalla.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.majalla.com/sections/%D8%B1%D8%A3%D9%8A"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_al_sharq_el_awsat",
+      "name": "Al Sharq el-Awsat",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-gouvernemental / diplomatique : ligne proche de la politique étrangère saoudienne.",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://aawsat.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://aawsat.com/%D8%A7%D9%84%D8%B1%D8%A3%D9%8A",
+        "https://aawsat.com/%D9%81%D9%8A-%D8%A7%D9%84%D8%B9%D9%85%D9%82"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_al_watan",
+      "name": "Al-Watan",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Pro-gouvernemental mais plus ouvert : historiquement un peu plus audacieux sur les questions sociales",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.alwatan.com.sa/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.alwatan.com.sa/%D8%B1%D8%A3%D9%8A"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_arab_news",
+      "name": "Arab news",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 0,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "généralement considéré comme reflétant la position officielle saoudienne et les orientations du pouvoir",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.arabnews.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.arabnews.com/opinion",
+        "https://www.arabnews.com/research"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_okaz",
+      "name": "Okaz",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "soutient les réformes et politiques internes, avec une approche plus populaire et accessible.",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.okaz.com.sa/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.okaz.com.sa/articles"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sa_saudi_gazette",
+      "name": "Saudi Gazette",
+      "country": "Arabie saoudite",
+      "country_code": "SA",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "reflète la position officielle saoudienne à destination d’un public anglophone",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://saudigazette.com.sa/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://saudigazette.com.sa/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_al_hal",
+      "name": "Al Hal",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://7al.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://7al.net/%d8%b9%d9%8a%d9%86-%d8%b9%d9%84%d9%89-%d8%a7%d9%84%d8%aa%d8%b7%d8%b1%d9%81/%d9%82%d8%b1%d8%a7%d8%a1%d8%a7%d8%aa-%d9%85%d8%b9%d9%85%d9%82%d8%a9/",
+        "https://7al.net/%d8%b9%d9%8a%d9%86-%d8%b9%d9%84%d9%89-%d8%a7%d9%84%d8%aa%d8%b7%d8%b1%d9%81/%d8%aa%d9%82%d8%a7%d8%b1%d9%8a%d8%b1-%d9%88%d8%aa%d8%ad%d9%84%d9%8a%d9%84%d8%a7%d8%aa/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_al_thawra_al_souriyya",
+      "name": "al Thawra al Souriyya",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Gouv",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://thawra.sy/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://thawra.sy/thawra_blog/",
+        "https://thawra.sy/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_enab_baladi",
+      "name": "Enab Baladi",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "editorial_line": "Lib, bonne qualité",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://english.enabbaladi.net/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://english.enabbaladi.net/archives/category/opinion/",
+        "https://english.enabbaladi.net/archives/category/in-depth/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_kassioun",
+      "name": "Kassioun",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "lié au parti de la volonté populaire",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://kassioun.org/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://kassioun.org/reports-and-opinions"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_levant24",
+      "name": "Levant24",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://levant24.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://levant24.com/category/opinion/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_syria_tv",
+      "name": "Syria TV",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": "Bien connectés au gouv actuel",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.syria.tv/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.syria.tv/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "sy_ultra_syria",
+      "name": "Ultra Syria",
+      "country": "Syrie",
+      "country_code": "SY",
+      "tier": 1,
+      "languages": [
+        "ar"
+      ],
+      "editorial_line": null,
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://ultrasyria.ultrasawt.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://ultrasyria.ultrasawt.com/%D9%82%D9%88%D9%84"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "tr_cumhuriyet",
+      "name": "Cumhuriyet",
+      "country": "Turquie",
+      "country_code": "TR",
+      "tier": 1,
+      "languages": [
+        "tr"
+      ],
+      "editorial_line": "Anti government\r\nKemalism /Secularism/Laicism / Left-wing politics / Social democracy",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://cumhuriyet.com.tr",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.cumhuriyet.com.tr/gunun-kose-yazilari"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "tr_daily_sabah",
+      "name": "Daily Sabah",
+      "country": "Turquie",
+      "country_code": "TR",
+      "tier": 1,
+      "languages": [
+        "en"
+      ],
+      "editorial_line": "Pro-government",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.dailysabah.com/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.dailysabah.com/opinion"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "tr_hurriyet",
+      "name": "Hurriyet",
+      "country": "Turquie",
+      "country_code": "TR",
+      "tier": 1,
+      "languages": [
+        "tr"
+      ],
+      "editorial_line": "Mainstream / Liberalism / Secularism / pro-government (after 2018)",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.hurriyet.com.tr/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.hurriyet.com.tr/yazarlar/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "tr_milliyet",
+      "name": "Milliyet",
+      "country": "Turquie",
+      "country_code": "TR",
+      "tier": 1,
+      "languages": [
+        "tr"
+      ],
+      "editorial_line": "Conservatism\r\nTurkish nationalism",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.milliyet.com.tr/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.milliyet.com.tr/yazarlar/"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "tr_sabah",
+      "name": "Sabah",
+      "country": "Turquie",
+      "country_code": "TR",
+      "tier": 1,
+      "languages": [
+        "tr"
+      ],
+      "editorial_line": "Social conservatism\r\nHard Euroscepticism",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.sabah.com.tr/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.sabah.com.tr/yazarlar"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    },
+    {
+      "id": "tr_sozcu",
+      "name": "Sozcu",
+      "country": "Turquie",
+      "country_code": "TR",
+      "tier": 1,
+      "languages": [
+        "tr"
+      ],
+      "editorial_line": "Anti government",
+      "bias": null,
+      "content_types": [
+        "opinion",
+        "editorial",
+        "analysis"
+      ],
+      "url": "https://www.sozcu.com.tr/",
+      "rss_url": null,
+      "rss_opinion_url": null,
+      "english_version_url": null,
+      "opinion_hub_urls": [
+        "https://www.sozcu.com.tr/yazarlar"
+      ],
+      "collection_method": "opinion_hub",
+      "paywall": "free",
+      "translation_quality_to_fr": "high",
+      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
+      "is_active": true
+    }
+  ]
+}

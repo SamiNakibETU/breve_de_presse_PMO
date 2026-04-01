@@ -1,0 +1,15 @@
+# Dependances du dossier retenu_final/ (pipeline revue de presse OLJ)
+# Installation : pip install -r requirements.txt && playwright install chromium
+
+requests>=2.31.0
+beautifulsoup4>=4.12
+lxml>=5.0
+curl-cffi>=0.7.0
+playwright>=1.49
+trafilatura>=2.0.0
+
+# Sites Cloudflare durs (ex. alwatannews.net) — optionnel si non utilises
+seleniumbase>=4.30.0
+
+# Dernier recours anti-bot — optionnel
+# scrapling

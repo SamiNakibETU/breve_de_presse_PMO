@@ -408,6 +408,16 @@ export const api = {
       },
     ),
 
+  editionTopicPatch: (
+    editionId: string,
+    topicId: string,
+    body: { user_rank?: number | null },
+  ) =>
+    request<EditionTopic>(`/api/editions/${editionId}/topics/${topicId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
   editionComposePreferences: (
     editionId: string,
     body: {

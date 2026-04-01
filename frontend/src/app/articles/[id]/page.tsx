@@ -194,6 +194,54 @@ export default function ArticleFullPage() {
             </div>
           </header>
 
+          {(a.analysis_bullets_fr?.length ||
+            a.author_thesis_explicit_fr?.trim() ||
+            a.factual_context_fr?.trim()) ? (
+            <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
+              <h2 className="olj-rubric mb-4">Analyse</h2>
+              <div className="space-y-4 text-[15px] leading-relaxed text-foreground-body">
+                {a.factual_context_fr?.trim() ? (
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Contexte factuel
+                    </p>
+                    <p>{a.factual_context_fr.trim()}</p>
+                  </div>
+                ) : null}
+                {a.author_thesis_explicit_fr?.trim() ? (
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Thèse (attribution)
+                    </p>
+                    <p className="italic text-foreground">
+                      {a.author_thesis_explicit_fr.trim()}
+                    </p>
+                  </div>
+                ) : null}
+                {a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Idées majeures
+                    </p>
+                    <ul className="list-inside list-disc space-y-2">
+                      {a.analysis_bullets_fr.map((b, i) => (
+                        <li key={i}>{b}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {a.analysis_tone || a.fact_opinion_quality ? (
+                  <p className="text-[12px] text-muted-foreground">
+                    {a.analysis_tone ? `Tonalité : ${a.analysis_tone}. ` : null}
+                    {a.fact_opinion_quality
+                      ? `Séparation fait / opinion : ${a.fact_opinion_quality}.`
+                      : null}
+                  </p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
           <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
             <h2 className="olj-rubric mb-4">Synthèse</h2>
             <div className="space-y-4 font-[family-name:var(--font-serif)] text-[15px] leading-[1.75] text-foreground-body">

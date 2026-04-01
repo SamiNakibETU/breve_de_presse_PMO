@@ -6,8 +6,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Article, ReviewSummary } from "@/lib/types";
 import { parseArticleIdsParam, reviewPagePath } from "@/lib/review-url";
+import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import { SelectedArticles } from "@/components/review/selected-articles";
 import { ReviewPreview } from "@/components/review/review-preview";
+import Link from "next/link";
 
 export function ReviewPageClient() {
   const queryClient = useQueryClient();
@@ -109,8 +111,21 @@ export function ReviewPageClient() {
     }
   }
 
+  const composeHref = `/edition/${todayBeirutIsoDate()}/compose`;
+
   return (
     <div className="space-y-8">
+      <aside
+        className="border border-border bg-muted/40 px-4 py-3 text-[13px] text-foreground"
+        role="note"
+      >
+        <strong className="font-semibold">Ce flux est déprécié.</strong> Pour la rédaction
+        par grands sujets (sélection, consignes, export), utilisez{" "}
+        <Link href={composeHref} className="text-accent underline underline-offset-2">
+          Rédaction · édition du jour
+        </Link>
+        .
+      </aside>
       <header className="flex items-end justify-between">
         <div>
           <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">

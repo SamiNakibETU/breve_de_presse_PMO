@@ -562,7 +562,7 @@ class TranslationPipeline:
                 f"Traduction LLM ({n} article{'s' if n != 1 else ''}, parallèle limitée)…",
             )
 
-        tasks = [self._process_one(a, stats) for a in to_process]
+        tasks = [self._process_one(a, stats, en_summary_only_override=None) for a in to_process]
         await asyncio.gather(*tasks)
 
         if on_progress:
@@ -615,11 +615,20 @@ class TranslationPipeline:
         )
         return out
 
-    async def _process_one(self, article: Article, stats: dict) -> None:
+    async def _process_one(
+        self,
+        article: Article,
+        stats: dict,
+        *,
+        en_summary_only_override: bool | None = None,
+    ) -> None:
         structlog.contextvars.bind_contextvars(article_id=str(article.id))
         async with self._semaphore:
             try:
-                outcome = await self._process_article(article)
+                outcome = await self._process_article(
+                    article,
+                    en_summary_only_override=en_summary_only_override,
+                )
                 async with self._stats_lock:
                     if outcome is not None:
                         stats["processed"] += 1
@@ -668,10 +677,33 @@ class TranslationPipeline:
                 structlog.contextvars.unbind_contextvars("article_id")
                 await asyncio.sleep(0.5)
 
+    async def translate_article_retention_selected(
+        self,
+        article: Article,
+        *,
+        en_summary_only_override: bool | None = None,
+    ) -> None:
+        """Traduction hors file « collected/error » (ex. corps complet pour sélection sujet)."""
+        stats: dict = {
+            "processed": 0,
+            "errors": 0,
+            "needs_review": 0,
+            "skipped": 0,
+            "error_breakdown": {},
+            "error_samples": [],
+        }
+        await self._process_one(
+            article,
+            stats,
+            en_summary_only_override=en_summary_only_override,
+        )
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30))
     async def _process_article(
         self,
         article: Article,
+        *,
+        en_summary_only_override: bool | None = None,
     ) -> Optional[Literal["translated", "needs_review", "low_quality"]]:
         async with self._factory() as db:
             source = await db.get(MediaSource, article.media_source_id)
@@ -693,6 +725,8 @@ class TranslationPipeline:
             and (article.source_language or "").lower() == "en"
             and not is_french
         )
+        if en_summary_only_override is not None:
+            en_summary_only = en_summary_only_override
         if settings.store_full_translation_fr and not en_summary_only:
             tok_budget = 8000
         elif en_summary_only:

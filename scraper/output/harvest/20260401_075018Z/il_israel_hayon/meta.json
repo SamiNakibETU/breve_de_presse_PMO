@@ -1,0 +1,25 @@
+{
+  "media_id": "il_israel_hayon",
+  "media_name": "Israel Hayon",
+  "hub_urls_tried": [
+    "https://www.israelhayom.com/opinions/",
+    "https://www.israelhayom.com/opinions",
+    "https://www.israelhayom.com/"
+  ],
+  "article_urls_attempted": [
+    "https://www.israelhayom.com/opinions/who-will-lead-us-now/",
+    "https://www.israelhayom.com/opinions/when-we-are-done-in-iran-will-we-be-done-in-lebanon-too/",
+    "https://www.israelhayom.com/opinions/put-an-end-to-the-threats-from-iran-and-hezbollah/"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_075018Z\\il_israel_hayon",
+  "articles": [
+    "https://www.israelhayom.com/opinions/who-will-lead-us-now/",
+    "https://www.israelhayom.com/opinions/when-we-are-done-in-iran-will-we-be-done-in-lebanon-too/",
+    "https://www.israelhayom.com/opinions/put-an-end-to-the-threats-from-iran-and-hezbollah/"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "media_id": "ae_al_ittihad",
+  "media_name": "Al-Ittihad",
+  "hub_urls_tried": [
+    "https://www.aletihad.ae/opinion"
+  ],
+  "article_urls_attempted": [
+    "https://www.aletihad.ae/category/%D8%A7%D9%84%D8%A5%D9%85%D8%A7%D8%B1%D8%A7%D8%AA",
+    "https://www.aletihad.ae/category/%D8%B9%D8%B1%D8%A8%D9%8A-%D9%88%D8%AF%D9%88%D9%84%D9%8A",
+    "https://www.aletihad.ae/category/%D8%A7%D9%84%D8%B1%D9%8A%D8%A7%D8%B6%D9%8A"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_075158Z\\ae_al_ittihad",
+  "articles": [
+    "https://www.aletihad.ae/category/%D8%A7%D9%84%D8%A5%D9%85%D8%A7%D8%B1%D8%A7%D8%AA",
+    "https://www.aletihad.ae/category/%D8%B9%D8%B1%D8%A8%D9%8A-%D9%88%D8%AF%D9%88%D9%84%D9%8A",
+    "https://www.aletihad.ae/category/%D8%A7%D9%84%D8%B1%D9%8A%D8%A7%D8%B6%D9%8A"
+  ]
+}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
+import { useSelectionStore } from "@/stores/selection-store";
 import type { Article, EditionTopic, TopicArticleRef } from "@/lib/types";
 import {
   groupArticlesByCountryIfNeeded,
@@ -96,19 +97,47 @@ export function TopicDetail({
   countryLabelsFr?: Record<string, string> | null;
 }) {
   const qc = useQueryClient();
-  const initialSelected = useMemo(() => {
-    const s = new Set<string>();
-    for (const r of articleRefs) {
-      if (r.is_selected) s.add(r.article_id);
-    }
-    return s;
-  }, [articleRefs]);
+  const hydrateFromServer = useSelectionStore((s) => s.hydrateFromServer);
+  const setTopicArticlesStore = useSelectionStore((s) => s.setTopicArticles);
 
-  const [selected, setSelected] = useState<Set<string>>(initialSelected);
+  const selectionsQ = useQuery({
+    queryKey: ["editionSelections", editionId] as const,
+    queryFn: () => api.editionSelections(editionId),
+    enabled: Boolean(editionId),
+    staleTime: 15_000,
+  });
 
   useEffect(() => {
-    setSelected(initialSelected);
-  }, [initialSelected]);
+    if (!editionId || !selectionsQ.data) {
+      return;
+    }
+    hydrateFromServer(editionId, selectionsQ.data);
+  }, [editionId, selectionsQ.data, hydrateFromServer]);
+
+  const orderedFromStore = useSelectionStore(
+    useCallback(
+      (s) =>
+        editionId ? s.byEditionId[editionId]?.topics[topic.id] : undefined,
+      [editionId, topic.id],
+    ),
+  );
+
+  const fallbackOrderedIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const r of articleRefs) {
+      if (r.is_selected) {
+        ids.push(r.article_id);
+      }
+    }
+    return ids;
+  }, [articleRefs]);
+
+  const selectedOrderedIds = orderedFromStore ?? fallbackOrderedIds;
+
+  const selected = useMemo(
+    () => new Set(selectedOrderedIds),
+    [selectedOrderedIds],
+  );
 
   const saveMutation = useMutation({
     mutationFn: (ids: string[]) =>
@@ -122,16 +151,18 @@ export function TopicDetail({
   });
 
   const selectionDebounceRef = useRef<number | null>(null);
-  const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  const selectedOrderedRef = useRef(selectedOrderedIds);
+  selectedOrderedRef.current = selectedOrderedIds;
 
   const genMutation = useMutation({
-    mutationFn: () =>
-      api.editionTopicGenerate(
+    mutationFn: () => {
+      const ids = [...selectedOrderedRef.current];
+      return api.editionTopicGenerate(
         editionId,
         topic.id,
-        Array.from(selected).length > 0 ? Array.from(selected) : null,
-      ),
+        ids.length > 0 ? ids : null,
+      );
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
       qc.invalidateQueries({
@@ -214,7 +245,7 @@ export function TopicDetail({
         window.clearTimeout(selectionDebounceRef.current);
         selectionDebounceRef.current = null;
       }
-      const ids = Array.from(selectedRef.current);
+      const ids = [...selectedOrderedRef.current];
       void api.editionTopicSelection(editionId, topic.id, ids).catch(() => {
         /* best-effort flush */
       });
@@ -223,20 +254,22 @@ export function TopicDetail({
   );
 
   const toggle = (articleId: string, next: boolean) => {
-    setSelected((prev) => {
-      const n = new Set(prev);
-      if (next) n.add(articleId);
-      else n.delete(articleId);
-      const ids = Array.from(n);
-      if (selectionDebounceRef.current != null) {
-        window.clearTimeout(selectionDebounceRef.current);
-      }
-      selectionDebounceRef.current = window.setTimeout(() => {
-        selectionDebounceRef.current = null;
-        saveMutation.mutate(ids);
-      }, 320);
-      return n;
-    });
+    let nextIds: string[];
+    if (next) {
+      nextIds = selectedOrderedIds.includes(articleId)
+        ? [...selectedOrderedIds]
+        : [...selectedOrderedIds, articleId];
+    } else {
+      nextIds = selectedOrderedIds.filter((id) => id !== articleId);
+    }
+    setTopicArticlesStore(editionId, topic.id, nextIds);
+    if (selectionDebounceRef.current != null) {
+      window.clearTimeout(selectionDebounceRef.current);
+    }
+    selectionDebounceRef.current = window.setTimeout(() => {
+      selectionDebounceRef.current = null;
+      saveMutation.mutate(nextIds);
+    }, 320);
   };
 
   return (

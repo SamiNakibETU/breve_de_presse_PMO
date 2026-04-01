@@ -28,12 +28,27 @@ from src.services.edition_schedule import (
     find_edition_for_calendar_date,
     sql_article_belongs_to_edition_corpus,
 )
+from src.services.selected_article_retention import (
+    apply_retention_for_selected_article_ids,
+    clear_retention_if_unselected,
+)
 from src.services.topic_detector import run_topic_detection_for_edition_id
 
 router = APIRouter(prefix="/api/editions", tags=["editions"])
 
 TOPIC_ARTICLE_PREVIEW_DEFAULT = 6
 TOPIC_ARTICLE_PREVIEW_MAX = 200
+
+
+def _dedupe_uuid_preserve_order(items: list[UUID]) -> list[UUID]:
+    """Dédoublonne en conservant l’ordre (ordre d’édition / rédaction)."""
+    seen: set[UUID] = set()
+    out: list[UUID] = []
+    for x in items:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
 
 
 class EditionOut(BaseModel):
@@ -82,6 +97,9 @@ class TopicArticlePreviewOut(BaseModel):
     author: Optional[str] = None
     editorial_angle: Optional[str] = None
     is_flagship: Optional[bool] = None
+    analysis_bullets_fr: Optional[list[str]] = None
+    summary_fr: Optional[str] = None
+    has_full_translation_fr: bool = False
 
 
 class EditionTopicOut(BaseModel):
@@ -89,6 +107,7 @@ class EditionTopicOut(BaseModel):
 
     id: UUID
     rank: int
+    user_rank: Optional[int] = None
     title_proposed: str
     title_final: Optional[str] = None
     status: str
@@ -134,6 +153,12 @@ class ComposePreferencesPatch(BaseModel):
     compose_instructions_fr: Optional[str] = None
 
 
+class EditionTopicPatchBody(BaseModel):
+    """Ordre d’affichage personnalisé pour la rédaction."""
+
+    user_rank: Optional[int] = None
+
+
 def _article_relevance_int(art: Article) -> Optional[int]:
     raw = art.relevance_score
     if raw is None:
@@ -163,6 +188,7 @@ def _edition_topic_to_out(
     return EditionTopicOut(
         id=t.id,
         rank=t.rank,
+        user_rank=getattr(t, "user_rank", None),
         title_proposed=t.title_proposed,
         title_final=t.title_final,
         status=t.status,
@@ -219,6 +245,22 @@ def _normalize_extra_article_ids(raw: Any) -> list[str]:
     return out
 
 
+def _summary_preview_snippet(art: Article, max_len: int = 400) -> Optional[str]:
+    s = (art.summary_fr or "").strip()
+    if not s:
+        return None
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 1] + "…"
+
+
+def _has_full_translation_fr(art: Article) -> bool:
+    if bool(getattr(art, "en_translation_summary_only", None)):
+        return False
+    body = (art.content_translated_fr or "").strip()
+    return len(body) >= 120
+
+
 def _article_to_preview_out(art: Article, ms: MediaSource) -> TopicArticlePreviewOut:
     return TopicArticlePreviewOut(
         id=art.id,
@@ -235,6 +277,9 @@ def _article_to_preview_out(art: Article, ms: MediaSource) -> TopicArticlePrevie
         author=art.author,
         editorial_angle=art.editorial_angle,
         is_flagship=bool(art.is_flagship),
+        analysis_bullets_fr=getattr(art, "analysis_bullets_fr", None),
+        summary_fr=_summary_preview_snippet(art),
+        has_full_translation_fr=_has_full_translation_fr(art),
     )
 
 
@@ -350,6 +395,11 @@ async def get_edition_selections(
             EditionTopic.edition_id == edition_id,
             EditionTopicArticle.is_selected.is_(True),
         )
+        .order_by(
+            EditionTopicArticle.edition_topic_id,
+            EditionTopicArticle.display_order.asc().nullslast(),
+            EditionTopicArticle.article_id,
+        )
     )
     res = await db.execute(stmt)
     by_topic: dict[str, list[str]] = defaultdict(list)
@@ -423,7 +473,10 @@ async def list_edition_topics(
     stmt = (
         select(EditionTopic)
         .where(EditionTopic.edition_id == edition_id)
-        .order_by(EditionTopic.rank.asc())
+        .order_by(
+            EditionTopic.user_rank.asc().nullslast(),
+            EditionTopic.rank.asc(),
+        )
     )
     res = await db.execute(stmt)
     rows = list(res.scalars().all())
@@ -478,6 +531,9 @@ async def list_edition_topics(
                     author=a.author,
                     editorial_angle=a.editorial_angle,
                     is_flagship=bool(a.is_flagship),
+                    analysis_bullets_fr=getattr(a, "analysis_bullets_fr", None),
+                    summary_fr=_summary_preview_snippet(a),
+                    has_full_translation_fr=_has_full_translation_fr(a),
                 )
                 for _do, _rnk, a, ms in prev_slice
             ]
@@ -537,6 +593,25 @@ async def get_edition_topic(
     }
 
 
+@router.patch("/{edition_id}/topics/{topic_id}", response_model=EditionTopicOut)
+async def patch_edition_topic(
+    edition_id: UUID,
+    topic_id: UUID,
+    body: EditionTopicPatchBody,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    et = await db.get(EditionTopic, topic_id)
+    if not et or et.edition_id != edition_id:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    data = body.model_dump(exclude_unset=True)
+    if "user_rank" in data:
+        et.user_rank = data["user_rank"]
+    await db.commit()
+    await db.refresh(et)
+    return _edition_topic_to_out(et)
+
+
 @router.patch("/{edition_id}/topics/{topic_id}/selection")
 async def patch_topic_selection(
     edition_id: UUID,
@@ -555,9 +630,22 @@ async def patch_topic_selection(
     links = list(res.scalars().all())
     if not links:
         raise HTTPException(status_code=400, detail="No articles linked to topic")
-    selected = set(body.selected_article_ids)
+    link_ids = {link.article_id for link in links}
+    ordered_unique = _dedupe_uuid_preserve_order(body.selected_article_ids)
+    ordered_in_topic = [aid for aid in ordered_unique if aid in link_ids]
+    order_map = {aid: idx for idx, aid in enumerate(ordered_in_topic)}
+    selected_set = set(ordered_in_topic)
     for link in links:
-        link.is_selected = link.article_id in selected
+        aid = link.article_id
+        link.is_selected = aid in selected_set
+        if link.is_selected:
+            link.display_order = order_map.get(aid)
+        else:
+            link.display_order = None
+    sel_list = list(ordered_in_topic)
+    unsel_list = [link.article_id for link in links if link.article_id not in selected_set]
+    await apply_retention_for_selected_article_ids(db, sel_list)
+    await clear_retention_if_unselected(db, unsel_list)
     await db.commit()
     return {"status": "ok", "updated": len(links)}
 

@@ -1,0 +1,23 @@
+{
+  "media_id": "bh_al_watan",
+  "media_name": "Al-Watan",
+  "hub_urls_tried": [
+    "https://alwatannews.net/opinion"
+  ],
+  "article_urls_attempted": [
+    "https://alwatannews.net/authors/123/سوسن-الشاعر",
+    "https://alwatannews.net/authors/136/فيصل-الشيخ",
+    "https://alwatannews.net/authors/458/وليد-صبري"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_075158Z\\bh_al_watan",
+  "articles": [
+    "https://alwatannews.net/authors/123/سوسن-الشاعر",
+    "https://alwatannews.net/authors/136/فيصل-الشيخ",
+    "https://alwatannews.net/authors/458/وليد-صبري"
+  ]
+}

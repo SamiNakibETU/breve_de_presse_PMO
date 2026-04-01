@@ -67,7 +67,7 @@ class Settings(BaseSettings):
         "variable d’environnement typique : PIPELINE_TIMEOUT_SECONDS (défaut 10800 = 3 h).",
     )
     pipeline_completion_retry_minutes: int = Field(
-        default=0,
+        default=15,
         ge=0,
         le=120,
         description="Tentatives automatiques de reprise pipeline (resume=True) toutes les N minutes si la collecte "
@@ -91,13 +91,13 @@ class Settings(BaseSettings):
         description="Si false, APScheduler n’est pas démarré (réplicas secondaires ou worker HTTP seul).",
     )
     pipeline_lease_ttl_seconds: int = Field(
-        default=900,
+        default=1800,
         ge=120,
         le=86400,
         description="Durée de validité du lease Postgres ; renouvelée à chaque heartbeat pendant le run.",
     )
     pipeline_heartbeat_interval_seconds: int = Field(
-        default=120,
+        default=60,
         ge=30,
         le=3600,
         description="Intervalle entre heartbeats lease pendant un pipeline.",
@@ -465,6 +465,50 @@ class Settings(BaseSettings):
     pdf_export_enabled: bool = Field(
         default=False,
         description="Export PDF revue (nécessite fpdf2) ; false → 501 explicite",
+    )
+    article_analysis_enabled: bool = Field(
+        default=True,
+        description="Pipeline post-traduction : analyse experte (bullets, thèse, faits) via LLM",
+    )
+    article_analysis_model: str = Field(
+        default="claude-haiku-4-5-20241022",
+        description="Modèle Anthropic pour article_analysis (Haiku recommandé)",
+    )
+    article_analysis_batch_limit: int = Field(
+        default=120,
+        ge=1,
+        le=500,
+        description="Plafond d’articles à analyser par run pipeline",
+    )
+    selected_article_retention_hours: int = Field(
+        default=72,
+        ge=24,
+        le=720,
+        description="TTL rétention (articles sélectionnés sujet du jour) : corps + traduction prioritaire",
+    )
+    auto_translate_selected_articles: bool = Field(
+        default=True,
+        description="Si true : déclencher traduction corps complet pour les articles sélectionnés",
+    )
+    force_full_translation_for_selected: bool = Field(
+        default=True,
+        description="Si true : ignorer translation_english_summary_only pour les articles en rétention topic_selection",
+    )
+    selected_full_translation_batch_limit: int = Field(
+        default=15,
+        ge=1,
+        le=80,
+        description="Plafond d’articles par tick job traduction corps (sélection)",
+    )
+    selected_fulltext_job_interval_minutes: int = Field(
+        default=5,
+        ge=0,
+        le=120,
+        description="Intervalle job traduction corps sélection ; 0 = désactivé",
+    )
+    enhanced_scraper_enabled: bool = Field(
+        default=False,
+        description="Activer la cascade scraping enrichie (hubs) — expérimental",
     )
     store_full_translation_fr: bool = Field(
         default=False,

@@ -1,0 +1,23 @@
+{
+  "media_id": "bh_akhbar_el_khaleej",
+  "media_name": "Akhbar el-Khaleej",
+  "hub_urls_tried": [
+    "https://akhbar-alkhaleej.com/news/columns"
+  ],
+  "article_urls_attempted": [
+    "https://akhbar-alkhaleej.com/news/section/BNEW",
+    "https://akhbar-alkhaleej.com/news/section/BUSI",
+    "https://akhbar-alkhaleej.com/news/section/WORL"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_075158Z\\bh_akhbar_el_khaleej",
+  "articles": [
+    "https://akhbar-alkhaleej.com/news/section/BNEW",
+    "https://akhbar-alkhaleej.com/news/section/BUSI",
+    "https://akhbar-alkhaleej.com/news/section/WORL"
+  ]
+}

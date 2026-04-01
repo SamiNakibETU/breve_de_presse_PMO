@@ -1,0 +1,24 @@
+{
+  "media_id": "eg_madam_masr",
+  "media_name": "Madam Masr",
+  "hub_urls_tried": [
+    "https://www.madamasr.com/en/opinion/",
+    "https://www.madamasr.com/opinion/"
+  ],
+  "article_urls_attempted": [
+    "https://www.madamasr.com/en/section/politics/",
+    "https://www.madamasr.com/en/section/economy/",
+    "https://www.madamasr.com/en/section/society/"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_075158Z\\eg_madam_masr",
+  "articles": [
+    "https://www.madamasr.com/en/section/politics/",
+    "https://www.madamasr.com/en/section/economy/",
+    "https://www.madamasr.com/en/section/society/"
+  ]
+}

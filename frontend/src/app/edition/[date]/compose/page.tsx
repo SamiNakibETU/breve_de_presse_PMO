@@ -5,10 +5,32 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { Edition, EditionTopic, TopicArticlePreview } from "@/lib/types";
+import type {
+  Edition,
+  EditionSelectionsResponse,
+  EditionTopic,
+  TopicArticlePreview,
+} from "@/lib/types";
+import {
+  type ComposeInstructionsPayload,
+  DEFAULT_COMPOSE_INSTRUCTIONS,
+  buildInstructionSuffixForLlm,
+  parseComposeInstructions,
+  stringifyComposeInstructions,
+} from "@/lib/compose-instructions";
+import { ComposeInstructions } from "@/components/composition/ComposeInstructions";
 import { CopyExportButtons } from "@/components/composition/CopyExportButtons";
 import { CoverageGaps } from "@/components/composition/CoverageGaps";
+import {
+  ReadinessIndicator,
+  type ReadinessLevel,
+} from "@/components/composition/ReadinessIndicator";
 import { TopicGeneratedProse } from "@/components/composition/TopicGeneratedProse";
+import { TopicReorderList } from "@/components/composition/TopicReorderList";
+import {
+  ArticleReorderInTopic,
+  type ArticleReorderItem,
+} from "@/components/composition/ArticleReorderInTopic";
 
 function topicPlainText(t: EditionTopic): string {
   const title = t.title_final ?? t.title_proposed;
@@ -34,6 +56,35 @@ function editionTitleLine(date: string): string {
   }
 }
 
+/** Articles sélectionnés pour ce sujet, dans l’ordre serveur (display_order). */
+function orderedSelectedPreviewsForTopic(
+  topic: EditionTopic,
+  topicsMap: Record<string, string[]>,
+): TopicArticlePreview[] {
+  const ids = topicsMap[topic.id] ?? [];
+  const byId = new Map(
+    (topic.article_previews ?? []).map((p) => [p.id, p]),
+  );
+  return ids
+    .map((id) => byId.get(id))
+    .filter((p): p is TopicArticlePreview => Boolean(p));
+}
+
+function topicReadiness(ordered: TopicArticlePreview[]): ReadinessLevel {
+  if (ordered.length === 0) {
+    return "empty";
+  }
+  if (ordered.length < 2) {
+    return "warn";
+  }
+  const readyCount = ordered.filter(
+    (p) =>
+      Boolean((p.summary_fr ?? "").trim()) &&
+      p.has_full_translation_fr === true,
+  ).length;
+  return readyCount >= 2 ? "ok" : "warn";
+}
+
 function previewLine(p: TopicArticlePreview): string {
   const t = (p.title_fr || p.title_original || "").trim();
   const th = (p.thesis_summary_fr || "").trim();
@@ -52,7 +103,8 @@ export default function ComposePage() {
   const [regeneratingTopicId, setRegeneratingTopicId] = useState<string | null>(
     null,
   );
-  const [instructionsText, setInstructionsText] = useState("");
+  const [composeInstructions, setComposeInstructions] =
+    useState<ComposeInstructionsPayload>(DEFAULT_COMPOSE_INSTRUCTIONS);
   const instrSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editionQ = useQuery({
@@ -85,12 +137,13 @@ export default function ComposePage() {
   });
 
   useEffect(() => {
-    const v = editionQ.data?.compose_instructions_fr ?? "";
-    setInstructionsText(v);
+    setComposeInstructions(
+      parseComposeInstructions(editionQ.data?.compose_instructions_fr),
+    );
   }, [editionQ.data?.id, editionQ.data?.compose_instructions_fr]);
 
   const scheduleInstructionsSave = useCallback(
-    (text: string) => {
+    (payload: ComposeInstructionsPayload) => {
       if (!editionId) {
         return;
       }
@@ -100,7 +153,7 @@ export default function ComposePage() {
       instrSaveTimer.current = setTimeout(() => {
         void api
           .editionComposePreferences(editionId, {
-            compose_instructions_fr: text,
+            compose_instructions_fr: stringifyComposeInstructions(payload),
           })
           .then(() => {
             void qc.invalidateQueries({ queryKey: ["edition", date] });
@@ -114,10 +167,10 @@ export default function ComposePage() {
     [editionId, date, qc],
   );
 
-  const onInstructionsChange = useCallback(
-    (v: string) => {
-      setInstructionsText(v);
-      scheduleInstructionsSave(v);
+  const onComposeInstructionsChange = useCallback(
+    (next: ComposeInstructionsPayload) => {
+      setComposeInstructions(next);
+      scheduleInstructionsSave(next);
     },
     [scheduleInstructionsSave],
   );
@@ -131,10 +184,10 @@ export default function ComposePage() {
       instrSaveTimer.current = null;
     }
     await api.editionComposePreferences(editionId, {
-      compose_instructions_fr: instructionsText,
+      compose_instructions_fr: stringifyComposeInstructions(composeInstructions),
     });
     await qc.invalidateQueries({ queryKey: ["edition", date] });
-  }, [editionId, instructionsText, date, qc]);
+  }, [editionId, composeInstructions, date, qc]);
 
   const genAllMutation = useMutation({
     mutationFn: async () => {
@@ -142,7 +195,7 @@ export default function ComposePage() {
         throw new Error("Édition introuvable");
       }
       await api.editionComposePreferences(editionId, {
-        compose_instructions_fr: instructionsText,
+        compose_instructions_fr: stringifyComposeInstructions(composeInstructions),
       });
       return api.editionGenerateAll(editionId);
     },
@@ -157,16 +210,47 @@ export default function ComposePage() {
       if (!editionId) {
         throw new Error("Édition introuvable");
       }
+      const suffix = buildInstructionSuffixForLlm(composeInstructions);
       await api.editionComposePreferences(editionId, {
-        compose_instructions_fr: instructionsText,
+        compose_instructions_fr: stringifyComposeInstructions(composeInstructions),
       });
-      return api.editionTopicGenerate(editionId, topicId, null, null);
+      const sel = qc.getQueryData<EditionSelectionsResponse>([
+        "editionSelections",
+        editionId,
+      ]);
+      const ordered = sel?.topics[topicId] ?? [];
+      const articleIdsForGen =
+        ordered.length >= 2 ? ordered : null;
+      return api.editionTopicGenerate(
+        editionId,
+        topicId,
+        articleIdsForGen,
+        suffix,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
       qc.invalidateQueries({ queryKey: ["edition", date] });
     },
     onSettled: () => setRegeneratingTopicId(null),
+  });
+
+  const reorderArticlesMutation = useMutation({
+    mutationFn: async ({
+      topicId,
+      orderedIds,
+    }: {
+      topicId: string;
+      orderedIds: string[];
+    }) => {
+      if (!editionId) {
+        throw new Error("Édition introuvable");
+      }
+      await api.editionTopicSelection(editionId, topicId, orderedIds);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
+    },
   });
 
   const topics = useMemo(() => topicsQ.data ?? [], [topicsQ.data]);
@@ -201,20 +285,21 @@ export default function ComposePage() {
     return [...codes];
   }, [topics, selectedIds, selectionsQ.data?.extra_articles]);
 
+  const topicsSelectionMap = selectionsQ.data?.topics ?? {};
+
   const selectionByTopic = useMemo(() => {
     const out: {
       topic: EditionTopic;
       picked: TopicArticlePreview[];
     }[] = [];
     for (const t of topics) {
-      const prev = t.article_previews ?? [];
-      const picked = prev.filter((p) => selectedIds.has(p.id));
+      const picked = orderedSelectedPreviewsForTopic(t, topicsSelectionMap);
       if (picked.length > 0) {
         out.push({ topic: t, picked });
       }
     }
     return out;
-  }, [topics, selectedIds]);
+  }, [topics, topicsSelectionMap]);
 
   const extraOnlyPreviews = useMemo(
     () => selectionsQ.data?.extra_articles ?? [],
@@ -248,8 +333,26 @@ export default function ComposePage() {
 
   const titleFr = editionTitleLine(date);
 
+  const reorderTopicsMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      if (!editionId) {
+        throw new Error("Édition introuvable");
+      }
+      for (let i = 0; i < orderedIds.length; i++) {
+        const id = orderedIds[i];
+        if (!id) {
+          continue;
+        }
+        await api.editionTopicPatch(editionId, id, { user_rank: i });
+      }
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
+    },
+  });
+
   return (
-    <div className="space-y-10 pb-16">
+    <div className="space-y-10">
       <nav className="text-[13px] text-muted-foreground">
         <Link
           href={`/edition/${date}`}
@@ -298,30 +401,34 @@ export default function ComposePage() {
           </p>
         ) : (
           <div className="space-y-6">
-            {selectionByTopic.map(({ topic, picked }) => (
-              <div key={topic.id}>
-                <p className="text-[12px] font-semibold text-foreground">
-                  {topic.title_final ?? topic.title_proposed}
-                </p>
-                <ul className="mt-2 space-y-2 border-l-2 border-accent/25 pl-3">
-                  {picked.map((p) => (
-                    <li key={p.id} className="text-[12px] leading-relaxed">
-                      <span className="font-medium text-foreground">
-                        {p.media_name}
-                      </span>
-                      {p.country_code ? (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {p.country_code}
-                        </span>
-                      ) : null}
-                      <br />
-                      <span className="text-foreground-body">{previewLine(p)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {selectionByTopic.map(({ topic, picked }) => {
+              const reorderItems: ArticleReorderItem[] = picked.map((p) => ({
+                id: p.id,
+                label: p.media_name,
+                meta: previewLine(p),
+              }));
+              return (
+                <div key={topic.id}>
+                  <p className="text-[12px] font-semibold text-foreground">
+                    {topic.title_final ?? topic.title_proposed}
+                  </p>
+                  <div className="mt-2">
+                    <ArticleReorderInTopic
+                      items={reorderItems}
+                      disabled={
+                        !editionId || reorderArticlesMutation.isPending
+                      }
+                      onOrderChange={(orderedIds) => {
+                        reorderArticlesMutation.mutate({
+                          topicId: topic.id,
+                          orderedIds,
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
             {extraOnlyPreviews.length > 0 ? (
               <div>
                 <p className="text-[12px] font-semibold text-foreground">
@@ -353,25 +460,20 @@ export default function ComposePage() {
         )}
       </section>
 
-      <section aria-labelledby="compose-instr-heading" className="space-y-2">
-        <label
-          htmlFor="compose-instructions"
-          id="compose-instr-heading"
-          className="block text-[12px] font-semibold text-foreground"
-        >
-          Consignes additionnelles pour la rédaction (optionnel)
-        </label>
-        <textarea
-          id="compose-instructions"
-          className="olj-focus min-h-[100px] w-full max-w-2xl rounded-md border border-border bg-background px-3 py-2 text-[13px] leading-relaxed text-foreground"
-          placeholder="Ex. insister sur le contraste Golfe / Iran, ton sobre, éviter tel pays…"
-          value={instructionsText}
-          onChange={(e) => onInstructionsChange(e.target.value)}
+      <ComposeInstructions
+        value={composeInstructions}
+        onChange={onComposeInstructionsChange}
+      />
+
+      {topics.length > 1 ? (
+        <TopicReorderList
+          topics={topics}
+          onOrderChange={(ids) => {
+            reorderTopicsMutation.mutate(ids);
+          }}
+          disabled={reorderTopicsMutation.isPending}
         />
-        <p className="text-[11px] text-muted-foreground">
-          Enregistrement automatique après une courte pause. Vous pouvez aussi lancer la rédaction : les consignes sont sauvegardées avant génération.
-        </p>
-      </section>
+      ) : null}
 
       <CoverageGaps
         selectedCountryCodes={selectedCountryCodes}
@@ -434,9 +536,11 @@ export default function ComposePage() {
           const nTexts = t.article_count ?? previews.length;
           const nCountries = codes.size;
           const hasGen = Boolean(t.generated_text?.trim());
-          const nSelectedInTopic = previews.filter((p) =>
-            selectedIds.has(p.id),
-          ).length;
+          const orderedForTopic = orderedSelectedPreviewsForTopic(
+            t,
+            topicsSelectionMap,
+          );
+          const nSelectedInTopic = orderedForTopic.length;
 
           return (
             <article
@@ -445,9 +549,14 @@ export default function ComposePage() {
             >
               <div className="mb-4 flex flex-col gap-4 border-b border-border-light pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Sujet {idx + 1} sur {topics.length}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Sujet {idx + 1} sur {topics.length}
+                    </p>
+                    <ReadinessIndicator
+                      level={topicReadiness(orderedForTopic)}
+                    />
+                  </div>
                   <h3 className="mt-1 font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug text-foreground">
                     {title}
                   </h3>

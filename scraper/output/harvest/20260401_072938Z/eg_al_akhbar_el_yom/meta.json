@@ -1,0 +1,31 @@
+{
+  "media_id": "eg_al_akhbar_el_yom",
+  "media_name": "Al-Akhbar el-Yom",
+  "hub_urls_tried": [
+    "https://akhbarelyom.com/"
+  ],
+  "article_urls_attempted": [
+    "https://akhbarelyom.com/Editors/EditorNews/930/1/%D8%A5%D8%B3%D9%84%D8%A7%D9%85-%D8%B9%D9%81%D9%8A%D9%81%D9%8A",
+    "https://akhbarelyom.com/Editors/EditorNews/929/1/%D9%85%D8%B5%D8%B7%D9%81%D9%89-%D8%B9%D8%A8%D8%AF%D9%87",
+    "https://akhbarelyom.com/pdf",
+    "https://akhbarelyom.com/news/newssection/1/1/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D9%85%D8%B5%D8%B1"
+  ],
+  "articles_ok": 3,
+  "articles_target": 3,
+  "success": true,
+  "partial": false,
+  "errors": [
+    {
+      "url": "https://akhbarelyom.com/pdf",
+      "phase": "fetch_article",
+      "error": "Toutes les methodes ont echoue",
+      "word_count": 0
+    }
+  ],
+  "output_dir": "D:\\Users\\Proprietaire\\Desktop\\OLJ\\Projet_guerre\\scraper\\output\\harvest\\20260401_072938Z\\eg_al_akhbar_el_yom",
+  "articles": [
+    "https://akhbarelyom.com/Editors/EditorNews/930/1/%D8%A5%D8%B3%D9%84%D8%A7%D9%85-%D8%B9%D9%81%D9%8A%D9%81%D9%8A",
+    "https://akhbarelyom.com/Editors/EditorNews/929/1/%D9%85%D8%B5%D8%B7%D9%81%D9%89-%D8%B9%D8%A8%D8%AF%D9%87",
+    "https://akhbarelyom.com/news/newssection/1/1/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D9%85%D8%B5%D8%B1"
+  ]
+}
