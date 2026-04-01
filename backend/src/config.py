@@ -511,7 +511,7 @@ class Settings(BaseSettings):
         description="Activer la cascade scraping enrichie (hubs) — expérimental",
     )
     store_full_translation_fr: bool = Field(
-        default=False,
+        default=True,
         description="Si true : demander et persister content_translated_fr (corps FR complet, coût tokens)",
     )
     translation_english_summary_only: bool = Field(

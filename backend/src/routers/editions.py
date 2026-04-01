@@ -706,6 +706,25 @@ async def post_detect_topics(
     }
 
 
+@router.post("/{edition_id}/analyze")
+async def post_analyze_edition(
+    edition_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    force: bool = Query(
+        True,
+        description="Si vrai : ré-analyse les articles déjà analysés (ex. après traduction corps complet).",
+    ),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    """Relance l’analyse experte (bullets, thèse, faits) pour le corpus de cette édition."""
+    e = await db.get(Edition, edition_id)
+    if not e:
+        raise HTTPException(status_code=404, detail="Edition not found")
+    from src.services.article_analyst import run_article_analysis_pipeline
+
+    return await run_article_analysis_pipeline(edition_id=edition_id, force=force)
+
+
 @router.get("/{edition_id}/clusters-fallback")
 async def clusters_fallback(
     edition_id: UUID,

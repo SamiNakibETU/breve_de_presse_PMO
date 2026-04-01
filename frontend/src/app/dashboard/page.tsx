@@ -157,50 +157,56 @@ export default function DashboardPage() {
       <StatsCards stats={stats} loading={statsQ.isPending} />
 
       {stats && (
-        <div className="grid gap-8 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           {Object.keys(stats.by_country).length > 0 && (
-            <section>
-              <h2 className="olj-rubric olj-rule">Par pays</h2>
-              {Object.entries(stats.by_country)
-                .sort(([, a], [, b]) => b - a)
-                .map(([country, count]) => (
-                  <div
-                    key={country}
-                    className="flex items-baseline justify-between border-b border-border-light py-1.5 text-[13px] last:border-b-0"
-                  >
-                    <span>{country}</span>
-                    <span className="tabular-nums font-medium">{count}</span>
-                  </div>
-                ))}
-            </section>
+            <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <summary className="cursor-pointer font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
+                Répartition par pays
+              </summary>
+              <div className="mt-3 space-y-0">
+                {Object.entries(stats.by_country)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([country, count]) => (
+                    <div
+                      key={country}
+                      className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
+                    >
+                      <span className="text-foreground-body">{country}</span>
+                      <span className="tabular-nums font-medium text-foreground">
+                        {count}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </details>
           )}
 
           {Object.keys(stats.by_language).length > 0 && (
-            <section>
-              <h2 className="olj-rubric olj-rule">Par langue</h2>
-              {Object.entries(stats.by_language)
-                .sort(([, a], [, b]) => b - a)
-                .map(([lang, count]) => (
-                  <div
-                    key={lang}
-                    className="flex items-baseline justify-between border-b border-border-light py-1.5 text-[13px] last:border-b-0"
-                  >
-                    <span>{LANG_LABELS[lang] || lang.toUpperCase()}</span>
-                    <span className="tabular-nums font-medium">{count}</span>
-                  </div>
-                ))}
-            </section>
+            <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <summary className="cursor-pointer font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
+                Répartition par langue
+              </summary>
+              <div className="mt-3 space-y-0">
+                {Object.entries(stats.by_language)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([lang, count]) => (
+                    <div
+                      key={lang}
+                      className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
+                    >
+                      <span className="text-foreground-body">
+                        {LANG_LABELS[lang] || lang.toUpperCase()}
+                      </span>
+                      <span className="tabular-nums font-medium text-foreground">
+                        {count}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </details>
           )}
         </div>
       )}
-
-      <section>
-        <h2 className="olj-rubric olj-rule">Collecte et traitement</h2>
-        <PipelineStatus
-          status={status}
-          sourceHealth={healthQ.data ?? null}
-        />
-      </section>
 
       <section>
         <h2 className="olj-rubric olj-rule">Regroupements thématiques en cours</h2>
@@ -277,6 +283,14 @@ export default function DashboardPage() {
             loading={clustersOnlyLoading}
           />
         )}
+      </section>
+
+      <section>
+        <h2 className="olj-rubric olj-rule">Collecte et traitement</h2>
+        <PipelineStatus
+          status={status}
+          sourceHealth={healthQ.data ?? null}
+        />
       </section>
     </div>
   );

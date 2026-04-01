@@ -112,6 +112,11 @@ function TopicArticleLine({
                   <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
                 ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
+                {preview.analysis_bullets_fr && preview.analysis_bullets_fr.length > 0 ? (
+                  <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                    Analyse dispo
+                  </span>
+                ) : null}
               </>
             ) : (
               <>
@@ -136,6 +141,11 @@ function TopicArticleLine({
                   <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
                 ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
+                {preview.analysis_bullets_fr && preview.analysis_bullets_fr.length > 0 ? (
+                  <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                    Analyse dispo
+                  </span>
+                ) : null}
               </>
             )}
           </div>
@@ -228,6 +238,7 @@ export function TopicSection({
   /** Libellés pays (coverage-targets) pour en-têtes de colonne droite. */
   countryLabelsFr?: Record<string, string> | null;
 }) {
+  const { openArticle, prefetchArticle } = useArticleReader();
   const [expanded, setExpanded] = useState(false);
   const [copiedGen, setCopiedGen] = useState(false);
   const previews = useMemo(
@@ -264,6 +275,8 @@ export function TopicSection({
 
   const groups = useMemo(() => groupVisibleByCountry(visible), [visible]);
 
+  const displayRank = topic.user_rank ?? topic.rank;
+
   const titleNode =
     mode === "summary" && editionDate ? (
       <h2 className="font-[family-name:var(--font-serif)] text-[17px] font-semibold leading-snug tracking-tight text-foreground sm:text-[19px]">
@@ -292,9 +305,9 @@ export function TopicSection({
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span
               className="shrink-0 tabular-nums text-[11px] font-semibold text-muted-foreground"
-              title="Rang dans le brief (1 en tête). Même entrée que le « développement » côté outil."
+              title="Rang dans le brief (1 en tête). Aligné sur user_rank côté API si présent."
             >
-              Sujet {topic.rank}
+              Sujet {displayRank}
             </span>
             {titleNode}
           </div>
@@ -395,6 +408,27 @@ export function TopicSection({
                         {p.thesis_summary_fr}
                       </p>
                     ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="olj-btn-secondary px-2 py-0.5 text-[10px]"
+                        onMouseEnter={() => prefetchArticle(p.id)}
+                        onFocus={() => prefetchArticle(p.id)}
+                        onClick={() => openArticle(p.id)}
+                      >
+                        Lire
+                      </button>
+                      {p.url ? (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="olj-focus text-[10px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
+                        >
+                          Source ↗
+                        </a>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
@@ -481,7 +515,7 @@ export function TopicSection({
                         preview={p}
                         selected={selectedIds.has(p.id)}
                         onToggle={(next) => onToggleArticle(p.id, next)}
-                        compact={inEditionSummary}
+                        compact={false}
                         countryShownInGroupHeader={inEditionSummary}
                       />
                     ))}

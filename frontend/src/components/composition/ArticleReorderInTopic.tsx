@@ -23,10 +23,14 @@ function SortableArticleRow({
   id,
   label,
   meta,
+  onRemove,
+  removeDisabled,
 }: {
   id: string;
   label: string;
   meta?: string;
+  onRemove?: (id: string) => void;
+  removeDisabled?: boolean;
 }) {
   const {
     attributes,
@@ -66,6 +70,17 @@ function SortableArticleRow({
           <span className="block text-[11px] text-muted-foreground">{meta}</span>
         ) : null}
       </div>
+      {onRemove ? (
+        <button
+          type="button"
+          className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-destructive"
+          disabled={removeDisabled}
+          aria-label={`Retirer ${label}`}
+          onClick={() => onRemove(id)}
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -80,6 +95,8 @@ type Props = {
   items: ArticleReorderItem[];
   onOrderChange: (orderedIds: string[]) => void;
   disabled?: boolean;
+  /** Retire la coche côté édition (PATCH sélection). */
+  onRemoveArticle?: (articleId: string) => void;
 };
 
 /**
@@ -89,6 +106,7 @@ export function ArticleReorderInTopic({
   items,
   onOrderChange,
   disabled = false,
+  onRemoveArticle,
 }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -120,10 +138,26 @@ export function ArticleReorderInTopic({
     return (
       <ul className="space-y-2 border-l-2 border-accent/25 pl-3">
         {items.map((i) => (
-          <li key={i.id} className="text-[12px] leading-relaxed">
-            <span className="font-medium text-foreground">{i.label}</span>
-            {i.meta ? (
-              <span className="block text-[11px] text-muted-foreground">{i.meta}</span>
+          <li
+            key={i.id}
+            className="flex items-start justify-between gap-2 text-[12px] leading-relaxed"
+          >
+            <div className="min-w-0">
+              <span className="font-medium text-foreground">{i.label}</span>
+              {i.meta ? (
+                <span className="block text-[11px] text-muted-foreground">{i.meta}</span>
+              ) : null}
+            </div>
+            {onRemoveArticle ? (
+              <button
+                type="button"
+                className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-40"
+                disabled={disabled}
+                aria-label={`Retirer ${i.label}`}
+                onClick={() => onRemoveArticle(i.id)}
+              >
+                ×
+              </button>
             ) : null}
           </li>
         ))}
@@ -146,6 +180,8 @@ export function ArticleReorderInTopic({
               id={i.id}
               label={i.label}
               meta={i.meta}
+              onRemove={onRemoveArticle}
+              removeDisabled={disabled}
             />
           ))}
         </div>

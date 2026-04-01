@@ -134,30 +134,32 @@ export function PipelineStatus({
       )}
 
       {status?.jobs && status.jobs.length > 0 && (
-        <div className="space-y-2 border-t border-border-light pt-3 text-[12px] text-muted-foreground">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Tâches planifiées
-          </p>
-          <p className="text-[10px] leading-relaxed text-muted-foreground/90">
+        <details className="border-t border-border-light pt-3 text-[12px] text-muted-foreground">
+          <summary className="cursor-pointer list-none text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+            Tâches planifiées (déplier)
+          </summary>
+          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/90">
             Prochain créneau brut (serveur). Dernier passage : mémoire du processus API, effacée au redémarrage.
           </p>
-          {status.jobs.map((job) => (
-            <div key={job.id} className="border-l border-border-light pl-2 text-[11px] leading-snug">
-              <div className="font-medium text-foreground-subtle">{job.name}</div>
-              <div className="tabular-nums text-muted-foreground">
-                Prochain : {job.next_run ?? "—"}
-              </div>
-              {job.last_run_at ? (
+          <div className="mt-2 space-y-2">
+            {status.jobs.map((job) => (
+              <div key={job.id} className="border-l border-border-light pl-2 text-[11px] leading-snug">
+                <div className="font-medium text-foreground-subtle">{job.name}</div>
                 <div className="tabular-nums text-muted-foreground">
-                  Dernier : {job.last_run_at}
-                  {job.last_run_ok === false ? " · échec" : job.last_run_ok === true ? " · OK" : ""}
+                  Prochain : {job.next_run ?? "—"}
                 </div>
-              ) : (
-                <div className="text-muted-foreground/80">Dernier : — (depuis boot)</div>
-              )}
-            </div>
-          ))}
-        </div>
+                {job.last_run_at ? (
+                  <div className="tabular-nums text-muted-foreground">
+                    Dernier : {job.last_run_at}
+                    {job.last_run_ok === false ? " · échec" : job.last_run_ok === true ? " · OK" : ""}
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground/80">Dernier : — (depuis boot)</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
       {sourceHealth && sourceHealth.sources.length > 0 && (

@@ -54,6 +54,8 @@ export interface Article {
   retention_reason?: string | null;
   /** Corps traduit (souvent présent sur GET /api/articles/{id}). */
   content_translated_fr?: string | null;
+  /** Texte source tel qu’ingéré (langue d’origine). */
+  content_original?: string | null;
   framing_actor?: string | null;
   framing_tone?: string | null;
   framing_prescription?: string | null;

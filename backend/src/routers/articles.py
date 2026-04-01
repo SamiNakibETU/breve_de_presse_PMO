@@ -146,6 +146,7 @@ def _to_response(
         framing_tone=getattr(art, "framing_tone", None),
         framing_prescription=getattr(art, "framing_prescription", None),
         content_translated_fr=getattr(art, "content_translated_fr", None),
+        content_original=getattr(art, "content_original", None),
         en_translation_summary_only=getattr(art, "en_translation_summary_only", None),
         is_syndicated=getattr(art, "is_syndicated", None),
         canonical_article_id=(

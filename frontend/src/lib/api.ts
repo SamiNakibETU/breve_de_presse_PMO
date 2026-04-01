@@ -390,6 +390,15 @@ export const api = {
       detection_status: string;
     }>(`/api/editions/${editionId}/detect-topics`, { method: "POST" }),
 
+  editionAnalyze: (
+    editionId: string,
+    opts?: { force?: boolean },
+  ) =>
+    request<Record<string, unknown>>(
+      `/api/editions/${editionId}/analyze?force=${opts?.force !== false ? "true" : "false"}`,
+      { method: "POST" },
+    ),
+
   editionTopicDetail: (editionId: string, topicId: string) =>
     request<EditionTopicDetailResponse>(
       `/api/editions/${editionId}/topics/${topicId}`,

@@ -201,6 +201,35 @@ async def extract_hub_article_page(
             if len(body3) > len(body):
                 body = body3
 
+    if settings.enhanced_scraper_enabled and (
+        not body
+        or not is_substantial_article_body(
+            body,
+            min_chars=min_chars,
+            min_words=min_words,
+        )
+    ):
+        from src.services.enhanced_scraper import extract_with_cascade
+
+        cascade_body, cascade_author, cascade_title, cascade_date, cascade_method, _cascade_attempts = (
+            await extract_with_cascade(
+                url,
+                pw=pw,
+                pw_lock=pw_lock,
+                min_chars=min_chars,
+                min_words=min_words,
+            )
+        )
+        if cascade_body and (not body or len(cascade_body) > len(body)):
+            body = cascade_body
+            author = author or cascade_author
+            title = title or cascade_title
+            pub_date = pub_date or cascade_date
+            if strategy:
+                strategy.append(f"cascade:{cascade_method}")
+            else:
+                strategy = [f"cascade:{cascade_method}"]
+
     strat = "+".join(strategy) if strategy else "none"
     if not body:
         return None, author, title, pub_date, strat

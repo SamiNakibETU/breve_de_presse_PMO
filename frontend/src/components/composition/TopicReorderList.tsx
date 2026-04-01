@@ -71,6 +71,8 @@ type Props = {
   topics: EditionTopic[];
   onOrderChange: (orderedIds: string[]) => void;
   disabled?: boolean;
+  /** Si vrai : bloc repliable (fermé par défaut). */
+  collapsible?: boolean;
 };
 
 /**
@@ -80,6 +82,7 @@ export function TopicReorderList({
   topics,
   onOrderChange,
   disabled = false,
+  collapsible = false,
 }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -111,17 +114,16 @@ export function TopicReorderList({
     return null;
   }
 
-  return (
-    <section
-      aria-labelledby="topic-reorder-heading"
-      className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
-    >
-      <h2
-        id="topic-reorder-heading"
-        className="olj-rubric mb-3 border-b border-border-light pb-2"
-      >
-        Ordre des sujets dans la revue
-      </h2>
+  const body = (
+    <>
+      {!collapsible ? (
+        <h2
+          id="topic-reorder-heading"
+          className="olj-rubric mb-3 border-b border-border-light pb-2"
+        >
+          Ordre des sujets dans la revue
+        </h2>
+      ) : null}
       <p className="mb-4 text-[12px] leading-relaxed text-muted-foreground">
         Glissez le bloc pour changer l’ordre des paragraphes (génération « toute
         la revue » et copie globale).
@@ -149,6 +151,35 @@ export function TopicReorderList({
           ? "Enregistrement de l’ordre…"
           : "Enregistrement automatique après déplacement."}
       </p>
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <details className="rounded-lg border border-border bg-card shadow-sm sm:p-0">
+        <summary className="cursor-pointer list-none px-5 py-4 text-[13px] font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+          Ordre des sujets dans la revue{" "}
+          <span className="font-normal text-muted-foreground">— déplier pour modifier</span>
+        </summary>
+        <div
+          className="border-t border-border-light px-5 pb-5 pt-2"
+          aria-labelledby="topic-reorder-heading"
+        >
+          <h2 id="topic-reorder-heading" className="sr-only">
+            Ordre des sujets dans la revue
+          </h2>
+          {body}
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <section
+      aria-labelledby="topic-reorder-heading"
+      className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
+    >
+      {body}
     </section>
   );
 }

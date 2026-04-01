@@ -217,7 +217,7 @@ class OpinionHubScraper:
                 d = urlparse(article_url).netloc
                 await self._rate_limit(d)
 
-                text, author, title, pub_date = await self._extract_article(article_url)
+                text, author, title, pub_date, strat = await self._extract_article(article_url)
                 if not is_substantial_article_body(
                     text or "",
                     min_chars=min_chars,
@@ -238,6 +238,8 @@ class OpinionHubScraper:
                     source.country_code,
                 )
 
+                strat_db = (strat or "")[:32]
+                cascade_n = strat_db.count("+") + 1 if strat_db else 0
                 db.add(
                     Article(
                         media_source_id=source.id,
@@ -250,6 +252,8 @@ class OpinionHubScraper:
                         source_language=lang,
                         status="collected",
                         word_count=len((text or "").split()),
+                        scrape_method=strat_db or None,
+                        scrape_cascade_attempts=cascade_n if strat_db else None,
                     )
                 )
                 new_count += 1
@@ -276,17 +280,17 @@ class OpinionHubScraper:
 
     async def _extract_article(
         self, url: str
-    ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[datetime]]:
+    ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[datetime], str]:
         try:
-            body, author, title, pub_date, _strat = await extract_hub_article_page(
+            body, author, title, pub_date, strat = await extract_hub_article_page(
                 url,
                 pw=self._pw_browser,
                 pw_lock=self._pw_lock,
             )
-            return body, author, title, pub_date
+            return body, author, title, pub_date, strat
         except Exception as exc:
             logger.debug("opinion_hub.article_fail", url=url, error=str(exc)[:80])
-            return None, None, None, None
+            return None, None, None, None, "error"
 
 
 async def run_opinion_hub_scraping() -> dict:

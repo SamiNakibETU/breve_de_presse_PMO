@@ -253,7 +253,14 @@ export default function ComposePage() {
     },
   });
 
-  const topics = useMemo(() => topicsQ.data ?? [], [topicsQ.data]);
+  const topics = useMemo(() => {
+    const list = topicsQ.data ?? [];
+    return [...list].sort((a, b) => {
+      const ra = a.user_rank ?? a.rank ?? 999;
+      const rb = b.user_rank ?? b.rank ?? 999;
+      return ra - rb;
+    });
+  }, [topicsQ.data]);
 
   const selectedIds = useMemo(() => {
     const s = new Set<string>();
@@ -349,6 +356,41 @@ export default function ComposePage() {
 
   const titleFr = editionTitleLine(date);
 
+  const removeArticleMutation = useMutation({
+    mutationFn: async ({
+      topicId,
+      articleId,
+    }: {
+      topicId: string;
+      articleId: string;
+    }) => {
+      if (!editionId) {
+        throw new Error("Édition introuvable");
+      }
+      const cur = topicsSelectionMap[topicId] ?? [];
+      const next = cur.filter((id) => id !== articleId);
+      await api.editionTopicSelection(editionId, topicId, next);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
+    },
+  });
+
+  const removeExtraArticleMutation = useMutation({
+    mutationFn: async (articleId: string) => {
+      if (!editionId) {
+        throw new Error("Édition introuvable");
+      }
+      const cur = selectionsQ.data?.extra_article_ids ?? [];
+      await api.editionComposePreferences(editionId, {
+        extra_selected_article_ids: cur.filter((id) => id !== articleId),
+      });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
+    },
+  });
+
   const reorderTopicsMutation = useMutation({
     mutationFn: async (orderedIds: string[]) => {
       if (!editionId) {
@@ -432,12 +474,20 @@ export default function ComposePage() {
                     <ArticleReorderInTopic
                       items={reorderItems}
                       disabled={
-                        !editionId || reorderArticlesMutation.isPending
+                        !editionId ||
+                        reorderArticlesMutation.isPending ||
+                        removeArticleMutation.isPending
                       }
                       onOrderChange={(orderedIds) => {
                         reorderArticlesMutation.mutate({
                           topicId: topic.id,
                           orderedIds,
+                        });
+                      }}
+                      onRemoveArticle={(articleId) => {
+                        removeArticleMutation.mutate({
+                          topicId: topic.id,
+                          articleId,
                         });
                       }}
                     />
@@ -455,18 +505,32 @@ export default function ComposePage() {
                 </p>
                 <ul className="mt-2 space-y-2 border-l-2 border-border pl-3">
                   {extraOnlyPreviews.map((p) => (
-                    <li key={p.id} className="text-[12px] leading-relaxed">
-                      <span className="font-medium text-foreground">
-                        {p.media_name}
-                      </span>
-                      {p.country_code ? (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {p.country_code}
+                    <li
+                      key={p.id}
+                      className="flex items-start justify-between gap-2 text-[12px] leading-relaxed"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-medium text-foreground">
+                          {p.media_name}
                         </span>
-                      ) : null}
-                      <br />
-                      <span className="text-foreground-body">{previewLine(p)}</span>
+                        {p.country_code ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {p.country_code}
+                          </span>
+                        ) : null}
+                        <br />
+                        <span className="text-foreground-body">{previewLine(p)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-40"
+                        disabled={removeExtraArticleMutation.isPending}
+                        aria-label="Retirer cet article"
+                        onClick={() => removeExtraArticleMutation.mutate(p.id)}
+                      >
+                        ×
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -488,6 +552,7 @@ export default function ComposePage() {
             reorderTopicsMutation.mutate(ids);
           }}
           disabled={reorderTopicsMutation.isPending}
+          collapsible
         />
       ) : null}
 
@@ -552,6 +617,7 @@ export default function ComposePage() {
           Revue par article · grands sujets ({topics.length})
         </h2>
         {topics.map((t, idx) => {
+          const rankLabel = t.user_rank ?? t.rank ?? idx + 1;
           const title = t.title_final ?? t.title_proposed;
           const previews = t.article_previews ?? [];
           const codes = new Set(
@@ -583,7 +649,7 @@ export default function ComposePage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Grand sujet {idx + 1} sur {topics.length}
+                      Grand sujet {rankLabel} sur {topics.length}
                     </p>
                     <ReadinessIndicator
                       level={topicReadiness(orderedForTopic)}

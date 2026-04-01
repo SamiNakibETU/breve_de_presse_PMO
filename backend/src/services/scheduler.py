@@ -482,12 +482,12 @@ async def _daily_pipeline_body(
                 eid_art = await resolve_current_edition_id()
                 art_stats = await run_article_analysis_pipeline(edition_id=eid_art)
                 pipeline_result["article_analysis"] = art_stats
-                if eid_art:
-                    await log_pipeline_step(
-                        eid_art,
-                        "article_analysis",
-                        compact_payload(art_stats),
-                    )
+                log_eid = eid_art or await resolve_current_edition_id()
+                await log_pipeline_step(
+                    log_eid,
+                    "article_analysis",
+                    compact_payload(art_stats),
+                )
                 analysis_last_error = None
                 break
             except Exception as e:

@@ -281,7 +281,14 @@ export default function EditionSommairePage() {
       q.state.data?.pipeline_running === true ? 4_000 : false,
   });
 
-  const topics = useMemo(() => topicsQ.data ?? [], [topicsQ.data]);
+  const topics = useMemo(() => {
+    const list = topicsQ.data ?? [];
+    return [...list].sort((a, b) => {
+      const ra = a.user_rank ?? a.rank ?? 999;
+      const rb = b.user_rank ?? b.rank ?? 999;
+      return ra - rb;
+    });
+  }, [topicsQ.data]);
   const hasTopicFeed = detectionStatus === "done" && topics.length > 0;
 
   const clustersFallbackQ = useQuery({
@@ -812,8 +819,9 @@ export default function EditionSommairePage() {
                 <section>
                   <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>
                   <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                    <strong className="font-medium text-foreground/90">Sujet 1</strong> ouvre le brief ; les rangs
-                    suivants poursuivent le sommaire dans l’ordre proposé.
+                    Chaque bloc affiche son <strong className="font-medium text-foreground/90">rang</strong> dans le
+                    sommaire (ordre éditorial). Les numéros suivent <code className="text-[10px]">user_rank</code>{" "}
+                    lorsqu’il est défini.
                   </p>
                   <div className="space-y-10">
                     {topics.map((t: EditionTopic) => (

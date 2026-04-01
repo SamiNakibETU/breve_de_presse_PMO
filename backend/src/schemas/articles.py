@@ -47,6 +47,7 @@ class ArticleResponse(BaseModel):
     framing_tone: Optional[str] = None
     framing_prescription: Optional[str] = None
     content_translated_fr: Optional[str] = None
+    content_original: Optional[str] = None
     en_translation_summary_only: Optional[bool] = None
     is_syndicated: Optional[bool] = None
     canonical_article_id: Optional[str] = None

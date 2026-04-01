@@ -28,7 +28,7 @@ logger = structlog.get_logger(__name__)
 ANALYSIS_VERSION = "article_analysis_v1"
 
 
-def _snippet(body: str | None, max_chars: int = 2000) -> str:
+def _snippet(body: str | None, max_chars: int = 5000) -> str:
     if not body:
         return ""
     b = body.strip()
@@ -87,7 +87,7 @@ async def analyze_article(
             user,
             schema,
             tool_name="article_analysis",
-            max_tokens=900,
+            max_tokens=1400,
             temperature=0.1,
             model=model,
         )
@@ -140,11 +140,18 @@ async def run_article_analysis_pipeline(
     *,
     edition_id: uuid.UUID | None = None,
     limit: int | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
-    """Articles traduits pertinents (high/medium), pas encore analysés."""
+    """Articles traduits pertinents (high/medium) ; si ``force``, ré-analyse même déjà analysés."""
     s = get_settings()
     if not s.article_analysis_enabled:
-        return {"skipped": True, "reason": "article_analysis_disabled", "analyzed": 0}
+        return {
+            "skipped": True,
+            "reason": "article_analysis_disabled",
+            "analyzed": 0,
+            "errors": 0,
+            "skipped_articles": 0,
+        }
 
     factory = get_session_factory()
     async with factory() as db:
@@ -153,27 +160,43 @@ async def run_article_analysis_pipeline(
             select(Article)
             .where(Article.summary_fr.isnot(None))
             .where(Article.status.in_(("translated", "needs_review", "formatted")))
-            .where(Article.analyzed_at.is_(None))
             .where(Article.relevance_band.in_(("high", "medium")))
         )
+        if not force:
+            stmt = stmt.where(Article.analyzed_at.is_(None))
         if edition_id is not None:
             stmt = stmt.where(Article.edition_id == edition_id)
         stmt = stmt.order_by(Article.collected_at.desc()).limit(lim)
 
+        logger.info(
+            "article_analysis.pipeline_start",
+            edition_id=str(edition_id) if edition_id else None,
+            force=force,
+            limit=lim,
+        )
+
         res = await db.execute(stmt)
         rows = list(res.scalars().all())
+        logger.info(
+            "article_analysis.candidates_loaded",
+            candidates=len(rows),
+            edition_id=str(edition_id) if edition_id else None,
+        )
         analyzed = 0
         errors = 0
+        skipped_articles = 0
         for a in rows:
             r = await analyze_article(db, a.id)
             if r.get("ok"):
                 analyzed += 1
             elif r.get("skipped"):
-                pass
+                skipped_articles += 1
             else:
                 errors += 1
         return {
             "candidates": len(rows),
             "analyzed": analyzed,
             "errors": errors,
+            "skipped_articles": skipped_articles,
+            "force": force,
         }

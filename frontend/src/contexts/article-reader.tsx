@@ -164,6 +164,11 @@ function ArticleReadModal({
   const hasBodyFr = Boolean(a?.content_translated_fr?.trim());
   const summaryOnly =
     Boolean(a?.en_translation_summary_only) && !hasBodyFr;
+  const hasOriginalBody = Boolean(a?.content_original?.trim());
+  const hasAnalysisTab =
+    Boolean(a?.analysis_bullets_fr?.length) ||
+    Boolean(a?.author_thesis_explicit_fr?.trim()) ||
+    Boolean(a?.factual_context_fr?.trim());
   const cc = (a?.country_code ?? "").trim().toUpperCase();
   const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
   const authorLine = a ? formatAuthorDisplay(a.author) : null;
@@ -301,7 +306,7 @@ function ArticleReadModal({
                     role="tab"
                     aria-selected={tab === k}
                     className={cn(
-                      "rounded-md px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors sm:px-3",
+                      "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors sm:px-3",
                       tab === k
                         ? "bg-accent/12 text-accent"
                         : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -309,6 +314,20 @@ function ArticleReadModal({
                     onClick={() => setTab(k)}
                   >
                     {label}
+                    {k === "analysis" && hasAnalysisTab ? (
+                      <span
+                        className="inline-block size-1.5 shrink-0 rounded-full bg-accent"
+                        title="Analyse structurée disponible"
+                        aria-hidden
+                      />
+                    ) : null}
+                    {k === "body" && hasBodyFr ? (
+                      <span
+                        className="inline-block size-1.5 shrink-0 rounded-full bg-accent"
+                        title="Corps traduit disponible"
+                        aria-hidden
+                      />
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -364,13 +383,11 @@ function ArticleReadModal({
                   {!a.factual_context_fr?.trim() &&
                   !a.author_thesis_explicit_fr?.trim() &&
                   !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) ? (
-                    <p className="text-muted-foreground">
-                      Pas encore d’analyse structurée pour cet article. Consultez
-                      l’onglet{" "}
-                      <strong className="font-medium text-foreground">
-                        Synthèse
-                      </strong>
-                      .
+                    <p className="text-[13px] leading-relaxed text-muted-foreground">
+                      L’analyse experte (faits, thèse, idées majeures) sera disponible après le
+                      prochain passage pipeline ou une relance depuis la régie. En attendant,
+                      consultez l’onglet{" "}
+                      <strong className="font-medium text-foreground">Synthèse</strong>.
                     </p>
                   ) : null}
                 </section>
@@ -502,10 +519,25 @@ function ArticleReadModal({
                       </strong>{" "}
                       ou la <strong className="font-medium text-foreground">Source</strong>.
                     </p>
+                  ) : hasOriginalBody ? (
+                    <>
+                      <p className="text-[13px] leading-relaxed text-muted-foreground">
+                        Le corps traduit complet sera disponible après la prochaine traduction
+                        avec persistance du français. Texte source tel qu’ingéré (langue d’origine)
+                        :
+                      </p>
+                      <div className="rounded-md border border-border-light bg-muted/20 p-4 font-[family-name:var(--font-serif)] text-[14px] leading-[1.75] text-foreground-body">
+                        {bodyParagraphs(a.content_original!.trim()).map((para, i) => (
+                          <p key={i} className="mb-3 last:mb-0">
+                            {para}
+                          </p>
+                        ))}
+                      </div>
+                    </>
                   ) : (
                     <p className="text-[13px] text-muted-foreground">
-                      Aucun corps traduit en base pour cet article. Ouvrez la
-                      source ou vérifiez les options de traduction côté serveur.
+                      Aucun corps disponible en base pour cet article. Ouvrez la source ou
+                      vérifiez la collecte.
                     </p>
                   )}
                 </section>
