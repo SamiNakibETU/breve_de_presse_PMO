@@ -1,7 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { usePipelineRunner } from "@/contexts/pipeline-runner";
+import { api } from "@/lib/api";
+import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import type {
   AppStatus,
   MediaSourcesHealthResponse,
@@ -59,13 +62,14 @@ const ADVANCED_ACTIONS: {
   {
     key: "relevanceScoring",
     label: "Pertinence",
-    title: "Score l’intérêt éditorial pour la revue sur l’édition courante (serveur).",
+    title:
+      "Score l’intérêt éditorial pour la revue. Utilise la cible ci-dessous (date) ou l’édition courante serveur si coché.",
   },
   {
     key: "articleAnalysis",
     label: "Analyse 5 puces",
     title:
-      "Analyse LLM article par article (5 puces, thèse). Coût API : prévoir selon volume. Cible l’édition courante ; depuis la page Édition, l’édition affichée est transmise.",
+      "Analyse LLM article par article (5 puces, thèse). Coût API selon volume. Respecte la cible édition ci-dessous.",
   },
   {
     key: "dedupSurface",
@@ -101,7 +105,7 @@ const ADVANCED_ACTIONS: {
     key: "topicDetection",
     label: "Grands sujets (sommaire)",
     title:
-      "Recalcule les grands sujets du sommaire pour l’édition courante (ou le jour Beyrouth si édition non précisée). Coût LLM. Différent des petits regroupements thématiques.",
+      "Recalcule les grands sujets du sommaire pour l’édition choisie ci-dessous, ou l’édition courante serveur si coché. Coût LLM.",
   },
 ];
 
@@ -154,6 +158,35 @@ export function PipelineStatus({
   const { running, lastRun, diagnostics, startRun, clearDiagnostics } =
     usePipelineRunner();
   const [showAllSources, setShowAllSources] = useState(false);
+  const [useServerEdition, setUseServerEdition] = useState(true);
+  const [publishDateIso, setPublishDateIso] = useState(todayBeirutIsoDate);
+
+  const editionQ = useQuery({
+    queryKey: ["regie", "editionByDate", publishDateIso] as const,
+    queryFn: () => api.editionByDate(publishDateIso),
+    enabled: !useServerEdition && Boolean(publishDateIso),
+    retry: false,
+  });
+
+  const resolvedEditionId = editionQ.data?.id;
+  const editionTargetReady =
+    useServerEdition ||
+    (Boolean(publishDateIso) &&
+      editionQ.isSuccess &&
+      typeof resolvedEditionId === "string" &&
+      resolvedEditionId.length > 0);
+  const advancedBlocked =
+    running !== null || (!useServerEdition && !editionTargetReady);
+
+  const runAdvanced = (key: PipelineActionKey, label: string) => {
+    if (useServerEdition) {
+      startRun(key, label);
+      return;
+    }
+    if (resolvedEditionId) {
+      startRun(key, label, { editionId: resolvedEditionId });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -185,19 +218,70 @@ export function PipelineStatus({
         <summary className="cursor-pointer text-[12px] font-medium text-foreground-subtle hover:text-foreground">
           Étapes avancées (une par une)
         </summary>
+        <div className="mt-3 max-w-3xl space-y-2 rounded border border-border/60 bg-background/80 px-3 py-2.5">
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-snug text-foreground-body">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-[var(--color-accent)]"
+              checked={useServerEdition}
+              onChange={(e) => setUseServerEdition(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium text-foreground-subtle">Édition courante (serveur)</span>
+              <span className="block text-muted-foreground">
+                Même cible que l’horloge serveur (Asia/Beirut). Décochez pour choisir une date de
+                parution précise.
+              </span>
+            </span>
+          </label>
+          {!useServerEdition ? (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <label htmlFor="regie-pipeline-publish-date" className="text-[11px] text-foreground-subtle">
+                Date de parution
+              </label>
+              <input
+                id="regie-pipeline-publish-date"
+                type="date"
+                value={publishDateIso}
+                onChange={(e) => setPublishDateIso(e.target.value)}
+                className="rounded border border-border bg-background px-2 py-1 text-[11px] text-foreground tabular-nums"
+              />
+              {editionQ.isPending ? (
+                <span className="text-[11px] text-muted-foreground" role="status">
+                  Chargement de l’édition…
+                </span>
+              ) : null}
+              {editionQ.isError ? (
+                <span className="text-[11px] text-destructive" role="alert">
+                  Aucune édition en base pour cette date.
+                </span>
+              ) : null}
+              {editionQ.isSuccess && editionQ.data ? (
+                <span className="text-[11px] text-muted-foreground" role="status">
+                  Édition chargée
+                  {typeof editionQ.data.corpus_article_count === "number"
+                    ? ` · ${editionQ.data.corpus_article_count} article(s) dans le corpus`
+                    : ""}
+                  .
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">
-          Chaque bouton lance une seule étape sur l’édition courante du serveur (sauf mention
-          sur la page Édition pour l’analyse 5 puces). Ordre logique : vecteurs avant
-          regroupements et dédoublonnage sémantique. Les étapes LLM peuvent représenter un coût
-          API notable.
+          La ligne d’actions principale ci-dessus (collecte, traduction, etc.) reste globale à
+          l’instant serveur. Ici, chaque bouton lance une seule étape sur la{" "}
+          <strong className="font-medium text-foreground-subtle">cible édition</strong> choisie.
+          Ordre logique : vecteurs avant regroupements et dédoublonnage sémantique. Les étapes LLM
+          peuvent représenter un coût API notable.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {ADVANCED_ACTIONS.map(({ key, label, title }) => (
             <button
               key={key}
               type="button"
-              onClick={() => startRun(key, label)}
-              disabled={running !== null}
+              onClick={() => runAdvanced(key, label)}
+              disabled={advancedBlocked}
               className="olj-btn-secondary text-[11px] disabled:opacity-40"
               title={title}
             >

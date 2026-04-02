@@ -1,6 +1,10 @@
 """
 Tâches pipeline unitaires (une étape à la fois) — Régie « étapes avancées ».
 L’édition cible est ``edition_id`` si fourni, sinon ``resolve_edition_id_for_timestamp(now)``.
+
+Portée ``edition_id`` (lorsque la tâche reçoit un UUID résolu) :
+pertinence, analyse 5 puces, dédup surface/sémantique, clustering, détection sujets : filtrage par édition.
+embedding_only, cluster_labelling, simhash : filtres SQL alignés sur ``edition_id`` (voir services).
 """
 
 from __future__ import annotations
@@ -126,7 +130,6 @@ async def execute_dedup_surface_step_task(task_id: str, edition_id_str: str | No
 async def execute_syndication_simhash_step_task(task_id: str, edition_id_str: str | None) -> None:
     try:
         _schedule_update_step(task_id, "syndication", "Simhash dépêches…")
-        settings = get_settings()
         factory = get_session_factory()
         async with factory() as db:
             eid = await _resolve_edition_uuid(db, edition_id_str)
@@ -134,8 +137,8 @@ async def execute_syndication_simhash_step_task(task_id: str, edition_id_str: st
                 await task_store.finish_error(task_id, "edition_id introuvable")
                 return
             t0 = time.monotonic()
-            syndicated_sum = await mark_syndicated_from_summaries(db)
-            syndicated_body = await mark_syndicated_from_bodies(db)
+            syndicated_sum = await mark_syndicated_from_summaries(db, edition_id=eid)
+            syndicated_body = await mark_syndicated_from_bodies(db, edition_id=eid)
             await db.commit()
             dur = round(time.monotonic() - t0, 2)
         payload = {
@@ -189,7 +192,7 @@ async def execute_embedding_only_step_task(task_id: str, edition_id_str: str | N
                 return
             t0 = time.monotonic()
             embedding_service = EmbeddingService()
-            embedded = await embedding_service.embed_pending_articles(db)
+            embedded = await embedding_service.embed_pending_articles(db, edition_id=eid)
             await db.commit()
             dur = round(time.monotonic() - t0, 2)
         await log_pipeline_step(eid, "embedding", compact_payload({"embedded": embedded, "duration_s": dur, "source": "step_task"}))
@@ -233,7 +236,7 @@ async def execute_cluster_labelling_step_task(task_id: str, edition_id_str: str 
                 await task_store.finish_error(task_id, "edition_id introuvable")
                 return
             t0 = time.monotonic()
-            labeled = await label_clusters(db)
+            labeled = await label_clusters(db, edition_id=eid)
             await db.commit()
             dur = round(time.monotonic() - t0, 2)
         await log_pipeline_step(eid, "cluster_labelling", compact_payload({"labeled": labeled, "duration_s": dur, "source": "step_task"}))

@@ -5,6 +5,7 @@ Cohere embedding service for article semantic vectors.
 from __future__ import annotations
 
 import time
+import uuid
 
 import cohere
 import structlog
@@ -107,7 +108,12 @@ class EmbeddingService:
             raise ValueError("Cohere embed returned no vectors for query")
         return batch[0]
 
-    async def embed_pending_articles(self, db: AsyncSession) -> int:
+    async def embed_pending_articles(
+        self,
+        db: AsyncSession,
+        *,
+        edition_id: uuid.UUID | None = None,
+    ) -> int:
         settings = get_settings()
         stmt = (
             select(Article)
@@ -118,6 +124,8 @@ class EmbeddingService:
             .where(Article.canonical_article_id.is_(None))
             .limit(500)
         )
+        if edition_id is not None:
+            stmt = stmt.where(Article.edition_id == edition_id)
         if settings.embed_only_editorial_types:
             stmt = stmt.where(Article.article_type.in_(_EDITORIAL_TYPES))
         result = await db.execute(stmt)

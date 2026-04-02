@@ -4,6 +4,7 @@ LLM-powered labelling of topic clusters.
 
 import json
 import time
+import uuid
 
 import structlog
 from sqlalchemy import func, or_, select
@@ -56,19 +57,38 @@ def _normalize_stored_cluster_label(
     return _fallback_label_from_articles(articles)
 
 
-async def label_clusters(db: AsyncSession) -> int:
+async def label_clusters(
+    db: AsyncSession,
+    *,
+    edition_id: uuid.UUID | None = None,
+) -> int:
     router = get_llm_router()
 
-    stmt = (
-        select(TopicCluster)
-        .where(TopicCluster.is_active == True)
-        .where(
-            or_(
-                TopicCluster.label.is_(None),
-                func.trim(func.coalesce(TopicCluster.label, "")) == "",
-            )
-        )
+    label_empty = or_(
+        TopicCluster.label.is_(None),
+        func.trim(func.coalesce(TopicCluster.label, "")) == "",
     )
+    if edition_id is not None:
+        cluster_ids_subq = (
+            select(Article.cluster_id)
+            .where(
+                Article.edition_id == edition_id,
+                Article.cluster_id.isnot(None),
+            )
+            .distinct()
+        )
+        stmt = (
+            select(TopicCluster)
+            .where(TopicCluster.is_active == True)
+            .where(label_empty)
+            .where(TopicCluster.id.in_(cluster_ids_subq))
+        )
+    else:
+        stmt = (
+            select(TopicCluster)
+            .where(TopicCluster.is_active == True)
+            .where(label_empty)
+        )
     result = await db.execute(stmt)
     clusters = result.scalars().all()
 

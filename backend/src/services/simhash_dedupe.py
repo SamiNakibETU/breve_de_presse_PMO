@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import uuid
 from collections import defaultdict
 
 import structlog
@@ -73,6 +74,7 @@ async def mark_syndicated_from_summaries(
     db: AsyncSession,
     *,
     min_summary_len: int = 80,
+    edition_id: uuid.UUID | None = None,
 ) -> int:
     """
     Regroupe les articles avec le même SimHash de summary_fr (reprise quasi identique).
@@ -82,6 +84,8 @@ async def mark_syndicated_from_summaries(
         Article.summary_fr.isnot(None),
         Article.is_syndicated.is_(False),
     )
+    if edition_id is not None:
+        stmt = stmt.where(Article.edition_id == edition_id)
     res = await db.execute(stmt)
     articles = list(res.scalars().all())
 
@@ -119,6 +123,7 @@ async def mark_syndicated_from_bodies(
     *,
     max_hamming: int = 13,
     min_body_len: int = 400,
+    edition_id: uuid.UUID | None = None,
 ) -> int:
     """
     SimHash sur extrait normalisé du corps : regroupe les reprises (~80 % similarité, Hamming).
@@ -131,6 +136,8 @@ async def mark_syndicated_from_bodies(
         Article.content_original.isnot(None),
         Article.is_syndicated.is_(False),
     )
+    if edition_id is not None:
+        stmt = stmt.where(Article.edition_id == edition_id)
     res = await db.execute(stmt)
     articles = list(res.scalars().all())
 
