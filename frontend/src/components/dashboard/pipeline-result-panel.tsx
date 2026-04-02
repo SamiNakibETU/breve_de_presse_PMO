@@ -7,7 +7,16 @@ export type PipelineActionKey =
   | "translate"
   | "refreshClusters"
   | "pipeline"
-  | "resumePipeline";
+  | "resumePipeline"
+  | "relevanceScoring"
+  | "articleAnalysis"
+  | "dedupSurface"
+  | "syndicationSimhash"
+  | "dedupSemantic"
+  | "embeddingOnly"
+  | "clusteringOnly"
+  | "clusterLabelling"
+  | "topicDetection";
 
 export interface PipelineRunRecord {
   action: PipelineActionKey;
@@ -33,6 +42,12 @@ function extractStats(
   action: PipelineActionKey,
   root: Record<string, unknown>,
 ): Record<string, unknown> | null {
+  if (action === "collect" || action === "translate") {
+    if (root.status === "ok" && isRecord(root.stats)) {
+      return root.stats;
+    }
+    return null;
+  }
   if (action === "refreshClusters") {
     if (
       "articles_embedded" in root ||
@@ -66,6 +81,33 @@ function formatElapsedSeconds(totalSeconds: number): string {
 
 /** Étapes typiques côté serveur (informatif — pas de signal temps réel aujourd’hui). */
 const TYPICAL_SERVER_STEPS: Record<PipelineActionKey, string[]> = {
+  relevanceScoring: [
+    "Score de pertinence pour la revue sur le corpus de l’édition cible",
+  ],
+  articleAnalysis: [
+    "Analyse LLM article par article (5 puces, thèse, etc.) — textes déjà traduits",
+  ],
+  dedupSurface: [
+    "Repérage des doublons évidents (recouvrement texte de surface)",
+  ],
+  syndicationSimhash: [
+    "Simhash sur résumés et corps pour marquer les dépêches reprises",
+  ],
+  dedupSemantic: [
+    "Dédoublonnage sémantique (après vecteurs à jour)",
+  ],
+  embeddingOnly: [
+    "Calcul des embeddings Cohere pour les articles en attente",
+  ],
+  clusteringOnly: [
+    "Regroupement HDBSCAN sur les vecteurs",
+  ],
+  clusterLabelling: [
+    "Libellés LLM pour les clusters sans titre",
+  ],
+  topicDetection: [
+    "Grands sujets du sommaire pour l’édition (LLM) — pas les petits clusters thématiques",
+  ],
   collect: [
     "Lecture des flux RSS pour chaque média actif",
     "Filtrage éditorial (périmètre / titres)",
@@ -80,7 +122,7 @@ const TYPICAL_SERVER_STEPS: Record<PipelineActionKey, string[]> = {
   refreshClusters: [
     "Embeddings pour les articles sans vecteur (Cohere)",
     "Regroupement (HDBSCAN) et mise à jour des clusters",
-    "Libellés sujets via LLM pour les clusters sans titre",
+    "Libellés pour les regroupements sans titre — sans collecte, traduction ni grands sujets d’édition",
   ],
   pipeline: [
     "Collecte RSS / scrapers",

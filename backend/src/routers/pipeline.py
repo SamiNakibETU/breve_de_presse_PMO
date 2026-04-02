@@ -128,8 +128,8 @@ async def start_pipeline_task(
 ):
     """
     Lance une tâche pipeline en arrière-plan. Suivi : **GET /api/pipeline/tasks/{task_id}**
-    (polling client ~1 s). Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`,
-    `resume_pipeline`.
+    (polling client ~1 s).     Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`,
+    `resume_pipeline`, et les étapes unitaires (`relevance_scoring`, `article_analysis`, …).
     """
     if body.kind.value in ("full_pipeline", "resume_pipeline") and await pipeline_is_busy_async():
         raise HTTPException(
@@ -137,11 +137,14 @@ async def start_pipeline_task(
             detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",
         )
     task_id = await pipeline_task_store.create_task(body.kind.value)
+    edition_id_str = str(body.edition_id) if body.edition_id else None
     background_tasks.add_task(
         execute_pipeline_task,
         task_id,
         body.kind.value,
         body.translate_limit,
+        edition_id_str,
+        body.analysis_force,
     )
     return PipelineTaskStartResponse(task_id=task_id)
 

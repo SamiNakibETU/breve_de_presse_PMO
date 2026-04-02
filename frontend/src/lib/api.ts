@@ -296,18 +296,28 @@ export const api = {
       method: "POST",
     }),
 
-  /** Démarre une tâche longue (collecte, traduction, clusters, pipeline complet). */
+  /** Démarre une tâche longue (collecte, traduction, clusters, pipeline complet, étapes unitaires). */
   startPipelineTask: (body: {
     kind: PipelineTaskKind;
-    translate_limit?: number;
-  }) =>
-    request<PipelineTaskStartResponse>("/api/pipeline/tasks", {
+    translate_limit?: number | null;
+    edition_id?: string | null;
+    analysis_force?: boolean;
+  }) => {
+    const payload: Record<string, unknown> = { kind: body.kind };
+    if (body.translate_limit != null) {
+      payload.translate_limit = body.translate_limit;
+    }
+    if (body.edition_id != null && body.edition_id !== "") {
+      payload.edition_id = body.edition_id;
+    }
+    if (body.analysis_force === false) {
+      payload.analysis_force = false;
+    }
+    return request<PipelineTaskStartResponse>("/api/pipeline/tasks", {
       method: "POST",
-      body: JSON.stringify({
-        kind: body.kind,
-        translate_limit: body.translate_limit ?? 300,
-      }),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
 
   getPipelineTask: (taskId: string) =>
     request<PipelineTaskStatus>(`/api/pipeline/tasks/${taskId}`),
@@ -321,14 +331,15 @@ export const api = {
     onProgress: (s: PipelineTaskStatus) => void,
     options?: { translateLimit?: number; signal?: AbortSignal },
   ): Promise<unknown> => {
+    const payload: Record<string, unknown> = { kind };
+    if (kind === "translate") {
+      payload.translate_limit = options?.translateLimit ?? 300;
+    }
     const { task_id } = await request<PipelineTaskStartResponse>(
       "/api/pipeline/tasks",
       {
         method: "POST",
-        body: JSON.stringify({
-          kind,
-          translate_limit: options?.translateLimit ?? 300,
-        }),
+        body: JSON.stringify(payload),
       },
     );
     return pollPipelineTaskUntilDone(task_id, onProgress, {

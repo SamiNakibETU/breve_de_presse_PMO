@@ -9,7 +9,6 @@ import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { api } from "@/lib/api";
-import { shiftIsoDate } from "@/lib/beirut-date";
 import { useSelectionStore } from "@/stores/selection-store";
 import type {
   Edition,
@@ -514,9 +513,6 @@ export default function EditionSommairePage() {
     return formatEditionWindowCompact(edition.window_start, edition.window_end);
   }, [edition?.window_start, edition?.window_end]);
 
-  const editionDatePrev = date ? shiftIsoDate(date, -1) : "";
-  const editionDateNext = date ? shiftIsoDate(date, 1) : "";
-
   const schedulerPreview = useMemo(() => {
     const jobs = statusQ.data?.jobs ?? [];
     const rows = jobs.map((j) => {
@@ -609,24 +605,10 @@ export default function EditionSommairePage() {
               </h1>
               {date ? (
                 <nav
-                  className="mt-1 flex w-full min-w-0 max-w-2xl flex-col gap-2 text-[11px] sm:flex-row sm:items-end sm:gap-3"
+                  className="mt-1 w-full min-w-0 max-w-2xl text-[11px]"
                   aria-label="Naviguer entre les jours"
                 >
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Link
-                      href={`/edition/${editionDatePrev}`}
-                      className="olj-nav-item olj-nav-item--subtle"
-                    >
-                      Veille
-                    </Link>
-                    <Link
-                      href={`/edition/${editionDateNext}`}
-                      className="olj-nav-item olj-nav-item--subtle"
-                    >
-                      Lendemain
-                    </Link>
-                  </div>
-                  <EditionDateRail currentIso={date} className="min-w-0 flex-1" />
+                  <EditionDateRail currentIso={date} />
                 </nav>
               ) : null}
             </div>
@@ -751,6 +733,25 @@ export default function EditionSommairePage() {
               </button>
             </div>
           )}
+        {editionId && pipeline ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
+            <button
+              type="button"
+              className="olj-link-action text-[12px] disabled:opacity-45"
+              disabled={pipeline.running !== null}
+              title="Analyse LLM (5 puces, thèse) sur le corpus de cette édition — ne lance pas la collecte ni les grands sujets du sommaire."
+              onClick={() =>
+                pipeline.startRun("articleAnalysis", "Analyse détaillée (5 puces)", {
+                  editionId,
+                })
+              }
+            >
+              {pipeline.running?.key === "articleAnalysis"
+                ? "Analyse en cours…"
+                : "Analyser les articles (5 puces)"}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {err && (

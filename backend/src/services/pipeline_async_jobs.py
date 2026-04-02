@@ -21,6 +21,7 @@ from src.services.pipeline_debug_log import (
     log_pipeline_step,
     resolve_current_edition_id,
 )
+from src.services import pipeline_step_tasks as step_tasks
 from src.services.scheduler import PipelineBusyError, run_daily_pipeline
 from src.services.translator import run_translation_pipeline
 
@@ -180,6 +181,8 @@ async def execute_pipeline_task(
     task_id: str,
     kind: str,
     translate_limit: int | None,
+    edition_id_str: str | None = None,
+    analysis_force: bool = True,
 ) -> None:
     structlog.contextvars.bind_contextvars(
         pipeline_task_id=task_id,
@@ -189,7 +192,12 @@ async def execute_pipeline_task(
         if kind == "collect":
             await execute_collect_task(task_id)
         elif kind == "translate":
-            await execute_translate_task(task_id, translate_limit)
+            lim = (
+                translate_limit
+                if translate_limit is not None
+                else get_settings().translation_pipeline_batch_limit
+            )
+            await execute_translate_task(task_id, lim)
         elif kind == "refresh_clusters":
             await execute_refresh_clusters_task(task_id)
         elif kind == "full_pipeline":
@@ -197,10 +205,33 @@ async def execute_pipeline_task(
         elif kind == "resume_pipeline":
             await execute_resume_pipeline_task(task_id)
         else:
-            await task_store.finish_error(
-                task_id,
-                f"type de tâche inconnu : {kind}",
-            )
+            if kind == "relevance_scoring":
+                await step_tasks.execute_relevance_scoring_step_task(task_id, edition_id_str)
+            elif kind == "article_analysis":
+                await step_tasks.execute_article_analysis_step_task(
+                    task_id,
+                    edition_id_str,
+                    force=analysis_force,
+                )
+            elif kind == "dedup_surface":
+                await step_tasks.execute_dedup_surface_step_task(task_id, edition_id_str)
+            elif kind == "syndication_simhash":
+                await step_tasks.execute_syndication_simhash_step_task(task_id, edition_id_str)
+            elif kind == "dedup_semantic":
+                await step_tasks.execute_dedup_semantic_step_task(task_id, edition_id_str)
+            elif kind == "embedding_only":
+                await step_tasks.execute_embedding_only_step_task(task_id, edition_id_str)
+            elif kind == "clustering_only":
+                await step_tasks.execute_clustering_only_step_task(task_id, edition_id_str)
+            elif kind == "cluster_labelling":
+                await step_tasks.execute_cluster_labelling_step_task(task_id, edition_id_str)
+            elif kind == "topic_detection":
+                await step_tasks.execute_topic_detection_step_task(task_id, edition_id_str)
+            else:
+                await task_store.finish_error(
+                    task_id,
+                    f"type de tâche inconnu : {kind}",
+                )
     finally:
         structlog.contextvars.unbind_contextvars(
             "pipeline_task_id",

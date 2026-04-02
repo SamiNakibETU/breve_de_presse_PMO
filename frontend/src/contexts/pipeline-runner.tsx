@@ -35,6 +35,22 @@ const TASK_KIND_BY_ACTION: Record<PipelineActionKey, PipelineTaskKind> = {
   refreshClusters: "refresh_clusters",
   pipeline: "full_pipeline",
   resumePipeline: "resume_pipeline",
+  relevanceScoring: "relevance_scoring",
+  articleAnalysis: "article_analysis",
+  dedupSurface: "dedup_surface",
+  syndicationSimhash: "syndication_simhash",
+  dedupSemantic: "dedup_semantic",
+  embeddingOnly: "embedding_only",
+  clusteringOnly: "clustering_only",
+  clusterLabelling: "cluster_labelling",
+  topicDetection: "topic_detection",
+};
+
+/** Options pour cibler une édition (ex. analyse 5 puces depuis la page Édition). */
+export type StartPipelineRunOptions = {
+  editionId?: string | null;
+  /** Pour analyse 5 puces : false = ne pas ré-analyser les articles déjà traités. */
+  analysisForce?: boolean;
 };
 
 function buildErrorRecord(
@@ -77,7 +93,11 @@ type PipelineRunnerValue = {
   running: RunningState | null;
   lastRun: PipelineRunRecord | null;
   diagnostics: string[];
-  startRun: (key: PipelineActionKey, label: string) => void;
+  startRun: (
+    key: PipelineActionKey,
+    label: string,
+    options?: StartPipelineRunOptions,
+  ) => void;
   clearDiagnostics: () => void;
 };
 
@@ -250,7 +270,7 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startRun = useCallback(
-    (key: PipelineActionKey, label: string) => {
+    (key: PipelineActionKey, label: string, options?: StartPipelineRunOptions) => {
       if (inFlightTaskIdRef.current !== null || startingRef.current) {
         appendDiagnostic(
           "Une tâche est déjà en cours ou en démarrage. Attendez la fin.",
@@ -269,10 +289,17 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
       void (async () => {
         let taskId: string | undefined;
         try {
-          const { task_id } = await api.startPipelineTask({
-            kind,
-            translate_limit: key === "translate" ? 300 : undefined,
-          });
+          const body: Parameters<typeof api.startPipelineTask>[0] = { kind };
+          if (key === "translate") {
+            body.translate_limit = 300;
+          }
+          if (options?.editionId) {
+            body.edition_id = options.editionId;
+          }
+          if (options?.analysisForce === false) {
+            body.analysis_force = false;
+          }
+          const { task_id } = await api.startPipelineTask(body);
           taskId = task_id;
 
           const stored: StoredPipelineTask = {

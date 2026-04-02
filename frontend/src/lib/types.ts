@@ -237,7 +237,16 @@ export type PipelineTaskKind =
   | "translate"
   | "refresh_clusters"
   | "full_pipeline"
-  | "resume_pipeline";
+  | "resume_pipeline"
+  | "relevance_scoring"
+  | "article_analysis"
+  | "dedup_surface"
+  | "syndication_simhash"
+  | "dedup_semantic"
+  | "embedding_only"
+  | "clustering_only"
+  | "cluster_labelling"
+  | "topic_detection";
 
 /** GET /api/pipeline/resume-status */
 export interface PipelineResumeStatus {

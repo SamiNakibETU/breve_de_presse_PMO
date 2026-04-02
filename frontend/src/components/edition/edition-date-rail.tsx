@@ -1,13 +1,13 @@
 "use client";
 
-import { Calendar } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shiftIsoDate } from "@/lib/beirut-date";
 
-/** Nombre de jours avant / après la date courante dans la bande défilante. */
-const RADIUS = 7;
+/** Jours avant / après la date courante (bande scrollable ; ~3 jours visibles selon largeur). */
+const RADIUS = 5;
 
 function chipLabels(iso: string): { weekday: string; dayMonth: string } {
   const parts = iso.split("-").map(Number);
@@ -41,7 +41,10 @@ export function EditionDateRail({
 }: EditionDateRailProps) {
   const router = useRouter();
   const activeRef = useRef<HTMLAnchorElement>(null);
+  const scrollRef = useRef<HTMLUListElement>(null);
   const hiddenPickerRef = useRef<HTMLInputElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
 
   const days = useMemo(() => {
     const out: string[] = [];
@@ -51,13 +54,64 @@ export function EditionDateRail({
     return out;
   }, [currentIso]);
 
+  const updateScrollArrows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanLeft(scrollLeft > 2);
+    setCanRight(scrollLeft + clientWidth < scrollWidth - 2);
+  }, []);
+
   useEffect(() => {
     activeRef.current?.scrollIntoView({
       inline: "center",
       block: "nearest",
       behavior: "smooth",
     });
-  }, [currentIso]);
+    const t = window.setTimeout(updateScrollArrows, 400);
+    return () => window.clearTimeout(t);
+  }, [currentIso, updateScrollArrows]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    updateScrollArrows();
+    el.addEventListener("scroll", updateScrollArrows, { passive: true });
+    const ro = new ResizeObserver(updateScrollArrows);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateScrollArrows);
+      ro.disconnect();
+    };
+  }, [updateScrollArrows, days.length]);
+
+  const scrollChunkPx = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return 220;
+    }
+    const li = el.querySelector("li");
+    const w = li ? li.getBoundingClientRect().width + 4 : 72;
+    return Math.round(w * 3);
+  }, []);
+
+  const scrollPrev = useCallback(() => {
+    scrollRef.current?.scrollBy({
+      left: -scrollChunkPx(),
+      behavior: "smooth",
+    });
+  }, [scrollChunkPx]);
+
+  const scrollNext = useCallback(() => {
+    scrollRef.current?.scrollBy({
+      left: scrollChunkPx(),
+      behavior: "smooth",
+    });
+  }, [scrollChunkPx]);
 
   const openNativePicker = () => {
     const el = hiddenPickerRef.current;
@@ -69,7 +123,7 @@ export function EditionDateRail({
         el.showPicker();
         return;
       } catch {
-        /* navigateurs stricts : repli sur click */
+        /* repli */
       }
     }
     el.click();
@@ -80,15 +134,27 @@ export function EditionDateRail({
 
   return (
     <div
-      className={`min-w-0 max-w-full ${className}`.trim()}
+      className={`flex min-w-0 max-w-full items-stretch gap-1 ${className}`.trim()}
       aria-label="Choisir une date d’édition"
     >
-      <ul className="m-0 flex list-none snap-x snap-mandatory gap-1 overflow-x-auto scroll-smooth py-0.5 [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin]">
+      <button
+        type="button"
+        className="olj-date-rail__chevron"
+        aria-label="Faire défiler vers les jours précédents"
+        disabled={!canLeft}
+        onClick={scrollPrev}
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden />
+      </button>
+      <ul
+        ref={scrollRef}
+        className="olj-date-rail__track m-0 flex w-full min-w-0 max-w-[min(100%,14rem)] list-none flex-row gap-1 overflow-x-auto scroll-smooth py-0.5 sm:max-w-[min(100%,15rem)]"
+      >
         {days.map((iso) => {
           const active = iso === currentIso;
           const { weekday, dayMonth } = chipLabels(iso);
           return (
-            <li key={iso} className="shrink-0">
+            <li key={iso} className="inline-flex shrink-0 snap-center">
               <Link
                 ref={active ? activeRef : undefined}
                 href={`/edition/${iso}`}
@@ -111,35 +177,44 @@ export function EditionDateRail({
             </li>
           );
         })}
-        <li className="shrink-0">
-          <button
-            type="button"
-            onClick={openNativePicker}
-            className={`${chipBase} border-dashed border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-accent`}
-            title="Ouvrir le sélecteur de date du navigateur"
-            aria-label="Choisir une autre date dans le calendrier"
-          >
-            <Calendar className="mx-auto h-3.5 w-3.5 opacity-90" aria-hidden />
-            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide">
-              Autre
-            </span>
-          </button>
-          <input
-            ref={hiddenPickerRef}
-            type="date"
-            value={currentIso}
-            onChange={(e) => {
-              const v = e.target.value.trim();
-              if (v) {
-                router.push(`/edition/${v}`);
-              }
-            }}
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-          />
-        </li>
       </ul>
+      <button
+        type="button"
+        className="olj-date-rail__chevron"
+        aria-label="Faire défiler vers les jours suivants"
+        disabled={!canRight}
+        onClick={scrollNext}
+      >
+        <ChevronRight className="h-4 w-4" aria-hidden />
+      </button>
+      <div className="flex shrink-0 flex-col items-stretch">
+        <button
+          type="button"
+          onClick={openNativePicker}
+          className={`${chipBase} h-full min-h-[2.65rem] border-dashed border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-accent`}
+          title="Ouvrir le sélecteur de date du navigateur"
+          aria-label="Choisir une autre date dans le calendrier"
+        >
+          <Calendar className="mx-auto h-3.5 w-3.5 opacity-90" aria-hidden />
+          <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide">
+            Autre
+          </span>
+        </button>
+        <input
+          ref={hiddenPickerRef}
+          type="date"
+          value={currentIso}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            if (v) {
+              router.push(`/edition/${v}`);
+            }
+          }}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+      </div>
     </div>
   );
 }

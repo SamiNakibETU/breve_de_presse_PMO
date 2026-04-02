@@ -17,12 +17,92 @@ interface PipelineStatusProps {
   sourceHealth?: MediaSourcesHealthResponse | null;
 }
 
-const ACTIONS: { key: PipelineActionKey; label: string }[] = [
-  { key: "collect", label: "Collecte" },
-  { key: "translate", label: "Traduction" },
-  { key: "refreshClusters", label: "Actualiser les sujets" },
-  { key: "pipeline", label: "Traitement complet" },
-  { key: "resumePipeline", label: "Reprendre le pipeline" },
+const PRIMARY_ACTIONS: {
+  key: PipelineActionKey;
+  label: string;
+  title: string;
+}[] = [
+  {
+    key: "collect",
+    label: "Collecte",
+    title: "Récupère les nouveaux articles sur les sources configurées.",
+  },
+  {
+    key: "translate",
+    label: "Traduction",
+    title: "Traduit et enrichit les textes en file d’attente (plafond côté serveur).",
+  },
+  {
+    key: "refreshClusters",
+    label: "Regroupements & libellés",
+    title:
+      "Embeddings (Cohere), regroupements HDBSCAN et libellés des clusters thématiques — sans collecte, traduction, analyse 5 puces ni grands sujets du sommaire d’édition.",
+  },
+  {
+    key: "pipeline",
+    label: "Traitement complet",
+    title: "Chaîne du matin : collecte, traduction, puis enchaînement automatique des étapes post-traitement.",
+  },
+  {
+    key: "resumePipeline",
+    label: "Reprendre le pipeline",
+    title:
+      "Même chaîne que le traitement complet, en sautant collecte et/ou traduction si déjà journalisées ce jour (Asia/Beirut).",
+  },
+];
+
+const ADVANCED_ACTIONS: {
+  key: PipelineActionKey;
+  label: string;
+  title: string;
+}[] = [
+  {
+    key: "relevanceScoring",
+    label: "Pertinence",
+    title: "Score l’intérêt éditorial pour la revue sur l’édition courante (serveur).",
+  },
+  {
+    key: "articleAnalysis",
+    label: "Analyse 5 puces",
+    title:
+      "Analyse LLM article par article (5 puces, thèse). Coût API : prévoir selon volume. Cible l’édition courante ; depuis la page Édition, l’édition affichée est transmise.",
+  },
+  {
+    key: "dedupSurface",
+    label: "Dédoublonnage surface",
+    title: "Repère les doublons évidents par recouvrement de texte.",
+  },
+  {
+    key: "syndicationSimhash",
+    label: "Dépêches (simhash)",
+    title: "Marque les articles repris / fil similaire (simhash sur résumés et corps).",
+  },
+  {
+    key: "dedupSemantic",
+    label: "Dédoublonnage sens",
+    title: "Après vecteurs à jour : fusionne les articles très proches sémantiquement.",
+  },
+  {
+    key: "embeddingOnly",
+    label: "Vecteurs seuls",
+    title: "Calcule les embeddings Cohere pour les articles en attente (clé API requise).",
+  },
+  {
+    key: "clusteringOnly",
+    label: "Regroupements seuls",
+    title: "Lance HDBSCAN sur les vecteurs existants.",
+  },
+  {
+    key: "clusterLabelling",
+    label: "Libellés clusters",
+    title: "Nomme par LLM les clusters sans titre. Coût API.",
+  },
+  {
+    key: "topicDetection",
+    label: "Grands sujets (sommaire)",
+    title:
+      "Recalcule les grands sujets du sommaire pour l’édition courante (ou le jour Beyrouth si édition non précisée). Coût LLM. Différent des petits regroupements thématiques.",
+  },
 ];
 
 /** Libellés métier pour les statuts API (éviter « degraded / dead » bruts). */
@@ -78,7 +158,7 @@ export function PipelineStatus({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {ACTIONS.map(({ key, label }) => {
+        {PRIMARY_ACTIONS.map(({ key, label, title }) => {
           const serverPipelineBusy =
             (key === "pipeline" || key === "resumePipeline") &&
             Boolean(status?.pipeline_running);
@@ -92,9 +172,7 @@ export function PipelineStatus({
               title={
                 serverPipelineBusy
                   ? "Un pipeline complet est déjà en cours sur le serveur (planificateur ou autre session)."
-                  : key === "resumePipeline"
-                    ? "Reprend là où les étapes sont déjà journalisées (collecte / traduction ignorées si présentes ce jour, Asia/Beirut)."
-                    : undefined
+                  : title
               }
             >
               {running?.key === key ? "En cours…" : label}
@@ -103,10 +181,36 @@ export function PipelineStatus({
         })}
       </div>
 
+      <details className="mt-4 rounded border border-border-light bg-muted/30 px-3 py-2">
+        <summary className="cursor-pointer text-[12px] font-medium text-foreground-subtle hover:text-foreground">
+          Étapes avancées (une par une)
+        </summary>
+        <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">
+          Chaque bouton lance une seule étape sur l’édition courante du serveur (sauf mention
+          sur la page Édition pour l’analyse 5 puces). Ordre logique : vecteurs avant
+          regroupements et dédoublonnage sémantique. Les étapes LLM peuvent représenter un coût
+          API notable.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {ADVANCED_ACTIONS.map(({ key, label, title }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => startRun(key, label)}
+              disabled={running !== null}
+              className="olj-btn-secondary text-[11px] disabled:opacity-40"
+              title={title}
+            >
+              {running?.key === key ? "En cours…" : label}
+            </button>
+          ))}
+        </div>
+      </details>
+
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Collecte (sources), traduction, actualisation des sujets, traitement
-        complet ou reprise (saut des étapes déjà enregistrées ce jour). Le suivi
-        reste visible en haut de page pendant la navigation.
+        Collecte, traduction, regroupements & libellés (clusters), traitement complet ou reprise
+        (saut des étapes déjà enregistrées ce jour). Le suivi reste visible en haut de page
+        pendant la navigation.
         {status?.pipeline_running ? (
           <span className="mt-1 block border-l-2 border-border pl-2 text-foreground-body">
             Un pipeline complet est en cours sur le serveur : les boutons « Traitement complet » et « Reprendre le pipeline » sont désactivés

@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -87,6 +88,15 @@ class PipelineTaskKind(str, Enum):
     refresh_clusters = "refresh_clusters"
     full_pipeline = "full_pipeline"
     resume_pipeline = "resume_pipeline"
+    relevance_scoring = "relevance_scoring"
+    article_analysis = "article_analysis"
+    dedup_surface = "dedup_surface"
+    syndication_simhash = "syndication_simhash"
+    dedup_semantic = "dedup_semantic"
+    embedding_only = "embedding_only"
+    clustering_only = "clustering_only"
+    cluster_labelling = "cluster_labelling"
+    topic_detection = "topic_detection"
 
 
 class PipelineResumeStatusResponse(BaseModel):
@@ -108,6 +118,14 @@ class PipelineTaskStartRequest(BaseModel):
     translate_limit: int | None = Field(
         default=None,
         description="Pour kind=translate : plafond articles (1–1000) ; null = TRANSLATION_PIPELINE_BATCH_LIMIT",
+    )
+    edition_id: UUID | None = Field(
+        default=None,
+        description="Édition cible pour les étapes unitaires ; omis = édition courante (serveur).",
+    )
+    analysis_force: bool = Field(
+        default=True,
+        description="Pour kind=article_analysis : ré-analyser les articles déjà marqués analysés.",
     )
 
     @field_validator("translate_limit")
