@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { todayBeirutIsoDate } from "@/lib/beirut-date";
+import { formatTodayBeirutLongFr, todayBeirutIsoDate } from "@/lib/beirut-date";
 import type { AppStatus, ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
 import { StatsCards } from "@/components/dashboard/stats-cards";
@@ -80,7 +80,7 @@ export default function DashboardPage() {
       },
       {
         queryKey: ["mediaSourcesHealth"] as const,
-        queryFn: () => api.mediaSourcesHealth(),
+        queryFn: ({ signal }) => api.mediaSourcesHealth(signal),
       },
     ],
   });
@@ -114,13 +114,7 @@ export default function DashboardPage() {
     [clusterRows, countryFilter, emergingOnly],
   );
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const dateStr = formatTodayBeirutLongFr();
   const editionDate = todayBeirutIsoDate();
   const subjectCount = filteredClusters.length;
 

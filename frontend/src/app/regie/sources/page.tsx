@@ -6,7 +6,9 @@ import { api } from "@/lib/api";
 export default function RegieSourcesPage() {
   const healthQ = useQuery({
     queryKey: ["mediaSourcesHealth"] as const,
-    queryFn: () => api.mediaSourcesHealth(),
+    queryFn: ({ signal }) => api.mediaSourcesHealth(signal),
+    staleTime: 60_000,
+    retry: 1,
   });
 
   const rows = healthQ.data?.sources ?? [];
@@ -25,10 +27,44 @@ export default function RegieSourcesPage() {
         chemin critique de composition.
       </p>
       {healthQ.isPending && (
-        <p className="text-[13px] text-muted-foreground">Chargement…</p>
+        <div className="space-y-2" aria-busy="true" aria-label="Chargement des sources">
+          <div className="h-4 w-2/3 max-w-md animate-pulse rounded bg-border" />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] border-collapse text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <th className="py-2 pr-3">Source</th>
+                  <th className="py-2 pr-3">Pays</th>
+                  <th className="py-2 pr-3">72 h</th>
+                  <th className="py-2">État</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="border-b border-border-light">
+                    <td className="py-2 pr-3">
+                      <div className="h-4 w-40 animate-pulse rounded bg-border" />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <div className="h-4 w-8 animate-pulse rounded bg-border" />
+                    </td>
+                    <td className="py-2 pr-3">
+                      <div className="h-4 w-10 animate-pulse rounded bg-border" />
+                    </td>
+                    <td className="py-2">
+                      <div className="h-4 w-16 animate-pulse rounded bg-border" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
-      {healthQ.error && (
-        <p className="text-[13px] text-destructive">{healthQ.error.message}</p>
+      {healthQ.isError && (
+        <p className="text-[13px] text-destructive" role="alert">
+          {healthQ.error.message}
+        </p>
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse text-left text-[13px]">

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -18,67 +19,90 @@ from src.services.source_health_metrics import (
 )
 
 
+async def _fetch_article_counts_72h_by_source_id(
+    db: AsyncSession, cutoff: datetime
+) -> dict[str, int]:
+    """Un seul GROUP BY : comptage articles collectés sur 72 h par `media_source_id`."""
+    stmt = (
+        select(Article.media_source_id, func.count(Article.id))
+        .where(
+            Article.collected_at >= cutoff,
+            Article.media_source_id.isnot(None),
+        )
+        .group_by(Article.media_source_id)
+    )
+    rows = (await db.execute(stmt)).all()
+    return {str(r[0]): int(r[1] or 0) for r in rows if r[0]}
+
+
+async def _fetch_latest_collection_logs_by_source_id(
+    db: AsyncSession,
+) -> dict[str, CollectionLog]:
+    """
+    Dernier `CollectionLog` terminé par `media_source_id` (2 requêtes : max + jointure).
+    """
+    subq = (
+        select(
+            CollectionLog.media_source_id.label("mid"),
+            func.max(CollectionLog.completed_at).label("max_c"),
+        )
+        .where(
+            CollectionLog.completed_at.isnot(None),
+            CollectionLog.media_source_id.isnot(None),
+        )
+        .group_by(CollectionLog.media_source_id)
+    ).subquery()
+
+    stmt = select(CollectionLog).join(
+        subq,
+        (CollectionLog.media_source_id == subq.c.mid)
+        & (CollectionLog.completed_at == subq.c.max_c),
+    )
+    logs = (await db.execute(stmt)).scalars().all()
+    out: dict[str, CollectionLog] = {}
+    for log in logs:
+        mid = log.media_source_id
+        if mid and mid not in out:
+            out[mid] = log
+    return out
+
+
+def _sum_counts_for_alias_ids(
+    by_raw_id: dict[str, int], agg_ids: list[str]
+) -> int:
+    return sum(by_raw_id.get(i, 0) for i in agg_ids)
+
+
+def _pick_latest_log_among_ids(
+    last_by_mid: dict[str, CollectionLog], agg_ids: list[str]
+) -> CollectionLog | None:
+    candidates = [last_by_mid[i] for i in agg_ids if i in last_by_mid]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda x: x.completed_at or datetime.min.replace(tzinfo=timezone.utc))
+
+
 async def build_media_sources_health_payload(db: AsyncSession) -> dict:
     """Même structure que la route FastAPI `media_sources_health`."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=72)
     translated_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    translated_statuses = (
-        "translated",
-        "needs_review",
-        "low_quality",
-        "formatted",
-    )
     result = await db.execute(
         select(MediaSource).where(MediaSource.is_active.is_(True)).order_by(MediaSource.name)
     )
     sources = result.scalars().all()
-    tr_by_src = await fetch_translation_24h_counts_by_source(db, translated_cutoff)
+    counts_72h_raw, tr_by_src, last_logs_by_mid = await asyncio.gather(
+        _fetch_article_counts_72h_by_source_id(db, cutoff),
+        fetch_translation_24h_counts_by_source(db, translated_cutoff),
+        _fetch_latest_collection_logs_by_source_id(db),
+    )
     out: list[dict] = []
     for s in sources:
         agg_ids = equivalent_media_source_ids(s.id)
-        id_filter = (
-            Article.media_source_id == agg_ids[0]
-            if len(agg_ids) == 1
-            else Article.media_source_id.in_(agg_ids)
-        )
-        cnt = (
-            await db.execute(
-                select(func.count(Article.id)).where(
-                    id_filter,
-                    Article.collected_at >= cutoff,
-                )
-            )
-        ).scalar() or 0
-        last_24h_translated = (
-            await db.execute(
-                select(func.count(Article.id)).where(
-                    id_filter,
-                    Article.processed_at.isnot(None),
-                    Article.processed_at >= translated_cutoff,
-                    Article.status.in_(translated_statuses),
-                )
-            )
-        ).scalar() or 0
-        log_filter = (
-            CollectionLog.media_source_id == agg_ids[0]
-            if len(agg_ids) == 1
-            else CollectionLog.media_source_id.in_(agg_ids)
-        )
-        last_log = (
-            (
-                await db.execute(
-                    select(CollectionLog)
-                    .where(
-                        log_filter,
-                        CollectionLog.completed_at.isnot(None),
-                    )
-                    .order_by(CollectionLog.completed_at.desc())
-                    .limit(1)
-                )
-            )
-            .scalars()
-            .first()
-        )
+        cnt = _sum_counts_for_alias_ids(counts_72h_raw, agg_ids)
+        ok_tr, err_tr = sum_translation_24h_for_aliases(tr_by_src, s.id)
+        # Aligné sur `fetch_translation_24h_counts_by_source` / statuts traduits OK (pas une requête par source).
+        last_24h_translated = ok_tr
+        last_log = _pick_latest_log_among_ids(last_logs_by_mid, agg_ids)
         persisted = getattr(s, "health_status", None)
         empty_runs_ui = int(getattr(s, "consecutive_empty_collection_runs", 0) or 0)
         if persisted in ("ok", "degraded", "dead"):
@@ -98,7 +122,6 @@ async def build_media_sources_health_payload(db: AsyncSession) -> dict:
             if isinstance(getattr(s, "health_metrics_json", None), dict)
             else {}
         )
-        ok_tr, err_tr = sum_translation_24h_for_aliases(tr_by_src, s.id)
         tb = tier_band(int(s.tier) if s.tier is not None else None)
         out.append(
             {

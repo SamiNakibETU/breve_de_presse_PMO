@@ -507,8 +507,8 @@ class Settings(BaseSettings):
         description="Intervalle job traduction corps sélection ; 0 = désactivé",
     )
     enhanced_scraper_enabled: bool = Field(
-        default=False,
-        description="Activer la cascade scraping enrichie (hubs) — expérimental",
+        default=True,
+        description="Activer la cascade scraping enrichie (hubs)",
     )
     store_full_translation_fr: bool = Field(
         default=True,

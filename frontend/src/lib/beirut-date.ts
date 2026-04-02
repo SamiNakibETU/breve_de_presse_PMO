@@ -9,3 +9,14 @@ export function todayBeirutIsoDate(): string {
     .format(new Date())
     .slice(0, 10);
 }
+
+/** Libellé long FR pour « aujourd’hui » au fuseau Beyrouth (Panorama, en-têtes). */
+export function formatTodayBeirutLongFr(): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Asia/Beirut",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+}

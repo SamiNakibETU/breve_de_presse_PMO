@@ -112,11 +112,6 @@ function TopicArticleLine({
                   <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
                 ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
-                {preview.analysis_bullets_fr && preview.analysis_bullets_fr.length > 0 ? (
-                  <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
-                    Analyse dispo
-                  </span>
-                ) : null}
               </>
             ) : (
               <>
@@ -141,11 +136,6 @@ function TopicArticleLine({
                   <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
                 ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
-                {preview.analysis_bullets_fr && preview.analysis_bullets_fr.length > 0 ? (
-                  <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
-                    Analyse dispo
-                  </span>
-                ) : null}
               </>
             )}
           </div>
@@ -156,6 +146,26 @@ function TopicArticleLine({
             <p className="mt-1 line-clamp-2 font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-body">
               {preview.thesis_summary_fr}
             </p>
+          ) : null}
+          {!compact &&
+          preview.analysis_bullets_fr &&
+          preview.analysis_bullets_fr.length > 0 ? (
+            <ul className="mt-2 space-y-1 text-[11px] leading-snug text-foreground-body">
+              {preview.analysis_bullets_fr.slice(0, 3).map((b, i) => (
+                <li key={i} className="flex gap-1.5">
+                  <span className="mt-px shrink-0 text-[10px] font-semibold text-accent" aria-hidden>
+                    {i + 1}.
+                  </span>
+                  <span className="line-clamp-2">{b}</span>
+                </li>
+              ))}
+              {preview.analysis_bullets_fr.length > 3 ? (
+                <li className="text-[10px] text-muted-foreground">
+                  + {preview.analysis_bullets_fr.length - 3} idée
+                  {preview.analysis_bullets_fr.length - 3 > 1 ? "s" : ""} dans la fiche
+                </li>
+              ) : null}
+            </ul>
           ) : null}
           {!compact ? (
             <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
@@ -311,6 +321,27 @@ export function TopicSection({
             </span>
             {titleNode}
           </div>
+          {mode === "summary" && editionDate ? (
+            (() => {
+              const withBullets = previews.find(
+                (p) => p.analysis_bullets_fr && p.analysis_bullets_fr.length > 0,
+              );
+              const bullets = withBullets?.analysis_bullets_fr?.slice(0, 2) ?? [];
+              if (bullets.length === 0) return null;
+              return (
+                <ul className="mt-2 max-w-xl space-y-1 text-[11px] leading-snug text-foreground-body">
+                  {bullets.map((b, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="shrink-0 font-semibold tabular-nums text-accent">
+                        {i + 1}.
+                      </span>
+                      <span className="line-clamp-2">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()
+          ) : null}
           {(topic.angle_summary?.trim() || topic.description?.trim()) && (
             <div className="max-w-xl space-y-2 text-[13px] leading-relaxed text-foreground-body">
               {topic.angle_summary?.trim() && (

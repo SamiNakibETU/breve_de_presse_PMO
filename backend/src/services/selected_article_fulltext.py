@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import structlog
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import get_settings
 from src.database import get_session_factory
 from src.models.article import Article
+from src.models.edition import Edition, EditionTopic, EditionTopicArticle
 from src.services.translator import TranslationPipeline
 
 logger = structlog.get_logger(__name__)
@@ -19,14 +20,23 @@ logger = structlog.get_logger(__name__)
 def _needs_full_translation_fr(art: Article) -> bool:
     if bool(getattr(art, "en_translation_summary_only", None)):
         return True
-    body = (art.content_translated_fr or "").strip()
-    return len(body) == 0
+    body_fr = (art.content_translated_fr or "").strip()
+    if len(body_fr) == 0:
+        return True
+    original = (art.content_original or "").strip()
+    if not original:
+        return False
+    ratio = len(body_fr) / max(len(original), 1)
+    if ratio < 0.25 and len(body_fr) < 1500:
+        return True
+    return False
 
 
 async def _load_candidates(db: AsyncSession, limit: int) -> list[Article]:
+    """Articles en rétention « topic_selection » ou sélectionnés dans un sujet d’édition récent."""
     s = get_settings()
     now = datetime.now(timezone.utc)
-    stmt = (
+    stmt_ret = (
         select(Article)
         .where(
             Article.retention_until.isnot(None),
@@ -38,10 +48,37 @@ async def _load_candidates(db: AsyncSession, limit: int) -> list[Article]:
         .order_by(Article.retention_until.asc())
         .limit(max(limit * 4, limit))
     )
-    res = await db.execute(stmt)
+    res = await db.execute(stmt_ret)
     rows = list(res.scalars().all())
+
+    stmt_ed = (
+        select(Article)
+        .join(EditionTopicArticle, EditionTopicArticle.article_id == Article.id)
+        .join(EditionTopic, EditionTopicArticle.edition_topic_id == EditionTopic.id)
+        .join(Edition, EditionTopic.edition_id == Edition.id)
+        .where(
+            EditionTopicArticle.is_selected.is_(True),
+            Edition.window_end >= now - timedelta(days=14),
+            Article.content_original.isnot(None),
+            Article.translation_failure_count < s.max_translation_failures,
+        )
+        .order_by(Edition.window_end.desc())
+        .limit(max(limit * 4, limit))
+    )
+    res_ed = await db.execute(stmt_ed)
+    rows_ed = list(res_ed.scalars().all())
+
+    merged: list[Article] = []
+    seen: set[str] = set()
+    for a in rows + rows_ed:
+        aid = str(a.id)
+        if aid in seen:
+            continue
+        seen.add(aid)
+        merged.append(a)
+
     out: list[Article] = []
-    for a in rows:
+    for a in merged:
         if not _needs_full_translation_fr(a):
             continue
         raw = (a.content_original or "").strip()
@@ -52,6 +89,12 @@ async def _load_candidates(db: AsyncSession, limit: int) -> list[Article]:
         out.append(a)
         if len(out) >= limit:
             break
+    if not out:
+        logger.info(
+            "selected_fulltext.no_candidates",
+            retention_rows=len(rows),
+            edition_selection_rows=len(rows_ed),
+        )
     return out
 
 

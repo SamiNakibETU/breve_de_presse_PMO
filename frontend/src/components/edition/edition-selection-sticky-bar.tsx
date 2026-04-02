@@ -288,9 +288,15 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Link
               href={`/edition/${editionDate}/compose`}
-              className="inline-flex w-full items-center justify-center rounded-md border border-accent bg-accent px-4 py-2 text-center text-[13px] font-semibold text-accent-foreground shadow-sm hover:opacity-95 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-accent bg-accent px-4 py-2 text-center text-[13px] font-semibold text-accent-foreground shadow-sm hover:opacity-95 sm:w-auto"
             >
-              Aller à la rédaction
+              <span>Aller à la rédaction</span>
+              <span
+                className="inline-flex min-h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-accent-foreground/20 px-1.5 text-[11px] font-bold tabular-nums"
+                aria-label={`${selectionCount} article${selectionCount > 1 ? "s" : ""} en sélection`}
+              >
+                {selectionCount}
+              </span>
             </Link>
           </div>
         </div>

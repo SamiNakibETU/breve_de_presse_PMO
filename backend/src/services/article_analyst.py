@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -28,7 +28,7 @@ logger = structlog.get_logger(__name__)
 ANALYSIS_VERSION = "article_analysis_v1"
 
 
-def _snippet(body: str | None, max_chars: int = 5000) -> str:
+def _snippet(body: str | None, max_chars: int = 24000) -> str:
     if not body:
         return ""
     b = body.strip()
@@ -66,7 +66,7 @@ async def analyze_article(
         raise RuntimeError("article_analysis_v1: json_schema manquant")
 
     ms = a.media_source
-    snippet = _snippet(a.content_translated_fr or a.content_original)
+    body_full = _snippet(a.content_translated_fr or a.content_original)
     user = bundle.render_user(
         title_fr=(a.title_fr or a.title_original or "")[:800],
         media_name=ms.name if ms else "",
@@ -75,7 +75,8 @@ async def analyze_article(
         article_type=(a.article_type or "")[:80],
         summary_fr=(a.summary_fr or "")[:4000],
         thesis_summary_fr=(a.thesis_summary_fr or "")[:2000],
-        content_snippet=snippet,
+        content_snippet=body_full,
+        content_full_fr=body_full,
     )
 
     router = get_llm_router()
@@ -160,7 +161,13 @@ async def run_article_analysis_pipeline(
             select(Article)
             .where(Article.summary_fr.isnot(None))
             .where(Article.status.in_(("translated", "needs_review", "formatted")))
-            .where(Article.relevance_band.in_(("high", "medium")))
+            .where(
+                or_(
+                    Article.relevance_band.is_(None),
+                    Article.relevance_band == "",
+                    Article.relevance_band.in_(("high", "medium", "low")),
+                )
+            )
         )
         if not force:
             stmt = stmt.where(Article.analyzed_at.is_(None))

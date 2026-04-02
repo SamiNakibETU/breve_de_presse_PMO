@@ -95,7 +95,6 @@ def filter_article_urls(hub_url: str, hrefs: list[str], max_urls: int = 12) -> l
     Filtre les liens candidats pour pages article depuis un hub opinion / home.
     """
     hub_p = urlparse(hub_url)
-    base = f"{hub_p.scheme}://{hub_p.netloc}"
     hub_path = hub_p.path.rstrip("/") or ""
     host_l = hub_p.netloc.lower()
     max_eff = max(max_urls * 4, 40) if "israelhayom.com" in host_l else max_urls

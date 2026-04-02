@@ -14,6 +14,8 @@ from urllib.parse import urljoin, urlparse, unquote
 
 from bs4 import BeautifulSoup
 
+from src.services.smart_content import filter_article_urls
+
 SKIP_PATH_FRAGMENTS = (
     "/tag/",
     "/tags/",
@@ -315,6 +317,12 @@ def extract_hub_article_links(
         seen.add(u)
         ordered.append(u)
 
+    def _finalize_links() -> list[str]:
+        refined = filter_article_urls(hub_url, ordered, max_urls=max_links)
+        if refined:
+            return refined[:max_links]
+        return ordered
+
     def _pred_json(full: str, _h: str) -> bool:
         return _accept_standard(full)
 
@@ -323,7 +331,7 @@ def extract_hub_article_links(
             seen.add(u)
             ordered.append(u)
         if len(ordered) >= max_links:
-            return ordered
+            return _finalize_links()
 
     soup = BeautifulSoup(html, "html.parser")
 
@@ -336,7 +344,7 @@ def extract_hub_article_links(
                 full = urljoin(hub_url, href)
                 add_url(full, _accept_standard)
                 if len(ordered) >= max_links:
-                    return ordered
+                    return _finalize_links()
         except Exception:
             pass
 
@@ -347,7 +355,7 @@ def extract_hub_article_links(
         full = urljoin(hub_url, href)
         add_url(full, _accept_standard)
         if len(ordered) >= max_links:
-            return ordered
+            return _finalize_links()
 
     if pattern_re:
         for a in soup.find_all("a", href=True):
@@ -357,7 +365,7 @@ def extract_hub_article_links(
             full = urljoin(hub_url, href)
             add_url(full, lambda u: _article_url_with_pattern(u, hub_url, pattern_re))
             if len(ordered) >= max_links:
-                return ordered
+                return _finalize_links()
 
     if relaxed_same_site:
         for a in soup.find_all("a", href=True):
@@ -367,6 +375,6 @@ def extract_hub_article_links(
             full = urljoin(hub_url, href)
             add_url(full, lambda u: _relaxed_article_candidate(u, hub_url))
             if len(ordered) >= max_links:
-                return ordered
+                return _finalize_links()
 
-    return ordered
+    return _finalize_links()

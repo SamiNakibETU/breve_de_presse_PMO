@@ -25,6 +25,10 @@ import {
   decodeHtmlEntities,
   formatQuoteForDisplay,
 } from "@/lib/text-utils";
+import {
+  bodyParagraphs,
+  editorialBodySections,
+} from "@/lib/editorial-body";
 import { cn } from "@/lib/utils";
 
 const ARTICLE_QUERY_STALE_MS = 60_000;
@@ -99,13 +103,6 @@ function buildSynthesisPlainText(a: Article): string {
     );
   }
   return parts.join("\n\n");
-}
-
-function bodyParagraphs(text: string): string[] {
-  return text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
 }
 
 function ArticleReadModal({
@@ -363,13 +360,29 @@ function ArticleReadModal({
                   {a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0 ? (
                     <section>
                       <p className="olj-rubric mb-2">Idées majeures</p>
-                      <ul className="list-inside list-disc space-y-2 text-[13px] text-foreground-body">
+                      <ol className="list-none space-y-3 text-[13px] text-foreground-body">
                         {a.analysis_bullets_fr.map((b, i) => (
-                          <li key={i} className="whitespace-pre-wrap">
-                            {b}
+                          <li key={i} className="flex gap-2 whitespace-pre-wrap">
+                            <span
+                              className="mt-0.5 text-[11px] font-semibold tabular-nums text-accent"
+                              aria-hidden
+                            >
+                              {i + 1}.
+                            </span>
+                            <span
+                              className="mt-0.5 shrink-0 text-[0.75rem] leading-none"
+                              aria-hidden
+                            >
+                              {/^(fait|contexte|chronologie)/i.test(b.trim())
+                                ? "◆"
+                                : /(opinion|thèse|avis|position)/i.test(b.trim())
+                                  ? "◇"
+                                  : "•"}
+                            </span>
+                            <span>{b}</span>
                           </li>
                         ))}
-                      </ul>
+                      </ol>
                     </section>
                   ) : null}
                   {a.analysis_tone || a.fact_opinion_quality ? (
@@ -382,11 +395,21 @@ function ArticleReadModal({
                   ) : null}
                   {!a.factual_context_fr?.trim() &&
                   !a.author_thesis_explicit_fr?.trim() &&
-                  !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) ? (
+                  !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) &&
+                  !a.thesis_summary_fr?.trim() ? (
                     <p className="text-[13px] leading-relaxed text-muted-foreground">
                       L’analyse experte (faits, thèse, idées majeures) sera disponible après le
                       prochain passage pipeline ou une relance depuis la régie. En attendant,
                       consultez l’onglet{" "}
+                      <strong className="font-medium text-foreground">Synthèse</strong>.
+                    </p>
+                  ) : null}
+                  {!a.factual_context_fr?.trim() &&
+                  !a.author_thesis_explicit_fr?.trim() &&
+                  !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) &&
+                  a.thesis_summary_fr?.trim() ? (
+                    <p className="text-[13px] leading-relaxed text-muted-foreground">
+                      Pas encore d’analyse structurée : la thèse et le résumé sont dans l’onglet{" "}
                       <strong className="font-medium text-foreground">Synthèse</strong>.
                     </p>
                   ) : null}
@@ -501,12 +524,35 @@ function ArticleReadModal({
                     Corps traduit (distinct de la synthèse éditoriale).
                   </p>
                   {hasBodyFr ? (
-                    <div className="rounded-md border border-border-light bg-surface-warm/20 p-4 font-[family-name:var(--font-serif)] text-[15px] leading-[1.8] text-foreground-body">
-                      {bodyParagraphs(a.content_translated_fr!.trim()).map(
-                        (para, i) => (
-                          <p key={i} className="mb-3 last:mb-0">
-                            {para}
-                          </p>
+                    <div className="rounded-md border border-border-light bg-surface-warm/20 p-4 font-[family-name:var(--font-serif)] text-[15px] leading-[1.85] text-foreground-body">
+                      {editorialBodySections(a.content_translated_fr!.trim()).map(
+                        (sec, si) => (
+                          <div
+                            key={si}
+                            className={
+                              si > 0
+                                ? "mt-8 border-t border-border-light pt-8"
+                                : ""
+                            }
+                          >
+                            {sec.heading ? (
+                              <p className="mb-4 font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
+                                {sec.heading}
+                              </p>
+                            ) : null}
+                            {sec.paragraphs.map((para, i) => (
+                              <p
+                                key={i}
+                                className={
+                                  i === 0 && si === 0
+                                    ? "mb-5 last:mb-0 [&:first-letter]:float-left [&:first-letter]:mr-2 [&:first-letter]:font-[family-name:var(--font-serif)] [&:first-letter]:text-[3.25rem] [&:first-letter]:leading-[0.85] [&:first-letter]:text-accent"
+                                    : "mb-5 last:mb-0"
+                                }
+                              >
+                                {para}
+                              </p>
+                            ))}
+                          </div>
                         ),
                       )}
                     </div>

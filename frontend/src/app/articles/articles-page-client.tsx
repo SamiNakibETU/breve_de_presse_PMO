@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
   ArticleFilters,
@@ -20,8 +20,8 @@ const ARTICLES_ROLLING_DAYS: number = 2;
 
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   editorial: {
-    label: "Pour la revue",
-    value: "translated,formatted,needs_review",
+    label: "Pour la revue (traduits + à relire)",
+    value: "translated,needs_review",
   },
   needs_review: { label: "À relire", value: "needs_review" },
   all: {
@@ -57,6 +57,7 @@ function buildArticleParams(
   filters: Filters,
   offset: number,
   editionId: string | null,
+  beirutDate: string | null,
 ): Record<string, string> {
   const params: Record<string, string> = {
     status: STATUS_OPTIONS[statusFilter].value,
@@ -73,6 +74,7 @@ function buildArticleParams(
   if (filters.hideSyndicated) params.hide_syndicated = "true";
   if (filters.groupSyndicated) params.group_syndicated = "true";
   if (editionId) params.edition_id = editionId;
+  if (beirutDate) params.beirut_date = beirutDate;
   return params;
 }
 
@@ -117,6 +119,7 @@ function FiltersColumn({
 
 export function ArticlesPageClient() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeEditionId =
     searchParams.get("edition_id")?.trim().replace(/^"|"$/g, "") || null;
@@ -127,12 +130,28 @@ export function ArticlesPageClient() {
   const [filters, setFilters] = useState<Filters>({
     countries: [],
     types: ["opinion", "editorial", "tribune", "analysis"],
-    minConfidence: 0.7,
+    minConfidence: 0,
     includeLowQuality: false,
     hideSyndicated: true,
     groupSyndicated: false,
   });
   const [groupByOljTheme, setGroupByOljTheme] = useState(true);
+  /** Journée calendaire Asia/Beirut (YYYY-MM-DD) via `?date=` ; null = fenêtre glissante `days`. */
+  const beirutDate = searchParams.get("date")?.trim() || null;
+
+  const setBeirutDate = useCallback(
+    (d: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (d) {
+        params.set("date", d);
+      } else {
+        params.delete("date");
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
   const oljLabelsQ = useQuery({
     queryKey: ["oljTopicLabels"] as const,
@@ -149,9 +168,10 @@ export function ArticlesPageClient() {
           sortBy,
           filters,
           activeEditionId,
+          beirutDate,
         },
       ] as const,
-    [statusFilter, sortBy, filters, activeEditionId],
+    [statusFilter, sortBy, filters, activeEditionId, beirutDate],
   );
 
   const {
@@ -171,6 +191,7 @@ export function ArticlesPageClient() {
         filters,
         pageParam,
         activeEditionId,
+        beirutDate,
       );
       return api.articles(params);
     },
@@ -238,11 +259,55 @@ export function ArticlesPageClient() {
             Articles
           </h1>
           <p className="mt-1 text-[12px] leading-snug text-foreground-body">
-            {ARTICLES_ROLLING_DAYS === 1
-              ? "Période : le dernier jour (glissant, UTC)."
-              : `Période : les ${ARTICLES_ROLLING_DAYS} derniers jours (glissant, UTC).`}{" "}
-            Vue d’exploration, pas la fenêtre d’édition du jour.
+            {activeEditionId ? (
+              <>
+                Articles du corpus de l’édition liée (fenêtre Beyrouth côté serveur).
+              </>
+            ) : beirutDate ? (
+              <>
+                Articles collectés entre minuit et minuit suivant (fuseau{" "}
+                <strong className="font-medium text-foreground">Asia/Beirut</strong>) pour le jour{" "}
+                <strong className="font-medium text-foreground">{beirutDate}</strong>.
+              </>
+            ) : ARTICLES_ROLLING_DAYS === 1 ? (
+              "Période : le dernier jour (glissant, UTC)."
+            ) : (
+              `Période : les ${ARTICLES_ROLLING_DAYS} derniers jours (glissant, UTC).`
+            )}{" "}
+            {!activeEditionId ? "Vue d’exploration ; pour le sommaire daté, ouvrir l’édition du jour." : null}
           </p>
+          {!activeEditionId ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
+              <label className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">Jour de collecte (Beyrouth)</span>
+                <input
+                  type="date"
+                  value={beirutDate ?? ""}
+                  onChange={(e) =>
+                    setBeirutDate(e.target.value.trim() || null)
+                  }
+                  className="rounded border border-border bg-background px-2 py-1 font-mono text-[12px] text-foreground"
+                />
+              </label>
+              {beirutDate ? (
+                <button
+                  type="button"
+                  className="text-accent underline underline-offset-2 hover:opacity-90"
+                  onClick={() => setBeirutDate(null)}
+                >
+                  Revenir à la période glissante
+                </button>
+              ) : null}
+              <span className="max-w-md text-[11px] leading-snug text-muted-foreground">
+                Ce filtre est la journée calendaire Beyrouth (minuit → lendemain minuit), pas la fenêtre
+                d’édition de la revue (veille 18 h → jour J 6 h). Pour cette dernière, ouvrir{" "}
+                <a href="/dashboard" className="underline underline-offset-2 hover:text-foreground">
+                  Tableau de bord
+                </a>{" "}
+                puis l’édition du jour.
+              </span>
+            </div>
+          ) : null}
           <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
             Filtres et tri dans la colonne de gauche. Les séparateurs « Thème · … »
             regroupent les articles par rubriques OLJ ; vous pouvez désactiver ce

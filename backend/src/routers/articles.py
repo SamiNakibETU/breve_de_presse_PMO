@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,6 +25,8 @@ from src.services.olj_taxonomy import load_topics_of_day
 from src.services.relevance import explain_editorial_relevance
 
 router = APIRouter(prefix="/api")
+
+_BEIRUT_TZ = ZoneInfo("Asia/Beirut")
 
 
 def _article_list_conditions(
@@ -214,8 +217,17 @@ async def list_articles(
             "le paramètre days est ignoré pour le bornage temporel."
         ),
     ),
+    beirut_date: Optional[str] = Query(
+        default=None,
+        description=(
+            "Journée calendaire Asia/Beirut (YYYY-MM-DD) : filtre ``collected_at`` sur "
+            "[minuit local, lendemain minuit local[) converti en UTC. Remplace le glissement ``days``."
+        ),
+    ),
 ):
     edition_for_filter: Optional[Edition] = None
+    collected_after: datetime | None
+    collected_before: datetime | None
     if edition_id is not None:
         ed = await db.get(Edition, edition_id)
         if not ed:
@@ -223,6 +235,18 @@ async def list_articles(
         edition_for_filter = ed
         collected_after = None
         collected_before = None
+    elif beirut_date and beirut_date.strip():
+        try:
+            d0 = date.fromisoformat(beirut_date.strip()[:10])
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="beirut_date doit être au format YYYY-MM-DD",
+            ) from exc
+        start_local = datetime.combine(d0, datetime.min.time(), tzinfo=_BEIRUT_TZ)
+        end_local = start_local + timedelta(days=1)
+        collected_after = start_local.astimezone(timezone.utc)
+        collected_before = end_local.astimezone(timezone.utc)
     else:
         collected_after = datetime.now(timezone.utc) - timedelta(days=days)
         collected_before = None
@@ -241,6 +265,7 @@ async def list_articles(
         group_syndicated=group_syndicated,
         q=q,
     )
+    conds.append(MediaSource.is_active.is_(True))
 
     query = (
         select(Article, MediaSource)
@@ -527,7 +552,10 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         await db.execute(
             select(MediaSource.country, func.count(Article.id))
             .join(MediaSource, Article.media_source_id == MediaSource.id)
-            .where(Article.collected_at >= cutoff)
+            .where(
+                Article.collected_at >= cutoff,
+                MediaSource.is_active.is_(True),
+            )
             .group_by(MediaSource.country)
         )
     ).all()
@@ -569,7 +597,11 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     by_source_rows = (
         await db.execute(
             select(Article.media_source_id, func.count(Article.id))
-            .where(Article.collected_at >= cutoff)
+            .join(MediaSource, Article.media_source_id == MediaSource.id)
+            .where(
+                Article.collected_at >= cutoff,
+                MediaSource.is_active.is_(True),
+            )
             .group_by(Article.media_source_id)
             .order_by(func.count(Article.id).desc())
             .limit(25)

@@ -22,6 +22,7 @@ from src.services.article_body_format import (
 from src.services.hub_fetch import fetch_html_robust, sanitize_structlog_payload
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
 from src.services.hub_rss import is_cloudflare_interstitial_html
+from src.services.smart_content import extract_main_text
 from src.services.web_scraper import (
     _extract_author_from_html,
     _extract_date_from_html,
@@ -29,6 +30,16 @@ from src.services.web_scraper import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def html_to_smart_content_body_sync(html: str, page_url: str) -> str:
+    """Repli Trafilatura + BS4 (aligné sur ``smart_content.extract_main_text`` / scraper cascade)."""
+    if not html:
+        return ""
+    text, _title, _wc = extract_main_text(html, page_url)
+    if not text:
+        return ""
+    return format_plain_article_text(text)
 
 
 def html_to_article_body_sync(html: str) -> str:
@@ -98,6 +109,9 @@ async def extract_hub_article_page(
         pub_date = _extract_date_from_html(html)
         title = _extract_title_from_html(html)
         body = await asyncio.to_thread(html_to_article_body_sync, html)
+        alt = await asyncio.to_thread(html_to_smart_content_body_sync, html, url)
+        if len(alt) > len(body):
+            body = alt
     else:
         logger.debug(
             "hub_article_extract.http_weak",
@@ -157,8 +171,10 @@ async def extract_hub_article_page(
             pub_date = pub_date or _extract_date_from_html(html2)
             title = title or _extract_title_from_html(html2)
             body2 = await asyncio.to_thread(html_to_article_body_sync, html2)
-            if len(body2) > len(body):
-                body = body2
+            alt2 = await asyncio.to_thread(html_to_smart_content_body_sync, html2, url)
+            best = body2 if len(body2) >= len(alt2) else alt2
+            if len(best) > len(body):
+                body = best
 
     if (
         settings.enhanced_scraper_enabled
@@ -198,8 +214,10 @@ async def extract_hub_article_page(
             pub_date = pub_date or _extract_date_from_html(html_scroll)
             title = title or _extract_title_from_html(html_scroll)
             body3 = await asyncio.to_thread(html_to_article_body_sync, html_scroll)
-            if len(body3) > len(body):
-                body = body3
+            alt3 = await asyncio.to_thread(html_to_smart_content_body_sync, html_scroll, url)
+            best3 = body3 if len(body3) >= len(alt3) else alt3
+            if len(best3) > len(body):
+                body = best3
 
     if settings.enhanced_scraper_enabled and (
         not body

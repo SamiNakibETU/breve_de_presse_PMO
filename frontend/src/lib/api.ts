@@ -80,27 +80,65 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-async function request<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+type RequestOptions = RequestInit & { timeoutMs?: number };
+
+function mergeAbortSignals(
+  a: AbortSignal | undefined,
+  b: AbortSignal | undefined,
+): AbortSignal | undefined {
+  if (!a && !b) return undefined;
+  if (a && !b) return a;
+  if (b && !a) return b;
+  const c = new AbortController();
+  const onAbort = (): void => {
+    c.abort();
+  };
+  a!.addEventListener("abort", onAbort, { once: true });
+  b!.addEventListener("abort", onAbort, { once: true });
+  return c.signal;
+}
+
+async function request<T>(path: string, init?: RequestOptions): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
+  const { timeoutMs, signal: incomingSignal, ...restInit } = init ?? {};
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutController = new AbortController();
+  if (timeoutMs != null && timeoutMs > 0) {
+    timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+  }
+  const signal = mergeAbortSignals(
+    incomingSignal ?? undefined,
+    timeoutController.signal,
+  );
   let res: Response;
   try {
     res = await fetch(resolveUrl(path), {
-      ...init,
+      ...restInit,
+      signal,
       headers: {
         "Content-Type": "application/json",
         ...authHeaders(),
-        ...(init?.headers as Record<string, string> | undefined),
+        ...(restInit.headers as Record<string, string> | undefined),
       },
     });
   } catch (e) {
+    const isAbort =
+      (e instanceof DOMException && e.name === "AbortError") ||
+      (e instanceof Error && e.name === "AbortError");
+    if (isAbort) {
+      const reason =
+        timeoutMs != null && timeoutMs > 0
+          ? `Délai dépassé (${Math.round(timeoutMs / 1000)} s)`
+          : "Requête annulée";
+      throw new Error(`${method} ${path} — ${reason}`);
+    }
     const msg =
       e instanceof TypeError
         ? `Réseau indisponible (${e.message})`
         : `Échec réseau : ${formatErrorForDiagnostics(e)}`;
     throw new Error(`${method} ${path} — ${msg}`);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -246,8 +284,12 @@ export const api = {
 
   mediaSources: () => request<MediaSource[]>("/api/media-sources"),
 
-  mediaSourcesHealth: () =>
-    request<MediaSourcesHealthResponse>("/api/media-sources/health"),
+  /** Santé des sources : agrégats lourds ; timeout client 120 s (voir backend optimisé). */
+  mediaSourcesHealth: (signal?: AbortSignal) =>
+    request<MediaSourcesHealthResponse>("/api/media-sources/health", {
+      signal,
+      timeoutMs: 120_000,
+    }),
 
   triggerCollect: () =>
     request<{ status: string; stats: unknown }>("/api/collect", {

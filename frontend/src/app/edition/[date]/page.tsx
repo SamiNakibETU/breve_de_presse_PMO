@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useEffect, useRef } from "react";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
@@ -235,6 +235,7 @@ function EditionSommaireSkeleton() {
 
 export default function EditionSommairePage() {
   const params = useParams();
+  const router = useRouter();
   const date = typeof params.date === "string" ? params.date : "";
   const qc = useQueryClient();
   const pipeline = usePipelineRunnerOptional();
@@ -619,7 +620,7 @@ export default function EditionSommairePage() {
               </h1>
               {date ? (
                 <nav
-                  className="flex flex-wrap items-center gap-1.5 text-[11px]"
+                  className="flex flex-wrap items-center gap-2 text-[11px]"
                   aria-label="Naviguer entre les jours"
                 >
                   <Link
@@ -628,6 +629,19 @@ export default function EditionSommairePage() {
                   >
                     Veille
                   </Link>
+                  <label className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="sr-only">Aller à une date</span>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (v) router.push(`/edition/${v}`);
+                      }}
+                      className="rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
+                      aria-label="Aller à une date"
+                    />
+                  </label>
                   <Link
                     href={`/edition/${editionDateNext}`}
                     className="olj-nav-item olj-nav-item--subtle"

@@ -292,6 +292,31 @@ export default function ComposePage() {
     return [...codes];
   }, [topics, selectedIds, selectionsQ.data?.extra_articles]);
 
+  const selectedAnalysisCount = useMemo(() => {
+    let n = 0;
+    for (const t of topics) {
+      for (const p of t.article_previews ?? []) {
+        if (
+          selectedIds.has(p.id) &&
+          p.analysis_bullets_fr &&
+          p.analysis_bullets_fr.length > 0
+        ) {
+          n += 1;
+        }
+      }
+    }
+    for (const p of selectionsQ.data?.extra_articles ?? []) {
+      if (
+        selectedIds.has(p.id) &&
+        p.analysis_bullets_fr &&
+        p.analysis_bullets_fr.length > 0
+      ) {
+        n += 1;
+      }
+    }
+    return n;
+  }, [topics, selectedIds, selectionsQ.data?.extra_articles]);
+
   const topicsSelectionMap = useMemo(
     () => selectionsQ.data?.topics ?? {},
     [selectionsQ.data],
@@ -420,21 +445,88 @@ export default function ComposePage() {
         </Link>
       </nav>
 
-      <header className="space-y-3">
+      <header className="space-y-4">
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold">
           Rédaction · {titleFr}
         </h1>
-        <ol className="max-w-2xl list-decimal space-y-1.5 pl-5 text-[13px] leading-relaxed text-foreground-body">
-          <li>
-            Vérifiez ci-dessous les <strong className="font-semibold text-foreground">articles cochés</strong> (sommaire + éventuels regroupements).
-          </li>
-          <li>
-            Optionnel : consignes pour le modèle (ton, angles, exclusions).
-          </li>
-          <li>
-            <strong className="font-semibold text-foreground">Rédiger</strong> produit un bloc par <strong className="font-semibold text-foreground">grand sujet</strong> : pour chaque article coché, une phrase-thèse, un résumé et une fiche technique (ordre des coches respecté). Il faut <strong className="font-semibold text-foreground">au moins deux articles sélectionnés par sujet</strong>.
-          </li>
-        </ol>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            {
+              label: "Articles sélectionnés",
+              value: selectedIds.size,
+            },
+            { label: "Sujets", value: topics.length },
+            {
+              label: "Pays couverts",
+              value: selectedCountryCodes.length,
+            },
+            {
+              label: "Analyses disponibles",
+              value: selectedAnalysisCount,
+            },
+          ].map((kpi) => (
+            <div
+              key={kpi.label}
+              className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm"
+            >
+              <p className="text-[22px] font-semibold tabular-nums text-foreground">
+                {kpi.value}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{kpi.label}</p>
+            </div>
+          ))}
+        </div>
+        <div className="max-w-3xl rounded-lg border border-accent/20 bg-accent/5 px-4 py-4 text-[13px] leading-relaxed text-foreground-body">
+          <p className="mb-3 font-semibold text-foreground">
+            Parcours guidé (dans l’ordre)
+          </p>
+          <ol className="list-none space-y-3">
+            <li className="flex gap-3">
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
+                aria-hidden
+              >
+                1
+              </span>
+              <span>
+                <strong className="text-foreground">Sélection</strong> : ordre des sujets (glisser-déposer) et articles cochés par sujet — au moins deux par bloc pour une génération fiable.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
+                aria-hidden
+              >
+                2
+              </span>
+              <span>
+                <strong className="text-foreground">Enrichissement</strong> : pour chaque sujet, vérifiez les extraits (thèse, résumé) ; les analyses détaillées sont dans la fiche article.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
+                aria-hidden
+              >
+                3
+              </span>
+              <span>
+                <strong className="text-foreground">Rédaction</strong> : consignes optionnelles puis « Rédiger ce bloc » ou génération globale — un texte par grand sujet.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-background text-[12px] font-bold text-accent"
+                aria-hidden
+              >
+                4
+              </span>
+              <span>
+                <strong className="text-foreground">Révision</strong> : copier-coller, export, relecture depuis les sections ci-dessous.
+              </span>
+            </li>
+          </ol>
+        </div>
       </header>
 
       <section
