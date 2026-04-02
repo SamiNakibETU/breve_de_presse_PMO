@@ -19,7 +19,7 @@ import type {
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
 
-/** Tâche de surveillance du bail (intervalle court) — ne pas l’afficher comme « prochain passage » métier. */
+/** Tâche de surveillance du bail (intervalle court) ; ne pas l’afficher comme « prochain passage » métier. */
 const SCHEDULER_EXCLUDE_FROM_NEXT_PREVIEW = new Set(["pipeline_lease_stall_watch"]);
 
 function formatDateFr(iso: string): string {
@@ -605,10 +605,17 @@ export default function EditionSommairePage() {
               </h1>
               {date ? (
                 <nav
-                  className="mt-1 flex w-full min-w-0 max-w-2xl justify-end text-[11px]"
+                  className="mt-2 flex w-full min-w-0 max-w-2xl justify-start text-[11px]"
                   aria-label="Naviguer entre les jours"
                 >
-                  <EditionDateRail currentIso={date} />
+                  <EditionDateRail
+                    currentIso={date}
+                    editionWindow={
+                      edition?.window_start && edition?.window_end
+                        ? { start: edition.window_start, end: edition.window_end }
+                        : null
+                    }
+                  />
                 </nav>
               ) : null}
             </div>
@@ -669,7 +676,7 @@ export default function EditionSommairePage() {
           <div className="mt-3 space-y-2 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
             {statusQ.data?.pipeline_running && !pipeline?.running ? (
               <p className="border-l-2 border-accent/40 pl-2 text-foreground-body" role="status">
-                Mise à jour en cours sur le serveur — le bouton ci-dessus est indisponible jusqu’à la fin.
+                Mise à jour en cours sur le serveur ; le bouton ci-dessus est indisponible jusqu’à la fin.
               </p>
             ) : null}
             {pipeline?.running ? (
@@ -677,34 +684,43 @@ export default function EditionSommairePage() {
                 {pipeline.running.label}…
               </p>
             ) : null}
-            {statusQ.isError ? (
-              <p className="text-destructive">Statut automatique indisponible.</p>
-            ) : statusQ.isPending ? (
-              <p>Chargement des horaires…</p>
-            ) : schedulerPreview.next ? (
-              <p>
-                <span className="font-medium text-foreground">Prochain passage automatique :</span>{" "}
-                {schedulerPreview.next.formattedNext} ({schedulerPreview.next.title}).
-              </p>
-            ) : null}
-            <p>
-              Détail des tâches et journaux :{" "}
-              <Link href="/regie/pipeline" className="olj-link-action font-medium">
-                Régie — Collecte
-              </Link>
-              {" · "}
-              <Link href="/regie/logs" className="olj-link-action font-medium">
-                Journaux
-              </Link>
-              .
-            </p>
-            {pipeline?.lastRun ? (
-              <p>
-                Dernière mise à jour (cette session) : {formatSessionDateTimeFr(pipeline.lastRun.at)} —{" "}
-                {pipeline.lastRun.label}
-                {pipeline.lastRun.ok ? "" : " · erreur"}.
-              </p>
-            ) : null}
+            <details className="group rounded-md border border-border/50 bg-muted/20 px-2 py-1.5">
+              <summary className="cursor-pointer list-none text-[11px] font-medium text-foreground/80 marker:content-none [&::-webkit-details-marker]:hidden">
+                <span className="underline decoration-border underline-offset-2 group-open:no-underline">
+                  Planification et journaux (régie)
+                </span>
+              </summary>
+              <div className="mt-2 space-y-2 pl-0.5">
+                {statusQ.isError ? (
+                  <p className="text-destructive">Statut automatique indisponible.</p>
+                ) : statusQ.isPending ? (
+                  <p>Chargement des horaires…</p>
+                ) : schedulerPreview.next ? (
+                  <p>
+                    <span className="font-medium text-foreground">Prochain passage automatique :</span>{" "}
+                    {schedulerPreview.next.formattedNext} ({schedulerPreview.next.title}).
+                  </p>
+                ) : null}
+                <p>
+                  Détail des tâches et journaux :{" "}
+                  <Link href="/regie/pipeline" className="olj-link-action font-medium">
+                    Régie (collecte)
+                  </Link>
+                  {" · "}
+                  <Link href="/regie/logs" className="olj-link-action font-medium">
+                    Journaux
+                  </Link>
+                  .
+                </p>
+                {pipeline?.lastRun ? (
+                  <p>
+                    Dernière mise à jour (cette session) : {formatSessionDateTimeFr(pipeline.lastRun.at)} ·{" "}
+                    {pipeline.lastRun.label}
+                    {pipeline.lastRun.ok ? "" : " · erreur"}.
+                  </p>
+                ) : null}
+              </div>
+            </details>
           </div>
         ) : null}
 
@@ -739,16 +755,16 @@ export default function EditionSommairePage() {
               type="button"
               className="olj-link-action text-[12px] disabled:opacity-45"
               disabled={pipeline.running !== null}
-              title="Analyse LLM (5 puces, thèse) sur le corpus de cette édition — ne lance pas la collecte ni les grands sujets du sommaire."
+              title="Analyse LLM (thèse, structure) sur le corpus de cette édition ; ne lance pas la collecte ni les grands sujets du sommaire."
               onClick={() =>
-                pipeline.startRun("articleAnalysis", "Analyse détaillée (5 puces)", {
+                pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", {
                   editionId,
                 })
               }
             >
               {pipeline.running?.key === "articleAnalysis"
                 ? "Analyse en cours…"
-                : "Analyser les articles (5 puces)"}
+                : "Analyser les articles"}
             </button>
           </div>
         ) : null}
@@ -801,7 +817,7 @@ export default function EditionSommairePage() {
               ) : null}
               <p className="mt-4 text-[12px] text-muted-foreground">
                 <Link href="/regie/pipeline" className="olj-link-action">
-                  Régie — Collecte
+                  Régie (collecte)
                 </Link>
               </p>
             </div>

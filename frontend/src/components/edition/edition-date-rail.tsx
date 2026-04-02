@@ -1,12 +1,12 @@
 "use client";
 
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shiftIsoDate } from "@/lib/beirut-date";
+import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 
-/** Jours avant / après la date courante (bande scrollable ; ~3 jours visibles selon largeur). */
+/** Jours avant / après la date courante (bande scrollable). */
 const RADIUS = 5;
 
 function chipLabels(iso: string): { weekday: string; dayMonth: string } {
@@ -30,19 +30,66 @@ function chipLabels(iso: string): { weekday: string; dayMonth: string } {
   };
 }
 
-type EditionDateRailProps = {
+/** Fenêtre éditoriale projetée sur la plage de jours visible (même axe que la frise). */
+function windowVisibleFractions(
+  windowStartIso: string,
+  windowEndIso: string,
+  visibleFirstIso: string,
+  visibleLastIso: string,
+): { leftPct: number; widthPct: number } | null {
+  const ws = new Date(windowStartIso).getTime();
+  const we = new Date(windowEndIso).getTime();
+  const vs = new Date(`${visibleFirstIso}T00:00:00.000Z`).getTime();
+  const ve =
+    new Date(`${visibleLastIso}T00:00:00.000Z`).getTime() +
+    24 * 3600 * 1000;
+  if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= ws) {
+    return null;
+  }
+  if (ve <= vs) {
+    return null;
+  }
+  const overlapStart = Math.max(ws, vs);
+  const overlapEnd = Math.min(we, ve);
+  if (overlapEnd <= overlapStart) {
+    return null;
+  }
+  const leftPct = ((overlapStart - vs) / (ve - vs)) * 100;
+  const widthPct = ((overlapEnd - overlapStart) / (ve - vs)) * 100;
+  return {
+    leftPct: Math.max(0, Math.min(100, leftPct)),
+    widthPct: Math.max(0.6, Math.min(100, widthPct)),
+  };
+}
+
+function formatWindowEdgeBeirut(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Beirut",
+  })
+    .format(new Date(iso))
+    .replace(/\.$/, "");
+}
+
+export type EditionDateRailWindow = { start: string; end: string };
+
+export type EditionDateRailProps = {
   currentIso: string;
   className?: string;
+  editionWindow?: EditionDateRailWindow | null;
 };
 
 export function EditionDateRail({
   currentIso,
   className = "",
+  editionWindow = null,
 }: EditionDateRailProps) {
-  const router = useRouter();
   const activeRef = useRef<HTMLAnchorElement>(null);
   const scrollRef = useRef<HTMLUListElement>(null);
-  const hiddenPickerRef = useRef<HTMLInputElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
 
@@ -53,6 +100,42 @@ export function EditionDateRail({
     }
     return out;
   }, [currentIso]);
+
+  const windowOnStrip = useMemo(() => {
+    if (!editionWindow?.start || !editionWindow?.end || days.length === 0) {
+      return null;
+    }
+    const first = days[0];
+    const last = days[days.length - 1];
+    if (!first || !last) {
+      return null;
+    }
+    return windowVisibleFractions(
+      editionWindow.start,
+      editionWindow.end,
+      first,
+      last,
+    );
+  }, [editionWindow, days]);
+
+  const startLabel = editionWindow?.start
+    ? formatWindowEdgeBeirut(editionWindow.start)
+    : null;
+  const endLabel = editionWindow?.end
+    ? formatWindowEdgeBeirut(editionWindow.end)
+    : null;
+
+  const editionWindowRange = useMemo(() => {
+    if (!editionWindow) {
+      return null;
+    }
+    const ws = new Date(editionWindow.start).getTime();
+    const we = new Date(editionWindow.end).getTime();
+    if (!Number.isFinite(ws) || !Number.isFinite(we)) {
+      return null;
+    }
+    return { ws, we };
+  }, [editionWindow]);
 
   const updateScrollArrows = useCallback(() => {
     const el = scrollRef.current;
@@ -95,7 +178,7 @@ export function EditionDateRail({
       return 220;
     }
     const li = el.querySelector("li");
-    const w = li ? li.getBoundingClientRect().width + 4 : 72;
+    const w = li ? li.getBoundingClientRect().width + 8 : 76;
     return Math.round(w * 3);
   }, []);
 
@@ -113,111 +196,116 @@ export function EditionDateRail({
     });
   }, [scrollChunkPx]);
 
-  const openNativePicker = () => {
-    const el = hiddenPickerRef.current;
-    if (!el) {
-      return;
-    }
-    if (typeof el.showPicker === "function") {
-      try {
-        el.showPicker();
-        return;
-      } catch {
-        /* repli */
-      }
-    }
-    el.click();
-  };
-
-  const chipBase =
-    "flex min-w-[3.35rem] shrink-0 snap-center flex-col items-center justify-center rounded-md border px-2 py-1.5 text-center transition-colors duration-150 touch-manipulation no-underline";
-
   return (
     <div
-      className={`olj-date-rail flex w-auto max-w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-1.5 sm:flex-nowrap ${className}`.trim()}
+      className={`olj-date-rail flex w-full max-w-full flex-col gap-0 ${className}`.trim()}
       aria-label="Choisir une date d’édition"
     >
-      <div className="flex min-w-0 max-w-full items-center gap-1.5 sm:max-w-[min(100%,18.5rem)]">
-        <button
-          type="button"
-          className="olj-date-rail__chevron"
-          aria-label="Faire défiler vers les jours précédents"
-          disabled={!canLeft}
-          onClick={scrollPrev}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-        </button>
-        <div className="olj-date-rail__viewport min-h-0 min-w-0 flex-1 basis-0">
-          <ul
-            ref={scrollRef}
-            className="olj-date-rail__track m-0 flex list-none flex-row gap-1 overflow-x-auto scroll-smooth py-1"
+      <div className="rounded-xl border border-border/35 bg-muted/15 p-2 sm:p-2.5">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap sm:gap-0">
+          <button
+            type="button"
+            className="olj-date-rail__chevron"
+            aria-label="Faire défiler vers les jours précédents"
+            disabled={!canLeft}
+            onClick={scrollPrev}
           >
-            {days.map((iso) => {
-              const active = iso === currentIso;
-              const { weekday, dayMonth } = chipLabels(iso);
-              return (
-                <li key={iso} className="inline-flex shrink-0 snap-center">
-                  <Link
-                    ref={active ? activeRef : undefined}
-                    href={`/edition/${iso}`}
-                    scroll={false}
-                    aria-current={active ? "page" : undefined}
-                    title={`Édition du ${iso}`}
-                    className={`${chipBase} ${
-                      active
-                        ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] text-foreground shadow-[inset_0_0_0_1px_rgba(221,59,49,0.28)]"
-                        : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground"
-                    }`}
-                  >
-                    <span className="text-[9px] font-semibold uppercase tracking-wide opacity-85">
-                      {weekday}
-                    </span>
-                    <span className="font-[family-name:var(--font-serif)] text-[12px] font-semibold tabular-nums leading-tight">
-                      {dayMonth}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+            <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+          </button>
+          <div className="olj-date-rail__viewport min-h-0 min-w-0 flex-1 basis-0">
+            <ul
+              ref={scrollRef}
+              className="olj-date-rail__track m-0 flex list-none flex-row gap-1 overflow-x-auto scroll-smooth py-0.5 sm:gap-1.5"
+            >
+              {days.map((iso) => {
+                const active = iso === currentIso;
+                const { weekday, dayMonth } = chipLabels(iso);
+                const dayStart = new Date(`${iso}T00:00:00.000Z`).getTime();
+                const dayEnd = dayStart + 24 * 3600 * 1000;
+                const inWindowBand = Boolean(
+                  editionWindowRange &&
+                    dayEnd > editionWindowRange.ws &&
+                    dayStart < editionWindowRange.we,
+                );
+                return (
+                  <li key={iso} className="inline-flex shrink-0 snap-center">
+                    <Link
+                      ref={active ? activeRef : undefined}
+                      href={`/edition/${iso}`}
+                      scroll={false}
+                      aria-current={active ? "page" : undefined}
+                      title={`Édition du ${iso}`}
+                      className={`relative flex min-w-[3.1rem] flex-col items-center justify-center overflow-hidden rounded-2xl px-2 py-2 text-center no-underline transition-[color,background,box-shadow,opacity] duration-200 touch-manipulation ${
+                        active
+                          ? "bg-card text-foreground shadow-[0_2px_12px_rgba(0,0,0,0.06)] ring-1 ring-border/40"
+                          : inWindowBand
+                            ? "bg-[color-mix(in_srgb,var(--color-accent)_6%,transparent)] text-foreground/75 hover:bg-[color-mix(in_srgb,var(--color-accent)_10%,var(--color-muted))] hover:text-foreground/90"
+                            : "text-muted-foreground/45 hover:bg-muted/25 hover:text-foreground/65"
+                      }`}
+                    >
+                      <span className="text-[9px] font-medium uppercase tracking-[0.08em]">
+                        {weekday}
+                      </span>
+                      <span className="font-[family-name:var(--font-serif)] text-[13px] font-semibold tabular-nums leading-tight">
+                        {dayMonth}
+                      </span>
+                      {active ? (
+                        <span
+                          className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent)]"
+                          aria-hidden
+                        />
+                      ) : (
+                        <span
+                          className="mt-1 h-1 w-1 shrink-0 rounded-full bg-transparent"
+                          aria-hidden
+                        />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <button
+            type="button"
+            className="olj-date-rail__chevron"
+            aria-label="Faire défiler vers les jours suivants"
+            disabled={!canRight}
+            onClick={scrollNext}
+          >
+            <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+          </button>
+          <EditionCalendarPopover currentIso={currentIso} />
         </div>
-        <button
-          type="button"
-          className="olj-date-rail__chevron"
-          aria-label="Faire défiler vers les jours suivants"
-          disabled={!canRight}
-          onClick={scrollNext}
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-      <div className="flex shrink-0 flex-col items-stretch sm:ml-0">
-        <button
-          type="button"
-          onClick={openNativePicker}
-          className={`${chipBase} h-full min-h-[2.65rem] border-dashed border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-accent`}
-          title="Ouvrir le sélecteur de date du navigateur"
-          aria-label="Choisir une autre date dans le calendrier"
-        >
-          <Calendar className="mx-auto h-3.5 w-3.5 opacity-90" aria-hidden />
-          <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide">
-            Autre
-          </span>
-        </button>
-        <input
-          ref={hiddenPickerRef}
-          type="date"
-          value={currentIso}
-          onChange={(e) => {
-            const v = e.target.value.trim();
-            if (v) {
-              router.push(`/edition/${v}`);
-            }
-          }}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
+
+        {windowOnStrip && editionWindow && startLabel && endLabel ? (
+          <div
+            className="mt-3 border-t border-border/30 pt-2.5"
+            role="group"
+            aria-label="Plage horaire de collecte pour cette édition (Beyrouth)"
+          >
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Fenêtre de collecte (Beyrouth)
+            </p>
+            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted/55">
+              <div
+                className="absolute inset-y-0 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_38%,var(--color-muted))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+                style={{
+                  left: `${windowOnStrip.leftPct}%`,
+                  width: `${windowOnStrip.widthPct}%`,
+                }}
+              />
+            </div>
+            <div className="mt-1.5 flex justify-between gap-2 text-[10px] leading-tight text-muted-foreground">
+              <span className="max-w-[48%] text-left font-medium text-foreground/85">
+                {startLabel}
+              </span>
+              <span className="max-w-[48%] text-right font-medium text-foreground/85">
+                {endLabel}
+              </span>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
