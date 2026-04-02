@@ -302,23 +302,35 @@ input[type="checkbox"] {
   outline-offset: 2px;
 }
 
-/* Rail de dates édition — scrollbar horizontale volontairement lisible (Firefox + WebKit) */
+/* Rail de dates édition — scrollbar lisible, sans flèches natives Windows/WebKit */
+.olj-date-rail__viewport {
+  /* Isole la piste : évite que la barre ne « mange » les flèches en flex */
+  padding-bottom: 2px;
+}
 .olj-date-rail__track {
   scrollbar-width: auto;
-  scrollbar-color: var(--color-accent) var(--color-border);
+  scrollbar-color: var(--color-accent) color-mix(in srgb, var(--color-border) 88%, transparent);
   scroll-snap-type: x mandatory;
 }
 .olj-date-rail__track::-webkit-scrollbar {
-  height: 10px;
+  height: 8px;
+}
+.olj-date-rail__track::-webkit-scrollbar-button,
+.olj-date-rail__track::-webkit-scrollbar-button:start:decrement,
+.olj-date-rail__track::-webkit-scrollbar-button:end:increment {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .olj-date-rail__track::-webkit-scrollbar-track {
-  background: var(--color-border);
+  margin: 0 4px;
+  background: color-mix(in srgb, var(--color-border) 65%, var(--color-background));
   border-radius: 9999px;
 }
 .olj-date-rail__track::-webkit-scrollbar-thumb {
   background: var(--color-accent);
   border-radius: 9999px;
-  border: 2px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
 }
 .olj-date-rail__track::-webkit-scrollbar-thumb:hover {
   filter: brightness(0.92);
@@ -329,8 +341,9 @@ input[type="checkbox"] {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 2.65rem;
+  align-self: center;
+  width: 1.625rem;
+  height: 2.5rem;
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-muted-foreground);

@@ -605,7 +605,7 @@ export default function EditionSommairePage() {
               </h1>
               {date ? (
                 <nav
-                  className="mt-1 w-full min-w-0 max-w-2xl text-[11px]"
+                  className="mt-1 flex w-full min-w-0 max-w-2xl justify-end text-[11px]"
                   aria-label="Naviguer entre les jours"
                 >
                   <EditionDateRail currentIso={date} />

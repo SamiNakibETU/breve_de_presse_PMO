@@ -134,60 +134,64 @@ export function EditionDateRail({
 
   return (
     <div
-      className={`flex min-w-0 max-w-full items-stretch gap-1 ${className}`.trim()}
+      className={`olj-date-rail flex w-auto max-w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-1.5 sm:flex-nowrap ${className}`.trim()}
       aria-label="Choisir une date d’édition"
     >
-      <button
-        type="button"
-        className="olj-date-rail__chevron"
-        aria-label="Faire défiler vers les jours précédents"
-        disabled={!canLeft}
-        onClick={scrollPrev}
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
-      </button>
-      <ul
-        ref={scrollRef}
-        className="olj-date-rail__track m-0 flex w-full min-w-0 max-w-[min(100%,14rem)] list-none flex-row gap-1 overflow-x-auto scroll-smooth py-0.5 sm:max-w-[min(100%,15rem)]"
-      >
-        {days.map((iso) => {
-          const active = iso === currentIso;
-          const { weekday, dayMonth } = chipLabels(iso);
-          return (
-            <li key={iso} className="inline-flex shrink-0 snap-center">
-              <Link
-                ref={active ? activeRef : undefined}
-                href={`/edition/${iso}`}
-                scroll={false}
-                aria-current={active ? "page" : undefined}
-                title={`Édition du ${iso}`}
-                className={`${chipBase} ${
-                  active
-                    ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] text-foreground shadow-[inset_0_0_0_1px_rgba(221,59,49,0.28)]"
-                    : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground"
-                }`}
-              >
-                <span className="text-[9px] font-semibold uppercase tracking-wide opacity-85">
-                  {weekday}
-                </span>
-                <span className="font-[family-name:var(--font-serif)] text-[12px] font-semibold tabular-nums leading-tight">
-                  {dayMonth}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      <button
-        type="button"
-        className="olj-date-rail__chevron"
-        aria-label="Faire défiler vers les jours suivants"
-        disabled={!canRight}
-        onClick={scrollNext}
-      >
-        <ChevronRight className="h-4 w-4" aria-hidden />
-      </button>
-      <div className="flex shrink-0 flex-col items-stretch">
+      <div className="flex min-w-0 max-w-full items-center gap-1.5 sm:max-w-[min(100%,18.5rem)]">
+        <button
+          type="button"
+          className="olj-date-rail__chevron"
+          aria-label="Faire défiler vers les jours précédents"
+          disabled={!canLeft}
+          onClick={scrollPrev}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+        </button>
+        <div className="olj-date-rail__viewport min-h-0 min-w-0 flex-1 basis-0">
+          <ul
+            ref={scrollRef}
+            className="olj-date-rail__track m-0 flex list-none flex-row gap-1 overflow-x-auto scroll-smooth py-1"
+          >
+            {days.map((iso) => {
+              const active = iso === currentIso;
+              const { weekday, dayMonth } = chipLabels(iso);
+              return (
+                <li key={iso} className="inline-flex shrink-0 snap-center">
+                  <Link
+                    ref={active ? activeRef : undefined}
+                    href={`/edition/${iso}`}
+                    scroll={false}
+                    aria-current={active ? "page" : undefined}
+                    title={`Édition du ${iso}`}
+                    className={`${chipBase} ${
+                      active
+                        ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] text-foreground shadow-[inset_0_0_0_1px_rgba(221,59,49,0.28)]"
+                        : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="text-[9px] font-semibold uppercase tracking-wide opacity-85">
+                      {weekday}
+                    </span>
+                    <span className="font-[family-name:var(--font-serif)] text-[12px] font-semibold tabular-nums leading-tight">
+                      {dayMonth}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <button
+          type="button"
+          className="olj-date-rail__chevron"
+          aria-label="Faire défiler vers les jours suivants"
+          disabled={!canRight}
+          onClick={scrollNext}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+      <div className="flex shrink-0 flex-col items-stretch sm:ml-0">
         <button
           type="button"
           onClick={openNativePicker}
