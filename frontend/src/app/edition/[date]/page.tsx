@@ -2,12 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useMemo, useEffect, useRef } from "react";
+import { EditionDateRail } from "@/components/edition/edition-date-rail";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { api } from "@/lib/api";
+import { shiftIsoDate } from "@/lib/beirut-date";
 import { useSelectionStore } from "@/stores/selection-store";
 import type {
   Edition,
@@ -62,18 +64,6 @@ function formatEditionWindowCompact(isoStart: string, isoEnd: string): string {
   };
   const fmt = new Intl.DateTimeFormat("fr-FR", opts);
   return `${fmt.format(new Date(isoStart))} → ${fmt.format(new Date(isoEnd))} · Beyrouth`;
-}
-
-function shiftEditionDate(isoDate: string, deltaDays: number): string {
-  const parts = isoDate.split("-").map(Number);
-  const y = parts[0] ?? 1970;
-  const m = parts[1] ?? 1;
-  const d = parts[2] ?? 1;
-  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
 }
 
 /** Chaîne renvoyée par APScheduler (ex. `2026-03-24 06:00:00+00:00`). */
@@ -235,7 +225,6 @@ function EditionSommaireSkeleton() {
 
 export default function EditionSommairePage() {
   const params = useParams();
-  const router = useRouter();
   const date = typeof params.date === "string" ? params.date : "";
   const qc = useQueryClient();
   const pipeline = usePipelineRunnerOptional();
@@ -525,8 +514,8 @@ export default function EditionSommairePage() {
     return formatEditionWindowCompact(edition.window_start, edition.window_end);
   }, [edition?.window_start, edition?.window_end]);
 
-  const editionDatePrev = date ? shiftEditionDate(date, -1) : "";
-  const editionDateNext = date ? shiftEditionDate(date, 1) : "";
+  const editionDatePrev = date ? shiftIsoDate(date, -1) : "";
+  const editionDateNext = date ? shiftIsoDate(date, 1) : "";
 
   const schedulerPreview = useMemo(() => {
     const jobs = statusQ.data?.jobs ?? [];
@@ -620,34 +609,24 @@ export default function EditionSommairePage() {
               </h1>
               {date ? (
                 <nav
-                  className="flex flex-wrap items-center gap-2 text-[11px]"
+                  className="mt-1 flex w-full min-w-0 max-w-2xl flex-col gap-2 text-[11px] sm:flex-row sm:items-end sm:gap-3"
                   aria-label="Naviguer entre les jours"
                 >
-                  <Link
-                    href={`/edition/${editionDatePrev}`}
-                    className="olj-nav-item olj-nav-item--subtle"
-                  >
-                    Veille
-                  </Link>
-                  <label className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="sr-only">Aller à une date</span>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => {
-                        const v = e.target.value.trim();
-                        if (v) router.push(`/edition/${v}`);
-                      }}
-                      className="rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
-                      aria-label="Aller à une date"
-                    />
-                  </label>
-                  <Link
-                    href={`/edition/${editionDateNext}`}
-                    className="olj-nav-item olj-nav-item--subtle"
-                  >
-                    Lendemain
-                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={`/edition/${editionDatePrev}`}
+                      className="olj-nav-item olj-nav-item--subtle"
+                    >
+                      Veille
+                    </Link>
+                    <Link
+                      href={`/edition/${editionDateNext}`}
+                      className="olj-nav-item olj-nav-item--subtle"
+                    >
+                      Lendemain
+                    </Link>
+                  </div>
+                  <EditionDateRail currentIso={date} className="min-w-0 flex-1" />
                 </nav>
               ) : null}
             </div>
