@@ -56,6 +56,41 @@ def is_substantial_article_body(text: str, *, min_chars: int, min_words: int) ->
     return words >= min_words
 
 
+_PAYWALL_TEASER_SUBSTRINGS = (
+    "subscribe to continue",
+    "subscribe to read",
+    "subscribers only",
+    "abonnez-vous pour",
+    "réservé aux abonnés",
+    "réserve aux abonnes",
+    "create a free account",
+    "create an account to continue",
+    "register to read",
+    "sign in to read",
+    "connexion pour lire",
+    "this article is for subscribers",
+    "premium article",
+    "contenu réservé",
+    "pour lire la suite",
+    "read the full story",
+    "upgrade to premium",
+)
+
+
+def is_likely_paywall_teaser(text: str | None) -> bool:
+    """
+    Heuristique : bandeau / paywall souvent court avec incitation à s’abonner.
+    Au-delà d’un certain volume de mots, on considère que le corps est réel malgré une mention « subscribe ».
+    """
+    if not text:
+        return False
+    words = len(text.split())
+    if words >= 220:
+        return False
+    blob = f"{text[:4000]}\n{text[-2000:]}".lower()
+    return any(h in blob for h in _PAYWALL_TEASER_SUBSTRINGS)
+
+
 def is_acceptable_article_title(title: str | None, *, min_len: int = 6) -> bool:
     if not title:
         return False

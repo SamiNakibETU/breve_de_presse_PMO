@@ -15,6 +15,22 @@ Outil **autonome** pour la collecte de contenu médiatique dans le cadre de proj
 - Sortie : `output/harvest/<timestamp>/<media_id>/article_01.json` … + `summary.json`.
 - Options : `--articles 3`, `--min-words 120`, `--only <media_id>`, `--limit N`, `--quiet`.
 
+### File itérative = code backend de production
+
+Pour **aligner le scraper standalone sur le backend** (HTTP → curl_cffi → Playwright → cascade enrichie + JSON-LD `articleBody`) et appliquer le cycle *échec → analyse → correctifs → reprise* :
+
+1. Activer le venv **backend** et les mêmes variables d’environnement que l’API.
+2. Lancer depuis la racine du dépôt (le script se place dans `backend/`) :
+
+```bash
+cd backend
+python ../scraper/scripts/backend_queue_harvest.py --stop-on-fail --articles 3
+```
+
+- Sorties : `scraper/output/backend_queue/queue_report_<UTC>.json` et `scraper/output/backend_queue_state.json` (reprise).
+- Hubs supplémentaires par média : `scraper/config/queue_hub_overrides.json`.
+- Options utiles : `--start-after <media_id>` après un correctif, `--only <media_id>` pour un site précis, `--no-require-metadata` si seuls corps + titre suffisent pour un diagnostic.
+
 ⚠️ **Important**: Les médias ciblés disposent de protections anti-bot sophistiquées. L'approche recommandée est la **collecte manuelle des URLs** suivie d'un scraping ciblé.
 
 ---

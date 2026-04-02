@@ -19,6 +19,7 @@ from src.services.article_body_format import (
     format_plain_article_text,
     is_substantial_article_body,
 )
+from src.services.hub_article_jsonld import merge_longest_body_with_jsonld
 from src.services.hub_fetch import fetch_html_robust, sanitize_structlog_payload
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
 from src.services.hub_rss import is_cloudflare_interstitial_html
@@ -112,6 +113,7 @@ async def extract_hub_article_page(
         alt = await asyncio.to_thread(html_to_smart_content_body_sync, html, url)
         if len(alt) > len(body):
             body = alt
+        body = merge_longest_body_with_jsonld(html, body)
     else:
         logger.debug(
             "hub_article_extract.http_weak",
@@ -175,6 +177,7 @@ async def extract_hub_article_page(
             best = body2 if len(body2) >= len(alt2) else alt2
             if len(best) > len(body):
                 body = best
+            body = merge_longest_body_with_jsonld(html2, body)
 
     if (
         settings.enhanced_scraper_enabled
@@ -218,6 +221,7 @@ async def extract_hub_article_page(
             best3 = body3 if len(body3) >= len(alt3) else alt3
             if len(best3) > len(body):
                 body = best3
+            body = merge_longest_body_with_jsonld(html_scroll, body)
 
     if settings.enhanced_scraper_enabled and (
         not body

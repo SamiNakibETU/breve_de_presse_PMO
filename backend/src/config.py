@@ -480,6 +480,12 @@ class Settings(BaseSettings):
         le=500,
         description="Plafond d’articles à analyser par run pipeline",
     )
+    article_analysis_max_tokens: int = Field(
+        default=8192,
+        ge=512,
+        le=32000,
+        description="Plafond max_tokens pour l’appel tool JSON article_analysis (thinking + 5 puces)",
+    )
     selected_article_retention_hours: int = Field(
         default=72,
         ge=24,

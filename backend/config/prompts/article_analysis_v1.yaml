@@ -93,8 +93,10 @@ json_schema:
         - mixed
         - mostly_opinion
         - mostly_factual
+  # thinking reste dans les propriétés (le modèle peut l'utiliser) mais n'est pas
+  # required : avec un plafond de jetons serré, une thèse longue + 5 puces peut
+  # écraser le tool_use et provoquer structured_output_tool_missing côté API.
   required:
-    - thinking
     - factual_context
     - author_thesis
     - analysis_bullets

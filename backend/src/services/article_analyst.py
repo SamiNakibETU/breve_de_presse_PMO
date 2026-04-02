@@ -88,7 +88,7 @@ async def analyze_article(
             user,
             schema,
             tool_name="article_analysis",
-            max_tokens=1400,
+            max_tokens=s.article_analysis_max_tokens,
             temperature=0.1,
             model=model,
         )
@@ -152,6 +152,7 @@ async def run_article_analysis_pipeline(
             "analyzed": 0,
             "errors": 0,
             "skipped_articles": 0,
+            "error_samples": [],
         }
 
     factory = get_session_factory()
@@ -192,6 +193,7 @@ async def run_article_analysis_pipeline(
         analyzed = 0
         errors = 0
         skipped_articles = 0
+        error_samples: list[dict[str, Any]] = []
         for a in rows:
             r = await analyze_article(db, a.id)
             if r.get("ok"):
@@ -200,10 +202,19 @@ async def run_article_analysis_pipeline(
                 skipped_articles += 1
             else:
                 errors += 1
+                if len(error_samples) < 5:
+                    error_samples.append(
+                        {
+                            "article_id": str(a.id),
+                            "error": r.get("error"),
+                            "detail": (r.get("detail") or "")[:400],
+                        }
+                    )
         return {
             "candidates": len(rows),
             "analyzed": analyzed,
             "errors": errors,
             "skipped_articles": skipped_articles,
             "force": force,
+            "error_samples": error_samples,
         }
