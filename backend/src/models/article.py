@@ -132,7 +132,7 @@ class Article(Base):
     factual_context_fr: Mapped[Optional[str]] = mapped_column(Text)
     analysis_tone: Mapped[Optional[str]] = mapped_column(String(32))
     fact_opinion_quality: Mapped[Optional[str]] = mapped_column(String(32))
-    analysis_version: Mapped[Optional[str]] = mapped_column(String(16))
+    analysis_version: Mapped[Optional[str]] = mapped_column(String(64))
     analyzed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     retention_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     retention_reason: Mapped[Optional[str]] = mapped_column(String(64))

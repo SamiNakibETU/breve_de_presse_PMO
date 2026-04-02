@@ -18,7 +18,7 @@ def test_char_to_tokens_approx_rounding() -> None:
 def test_estimate_cost_usd_positive() -> None:
     c = estimate_cost_usd(
         provider="anthropic",
-        model="claude-sonnet-4-5-20241022",
+        model="claude-sonnet-4-5",
         input_tokens=1_000_000,
         output_tokens=0,
     )
@@ -35,7 +35,7 @@ def test_estimate_cohere_embed_positive() -> None:
 def test_estimate_llm_usage_groq_cheaper_than_sonnet() -> None:
     _, _, sonnet = estimate_llm_usage(
         provider="anthropic",
-        model="claude-sonnet-4-5-20241022",
+        model="claude-sonnet-4-5",
         input_text="x" * 4000,
         output_text="y" * 1000,
     )

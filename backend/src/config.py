@@ -22,8 +22,10 @@ class Settings(BaseSettings):
     cerebras_api_key: str = Field(default="")
 
     # --- Anthropic models (fallback / Hebrew) ---
-    anthropic_translation_model: str = Field(default="claude-haiku-4-5-20241022")
-    anthropic_generation_model: str = Field(default="claude-sonnet-4-5-20241022")
+    # Alias officiels (docs « all-models ») : les anciens IDs 3.5 (ex. claude-3-5-haiku-20241022)
+    # peuvent renvoyer 404 une fois les modèles retirés. Haiku 4.5 / Sonnet 4.5 restent listés.
+    anthropic_translation_model: str = Field(default="claude-haiku-4-5")
+    anthropic_generation_model: str = Field(default="claude-sonnet-4-5")
     anthropic_use_prompt_cache: bool = Field(
         default=True,
         description="Anthropic : cache éphémère sur le bloc system (réduction coût)",
@@ -471,8 +473,8 @@ class Settings(BaseSettings):
         description="Pipeline post-traduction : analyse experte (bullets, thèse, faits) via LLM",
     )
     article_analysis_model: str = Field(
-        default="claude-haiku-4-5-20241022",
-        description="Modèle Anthropic pour article_analysis (Haiku recommandé)",
+        default="claude-haiku-4-5",
+        description="Modèle Anthropic pour article_analysis (Haiku 4.5 recommandé, alias API)",
     )
     article_analysis_batch_limit: int = Field(
         default=120,
