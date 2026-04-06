@@ -4,12 +4,13 @@ Revision ID: m20260401_planv2
 Revises: m20260340_ecp
 Create Date: 2026-04-01
 
+Colonnes et index créés avec IF NOT EXISTS : évite l'échec si le schéma a déjà
+été aligné manuellement ou si une montée de version a été interrompue (ex. Railway).
 """
 from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision: str = "m20260401_planv2"
 down_revision: Union[str, None] = "m20260340_ecp"
@@ -18,50 +19,75 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "articles",
-        sa.Column(
-            "analysis_bullets_fr",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-        ),
+    # articles — analyse, rétention, méta scrape
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analysis_bullets_fr JSONB"
+        )
     )
-    op.add_column("articles", sa.Column("author_thesis_explicit_fr", sa.Text(), nullable=True))
-    op.add_column("articles", sa.Column("factual_context_fr", sa.Text(), nullable=True))
-    op.add_column("articles", sa.Column("analysis_tone", sa.String(length=32), nullable=True))
-    op.add_column(
-        "articles",
-        sa.Column("fact_opinion_quality", sa.String(length=32), nullable=True),
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS author_thesis_explicit_fr TEXT"
+        )
     )
-    op.add_column("articles", sa.Column("analysis_version", sa.String(length=16), nullable=True))
-    op.add_column(
-        "articles",
-        sa.Column("analyzed_at", sa.DateTime(timezone=True), nullable=True),
+    op.execute(
+        sa.text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS factual_context_fr TEXT")
     )
-    op.add_column(
-        "articles",
-        sa.Column("retention_until", sa.DateTime(timezone=True), nullable=True),
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analysis_tone VARCHAR(32)"
+        )
     )
-    op.add_column(
-        "articles",
-        sa.Column("retention_reason", sa.String(length=64), nullable=True),
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS fact_opinion_quality VARCHAR(32)"
+        )
     )
-    op.add_column(
-        "articles",
-        sa.Column("scrape_method", sa.String(length=32), nullable=True),
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analysis_version VARCHAR(16)"
+        )
     )
-    op.add_column("articles", sa.Column("scrape_cascade_attempts", sa.Integer(), nullable=True))
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS analyzed_at TIMESTAMPTZ"
+        )
+    )
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ"
+        )
+    )
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS retention_reason VARCHAR(64)"
+        )
+    )
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS scrape_method VARCHAR(32)"
+        )
+    )
+    op.execute(
+        sa.text(
+            "ALTER TABLE articles ADD COLUMN IF NOT EXISTS scrape_cascade_attempts INTEGER"
+        )
+    )
 
-    op.create_index(
-        "ix_articles_retention_active",
-        "articles",
-        ["retention_until"],
-        postgresql_where=sa.text("retention_until IS NOT NULL"),
+    op.execute(
+        sa.text(
+            """
+            CREATE INDEX IF NOT EXISTS ix_articles_retention_active
+            ON articles (retention_until)
+            WHERE retention_until IS NOT NULL
+            """
+        )
     )
 
-    op.add_column(
-        "edition_topics",
-        sa.Column("user_rank", sa.Integer(), nullable=True),
+    op.execute(
+        sa.text(
+            "ALTER TABLE edition_topics ADD COLUMN IF NOT EXISTS user_rank INTEGER"
+        )
     )
 
 
