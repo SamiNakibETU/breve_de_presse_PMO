@@ -2,6 +2,12 @@
 
 Symptômes courants en production et actions rapides.
 
+## Édition incomplète / relance sans rescrape
+
+1. **`GET /api/editions/{edition_id}/pipeline-diagnostic`** (clé interne) : taille du corpus, traduits sans embedding, pistes d’action — voir [`PIPELINE_MAINTENANCE.md`](PIPELINE_MAINTENANCE.md) §1. Côté UI, la page **Régie → Collecte** (`/regie/pipeline`) relie chaque suggestion au bloc **Actions** (`#regie-pipeline-actions`).
+2. Pour **ne pas** relancer la collecte : tâches Régie **étape par étape** (`POST /api/pipeline/tasks`) avec `edition_id` ciblé.
+3. Plafonds batch affichés dans **`GET /api/status`** → `batch_limits` (cohérent avec les payloads `article_analysis` en base).
+
 ## Playwright : « Executable doesn't exist »
 
 1. Vérifier le build Docker et [`RAILWAY_PLAYWRIGHT.md`](RAILWAY_PLAYWRIGHT.md).
@@ -71,4 +77,4 @@ Requêtes d’alerting types : [SLO.md](SLO.md).
 
 ---
 
-Voir aussi [DEPLOY.md](DEPLOY.md) et [PIPELINE_PROGRESS.md](PIPELINE_PROGRESS.md).
+Voir aussi [DEPLOY.md](DEPLOY.md) et [PIPELINE_MAINTENANCE.md](PIPELINE_MAINTENANCE.md).

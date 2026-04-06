@@ -105,7 +105,7 @@ Depuis `backend/` (avec le venv activé et `python -m playwright install chromiu
 - **Hubs + un échantillon d’article par URL de hub** : `python -m src.scripts.validate_media_hubs` (sans `--no-article-sample` pour tester l’extraction du corps).
 - **Plusieurs articles par média** (rapport JSON + résumé console) : `python -m src.scripts.verify_opinion_hub_content --per-source 3 --max-media 10`
 - **Overrides hubs** (RSS, sélecteurs, `strict_link_pattern`) : `backend/data/OPINION_HUB_OVERRIDES.json`
-- **Feuille de route** revue de presse / media watch (mars 2026) : `docs/OLJ_REVUE_PRESSE_ROADMAP_2026.md`
+- **Plan produit / backend** (phases, analyse, pays, embeddings) : `docs/plan.md`
 - **Taxonomie / glossaire** : `backend/data/OLJ_TOPIC_TAXONOMY.json`, `OLJ_GLOSSARY.json`, `OLJ_TOPICS_OF_DAY.json`
 - **Backfill topics** : `python -m src.scripts.backfill_olj_topics --limit 20`
 - **Recherche sémantique** (PostgreSQL + Cohere) : `POST /api/articles/search/semantic`

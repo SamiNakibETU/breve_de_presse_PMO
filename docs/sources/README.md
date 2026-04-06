@@ -19,6 +19,6 @@ python -m src.scripts.reconcile_media_csv_db --hints-out data/RECONCILE_HINTS.tx
 python -m src.scripts.verify_scrape_one_per_rubrique --output data/SCRAPING_E2E_MATRIX.json
 ```
 
-Périmètre légal de la collecte : [MEMW_LEGITIMATE_SCRAPING_SCOPE.md](../MEMW_LEGITIMATE_SCRAPING_SCOPE.md). Boucle d’itération : [MEMW_SCRAPING_ITERATION.md](../MEMW_SCRAPING_ITERATION.md).
+Périmètre légal de la collecte : [MEMW_LEGITIMATE_SCRAPING_SCOPE.md](../MEMW_LEGITIMATE_SCRAPING_SCOPE.md). Remédiation et lots : [MEMW_BATCH_RUNBOOK.md](../MEMW_BATCH_RUNBOOK.md), [SOURCE_REMEDIATION_PLAYBOOK.md](../SOURCE_REMEDIATION_PLAYBOOK.md).
 
 Colonnes attendues du CSV : **Pays**, **nom**, **langue**, **url**, **catégories** (URLs d’opinion), **notes** (optionnel). Voir [MEDIA_REVUE.md](../MEDIA_REVUE.md).

@@ -1,6 +1,6 @@
 # Recette MEMW — staging (checklist manuelle)
 
-Pour le chemin complet vers une **recette « 100 % »** (infra + organisation), voir [MEMW_ATTEINDRE_100.md](MEMW_ATTEINDRE_100.md).
+Pour la vision produit et l’ordre des chantiers (infra, pipeline, coûts), voir [docs/plan.md](plan.md) et [RUNBOOK.md](RUNBOOK.md).
 
 À exécuter sur l’environnement **staging** (ex. Railway) après déploiement backend + frontend alignés.
 

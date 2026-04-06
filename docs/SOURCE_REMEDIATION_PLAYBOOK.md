@@ -34,4 +34,4 @@ Smoke : relancer sur 2–3 `id` voisins non modifiés.
 - Paywall / login : documenter `hors_scope` ; ne pas « contourner » les mesures techniques.
 - Toute évolution d’**orchestration** dans `collector.py` nécessite une **dérogation** explicite au projet (règle AGENTS.md).
 
-Voir aussi [MEMW_SCRAPING_ITERATION.md](MEMW_SCRAPING_ITERATION.md), [MEMW_LEGITIMATE_SCRAPING_SCOPE.md](MEMW_LEGITIMATE_SCRAPING_SCOPE.md), et `python -m src.scripts.verify_media_revue_registry_vs_csv`.
+Voir aussi [MEMW_BATCH_RUNBOOK.md](MEMW_BATCH_RUNBOOK.md), [MEMW_LEGITIMATE_SCRAPING_SCOPE.md](MEMW_LEGITIMATE_SCRAPING_SCOPE.md), et `python -m src.scripts.verify_media_revue_registry_vs_csv`.

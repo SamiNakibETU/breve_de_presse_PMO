@@ -2,7 +2,7 @@
 
 Ce fichier est lu automatiquement par Cursor. Il définit le contexte, les règles et le plan d'implémentation pour le projet Revue de Presse OLJ.
 
-Documentation longue / brouillons : dossier local `archive/` (ignoré par git).
+Documentation longue / brouillons : dossier local `archive/` (ignoré par git). **Onboarding agents** (prompt court, cartographie dépôt) : `docs/ONBOARDING.md`.
 
 ## Règles critiques (toujours actives)
 

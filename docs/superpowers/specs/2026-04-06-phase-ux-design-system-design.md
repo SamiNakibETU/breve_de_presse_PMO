@@ -1,7 +1,7 @@
 # Spec — Phase post-backend : design system OLJ & navigation temporelle (timeline)
 
 **Date :** 2026-04-06  
-**Références :** [docs/COMPOSER2-HANDOFF.md](../../COMPOSER2-HANDOFF.md) §5, §4 ; [DESIGN_SYSTEM/](../../../DESIGN_SYSTEM/) ; prototype [`design/revue-playground/`](../../../design/revue-playground/).
+**Références :** [docs/plan.md](../../plan.md) (backlog UX résumé) ; [DESIGN_SYSTEM/](../../../DESIGN_SYSTEM/) ; prototype [`design/revue-playground/`](../../../design/revue-playground/).
 
 ## Principe
 
@@ -29,7 +29,7 @@ Cette phase démarre **après** livraisons backend ciblées des vagues 1–4 (ou
 
 ### Problème actuel
 
-- Rail date perçu comme « bof » : limites nettes entre jours, peu de continuité, faible lisibilité mobile ([handoff §5.2, §5.3](../../COMPOSER2-HANDOFF.md)).
+- Rail date perçu comme « bof » : limites nettes entre jours, peu de continuité, faible lisibilité mobile (retours produit — rail + bandeau collecte).
 
 ### Direction produit
 

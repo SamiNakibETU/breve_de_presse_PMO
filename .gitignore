@@ -57,6 +57,16 @@ alembic/versions/__pycache__/
 # Archives locales (specs obsoletes, brouillons — voir plan refonte)
 archive/
 
+# Captures réseau / HAR (ne pas versionner)
+*.har
+
+# Maquettes HTML locales à la racine (hors frontend/)
+/test/
+
+# Sorties harvest locales (ne pas re-committer)
+scraper/output/harvest/
+scraper/downloaded_files/*.lock
+
 # Artefacts locaux scrape / E2E / smoke (ne pas versionner)
 backend/data/SCRAPING_BATCH_*.json
 backend/data/SCRAPING_E2E_*.json

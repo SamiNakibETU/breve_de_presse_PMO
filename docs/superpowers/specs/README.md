@@ -11,4 +11,4 @@ Documents de conception validant l’ordre de livraison backend (vagues 1 à 4) 
 | [2026-04-06-wave4-perf-sessions-costs-design.md](./2026-04-06-wave4-perf-sessions-costs-design.md) | Vague 4 — perf sélection, sessions utilisateur, coûts |
 | [2026-04-06-phase-ux-design-system-design.md](./2026-04-06-phase-ux-design-system-design.md) | Phase post-backend — DS OLJ, barre date timeline, portage front |
 
-Référence produit existante : [docs/plan.md](../../plan.md), [docs/COMPOSER2-HANDOFF.md](../../COMPOSER2-HANDOFF.md), [AGENTS.md](../../../AGENTS.md).
+Référence produit existante : [docs/plan.md](../../plan.md), [docs/ONBOARDING.md](../../ONBOARDING.md), [AGENTS.md](../../../AGENTS.md).

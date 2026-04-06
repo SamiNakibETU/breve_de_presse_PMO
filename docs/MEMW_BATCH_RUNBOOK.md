@@ -92,4 +92,4 @@ Une exécution réelle des lots `0000`–`0002` avec `--no-article-sample` produ
 
 ## Voir aussi
 
-- [MEMW_SCRAPING_ITERATION.md](MEMW_SCRAPING_ITERATION.md) — boucle globale d’amélioration.
+- [SOURCE_REMEDIATION_PLAYBOOK.md](SOURCE_REMEDIATION_PLAYBOOK.md) — diagnostic et correctifs sans toucher à `collector.py`.

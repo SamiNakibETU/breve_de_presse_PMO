@@ -1,8 +1,8 @@
 # Plan backend & produit LLM — post-validation UI
 
-Ce document complète le prototype dans `design/` (`design/prototype/`, `design/revue-playground/`, etc.). **À traiter après** validation des maquettes et portage progressif vers `frontend/src`.
+Ce document complète la vision produit ; l’implémentation UI cible **`frontend/src`** et **`DESIGN_SYSTEM/`**. Les dossiers `design/prototype/` et `design/revue-playground/` restent de l’**expérimentation** (non contractuelle) — voir `design/revue-playground/README.md`.
 
-**Handoff agent (prompt + backlog condensé)** : `docs/COMPOSER2-HANDOFF.md`.
+**Onboarding agent** : `docs/ONBOARDING.md` (prompt court + pointeurs vers ce fichier et les specs).
 
 ---
 
@@ -144,7 +144,7 @@ Ce document complète le prototype dans `design/` (`design/prototype/`, `design/
 
 ### UI
 
-- Voir le point **5.8 Rédaction** dans `docs/COMPOSER2-HANDOFF.md` : espace journaliste clair, recommandations **conditionnelles** (ex. seulement sans articles sélectionnés), version minimaliste.
+- Espace journaliste clair sur `/edition/.../compose` : recommandations **conditionnelles** (ex. seulement sans articles sélectionnés), version minimaliste — voir aussi la phase UX dans [`docs/superpowers/specs/2026-04-06-phase-ux-design-system-design.md`](./superpowers/specs/2026-04-06-phase-ux-design-system-design.md).
 
 ### Backend / données
 
@@ -179,7 +179,7 @@ Ce document complète le prototype dans `design/` (`design/prototype/`, `design/
 2. **Phase B — Uniformisation front** : design system, mobile, Panorama, thèmes/articles ; idéalement depuis prototype `design/` puis portage `frontend/`.
 3. **Phase C — Tests & corrections** selon retours après déploiement (Railway, local).
 
-_L’ordre « prototype design d’abord » dans `COMPOSER2-HANDOFF.md` reste la voie privilégiée pour ne pas casser la prod tant que l’UI n’est pas figée._
+_L’ordre « valider prototype / maquettes dans `design/` puis portage `frontend/src` » reste la voie privilégiée pour ne pas casser la prod tant que l’UI n’est pas figée._
 
 ---
 
@@ -197,4 +197,4 @@ Contrat d’ordre et détails par vague : dossier [`docs/superpowers/specs/`](./
 
 ---
 
-_Dernière mise à jour : 2026-04-06 — lien vers specs vagues backend + phase UX._
+_Dernière mise à jour : 2026-04-06 — nettoyage dépôt : retrait des docs d’audit / itérations IA obsolètes et des sorties `scraper/output/harvest/` du suivi git ; copies conservées hors dépôt dans `archive/docs-residues-2026-04-06/` (dossier `archive/` ignoré par git, voir `.gitignore`). Onboarding agents : `docs/ONBOARDING.md`._
