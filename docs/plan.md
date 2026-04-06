@@ -117,7 +117,7 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 
 - Cartographier les jobs existants (scheduler, routes Régie, `PIPELINE_*` dans `backend/src/config.py`) et les paramètres `edition_id`, `force`, fenêtres `window_start` / `window_end`.
 - Exposer un flux API + UI : « Date cible » → diagnostic couverture corpus vs fenêtre → proposer **Compléter collecte** vs **Suite pipeline seulement**.
-- Documenter les risques (doublons, limites RSS, coûts Playwright) dans `docs/RUNBOOK.md` ou `docs/PIPELINE_MAINTENANCE.md`.
+- Documenter les risques (doublons, limites RSS, coûts Playwright) dans le backlog ci-dessous ou, pour une rédaction longue, dans une copie locale `archive/docs-ops-2026-04-06/` (anciens runbooks).
 
 ---
 
@@ -159,10 +159,15 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 
 - Chaque journaliste **sélectionne ses propres articles** (vues de sélection non partagées par défaut).
 
+### Rappel produit (note issue du suivi debug)
+
+- **Objectif** : permettre des **sessions séparées** pour que **chacun** puisse sélectionner **ses** articles (pas une sélection unique imposée à toute la rédaction sur le même écran).
+
 ### Pistes (à spécifier avant implémentation)
 
 - Auth existante ou à introduire ; modèle `user_id` sur drafts / sélections / édition du jour.
 - Scope API : filtrer `selected_article_ids` (ou équivalent) par utilisateur vs **sélection rédactionnelle globale** si besoin métier OLJ.
+- Prérequis sans auth : pas de migration `user_id` obligatoire sur les liens de sélection tant que l’auth n’est pas validée (voir copie locale `archive/docs-ops-2026-04-06/JOURNALIST_SESSIONS_PREREQ.md` si présente).
 
 ---
 
@@ -197,4 +202,11 @@ Contrat d’ordre et détails par vague : dossier [`docs/superpowers/specs/`](./
 
 ---
 
-_Dernière mise à jour : 2026-04-06 — nettoyage dépôt : retrait des docs d’audit / itérations IA obsolètes et des sorties `scraper/output/harvest/` du suivi git ; copies conservées hors dépôt dans `archive/docs-residues-2026-04-06/` (dossier `archive/` ignoré par git, voir `.gitignore`). Onboarding agents : `docs/ONBOARDING.md`._
+## 12. Carte de la documentation (dépôt)
+
+Index à jour : [`docs/README.md`](./README.md).  
+**Exploitation longue** (déploiement, incidents, SLO, recette staging, remédiation collecte, runbooks MEMW) : copie locale **`archive/docs-ops-2026-04-06/`** (non versionnée).
+
+---
+
+_Dernière mise à jour : 2026-04-06 — second passage : retrait des runbooks / ops détaillés du suivi git (archive locale `archive/docs-ops-2026-04-06/`). Premier nettoyage : `archive/docs-residues-2026-04-06/`. Onboarding : `docs/ONBOARDING.md`._

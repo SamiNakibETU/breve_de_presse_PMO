@@ -32,4 +32,4 @@ La conformité au **droit libanais** et les **validations juridiques internes** 
 2. **Accès conventionné** (partenariat, API, allowlist IP) si le média le propose.
 3. Marquer la source **inactive** ou **dégradée** dans le registre plutôt que d’élargir la collecte hors liste validée.
 
-Voir aussi [SOURCE_REMEDIATION_PLAYBOOK.md](SOURCE_REMEDIATION_PLAYBOOK.md).
+Procédures de remédiation détaillées (hors liste validée, flux cassés) : copie locale `archive/docs-ops-2026-04-06/SOURCE_REMEDIATION_PLAYBOOK.md`.

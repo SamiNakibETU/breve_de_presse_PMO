@@ -2,7 +2,7 @@
 
 ## Fichier canonique
 
-- **Source de vérité** : feuille **Sheet1** du classeur « media revue ». Pour la versionner dans git, la copier sous [`docs/sources/media-revue-sheet1.csv`](sources/README.md) (voir README du dossier).
+- **Source de vérité** : feuille **Sheet1** du classeur « media revue ». Pour la versionner dans git, copier le CSV sous `docs/sources/media-revue-sheet1.csv` (dossier `docs/sources/` à créer si besoin).
 - À la racine du dépôt, `media revue - Sheet1.csv` peut exister en local mais n’est pas toujours suivie par git.
 - Le fichier `media revue - Sheet1 (1).csv` est un doublon exporté ; ne pas l’utiliser pour regénérer le registre.
 
@@ -26,6 +26,23 @@ python -m src.scripts.seed_media --revue-only
 ```
 
 Le JSON généré est [`backend/data/MEDIA_REVUE_REGISTRY.json`](../backend/data/MEDIA_REVUE_REGISTRY.json).
+
+## Chaîne usuelle (CSV à la racine)
+
+Emplacement recommandé pour les scripts : **racine du dépôt**, nom exact `media revue - Sheet1.csv`. Alternative : copie sous `docs/sources/media-revue-sheet1.csv` en passant le chemin aux commandes.
+
+```bash
+cd backend
+python -m src.scripts.import_media_revue_csv
+python -m src.scripts.verify_media_revue_registry_vs_csv
+python -m src.scripts.seed_media
+python -m src.scripts.reconcile_media_csv_db --hints-out data/RECONCILE_HINTS.txt
+python -m src.scripts.verify_scrape_one_per_rubrique --output data/SCRAPING_E2E_MATRIX.json
+```
+
+Périmètre légal : [`MEMW_LEGITIMATE_SCRAPING_SCOPE.md`](MEMW_LEGITIMATE_SCRAPING_SCOPE.md). Playbooks remédiation / lots détaillés : copie locale `archive/docs-ops-2026-04-06/`.
+
+Colonnes attendues du CSV : **Pays**, **nom**, **langue**, **url**, **catégories** (URLs d’opinion), **notes** (optionnel). Détail : [`MEDIA_REVUE.md`](MEDIA_REVUE.md).
 
 ## Flux RSS opinion (complément)
 

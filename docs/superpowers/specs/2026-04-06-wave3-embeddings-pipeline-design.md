@@ -36,7 +36,7 @@
 
 - Cartographier jobs existants (scheduler, routes Régie, `PIPELINE_*` dans config) et paramètres `edition_id`, `force`, fenêtres.
 - **API** : flux « date cible » → diagnostic (articles dans fenêtre vs attendu) → actions proposées : `Compléter collecte` | `Pipeline seulement` (étapes sélectionnables).
-- **Documentation** : risques doublons, limites RSS, coûts Playwright dans `docs/RUNBOOK.md` ou `docs/PIPELINE_MAINTENANCE.md` (fichier existant ou nouveau selon dépôt).
+- **Documentation** : risques doublons, limites RSS, coûts Playwright — consigner dans `docs/plan.md` ou copie locale `archive/docs-ops-2026-04-06/` (anciens runbooks).
 
 ### Critères d’acceptation
 

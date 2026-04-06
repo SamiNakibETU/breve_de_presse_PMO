@@ -11,7 +11,22 @@ import {
   formatPayloadPretty,
   inferPipelineStatus,
 } from "@/lib/pipeline-debug-log";
-import type { AppStatus, MediaSourcesHealthResponse } from "@/lib/types";
+import type {
+  AppStatus,
+  MediaSourcesHealthResponse,
+  PipelineEditionDiagnosticResponse,
+} from "@/lib/types";
+
+const SUGGESTED_ACTION_GUIDE_FR: Record<string, string> = {
+  embedding_then_clusters:
+    "Utilisez les boutons d’étape ci-dessous (ex. embeddings / clusters) sans relancer toute la collecte si le corpus suffit.",
+  complete_collection:
+    "Lancez une collecte ciblée pour la fenêtre Beyrouth de cette édition avant d’enchaîner traduction et analyse.",
+  review_collection_scope:
+    "Contrôlez le rattachement des articles à l’édition et le périmètre registre revue (sources actives).",
+  pipeline_only:
+    "Enchaînez traduction, analyse et détection de sujets via les actions — sans rescrape complet.",
+};
 
 export default function RegiePipelinePage() {
   const statusQ = useQuery({
@@ -36,6 +51,12 @@ export default function RegiePipelinePage() {
   });
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [diagEditionId, setDiagEditionId] = useState("");
+  const [diag, setDiag] = useState<PipelineEditionDiagnosticResponse | null>(
+    null,
+  );
+  const [diagErr, setDiagErr] = useState<string | null>(null);
+  const [diagPending, setDiagPending] = useState(false);
 
   const status = statusQ.data ?? null;
   const sourceHealth = healthQ.data ?? null;
@@ -61,9 +82,162 @@ export default function RegiePipelinePage() {
         </p>
       </header>
 
-      <section className="border-b border-border pb-8">
+      <section
+        id="regie-pipeline-actions"
+        className="scroll-mt-8 border-b border-border pb-8"
+      >
         <h2 className="olj-rubric olj-rule mb-4">Actions</h2>
+        <p className="mb-3 max-w-[52rem] text-[11px] text-muted-foreground">
+          Les suggestions du diagnostic édition renvoient ici pour déclencher les tâches sans ambiguïté (collecte vs
+          pipeline seul).
+        </p>
         <PipelineStatus status={status} sourceHealth={sourceHealth} />
+      </section>
+
+      {status?.batch_limits ? (
+        <section className="border-b border-border pb-8">
+          <h2 className="olj-rubric olj-rule mb-4">Plafonds batch (coûts)</h2>
+          <ul className="grid gap-1.5 text-[12px] text-foreground-body sm:grid-cols-2">
+            <li>
+              Analyse experte :{" "}
+              <span className="font-mono">
+                {status.batch_limits.article_analysis_batch_limit}
+              </span>{" "}
+              articles / passage
+            </li>
+            <li>
+              Embeddings :{" "}
+              <span className="font-mono">
+                {status.batch_limits.embedding_batch_limit}
+              </span>{" "}
+              / passage
+            </li>
+            <li>
+              Traduction pipeline :{" "}
+              <span className="font-mono">
+                {status.batch_limits.translation_pipeline_batch_limit}
+              </span>
+            </li>
+            <li>
+              Embeddings types éditoriaux seuls :{" "}
+              {status.batch_limits.embed_only_editorial_types ? "oui" : "non"}
+            </li>
+            <li>
+              Embeddings registre revue seul :{" "}
+              {status.batch_limits.embed_revue_registry_only ? "oui" : "non"}
+            </li>
+          </ul>
+          <p className="mt-2 max-w-[52rem] text-[11px] text-muted-foreground">
+            Les rapports d’étape « article_analysis » exposent{" "}
+            <code className="rounded bg-muted/40 px-1">deferred_due_to_batch_limit</code>{" "}
+            lorsque la file dépasse le plafond. Agrégats tokens / coûts :{" "}
+            <Link href="/regie/analytics" className="underline-offset-4 hover:underline">
+              Analytique
+            </Link>
+            .
+          </p>
+        </section>
+      ) : null}
+
+      <section className="border-b border-border pb-8">
+        <h2 className="olj-rubric olj-rule mb-4">Diagnostic édition</h2>
+        <p className="mb-3 max-w-[52rem] text-[12px] text-muted-foreground">
+          UUID d’édition : corpus dans la fenêtre Beyrouth, traduits sans embedding,
+          piste collecte vs pipeline seulement — voir{" "}
+          <code className="rounded bg-muted/40 px-1">docs/plan.md</code>{" "}
+          (§7 pipeline, §12 documentation).
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[11px] font-medium text-foreground">
+            Édition (UUID)
+            <input
+              type="text"
+              value={diagEditionId}
+              onChange={(e) => setDiagEditionId(e.target.value)}
+              placeholder="xxxxxxxx-xxxx-…"
+              className="rounded-md border border-border bg-background px-2 py-1.5 font-mono text-[12px]"
+            />
+          </label>
+          <button
+            type="button"
+            className="olj-btn-secondary px-3 py-2 text-[12px]"
+            disabled={diagPending || !diagEditionId.trim()}
+            onClick={() => {
+              void (async () => {
+                const id = diagEditionId.trim();
+                if (!id) return;
+                setDiagPending(true);
+                setDiagErr(null);
+                try {
+                  const d = await api.editionPipelineDiagnostic(id);
+                  setDiag(d);
+                } catch (e) {
+                  setDiagErr(
+                    e instanceof Error ? e.message : "Requête impossible",
+                  );
+                  setDiag(null);
+                } finally {
+                  setDiagPending(false);
+                }
+              })();
+            }}
+          >
+            {diagPending ? "Chargement…" : "Exécuter"}
+          </button>
+        </div>
+        {diagErr ? (
+          <p className="mt-2 text-[12px] text-destructive" role="alert">
+            {diagErr}
+          </p>
+        ) : null}
+        {diag ? (
+          <div className="mt-4 space-y-2 rounded-md border border-border-light bg-muted/15 p-3 text-[12px] text-foreground-body">
+            <p>
+              <span className="text-muted-foreground">Parution </span>
+              {diag.publish_date}
+              <span className="text-muted-foreground"> · Articles corpus </span>
+              <span className="font-semibold">{diag.corpus_article_count}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">Traduits sans embedding </span>
+              <span className="font-semibold">
+                {diag.translated_pending_embedding}
+              </span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">Dans registre revue </span>
+              {diag.corpus_in_revue_registry_count}
+              <span className="text-muted-foreground"> · Hors registre </span>
+              {diag.corpus_outside_revue_registry_count}
+            </p>
+            {Object.keys(diag.by_status).length > 0 ? (
+              <p className="font-mono text-[11px] text-muted-foreground">
+                Statuts :{" "}
+                {Object.entries(diag.by_status)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join(", ")}
+              </p>
+            ) : null}
+            <ul className="space-y-3 text-[11px] leading-snug">
+              {diag.suggested_actions.map((a) => {
+                const guide = SUGGESTED_ACTION_GUIDE_FR[a.id];
+                return (
+                  <li key={a.id} className="border-l-2 border-accent/25 pl-3">
+                    <p className="font-medium text-foreground">{a.label_fr}</p>
+                    {guide ? (
+                      <p className="mt-1 text-muted-foreground">{guide}</p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-[11px]">
+              <a href="#regie-pipeline-actions" className="underline-offset-4 hover:underline">
+                Aller aux actions pipeline
+              </a>
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section>

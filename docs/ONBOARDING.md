@@ -4,10 +4,11 @@ Complète **`AGENTS.md`** (règles projet, lu par Cursor) et **`docs/plan.md`** 
 
 ## Lecture minimale
 
-1. `AGENTS.md` — contraintes (fichiers interdits, migrations, temporalités Beyrouth vs UTC, registre médias revue).
-2. `docs/plan.md` — phases livraison, analyse d’articles, pays, embeddings, perf.
-3. `docs/superpowers/specs/README.md` — index des specs techniques (vagues backend + phase UX / design system).
-4. `DESIGN_SYSTEM/README.md` — tokens et composants éditoriaux.
+1. `docs/README.md` — carte du dossier `docs/` (fichiers conservés vs archive locale).
+2. `AGENTS.md` — contraintes (fichiers interdits, migrations, temporalités Beyrouth vs UTC, registre médias revue).
+3. `docs/plan.md` — phases livraison, analyse d’articles, pays, embeddings, perf, sessions journalistes.
+4. `docs/superpowers/specs/README.md` — index des specs techniques (vagues backend + phase UX / design system).
+5. `DESIGN_SYSTEM/README.md` — tokens et composants éditoriaux.
 
 ## Dépôt (à vérifier avec `git`)
 

@@ -8,7 +8,11 @@ from sqlalchemy import text
 
 from src.config import get_settings
 from src.database import get_session_factory
-from src.schemas.pipeline import SchedulerJobResponse, StatusResponse
+from src.schemas.pipeline import (
+    PipelineBatchLimits,
+    SchedulerJobResponse,
+    StatusResponse,
+)
 from src.services.pipeline_execution_lease import seconds_since_heartbeat
 from src.services.scheduler import pipeline_is_busy_async
 from src.services.metrics import prometheus_text, snapshot as metrics_snapshot
@@ -39,7 +43,7 @@ async def health():
 
 @router.get("/api/metrics")
 async def api_metrics():
-    """Compteurs depuis le boot du process (voir docs/DEPLOY.md)."""
+    """Compteurs depuis le boot du process (variables : backend/.env.example ; doc : docs/plan.md §11)."""
     if not settings.expose_metrics:
         raise HTTPException(status_code=404, detail="Metrics disabled")
     return metrics_snapshot()
@@ -130,6 +134,14 @@ async def status(request: Request):
 
     busy = await pipeline_is_busy_async()
 
+    batch_limits = PipelineBatchLimits(
+        article_analysis_batch_limit=settings.article_analysis_batch_limit,
+        embedding_batch_limit=settings.embedding_batch_limit,
+        translation_pipeline_batch_limit=settings.translation_pipeline_batch_limit,
+        embed_only_editorial_types=settings.embed_only_editorial_types,
+        embed_revue_registry_only=settings.embed_revue_registry_only,
+    )
+
     return StatusResponse(
         status="running",
         environment=settings.environment,
@@ -139,4 +151,5 @@ async def status(request: Request):
         pipeline_lease_active=lease_active,
         pipeline_lease_holder_prefix=holder_pf if lease_active else None,
         pipeline_heartbeat_age_seconds=hb_age,
+        batch_limits=batch_limits,
     )

@@ -89,7 +89,7 @@ python -m src.scripts.export_media_sources_health --output data/MEDIA_HEALTH_EXP
 python -m src.scripts.reconcile_media_csv_db --csv "../docs/sources/media-revue-sheet1.csv" --hints-out data/RECONCILE_HINTS.txt
 ```
 
-Playbook correctifs : [SOURCE_REMEDIATION_PLAYBOOK.md](SOURCE_REMEDIATION_PLAYBOOK.md). SLA interne : [MEMW_SOURCE_SLA.md](MEMW_SOURCE_SLA.md).
+Playbooks correctifs, SLA et runbooks détaillés : copie locale `archive/docs-ops-2026-04-06/` (non versionnée).
 
 ## 6. Faire évoluer la liste
 
