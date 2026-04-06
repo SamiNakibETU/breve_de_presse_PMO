@@ -39,7 +39,8 @@
   --color-primary-foreground: #ffffff;
   --color-accent: #dd3b31;
   --color-accent-foreground: #ffffff;
-  --color-destructive: #dd3b31;
+  /* Erreurs / alertes : rouge plus soutenu que l’accent marque (lisibilité, sémantique) */
+  --color-destructive: #991b1b;
   --color-success: #2d6a4f;
   --color-warning: #92400e;
   --color-card: #ffffff;
@@ -116,6 +117,16 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-foreground-body);
+}
+
+/* Message d’erreur ou d’échec — même traitement partout (produit fini) */
+.olj-alert-destructive {
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in srgb, var(--color-destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--color-destructive) 7%, var(--color-background));
+  color: var(--color-destructive);
+  font-size: 0.8125rem;
+  line-height: 1.45;
 }
 
 /* Type d’article (édition / sujets) — bordure discrète, pas pastille « badge UI » */

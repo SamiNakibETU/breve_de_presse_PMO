@@ -1,4 +1,5 @@
 import type { EditionTopic } from "@/lib/types";
+import { formatEditionDayHeadingFr } from "@/lib/dates-display-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 
 type TopicSubjectSummaryProps = {
@@ -55,7 +56,7 @@ export function TopicSubjectSummary({
     <header className="space-y-4 border-b border-border-light pb-6">
       {publishDate && (
         <p className="text-[12px] text-muted-foreground tabular-nums">
-          Édition du {publishDate}
+          Édition du {formatEditionDayHeadingFr(publishDate)}
           {articleCount != null && articleCount > 0
             ? ` · ${articleCount} texte${articleCount > 1 ? "s" : ""} lié${articleCount > 1 ? "s" : ""}`
             : ""}
@@ -81,7 +82,7 @@ export function TopicSubjectSummary({
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2 text-[12px] text-muted-foreground">
         {topic.is_multi_perspective === false && (
-          <span className="border-l border-border pl-2 text-foreground-body">
+          <span className="inline-flex rounded-md bg-muted/25 px-2 py-0.5 text-foreground-body">
             Point de vue national
           </span>
         )}

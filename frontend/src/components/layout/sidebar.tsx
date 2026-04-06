@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 
 const PRIMARY_NAV_REST = [
-  { href: "/dashboard", label: "Panorama" },
+  { href: "/panorama", label: "Panorama" },
   { href: "/articles", label: "Articles" },
 ] as const;
 
@@ -138,7 +138,7 @@ export function Masthead() {
                 href={href}
                 prefetch
                 onMouseEnter={() => {
-                  if (href === "/dashboard") {
+                  if (href === "/panorama") {
                     prefetchNavData(queryClient);
                   }
                 }}

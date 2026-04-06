@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { formatLogTimestampFr } from "@/lib/dates-display-fr";
 
 /** Identifiant prompt chargé depuis curator_v2.yaml (bundle.prompt_id). */
 const CURATOR_PROMPT_ID = "prompt_curator_v2";
@@ -37,7 +38,7 @@ export default function RegieCuratorPage() {
         </p>
       )}
       {q.error && (
-        <p className="text-destructive" role="alert">
+        <p className="olj-alert-destructive px-3 py-2" role="alert">
           {q.error instanceof Error ? q.error.message : "Erreur de chargement"}
         </p>
       )}
@@ -54,9 +55,9 @@ export default function RegieCuratorPage() {
               key={r.id}
               className="border border-border-light bg-card p-4"
             >
-              <p className="font-mono text-[11px] text-muted-foreground">
-                {r.created_at} — {r.model_used} — jetons {r.input_tokens ?? "—"}/
-                {r.output_tokens ?? "—"}
+              <p className="text-[11px] text-muted-foreground tabular-nums">
+                {formatLogTimestampFr(r.created_at)} — {r.model_used} — jetons{" "}
+                {r.input_tokens ?? "—"}/{r.output_tokens ?? "—"}
                 {r.has_validation_error ? (
                   <span className="text-destructive"> — erreur validation</span>
                 ) : null}

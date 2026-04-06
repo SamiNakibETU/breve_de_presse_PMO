@@ -29,7 +29,9 @@ export default function RootLayout({
         <Providers>
           <Masthead />
           <PipelineGlobalBar />
-          <main className="mx-auto max-w-[80rem] px-5 py-10 sm:px-6">{children}</main>
+          <main className="mx-auto min-h-[min(100vh,64rem)] max-w-[80rem] px-5 py-10 pb-16 sm:px-6 sm:pb-20">
+            {children}
+          </main>
         </Providers>
       </body>
     </html>

@@ -31,6 +31,7 @@ import {
   ArticleReorderInTopic,
   type ArticleReorderItem,
 } from "@/components/composition/ArticleReorderInTopic";
+import { formatEditionCalendarTitleFr } from "@/lib/dates-display-fr";
 
 function topicPlainText(t: EditionTopic): string {
   const title = t.title_final ?? t.title_proposed;
@@ -43,13 +44,7 @@ function topicPlainText(t: EditionTopic): string {
 
 function editionTitleLine(date: string): string {
   try {
-    const d = new Date(`${date}T12:00:00`);
-    const fr = d.toLocaleDateString("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    const fr = formatEditionCalendarTitleFr(date);
     return fr.charAt(0).toUpperCase() + fr.slice(1);
   } catch {
     return date;
@@ -472,61 +467,36 @@ export default function ComposePage() {
           ))}
         </div>
         {selectedIds.size === 0 ? (
-          <div className="max-w-3xl rounded-lg border border-accent/20 bg-accent/5 px-4 py-4 text-[13px] leading-relaxed text-foreground-body">
-            <p className="mb-3 font-semibold text-foreground">
-              Parcours guidé (dans l’ordre)
-            </p>
-            <ol className="list-none space-y-3">
-              <li className="flex gap-3">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
-                  aria-hidden
-                >
-                  1
-                </span>
-                <span>
-                  <strong className="text-foreground">Sélection</strong> : ordre des sujets (glisser-déposer) et articles cochés par sujet — au moins deux par bloc pour une génération fiable.
+          <div className="max-w-2xl rounded-lg border border-border/60 bg-muted/10 px-4 py-3 text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mb-2 font-medium text-foreground/90">Ordre de travail</p>
+            <ol className="list-decimal space-y-1.5 pl-4 marker:text-muted-foreground">
+              <li>
+                <span className="text-foreground-body">
+                  Sommaire : ordre des sujets (glisser-déposer) et au moins deux articles cochés par bloc pour une
+                  génération fiable.
                 </span>
               </li>
-              <li className="flex gap-3">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
-                  aria-hidden
-                >
-                  2
-                </span>
-                <span>
-                  <strong className="text-foreground">Enrichissement</strong> : pour chaque sujet, vérifiez les extraits (thèse, résumé) ; les analyses détaillées sont dans la fiche article.
+              <li>
+                <span className="text-foreground-body">
+                  Vérifier les extraits (thèse, résumé) ; le détail analytique est dans la fiche article.
                 </span>
               </li>
-              <li className="flex gap-3">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
-                  aria-hidden
-                >
-                  3
-                </span>
-                <span>
-                  <strong className="text-foreground">Rédaction</strong> : consignes optionnelles puis « Rédiger ce bloc » ou génération globale — un texte par grand sujet.
+              <li>
+                <span className="text-foreground-body">
+                  Consignes optionnelles, puis « Rédiger ce bloc » ou génération globale (un texte par grand sujet).
                 </span>
               </li>
-              <li className="flex gap-3">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-background text-[12px] font-bold text-accent"
-                  aria-hidden
-                >
-                  4
-                </span>
-                <span>
-                  <strong className="text-foreground">Révision</strong> : copier-coller, export, relecture depuis les sections ci-dessous.
+              <li>
+                <span className="text-foreground-body">
+                  Copier-coller, export et relecture depuis les sections ci-dessous.
                 </span>
               </li>
             </ol>
           </div>
         ) : (
-          <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
-            Sélection active : concentrez-vous sur l’ordre des articles, les consignes et la génération. Le parcours
-            détaillé réapparaît si vous retirez toutes les coches depuis le sommaire.
+          <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+            Sélection active : ordre des articles, consignes et génération. L’aide ci-dessus réapparaît si toutes les
+            coches sont retirées depuis le sommaire.
           </p>
         )}
       </header>
@@ -597,7 +567,7 @@ export default function ComposePage() {
                 <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                   Ces coches renforcent la <strong className="font-medium text-foreground">couverture</strong> affichée sur le sommaire. La génération de texte utilise les articles <strong className="font-medium text-foreground">sélectionnés dans chaque grand sujet</strong> (au moins 2 par sujet).
                 </p>
-                <ul className="mt-2 space-y-2 border-l-2 border-border pl-3">
+                <ul className="mt-2 space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
                   {extraOnlyPreviews.map((p) => (
                     <li
                       key={p.id}

@@ -319,7 +319,10 @@ export function TopicDetail({
         </div>
 
         {saveMutation.isError && (
-          <p className="text-[12px] text-accent" role="alert">
+          <p
+            className="olj-alert-destructive px-3 py-2 text-[12px]"
+            role="alert"
+          >
             Enregistrement de la sélection impossible.
           </p>
         )}
@@ -363,7 +366,10 @@ export function TopicDetail({
           </p>
         )}
         {genMutation.isError && (
-          <p className="text-[12px] text-accent" role="alert">
+          <p
+            className="olj-alert-destructive px-3 py-2 text-[12px]"
+            role="alert"
+          >
             {(genMutation.error as Error)?.message ?? "Échec de la génération."}
           </p>
         )}

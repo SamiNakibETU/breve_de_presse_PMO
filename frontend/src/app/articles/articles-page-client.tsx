@@ -10,6 +10,10 @@ import {
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
 import { api } from "@/lib/api";
+import {
+  formatArticlesExplorationPeriodHint,
+  formatIsoCalendarDayLongFr,
+} from "@/lib/dates-display-fr";
 import { reviewPagePath } from "@/lib/review-url";
 import type { Article } from "@/lib/types";
 
@@ -254,7 +258,7 @@ export function ArticlesPageClient() {
         </div>
       </details>
 
-      <aside className="hidden w-[15rem] shrink-0 lg:sticky lg:top-8 lg:block">
+      <aside className="hidden w-[17rem] shrink-0 lg:sticky lg:top-8 lg:block">
         <FiltersColumn {...filterColumnProps} />
       </aside>
 
@@ -272,14 +276,14 @@ export function ArticlesPageClient() {
               <>
                 Articles collectés entre minuit et minuit suivant (fuseau{" "}
                 <strong className="font-medium text-foreground">Asia/Beirut</strong>) pour le jour{" "}
-                <strong className="font-medium text-foreground">{beirutDate}</strong>.
+                <strong className="font-medium text-foreground">
+                  {formatIsoCalendarDayLongFr(beirutDate)}
+                </strong>
+                .
               </>
-            ) : ARTICLES_ROLLING_DAYS === 1 ? (
-              "Période : le dernier jour (glissant, UTC)."
             ) : (
-              `Période : les ${ARTICLES_ROLLING_DAYS} derniers jours (glissant, UTC).`
-            )}{" "}
-            {!activeEditionId ? "Vue d’exploration ; pour le sommaire daté, ouvrir l’édition du jour." : null}
+              formatArticlesExplorationPeriodHint(ARTICLES_ROLLING_DAYS)
+            )}
           </p>
           {!activeEditionId ? (
             <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
@@ -306,8 +310,8 @@ export function ArticlesPageClient() {
               <span className="max-w-md text-[11px] leading-snug text-muted-foreground">
                 Ce filtre est la journée calendaire Beyrouth (minuit → lendemain minuit), pas la fenêtre
                 d’édition de la revue (veille 18 h → jour J 6 h). Pour cette dernière, ouvrir{" "}
-                <a href="/dashboard" className="underline underline-offset-2 hover:text-foreground">
-                  Tableau de bord
+                <a href="/panorama" className="underline underline-offset-2 hover:text-foreground">
+                  Panorama
                 </a>{" "}
                 puis l’édition du jour.
               </span>
@@ -358,7 +362,7 @@ export function ArticlesPageClient() {
         </p>
 
         {error && (
-          <p className="border-l border-destructive pl-3 text-[13px] text-destructive">
+          <p className="olj-alert-destructive px-3 py-2">
             {error instanceof Error ? error.message : "Erreur de chargement"}
           </p>
         )}

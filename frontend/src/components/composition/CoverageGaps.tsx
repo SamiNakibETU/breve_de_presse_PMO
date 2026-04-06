@@ -74,7 +74,7 @@ export function CoverageGaps({
   }
 
   return (
-    <div className="max-w-md border-l border-border pl-3 text-[13px] text-foreground-body">
+    <div className="max-w-md rounded-lg border border-border/60 bg-muted/10 p-3 text-[13px] text-foreground-body">
       <p className="olj-rubric">Couverture régionale (sélection)</p>
       <div
         className="mt-2 flex flex-wrap gap-1.5"

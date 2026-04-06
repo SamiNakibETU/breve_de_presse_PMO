@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { countryLabelFr } from "@/lib/country-labels-fr";
 import { displayClusterTitle } from "@/lib/cluster-display";
+import { formatDateTimeBeirutFr } from "@/lib/dates-display-fr";
 import type { ThesisPreviewItem, TopicCluster } from "@/lib/types";
 import { ClusterCountryStrip } from "./cluster-country-strip";
 
@@ -68,12 +69,7 @@ function formatFreshness(iso: string | null): string | null {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleString("fr-FR", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatDateTimeBeirutFr(iso);
   } catch {
     return null;
   }

@@ -234,7 +234,7 @@ function TopicArticleLine({
                 </span>
               ) : null}
               {preview.is_flagship ? (
-                <span className="border-l border-accent pl-2 text-[10px] font-semibold text-accent">
+                <span className="inline-flex rounded-full border border-accent/35 bg-accent/5 px-2 py-0.5 text-[10px] font-semibold text-accent">
                   {FLAGSHIP_BADGE_LABEL}
                 </span>
               ) : null}
@@ -430,9 +430,11 @@ export function TopicSection({
               return null;
             }
             return (
-              <ul className="max-w-xl space-y-1.5 border-l-2 border-accent/25 pl-3 text-[12px] leading-relaxed text-foreground-body">
+              <ul className="max-w-xl space-y-1.5 rounded-md bg-muted/15 p-3 text-[12px] leading-relaxed text-foreground-body">
                 {bullets.map((b, i) => (
-                  <li key={i}>{b}</li>
+                  <li key={i} className="break-inside-avoid">
+                    {b}
+                  </li>
                 ))}
               </ul>
             );
@@ -527,7 +529,7 @@ export function TopicSection({
             </ul>
           ) : null}
           {topic.generated_text?.trim() ? (
-            <div className="max-w-xl space-y-2 border-l-2 border-accent/25 pl-3 pt-1">
+            <div className="max-w-xl space-y-2 rounded-md border border-border/50 bg-muted/10 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Texte pour la revue
               </p>
@@ -576,7 +578,7 @@ export function TopicSection({
           </div>
         </div>
 
-        <div className="min-w-0 lg:border-l lg:border-border lg:pl-8">
+        <div className="min-w-0 lg:pl-6">
           {groups.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
               Aucun aperçu d’article pour ce sujet.

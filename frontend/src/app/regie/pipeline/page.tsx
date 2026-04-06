@@ -6,6 +6,7 @@ import { useState } from "react";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 import { PipelineStatusBadge } from "@/components/regie/pipeline-status-badge";
 import { api } from "@/lib/api";
+import { formatLogTimestampFr } from "@/lib/dates-display-fr";
 import {
   durationFromPayload,
   formatPayloadPretty,
@@ -29,6 +30,8 @@ const SUGGESTED_ACTION_GUIDE_FR: Record<string, string> = {
 };
 
 export default function RegiePipelinePage() {
+  const [revueRegistryOnly, setRevueRegistryOnly] = useState(true);
+
   const statusQ = useQuery({
     queryKey: ["status"] as const,
     queryFn: (): Promise<AppStatus> => api.status(),
@@ -38,11 +41,11 @@ export default function RegiePipelinePage() {
   });
 
   const healthQ = useQuery({
-    queryKey: ["mediaSourcesHealth"] as const,
+    queryKey: ["mediaSourcesHealth", revueRegistryOnly] as const,
     queryFn: ({
       signal,
     }): Promise<MediaSourcesHealthResponse> =>
-      api.mediaSourcesHealth(signal),
+      api.mediaSourcesHealth(signal, { revueRegistryOnly }),
   });
 
   const logsQ = useQuery({
@@ -91,7 +94,12 @@ export default function RegiePipelinePage() {
           Les suggestions du diagnostic édition renvoient ici pour déclencher les tâches sans ambiguïté (collecte vs
           pipeline seul).
         </p>
-        <PipelineStatus status={status} sourceHealth={sourceHealth} />
+        <PipelineStatus
+          status={status}
+          sourceHealth={sourceHealth}
+          revueRegistryOnly={revueRegistryOnly}
+          onRevueRegistryOnlyChange={setRevueRegistryOnly}
+        />
       </section>
 
       {status?.batch_limits ? (
@@ -184,7 +192,7 @@ export default function RegiePipelinePage() {
           </button>
         </div>
         {diagErr ? (
-          <p className="mt-2 text-[12px] text-destructive" role="alert">
+          <p className="olj-alert-destructive mt-2 px-3 py-2 text-[12px]" role="alert">
             {diagErr}
           </p>
         ) : null}
@@ -220,7 +228,10 @@ export default function RegiePipelinePage() {
               {diag.suggested_actions.map((a) => {
                 const guide = SUGGESTED_ACTION_GUIDE_FR[a.id];
                 return (
-                  <li key={a.id} className="border-l-2 border-accent/25 pl-3">
+                  <li
+                    key={a.id}
+                    className="rounded-md border border-border/60 bg-muted/10 px-3 py-2"
+                  >
                     <p className="font-medium text-foreground">{a.label_fr}</p>
                     {guide ? (
                       <p className="mt-1 text-muted-foreground">{guide}</p>
@@ -247,7 +258,7 @@ export default function RegiePipelinePage() {
           </p>
         )}
         {logsQ.error && (
-          <p className="text-destructive" role="alert">
+          <p className="olj-alert-destructive px-3 py-2" role="alert">
             {logsQ.error instanceof Error
               ? logsQ.error.message
               : "Erreur de chargement"}
@@ -258,8 +269,8 @@ export default function RegiePipelinePage() {
             <span className="font-medium text-foreground">Dernier rapport :</span>
             <PipelineStatusBadge kind={firstKind} />
             <span className="text-muted-foreground">{firstLog.step}</span>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {firstLog.created_at}
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {formatLogTimestampFr(firstLog.created_at)}
             </span>
           </p>
         ) : null}
@@ -272,7 +283,9 @@ export default function RegiePipelinePage() {
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-2 py-2 font-medium">Statut</th>
-                  <th className="px-2 py-2 font-medium">Date</th>
+                  <th className="px-2 py-2 font-medium" title="Fuseau UTC">
+                    Date (UTC)
+                  </th>
                   <th className="px-2 py-2 font-medium">Étape</th>
                   <th className="px-2 py-2 font-medium">Édition</th>
                   <th className="px-2 py-2 font-medium">Payload</th>
@@ -297,8 +310,8 @@ export default function RegiePipelinePage() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="whitespace-nowrap px-2 py-2 font-mono text-[11px] text-muted-foreground">
-                        {row.created_at}
+                      <td className="whitespace-nowrap px-2 py-2 text-[11px] text-muted-foreground tabular-nums">
+                        {formatLogTimestampFr(row.created_at)}
                       </td>
                       <td className="px-2 py-2 font-medium text-foreground">
                         {row.step}

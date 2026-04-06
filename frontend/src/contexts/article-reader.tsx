@@ -19,6 +19,7 @@ import {
   relevanceBandLabelFr,
 } from "@/lib/article-relevance-display";
 import { api } from "@/lib/api";
+import { formatPublishedAtFr } from "@/lib/dates-display-fr";
 import type { Article } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import {
@@ -209,7 +210,7 @@ function ArticleReadModal({
               <div className="h-32 w-full animate-pulse rounded bg-muted/30" />
             </div>
           ) : q.isError ? (
-            <p className="text-[13px] text-destructive" role="alert">
+            <p className="olj-alert-destructive px-3 py-2" role="alert">
               {q.error instanceof Error
                 ? q.error.message
                 : "Impossible de charger l’article."}
@@ -241,11 +242,7 @@ function ArticleReadModal({
                         dateTime={a.published_at}
                         className="tabular-nums text-[11px]"
                       >
-                        {new Date(a.published_at).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
+                        {formatPublishedAtFr(a.published_at, "short")}
                       </time>
                     </>
                   ) : null}
@@ -483,10 +480,13 @@ function ArticleReadModal({
                   {a.key_quotes_fr && a.key_quotes_fr.length > 0 ? (
                     <section>
                       <p className="olj-rubric mb-2">Citations</p>
-                      <ul className="list-inside list-disc space-y-2 text-foreground-body">
+                      <ul className="space-y-2 rounded-md bg-muted/15 p-3">
                         {a.key_quotes_fr.map((quote, i) => (
-                          <li key={i} className="whitespace-pre-wrap">
-                            « {formatQuoteForDisplay(quote)} »
+                          <li
+                            key={i}
+                            className="font-[family-name:var(--font-serif)] text-[13px] italic text-foreground-subtle whitespace-pre-wrap"
+                          >
+                            «&nbsp;{formatQuoteForDisplay(quote)}&nbsp;»
                           </li>
                         ))}
                       </ul>

@@ -14,6 +14,10 @@ import {
 } from "@/lib/article-relevance-display";
 import { articleDetailQueryKey } from "@/contexts/article-reader";
 import { api } from "@/lib/api";
+import {
+  formatCollectedAtUtcFr,
+  formatPublishedAtFr,
+} from "@/lib/dates-display-fr";
 import type { Article } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { normalizeBulletLine } from "@/lib/analysis-text-normalize";
@@ -136,7 +140,7 @@ export default function ArticleFullPage() {
           Chargement…
         </p>
       ) : q.isError ? (
-        <p className="text-[13px] text-destructive" role="alert">
+        <p className="olj-alert-destructive px-3 py-2" role="alert">
           {q.error instanceof Error
             ? q.error.message
             : "Article introuvable."}
@@ -178,11 +182,7 @@ export default function ArticleFullPage() {
               {a.published_at ? (
                 <time dateTime={a.published_at} className="tabular-nums">
                   {authorLine ? "· " : null}
-                  {new Date(a.published_at).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {formatPublishedAtFr(a.published_at, "short")}
                 </time>
               ) : null}
               {langFr ? (
@@ -313,7 +313,7 @@ export default function ArticleFullPage() {
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Citations clés
                   </p>
-                  <ul className="space-y-2 border-l-2 border-accent/20 pl-4">
+                  <ul className="space-y-2 rounded-md bg-muted/15 p-3">
                     {a.key_quotes_fr.map((quote, i) => (
                       <li key={i} className="italic">
                         «&nbsp;{formatQuoteForDisplay(quote)}&nbsp;»
@@ -469,10 +469,7 @@ export default function ArticleFullPage() {
               <li>
                 <span className="text-muted-foreground">Collecté le : </span>
                 <time dateTime={a.collected_at} className="tabular-nums">
-                  {new Date(a.collected_at).toLocaleString("fr-FR", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {formatCollectedAtUtcFr(a.collected_at)}
                 </time>
               </li>
             </ul>

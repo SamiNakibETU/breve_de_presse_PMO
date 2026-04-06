@@ -2,6 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import {
+  formatCollectedAtUtcFr,
+  formatLogTimestampFr,
+  formatUtcDayShortFr,
+} from "@/lib/dates-display-fr";
 import type { AnalyticsSummaryResponse } from "@/lib/types";
 
 const DAY_OPTIONS = [7, 14, 30] as const;
@@ -95,7 +100,7 @@ export function AnalyticsSection({
         {showSectionHeading ? (
           <h2 className="olj-rubric olj-rule">Analytique et coûts LLM</h2>
         ) : null}
-        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
+        <p className="olj-alert-destructive px-3 py-2">
           {q.error.message}
           {" — "}
           Vérifiez la clé API (régie) si l’endpoint est protégé.
@@ -164,15 +169,7 @@ export function AnalyticsSection({
           <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
             Volume HTTP (middleware) + agrégats du ledger fournisseurs depuis{" "}
             <time dateTime={data.since_iso} className="tabular-nums">
-              {new Date(data.since_iso).toLocaleString("fr-FR", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "UTC",
-                timeZoneName: "short",
-              })}
+              {formatCollectedAtUtcFr(data.since_iso)}
             </time>
             .
           </p>
@@ -290,11 +287,7 @@ export function AnalyticsSection({
                   className="flex justify-between border-b border-border-light/80 py-1 last:border-b-0"
                 >
                   <span className="text-muted-foreground">
-                    {new Date(row.day + "T12:00:00Z").toLocaleDateString("fr-FR", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}
+                    {formatUtcDayShortFr(row.day)}
                   </span>
                   <span className="tabular-nums font-medium">
                     {row.request_count.toLocaleString("fr-FR")}
@@ -508,7 +501,9 @@ export function AnalyticsSection({
             <table className="w-full min-w-[48rem] text-left text-[12px]">
               <thead className="sticky top-0 border-b border-border bg-muted/40">
                 <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <th className="px-2 py-2 font-semibold">Heure</th>
+                  <th className="px-2 py-2 font-semibold" title="Fuseau UTC">
+                    Heure (UTC)
+                  </th>
                   <th className="px-2 py-2 font-semibold">Opération</th>
                   <th className="px-2 py-2 font-semibold">Fournisseur</th>
                   <th className="px-2 py-2 font-semibold">Modèle</th>
@@ -520,13 +515,8 @@ export function AnalyticsSection({
               <tbody>
                 {data.provider_recent.map((row) => (
                   <tr key={row.id} className="border-b border-border-light/80">
-                    <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground">
-                      {new Date(row.created_at).toLocaleString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                    <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground tabular-nums">
+                      {formatLogTimestampFr(row.created_at)}
                     </td>
                     <td className="max-w-[10rem] truncate px-2 py-1.5 font-mono text-[11px]">
                       {row.operation}

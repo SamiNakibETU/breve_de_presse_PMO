@@ -106,7 +106,10 @@ export default function EditionTopicPage() {
         </p>
       )}
       {editionErr && (
-        <p className="text-[13px] text-destructive" role="alert">
+        <p
+          className="olj-alert-destructive px-3 py-2"
+          role="alert"
+        >
           {editionErr}
         </p>
       )}
@@ -123,7 +126,10 @@ export default function EditionTopicPage() {
         </p>
       )}
       {detailErr && !detailLoading && (
-        <p className="text-[13px] text-destructive" role="alert">
+        <p
+          className="olj-alert-destructive px-3 py-2"
+          role="alert"
+        >
           {detailErr}
         </p>
       )}
@@ -134,7 +140,10 @@ export default function EditionTopicPage() {
         </p>
       )}
       {articlesErr && detailQ.isSuccess && topic && (
-        <p className="text-[13px] text-destructive" role="alert">
+        <p
+          className="olj-alert-destructive px-3 py-2"
+          role="alert"
+        >
           {articlesErr}
         </p>
       )}

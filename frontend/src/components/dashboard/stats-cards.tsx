@@ -1,15 +1,14 @@
 "use client";
 
 import type { Stats } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 type StatKey = keyof Pick<
   Stats,
   | "total_collected_24h"
   | "total_translated"
   | "total_pending"
-  | "total_errors"
   | "total_needs_review"
+  | "total_errors"
   | "countries_covered"
 >;
 
@@ -27,21 +26,18 @@ interface StatsCardsProps {
   loading: boolean;
 }
 
-/** Index éditorial : filets, pas de carte KPI façon dashboard. */
+/** Inventaire : grille légère, pas de cloisons verticales entre KPI. */
 export function StatsCards({ stats, loading }: StatsCardsProps) {
   return (
     <section aria-label="Indicateurs du flux">
       <p className="olj-rubric olj-rule">Inventaire articles</p>
-      <div className="flex flex-col border-y border-border sm:flex-row sm:flex-wrap">
-        {STATS.map(({ key, label }, i) => (
+      <div className="grid grid-cols-2 gap-px rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
+        {STATS.map(({ key, label }) => (
           <div
             key={key}
-            className={cn(
-              "flex min-w-0 flex-1 flex-col gap-1 border-border-light px-4 py-3 sm:min-w-[5.5rem] sm:flex-1 lg:min-w-0",
-              i > 0 && "border-t sm:border-t-0 sm:border-l",
-            )}
+            className="flex flex-col gap-1 bg-background px-3 py-3 sm:px-4 sm:py-3.5"
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <p className="text-[10px] font-medium capitalize tracking-wide text-muted-foreground">
               {label}
             </p>
             <p className="font-[family-name:var(--font-serif)] text-[1.375rem] tabular-nums leading-none text-foreground">
@@ -50,6 +46,11 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
           </div>
         ))}
       </div>
+      <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">
+        <strong className="font-medium text-foreground/85">Collectés</strong> : volume ingéré sur les{" "}
+        <span className="tabular-nums">24 h UTC</span> glissantes (vigie globale). Les autres indicateurs
+        décrivent l’état agrégé du corpus en base, indépendamment de la fenêtre d’édition du jour.
+      </p>
     </section>
   );
 }

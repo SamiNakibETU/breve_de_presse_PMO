@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { formatLogTimestampFr } from "@/lib/dates-display-fr";
 
 function isDedupStep(step: string): boolean {
   return step.includes("dedup") || step.toLowerCase().includes("semantic");
@@ -55,7 +56,7 @@ export default function RegieDedupPage() {
         </p>
       )}
       {pipelineQ.error && (
-        <p className="text-destructive" role="alert">
+        <p className="olj-alert-destructive px-3 py-2" role="alert">
           {pipelineQ.error instanceof Error
             ? pipelineQ.error.message
             : "Erreur"}
@@ -66,7 +67,9 @@ export default function RegieDedupPage() {
           <table className="w-full min-w-[560px] border-collapse text-left text-[12px]">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="px-2 py-2 font-medium">Date</th>
+                <th className="px-2 py-2 font-medium" title="Fuseau UTC">
+                  Date (UTC)
+                </th>
                 <th className="px-2 py-2 font-medium">Étape</th>
                 <th className="px-2 py-2 font-medium">Édition</th>
               </tr>
@@ -81,8 +84,8 @@ export default function RegieDedupPage() {
               )}
               {dedupItems.map((r) => (
                 <tr key={r.id} className="border-b border-border-light">
-                  <td className="whitespace-nowrap px-2 py-2 font-mono text-[11px] text-muted-foreground">
-                    {r.created_at}
+                  <td className="whitespace-nowrap px-2 py-2 text-[11px] text-muted-foreground tabular-nums">
+                    {formatLogTimestampFr(r.created_at)}
                   </td>
                   <td className="px-2 py-2 font-medium">{r.step}</td>
                   <td className="px-2 py-2 font-mono text-[11px]">
@@ -132,7 +135,7 @@ export default function RegieDedupPage() {
             />
           </div>
           {submitMutation.isError && (
-            <p className="text-[12px] text-destructive" role="alert">
+            <p className="olj-alert-destructive px-3 py-2 text-[12px]" role="alert">
               {submitMutation.error instanceof Error
                 ? submitMutation.error.message
                 : "Erreur"}
@@ -146,7 +149,7 @@ export default function RegieDedupPage() {
           <button
             type="submit"
             disabled={submitMutation.isPending}
-            className="border border-border bg-card px-4 py-1.5 text-[12px] font-medium hover:bg-muted disabled:opacity-40"
+            className="olj-btn-primary text-[12px] disabled:opacity-40"
           >
             {submitMutation.isPending ? "Envoi…" : "Envoyer"}
           </button>
@@ -159,7 +162,7 @@ export default function RegieDedupPage() {
         </h2>
         {feedbackQ.isPending && <p role="status">Chargement…</p>}
         {feedbackQ.error && (
-          <p className="text-destructive" role="alert">
+          <p className="olj-alert-destructive px-3 py-2" role="alert">
             {feedbackQ.error instanceof Error
               ? feedbackQ.error.message
               : "Erreur"}
@@ -172,8 +175,8 @@ export default function RegieDedupPage() {
           <ul className="space-y-2 border border-border-light p-3 text-[12px]">
             {feedbackQ.data.map((f) => (
               <li key={f.id} className="border-b border-border-light pb-2 last:border-0">
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  {f.created_at}
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {formatLogTimestampFr(f.created_at)}
                 </span>{" "}
                 <span className="font-mono">{f.article_id}</span>
                 <p className="mt-1 text-foreground-body">{f.note}</p>

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useMemo, useEffect, useRef } from "react";
+import { useCallback, useMemo, useEffect, useRef, startTransition } from "react";
 import { EditionDateRail } from "@/components/edition/edition-date-rail";
 import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
@@ -16,55 +16,16 @@ import type {
   EditionDetectionStatus,
   EditionTopic,
 } from "@/lib/types";
+import {
+  formatEditionCalendarTitleFr,
+  formatEditionWindowFr,
+} from "@/lib/dates-display-fr";
 
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
 
 /** Tâche de surveillance du bail (intervalle court) ; ne pas l’afficher comme « prochain passage » métier. */
 const SCHEDULER_EXCLUDE_FROM_NEXT_PREVIEW = new Set(["pipeline_lease_stall_watch"]);
-
-function formatDateFr(iso: string): string {
-  const parts = iso.split("-").map(Number);
-  const y = parts[0] ?? 0;
-  const m = parts[1] ?? 1;
-  const d = parts[2] ?? 1;
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return new Intl.DateTimeFormat("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(dt);
-}
-
-function formatEditionWindowBeirut(isoStart: string, isoEnd: string): string {
-  const opts: Intl.DateTimeFormatOptions = {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Beirut",
-  };
-  const fmt = new Intl.DateTimeFormat("fr-FR", opts);
-  return `Du ${fmt.format(new Date(isoStart))} au ${fmt.format(new Date(isoEnd))} · heure de Beyrouth`;
-}
-
-/** Période couverte : forme courte pour l’en-tête (Beyrouth). */
-function formatEditionWindowCompact(isoStart: string, isoEnd: string): string {
-  const opts: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Beirut",
-  };
-  const fmt = new Intl.DateTimeFormat("fr-FR", opts);
-  return `${fmt.format(new Date(isoStart))} → ${fmt.format(new Date(isoEnd))} · Beyrouth`;
-}
 
 /** Chaîne renvoyée par APScheduler (ex. `2026-03-24 06:00:00+00:00`). */
 function parseSchedulerDate(raw: string): Date | null {
@@ -397,7 +358,7 @@ export default function EditionSommairePage() {
       }, 320);
       patchTimers.current.set(topicId, t);
     },
-    [editionId, qc],
+    [editionId],
   );
 
   const onTopicArticleToggle = useCallback(
@@ -416,7 +377,9 @@ export default function EditionSommairePage() {
           cur.splice(ix, 1);
         }
       }
-      setTopicArticlesStore(editionId, topicId, cur);
+      startTransition(() => {
+        setTopicArticlesStore(editionId, topicId, cur);
+      });
       scheduleTopicPatch(topicId, cur);
     },
     [editionId, selectionBundle?.topics, setTopicArticlesStore, scheduleTopicPatch],
@@ -444,7 +407,7 @@ export default function EditionSommairePage() {
         extraPatchTimer.current = null;
       }, 400);
     },
-    [editionId, qc],
+    [editionId],
   );
 
   const toggleExtraArticle = useCallback(
@@ -460,7 +423,9 @@ export default function EditionSommairePage() {
         n.delete(id);
       }
       const arr = [...n];
-      setExtraArticlesStore(editionId, arr);
+      startTransition(() => {
+        setExtraArticlesStore(editionId, arr);
+      });
       scheduleExtraPatch(n);
     },
     [editionId, selectionBundle?.extra_article_ids, setExtraArticlesStore, scheduleExtraPatch],
@@ -502,12 +467,20 @@ export default function EditionSommairePage() {
 
   const editionWindowLabel = useMemo(() => {
     if (!edition?.window_start || !edition?.window_end) return null;
-    return formatEditionWindowBeirut(edition.window_start, edition.window_end);
+    return formatEditionWindowFr(
+      edition.window_start,
+      edition.window_end,
+      "long",
+    );
   }, [edition?.window_start, edition?.window_end]);
 
   const editionWindowCompact = useMemo(() => {
     if (!edition?.window_start || !edition?.window_end) return null;
-    return formatEditionWindowCompact(edition.window_start, edition.window_end);
+    return formatEditionWindowFr(
+      edition.window_start,
+      edition.window_end,
+      "compact",
+    );
   }, [edition?.window_start, edition?.window_end]);
 
   const schedulerPreview = useMemo(() => {
@@ -598,11 +571,11 @@ export default function EditionSommairePage() {
             <p className="olj-rubric">Édition</p>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-2">
               <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold capitalize leading-tight text-foreground sm:text-[30px]">
-                {date ? formatDateFr(date) : "Date non renseignée"}
+                {date ? formatEditionCalendarTitleFr(date) : "Date non renseignée"}
               </h1>
               {date ? (
                 <nav
-                  className="mt-2 flex w-full min-w-0 max-w-2xl justify-start text-[11px]"
+                  className="mt-2 flex w-full min-w-0 max-w-3xl justify-center text-[11px] sm:max-w-2xl sm:justify-start"
                   aria-label="Naviguer entre les jours"
                 >
                   <EditionDateRail
@@ -657,12 +630,18 @@ export default function EditionSommairePage() {
         {date ? (
           <div className="mt-3 space-y-2 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
             {statusQ.data?.pipeline_running && !pipeline?.running ? (
-              <p className="border-l-2 border-accent/40 pl-2 text-foreground-body" role="status">
+              <p
+                className="rounded-md bg-muted/40 px-2.5 py-1.5 text-foreground-body"
+                role="status"
+              >
                 Mise à jour en cours sur le serveur ; le bouton ci-dessus est indisponible jusqu’à la fin.
               </p>
             ) : null}
             {pipeline?.running ? (
-              <p className="border-l-2 border-accent pl-2 font-medium text-foreground" role="status">
+              <p
+                className="rounded-md bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)] px-2.5 py-1.5 font-medium text-foreground"
+                role="status"
+              >
                 {pipeline.running.label}…
               </p>
             ) : null}
@@ -674,7 +653,9 @@ export default function EditionSommairePage() {
               </summary>
               <div className="mt-2 space-y-2 pl-0.5">
                 {statusQ.isError ? (
-                  <p className="text-destructive">Statut automatique indisponible.</p>
+                  <p className="olj-alert-destructive px-2 py-1.5 text-[11px]">
+                    Statut automatique indisponible.
+                  </p>
                 ) : statusQ.isPending ? (
                   <p>Chargement des horaires…</p>
                 ) : schedulerPreview.next ? (
@@ -750,7 +731,7 @@ export default function EditionSommairePage() {
 
       {err && (
         <p
-          className="border-l border-destructive pl-3 text-[13px] text-destructive"
+          className="olj-alert-destructive px-3 py-2"
           role="alert"
           aria-live="polite"
         >

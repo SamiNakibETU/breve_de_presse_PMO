@@ -11,8 +11,7 @@ const LANG_LABELS: Record<string, string> = {
 };
 
 /**
- * Pays et langues toujours visibles côte à côte (pas d’accordéons exclusifs).
- * Vue Panorama : deux colonnes stables.
+ * Pays et langues côte à côte — listes sobres, sans cartes lourdes.
  */
 export function StatsDistributionPanels({
   byCountry,
@@ -30,47 +29,51 @@ export function StatsDistributionPanels({
 
   return (
     <div
-      className="grid gap-4 sm:grid-cols-2"
+      className="grid gap-6 sm:grid-cols-2"
       role="group"
       aria-label="Répartitions pays et langues"
     >
       {countryEntries.length > 0 ? (
-        <section className="rounded-lg border border-border bg-card">
-          <h3 className="border-b border-border-light px-3 py-2.5 font-[family-name:var(--font-serif)] text-[13px] font-semibold text-foreground">
+        <section className="border-t border-border pt-4">
+          <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Pays
           </h3>
-          <div className="max-h-[min(22rem,55vh)] overflow-y-auto px-3 pb-2 pt-1">
+          <ul className="max-h-[min(22rem,55vh)] space-y-0 overflow-y-auto">
             {countryEntries.map(([country, count]) => (
-              <div
+              <li
                 key={country}
-                className="flex items-baseline justify-between border-b border-border-light py-2 text-[12px] last:border-b-0"
+                className="flex items-baseline justify-between gap-3 border-b border-border-light py-2 text-[13px] last:border-b-0"
               >
-                <span className="text-foreground-body">{country}</span>
-                <span className="tabular-nums font-medium text-foreground">{count}</span>
-              </div>
+                <span className="min-w-0 text-foreground-body">{country}</span>
+                <span className="shrink-0 tabular-nums text-foreground">
+                  {count}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       ) : null}
 
       {langEntries.length > 0 ? (
-        <section className="rounded-lg border border-border bg-card">
-          <h3 className="border-b border-border-light px-3 py-2.5 font-[family-name:var(--font-serif)] text-[13px] font-semibold text-foreground">
+        <section className="border-t border-border pt-4">
+          <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Langues
           </h3>
-          <div className="max-h-[min(22rem,55vh)] overflow-y-auto px-3 pb-2 pt-1">
+          <ul className="max-h-[min(22rem,55vh)] space-y-0 overflow-y-auto">
             {langEntries.map(([lang, count]) => (
-              <div
+              <li
                 key={lang}
-                className="flex items-baseline justify-between border-b border-border-light py-2 text-[12px] last:border-b-0"
+                className="flex items-baseline justify-between gap-3 border-b border-border-light py-2 text-[13px] last:border-b-0"
               >
-                <span className="text-foreground-body">
+                <span className="min-w-0 text-foreground-body">
                   {LANG_LABELS[lang] || lang.toUpperCase()}
                 </span>
-                <span className="tabular-nums font-medium text-foreground">{count}</span>
-              </div>
+                <span className="shrink-0 tabular-nums text-foreground">
+                  {count}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       ) : null}
     </div>

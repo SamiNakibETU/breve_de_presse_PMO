@@ -22,7 +22,7 @@ const sections: { href: string; title: string; blurb: string }[] = [
     blurb: "Paramètres HDBSCAN et documentation.",
   },
   {
-    href: "/dashboard",
+    href: "/panorama",
     title: "Cartes de regroupements",
     blurb: "Vue technique des clusters en base (sous-section regroupements).",
   },
@@ -42,7 +42,8 @@ export default function RegieHubPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
+        <p className="olj-rubric">Production</p>
+        <h1 className="mt-1 font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
           Régie
         </h1>
         <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-foreground-body">

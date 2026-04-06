@@ -8,7 +8,7 @@ const PRODUCTION: { href: string; label: string }[] = [
   { href: "/regie/pipeline", label: "Collecte et traduction" },
   { href: "/regie/dedup", label: "Dédoublonnage" },
   { href: "/regie/clustering", label: "Regroupements" },
-  { href: "/dashboard", label: "Cartes clusters" },
+  { href: "/panorama", label: "Cartes clusters" },
   { href: "/regie/curator", label: "Curateur" },
 ];
 
@@ -23,8 +23,8 @@ function linkActive(pathname: string, href: string): boolean {
   if (href === "/regie") {
     return pathname === "/regie";
   }
-  if (href === "/dashboard") {
-    return pathname.startsWith("/dashboard");
+  if (href === "/panorama") {
+    return pathname.startsWith("/panorama");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

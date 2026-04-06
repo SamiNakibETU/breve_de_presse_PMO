@@ -6,6 +6,7 @@ import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
 import { articleTypeLabelFr } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import type { Article } from "@/lib/types";
+import { formatPublishedAtFr } from "@/lib/dates-display-fr";
 import { formatQuoteForDisplay } from "@/lib/text-utils";
 import { ConfidenceBadge } from "./confidence-badge";
 
@@ -57,11 +58,7 @@ export function ArticleCard({
   const typeLbl = typeLabel(article.article_type);
 
   const date = article.published_at
-    ? new Date(article.published_at).toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+    ? formatPublishedAtFr(article.published_at, "short")
     : null;
 
   const summaryPreview = article.summary_fr
@@ -262,7 +259,7 @@ export function ArticleCard({
                 </p>
               )}
               {article.key_quotes_fr && article.key_quotes_fr.length > 0 && (
-                <div className="space-y-1 border-l-2 border-accent/25 pl-3">
+                <div className="space-y-1 rounded-md bg-muted/15 p-3">
                   {article.key_quotes_fr.map((q, i) => (
                     <p
                       key={i}

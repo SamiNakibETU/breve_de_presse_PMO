@@ -121,7 +121,7 @@ export function ArticleRow({
                 </span>
               )}
               {article.is_flagship ? (
-                <span className="border-l-2 border-accent pl-2 text-[11px] font-semibold text-accent">
+                <span className="inline-flex rounded-full border border-accent/35 bg-accent/5 px-2 py-0.5 text-[11px] font-semibold text-accent">
                   {FLAGSHIP_BADGE_LABEL}
                 </span>
               ) : null}
@@ -134,7 +134,7 @@ export function ArticleRow({
                 </span>
               ) : null}
               {article.is_flagship ? (
-                <span className="border-l border-accent pl-2 text-[10px] font-semibold text-accent">
+                <span className="inline-flex rounded-full border border-accent/35 bg-accent/5 px-2 py-0.5 text-[10px] font-semibold text-accent">
                   {FLAGSHIP_BADGE_LABEL}
                 </span>
               ) : null}
@@ -173,7 +173,7 @@ export function ArticleRow({
         </p>
       ) : null}
       {open && article.summary_fr && (
-        <p className="mt-3 max-w-2xl border-l border-border-light pl-4 text-[13px] leading-relaxed text-foreground-body sm:pl-8">
+        <p className="mt-3 max-w-2xl rounded-md bg-muted/15 px-3 py-2 text-[13px] leading-relaxed text-foreground-body">
           {article.summary_fr}
         </p>
       )}

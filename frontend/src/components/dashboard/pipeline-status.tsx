@@ -18,6 +18,9 @@ interface PipelineStatusProps {
   status: AppStatus | null;
   /** Santé des sources (GET /api/media-sources/health) — affichage discret sous le pipeline */
   sourceHealth?: MediaSourcesHealthResponse | null;
+  /** Par défaut : sources du registre revue uniquement (voir API `revue_registry_only`). */
+  revueRegistryOnly?: boolean;
+  onRevueRegistryOnlyChange?: (value: boolean) => void;
 }
 
 const PRIMARY_ACTIONS: {
@@ -110,23 +113,23 @@ const ADVANCED_ACTIONS: {
 ];
 
 /** Libellés métier pour les statuts API (éviter « degraded / dead » bruts). */
-function collecteStatusFr(code: string): { label: string; lineClass: string } {
+function collecteStatusFr(code: string): { label: string; rowClass: string } {
   const c = (code || "").toLowerCase();
   if (c === "dead") {
     return {
       label: "Collecte interrompue",
-      lineClass: "border-l-destructive/50",
+      rowClass: "bg-destructive/[0.07]",
     };
   }
   if (c === "degraded") {
     return {
       label: "Collecte irrégulière",
-      lineClass: "border-l-warning/55",
+      rowClass: "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)]",
     };
   }
   return {
     label: "Collecte normale",
-    lineClass: "border-l-border",
+    rowClass: "bg-transparent",
   };
 }
 
@@ -154,6 +157,8 @@ function formatTranslationHint(s: {
 export function PipelineStatus({
   status,
   sourceHealth,
+  revueRegistryOnly = true,
+  onRevueRegistryOnlyChange,
 }: PipelineStatusProps) {
   const { running, lastRun, diagnostics, startRun, clearDiagnostics } =
     usePipelineRunner();
@@ -252,7 +257,7 @@ export function PipelineStatus({
                 </span>
               ) : null}
               {editionQ.isError ? (
-                <span className="text-[11px] text-destructive" role="alert">
+                <span className="olj-alert-destructive inline-block px-2 py-1 text-[11px]" role="alert">
                   Aucune édition en base pour cette date.
                 </span>
               ) : null}
@@ -296,7 +301,7 @@ export function PipelineStatus({
         (saut des étapes déjà enregistrées ce jour). Le suivi reste visible en haut de page
         pendant la navigation.
         {status?.pipeline_running ? (
-          <span className="mt-1 block border-l-2 border-border pl-2 text-foreground-body">
+          <span className="mt-2 block rounded-md bg-muted/50 px-2.5 py-1.5 text-foreground-body">
             Un pipeline complet est en cours sur le serveur : les boutons « Traitement complet » et « Reprendre le pipeline » sont désactivés
             jusqu’à la fin du passage (cron ou autre lancement).
           </span>
@@ -331,7 +336,7 @@ export function PipelineStatus({
           </p>
           <div className="mt-2 space-y-2">
             {status.jobs.map((job) => (
-              <div key={job.id} className="border-l border-border-light pl-2 text-[11px] leading-snug">
+              <div key={job.id} className="rounded-md bg-muted/25 px-2 py-1.5 text-[11px] leading-snug">
                 <div className="font-medium text-foreground-subtle">{job.name}</div>
                 <div className="tabular-nums text-muted-foreground">
                   Prochain : {job.next_run ?? "—"}
@@ -354,6 +359,23 @@ export function PipelineStatus({
         <div className="border-t border-border-light pt-3">
           <div className="mb-2">
             <p className="olj-rubric olj-rule text-[11px]">État des sources</p>
+            {onRevueRegistryOnlyChange ? (
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--color-accent)]"
+                  checked={revueRegistryOnly}
+                  onChange={(e) => onRevueRegistryOnlyChange(e.target.checked)}
+                />
+                <span>
+                  Limiter aux sources du{" "}
+                  <strong className="font-medium text-foreground-subtle">
+                    registre revue de presse
+                  </strong>{" "}
+                  (décocher pour toutes les sources techniques)
+                </span>
+              </label>
+            ) : null}
             <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
               Volume d’articles sur les{" "}
               <strong className="font-medium text-foreground-subtle">
@@ -415,7 +437,7 @@ export function PipelineStatus({
                 )}
                 <div className="max-h-60 overflow-y-auto border border-border-light bg-card">
                   {rows.map((s) => {
-                    const { label: statusLabel, lineClass } = collecteStatusFr(
+                    const { label: statusLabel, rowClass } = collecteStatusFr(
                       s.health_status,
                     );
                     const n = s.articles_72h;
@@ -430,7 +452,7 @@ export function PipelineStatus({
                     return (
                       <div
                         key={s.id}
-                        className={`border-b border-border-light border-l-2 bg-card px-3 py-2.5 last:border-b-0 ${lineClass}`}
+                        className={`border-b border-border-light px-3 py-2.5 last:border-b-0 ${rowClass}`}
                       >
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                           <p className="min-w-0 shrink font-[family-name:var(--font-serif)] text-[13px] font-medium leading-snug text-foreground">

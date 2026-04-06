@@ -207,7 +207,7 @@ export function ReviewPageClient() {
       )}
 
       {error && (
-        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
+        <p className="olj-alert-destructive px-3 py-2">
           {error}
         </p>
       )}

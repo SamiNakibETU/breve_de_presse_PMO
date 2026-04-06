@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PipelineStatusBadge } from "@/components/regie/pipeline-status-badge";
 import { api } from "@/lib/api";
+import { formatLogTimestampFr } from "@/lib/dates-display-fr";
 import {
   durationFromPayload,
   formatPayloadPretty,
@@ -70,7 +71,7 @@ export default function RegieLogsPage() {
         </h2>
         {pipelineQ.isPending && <p role="status">Chargement…</p>}
         {pipelineQ.error && (
-          <p className="text-destructive" role="alert">
+          <p className="olj-alert-destructive px-3 py-2" role="alert">
             {pipelineQ.error instanceof Error
               ? pipelineQ.error.message
               : "Erreur"}
@@ -81,8 +82,8 @@ export default function RegieLogsPage() {
             <span className="font-medium text-foreground">Dernier enregistrement :</span>
             <PipelineStatusBadge kind={lastKind} />
             <span className="text-muted-foreground">{lastRun.step}</span>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {lastRun.created_at}
+            <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+              {formatLogTimestampFr(lastRun.created_at)}
             </span>
           </p>
         ) : null}
@@ -142,7 +143,9 @@ export default function RegieLogsPage() {
                     aria-expanded={open}
                   >
                     <PipelineStatusBadge kind={st} />
-                    <span className="shrink-0 text-muted-foreground">{r.created_at}</span>
+                    <span className="shrink-0 text-muted-foreground tabular-nums">
+                      {formatLogTimestampFr(r.created_at)}
+                    </span>
                     <strong className="text-foreground">{r.step}</strong>
                     <span className="text-muted-foreground">
                       {r.edition_id ?? "—"}
@@ -180,7 +183,7 @@ export default function RegieLogsPage() {
         </h2>
         {llmQ.isPending && <p role="status">Chargement…</p>}
         {llmQ.error && (
-          <p className="text-destructive" role="alert">
+          <p className="olj-alert-destructive px-3 py-2" role="alert">
             {llmQ.error instanceof Error ? llmQ.error.message : "Erreur"}
           </p>
         )}
@@ -189,7 +192,9 @@ export default function RegieLogsPage() {
             <table className="w-full min-w-[640px] border-collapse text-left text-[12px]">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="px-2 py-2 font-medium">Date</th>
+                  <th className="px-2 py-2 font-medium" title="Fuseau UTC">
+                    Date (UTC)
+                  </th>
                   <th className="px-2 py-2 font-medium">Prompt</th>
                   <th className="px-2 py-2 font-medium">Modèle</th>
                   <th className="px-2 py-2 font-medium">Jetons</th>
@@ -206,8 +211,8 @@ export default function RegieLogsPage() {
                 )}
                 {llmQ.data.items.map((r) => (
                   <tr key={r.id} className="border-b border-border-light align-top">
-                    <td className="whitespace-nowrap px-2 py-2 font-mono text-[11px] text-muted-foreground">
-                      {r.created_at}
+                    <td className="whitespace-nowrap px-2 py-2 text-[11px] text-muted-foreground tabular-nums">
+                      {formatLogTimestampFr(r.created_at)}
                     </td>
                     <td className="px-2 py-2">
                       {r.prompt_id}

@@ -68,7 +68,7 @@ export default function RegieSourcesPage() {
         </div>
       )}
       {healthQ.isError && (
-        <p className="text-[13px] text-destructive" role="alert">
+        <p className="olj-alert-destructive px-3 py-2" role="alert">
           {healthQ.error.message}
         </p>
       )}
@@ -78,7 +78,12 @@ export default function RegieSourcesPage() {
             <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <th className="py-2 pr-3">Source</th>
               <th className="py-2 pr-3">Pays</th>
-              <th className="py-2 pr-3">72 h</th>
+              <th
+                className="py-2 pr-3"
+                title="Articles sur la fenêtre glissante API (voir délai en entête)"
+              >
+                72 h
+              </th>
               <th className="py-2">État</th>
             </tr>
           </thead>

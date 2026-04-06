@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { PanoramaPageContent } from "@/components/dashboard/panorama-page-content";
 
-/** Ancien lien « Panorama » : redirection vers le tableau de bord régional. */
-export default function PanoramaRedirectPage() {
-  redirect("/dashboard");
+export default function PanoramaPage() {
+  return <PanoramaPageContent />;
 }

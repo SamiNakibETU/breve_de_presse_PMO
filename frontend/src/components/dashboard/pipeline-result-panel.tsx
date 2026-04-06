@@ -183,7 +183,7 @@ function PipelineRunningProgress({
           aria-live="polite"
           aria-atomic="true"
         >
-          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-destructive">
+          <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
             Étape côté serveur
           </span>
           {serverLiveStep}
@@ -275,7 +275,9 @@ function formatScraperStats(
   if ("error" in block && typeof block.error === "string") {
     return (
       <SubBlock title={label}>
-        <p className="text-[12px] text-destructive">{block.error}</p>
+        <p className="olj-alert-destructive px-2 py-1.5 text-[12px]" role="alert">
+          {block.error}
+        </p>
       </SubBlock>
     );
   }
@@ -405,7 +407,10 @@ function TranslateSummary({ stats }: { stats: Record<string, unknown> }) {
           </p>
           <ul className="space-y-1 text-[10px] text-foreground-body">
             {(samples as Record<string, string>[]).map((s, i) => (
-              <li key={i} className="break-words border-l-2 border-border pl-2">
+              <li
+                key={i}
+                className="break-words rounded border border-border/50 bg-muted/30 px-2 py-1"
+              >
                 <span className="font-mono text-foreground">{s.reason}</span>
                 {s.article_id ? ` · ${s.article_id}` : ""}
                 {s.message ? (
@@ -471,7 +476,7 @@ function PipelineFullSummary({ stats }: { stats: Record<string, unknown> }) {
   ) {
     return (
       <div className="space-y-2">
-        <p className="text-[12px] text-destructive">
+        <p className="olj-alert-destructive px-2 py-1.5 text-[12px]" role="alert">
           Durée maximale dépassée (timeout serveur). Relancez une reprise manuelle
           ou attendez les tentatives automatiques si elles sont configurées côté
           serveur.
@@ -516,7 +521,7 @@ function PipelineFullSummary({ stats }: { stats: Record<string, unknown> }) {
       {stats.embedding !== undefined && (
         <SubBlock title="3. Embeddings">
           {isRecord(stats.embedding) && "error" in stats.embedding ? (
-            <p className="text-[12px] text-destructive">
+            <p className="olj-alert-destructive px-2 py-1.5 text-[12px]" role="alert">
               {String(stats.embedding.error)}
             </p>
           ) : isRecord(stats.embedding) ? (
@@ -585,8 +590,8 @@ export function PipelineResultPanel({
     if (!run) return null;
     if (!run.ok) {
       return (
-        <div className="space-y-3 border-l-2 border-destructive pl-3">
-          <p className="text-[13px] font-medium text-destructive">
+        <div className="olj-alert-destructive space-y-3 p-3">
+          <p className="font-medium">
             {run.errorMessage ?? "Échec"}
           </p>
           {run.taskId ? (

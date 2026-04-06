@@ -20,7 +20,7 @@ export function EditionMetaStrip({
     return null;
   }
   return (
-    <div className="mt-5 w-full max-w-3xl border-t border-border-light pt-4">
+    <div className="mt-5 w-full max-w-4xl border-t border-border-light pt-4">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-6">
         <div className="min-w-0 space-y-2">
           {windowCompact ? (

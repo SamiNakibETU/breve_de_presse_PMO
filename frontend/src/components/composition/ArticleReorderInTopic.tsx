@@ -136,7 +136,7 @@ export function ArticleReorderInTopic({
 
   if (items.length <= 1) {
     return (
-      <ul className="space-y-2 border-l-2 border-accent/25 pl-3">
+      <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
         {items.map((i) => (
           <li
             key={i.id}
@@ -173,7 +173,7 @@ export function ArticleReorderInTopic({
       autoScroll={!disabled}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 border-l-2 border-accent/25 pl-1">
+        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-2">
           {items.map((i) => (
             <SortableArticleRow
               key={i.id}

@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { displayClusterTitle } from "@/lib/cluster-display";
 import { reviewPagePath } from "@/lib/review-url";
 import { countryLabelFr } from "@/lib/country-labels-fr";
+import { formatPublishedAtFr } from "@/lib/dates-display-fr";
 import type { ClusterArticlesResponse } from "@/lib/types";
 
 export default function ClusterDetailPage() {
@@ -78,7 +79,7 @@ export default function ClusterDetailPage() {
     <div className="space-y-8 pb-24">
       <header>
         <Link
-          href="/dashboard"
+          href="/panorama"
           className="mb-4 inline-block text-[12px] text-muted-foreground hover:text-foreground"
         >
           ← Panorama
@@ -92,7 +93,7 @@ export default function ClusterDetailPage() {
             : ""}
         </p>
         {!loading && ledeThesis ? (
-          <div className="mt-6 border-l-2 border-accent/30 pl-4">
+          <div className="mt-6 rounded-lg bg-muted/15 p-4">
             <p className="font-[family-name:var(--font-serif)] text-[1.15rem] font-semibold leading-snug text-foreground sm:text-[1.25rem]">
               {ledeThesis}
             </p>
@@ -107,7 +108,7 @@ export default function ClusterDetailPage() {
           </div>
         ) : !loading && ledeSummaryExcerpt ? (
           <p
-            className="mt-6 max-w-3xl border-l-2 border-accent/30 pl-4 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
+            className="mt-6 max-w-3xl rounded-lg bg-muted/15 p-4 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
             title={ledeSummaryExcerpt}
           >
             {ledeSummaryExcerpt}
@@ -116,7 +117,7 @@ export default function ClusterDetailPage() {
       </header>
 
       {error && (
-        <p className="border-l-2 border-destructive pl-3 text-[13px] text-destructive">
+        <p className="olj-alert-destructive px-3 py-2">
           {error}
         </p>
       )}
@@ -199,7 +200,7 @@ export default function ClusterDetailPage() {
                       <p className="mt-0.5 text-[12px] text-muted-foreground">
                         {a.source_name ?? ""}
                         {a.published_at
-                          ? ` · ${new Date(a.published_at).toLocaleDateString("fr-FR")}`
+                          ? ` · ${formatPublishedAtFr(a.published_at, "short")}`
                           : ""}
                         {a.article_type ? ` · ${a.article_type}` : ""}
                         {a.cluster_soft_assigned ? " · rattaché au sujet" : ""}
