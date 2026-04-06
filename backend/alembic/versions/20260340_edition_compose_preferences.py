@@ -4,12 +4,13 @@ Revision ID: m20260340_ecp
 Revises: m20260339_ple
 Create Date: 2026-03-30
 
+Colonnes ajoutées avec IF NOT EXISTS : évite l'échec si le schéma a déjà été
+aligné manuellement ou si une montée de version a été interrompue (ex. Railway).
 """
 from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision: str = "m20260340_ecp"
 down_revision: Union[str, None] = "m20260339_ple"
@@ -18,21 +19,29 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "editions",
-        sa.Column(
-            "extra_selected_article_ids",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-            server_default=sa.text("'[]'::jsonb"),
-        ),
+    op.execute(
+        sa.text(
+            """
+            ALTER TABLE editions
+            ADD COLUMN IF NOT EXISTS extra_selected_article_ids JSONB
+                NOT NULL DEFAULT '[]'::jsonb
+            """
+        )
     )
-    op.add_column(
-        "editions",
-        sa.Column("compose_instructions_fr", sa.Text(), nullable=True),
+    op.execute(
+        sa.text(
+            """
+            ALTER TABLE editions
+            ADD COLUMN IF NOT EXISTS compose_instructions_fr TEXT
+            """
+        )
     )
 
 
 def downgrade() -> None:
-    op.drop_column("editions", "compose_instructions_fr")
-    op.drop_column("editions", "extra_selected_article_ids")
+    op.execute(
+        sa.text("ALTER TABLE editions DROP COLUMN IF EXISTS compose_instructions_fr")
+    )
+    op.execute(
+        sa.text("ALTER TABLE editions DROP COLUMN IF EXISTS extra_selected_article_ids")
+    )

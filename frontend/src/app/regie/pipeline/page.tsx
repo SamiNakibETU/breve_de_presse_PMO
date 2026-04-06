@@ -142,10 +142,8 @@ export default function RegiePipelinePage() {
       <section className="border-b border-border pb-8">
         <h2 className="olj-rubric olj-rule mb-4">Diagnostic édition</h2>
         <p className="mb-3 max-w-[52rem] text-[12px] text-muted-foreground">
-          UUID d’édition : corpus dans la fenêtre Beyrouth, traduits sans embedding,
-          piste collecte vs pipeline seulement — voir{" "}
-          <code className="rounded bg-muted/40 px-1">docs/plan.md</code>{" "}
-          (§7 pipeline, §12 documentation).
+          UUID d’édition : corpus dans la fenêtre Beyrouth, articles traduits sans
+          embedding, et pistes « collecte complète » ou « pipeline seul ».
         </p>
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[11px] font-medium text-foreground">

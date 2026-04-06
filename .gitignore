@@ -54,10 +54,9 @@ alembic/versions/__pycache__/
 *.db
 *.sqlite3
 
-# Archives locales (specs obsoletes, brouillons)
 archive/
 
-# Non versionné : outillage Cursor, maquettes, doc métier longue, scraper, branding local
+# Brouillons et ressources hors code applicatif (copie locale uniquement)
 AGENTS.md
 design/
 DESIGN_SYSTEM/
@@ -65,17 +64,10 @@ docs/
 scraper/
 logo_2_OLJ.svg
 
-# Captures réseau / HAR (ne pas versionner)
 *.har
-
-# Maquettes HTML locales à la racine (hors frontend/)
 /test/
 
-# Sorties harvest locales (ne pas re-committer)
-scraper/output/harvest/
-scraper/downloaded_files/*.lock
-
-# Artefacts locaux scrape / E2E / smoke (ne pas versionner)
+# Données / sorties locales (ne pas versionner)
 backend/data/SCRAPING_BATCH_*.json
 backend/data/SCRAPING_E2E_*.json
 backend/data/_tmp_*.json

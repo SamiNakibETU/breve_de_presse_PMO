@@ -1,45 +1,37 @@
 # Revue de presse régionale — L’Orient-Le Jour
 
-Outil interne : **API FastAPI** + **application Next.js** pour la collecte, la traduction et le travail rédactionnel sur les articles d’opinion du périmètre médias validé par la rédaction.
+Application **FastAPI** + **Next.js** : collecte, traduction et interface rédactionnelle pour les articles d’opinion du périmètre médias validé par la rédaction.
 
-**Production** : [revue-de-presse-olj.up.railway.app](https://revue-de-presse-olj.up.railway.app/)
+**En ligne** : [revue-de-presse-olj.up.railway.app](https://revue-de-presse-olj.up.railway.app/)
 
-## Contenu de ce dépôt
+## Arborescence
 
-| Élément | Rôle |
-|--------|------|
-| `backend/` | API, jobs, accès PostgreSQL + pgvector |
-| `frontend/` | Interface (français, Tailwind) |
-| `docker-compose.yml` | PostgreSQL local pour le développement |
-| `.github/workflows/` | CI (tests backend, lint / build / e2e frontend) |
-
-La documentation produit, le design system détaillé, les scripts de scraper autonomes et les archives restent **en dehors du dépôt** (copie locale / outillage interne).
+| Dossier / fichier | Rôle |
+|-------------------|------|
+| `backend/` | API, tâches planifiées, PostgreSQL + pgvector |
+| `frontend/` | Interface utilisateur (français, Tailwind) |
+| `docker-compose.yml` | PostgreSQL pour le développement local |
+| `.github/workflows/` | Intégration continue |
 
 ## Prérequis
 
-Python **3.11+**, Node **20+** (idéalement **22** comme en CI), Docker si vous utilisez la base locale.
+Python 3.11+, Node.js 20+ (22 en CI), Docker si vous lancez la base via Compose.
 
-## Démarrage rapide
+## Installation locale
 
-```bash
-docker compose up -d
-```
+1. `docker compose up -d`
+2. **Backend** : `cd backend` → venv → `pip install -r requirements.txt` → copier `.env.example` vers `.env` → `python -m src.scripts.seed_media` → démarrer l’API (voir `.env.example`).
+3. **Frontend** : `cd frontend` → `npm install` → copier `.env.example` vers `.env.local` → `npm run dev` (URL de l’API selon `.env.example`).
 
-**Backend** (`backend/`) : créer un venv, `pip install -r requirements.txt`, copier `.env.example` → `.env`, puis `python -m src.scripts.seed_media` et lancer l’API (voir commentaires dans `.env.example`).
+## Règles de contribution
 
-**Frontend** (`frontend/`) : `npm install`, copier `.env.example` → `.env.local`, `npm run dev`. Variables typiques : URL de l’API (`NEXT_PUBLIC_API_URL` ou mode proxy selon votre `.env.example`).
+- Fichiers non modifiables sans validation métier : `generator.py`, `editorial_scope.py`, `llm_router.py`, `collector.py`.
+- Migrations : uniquement additives ; pas de suppression de colonnes/tables en production sans procédure dédiée.
+- Interface : textes en français ; Tailwind ; accent `#dd3b31`.
 
-## Conventions (extrait)
-
-- Ne pas modifier sans arbitrage : `generator.py`, `editorial_scope.py`, `llm_router.py`, `collector.py`.
-- Migrations : **additives** uniquement (pas de `DROP` implicite en prod).
-- UI : français ; Tailwind ; accent `#dd3b31`.
-
-## Tests
+## Qualité
 
 ```bash
 cd backend && pytest tests/ -q
 cd frontend && npm run lint && npm run typecheck && npm run build
 ```
-
-Les workflows GitHub reprennent ces étapes sur push / PR.
