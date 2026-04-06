@@ -43,7 +43,7 @@ async def health():
 
 @router.get("/api/metrics")
 async def api_metrics():
-    """Compteurs depuis le boot du process (variables : backend/.env.example ; doc : docs/plan.md §11)."""
+    """Compteurs depuis le boot du process (activation : variables dans backend/.env.example)."""
     if not settings.expose_metrics:
         raise HTTPException(status_code=404, detail="Metrics disabled")
     return metrics_snapshot()

@@ -54,13 +54,16 @@ alembic/versions/__pycache__/
 *.db
 *.sqlite3
 
-# Archives locales (specs obsoletes, brouillons — voir plan refonte)
+# Archives locales (specs obsoletes, brouillons)
 archive/
 
-# Hors périmètre dépôt public (conventions outil local, maquettes, specs internes)
+# Non versionné : outillage Cursor, maquettes, doc métier longue, scraper, branding local
 AGENTS.md
 design/
-docs/superpowers/
+DESIGN_SYSTEM/
+docs/
+scraper/
+logo_2_OLJ.svg
 
 # Captures réseau / HAR (ne pas versionner)
 *.har
