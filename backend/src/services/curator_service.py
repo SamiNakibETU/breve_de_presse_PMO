@@ -1,5 +1,5 @@
 """
-Curateur MEMW v2 — LLM JSON + invariants (spec §5).
+Curateur éditorial — sortie JSON structurée et règles d’invariants métier.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def _parse_json_loose(text: str) -> dict[str, Any]:
     return json.loads(text)
 
 
-MAX_RECOMMENDED_ARTICLES_TOTAL = 40  # MEMW_PRODUCT_SPEC_v2 §5.4
+MAX_RECOMMENDED_ARTICLES_TOTAL = 40  # plafond recommandations curateur
 
 
 def validate_curator_payload(
@@ -88,7 +88,7 @@ def validate_curator_payload(
             f"INVARIANT_6: {len(all_recs)} articles recommandés, max {MAX_RECOMMENDED_ARTICLES_TOTAL}",
         )
 
-    # INVARIANT_5 — MEMW_PRODUCT_SPEC_v2 §5.4
+    # Invariant : plafond total de recommandations
     if corpus_country_codes:
         cc = {c.strip().upper() for c in corpus_country_codes if c and str(c).strip()}
         if len(cc) >= 1:

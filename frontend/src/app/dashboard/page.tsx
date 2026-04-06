@@ -8,19 +8,10 @@ import { formatTodayBeirutLongFr, todayBeirutIsoDate } from "@/lib/beirut-date";
 import type { AppStatus, ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { StatsDistributionPanels } from "@/components/dashboard/stats-distribution-panels";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
-
-const LANG_LABELS: Record<string, string> = {
-  ar: "Arabe",
-  en: "Anglais",
-  fr: "Français",
-  he: "Hébreu",
-  fa: "Persan",
-  tr: "Turc",
-  ku: "Kurde",
-};
 
 function filterClusters(
   list: TopicCluster[],
@@ -92,6 +83,22 @@ export default function DashboardPage() {
     [clusterRows, countryFilter, emergingOnly],
   );
 
+  const byCountryForStatsPanel = useMemo(() => {
+    if (!stats) {
+      return {};
+    }
+    if (Object.keys(stats.counts_by_country_code ?? {}).length > 0) {
+      const out: Record<string, number> = {};
+      for (const [code, n] of Object.entries(stats.counts_by_country_code ?? {})) {
+        const label =
+          stats.country_labels_fr?.[code] ?? COUNTRY_LABELS_FR[code] ?? code;
+        out[label] = (out[label] ?? 0) + n;
+      }
+      return out;
+    }
+    return { ...stats.by_country };
+  }, [stats]);
+
   const dateStr = formatTodayBeirutLongFr();
   const editionDate = todayBeirutIsoDate();
   const subjectCount = filteredClusters.length;
@@ -99,6 +106,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3">
+        <p className="olj-rubric">Vue régionale</p>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           Panorama
         </h1>
@@ -109,7 +117,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/edition/${editionDate}`}
-            className="inline-flex items-center rounded-md border border-accent bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90"
+            className="olj-btn-primary text-[13px] px-4 py-2"
           >
             Édition du jour
           </Link>
@@ -128,79 +136,12 @@ export default function DashboardPage() {
 
       <StatsCards stats={stats} loading={statsQ.isPending} />
 
-      {stats && (
-        <div className="grid gap-6 sm:grid-cols-2">
-          {stats &&
-            (Object.keys(stats.counts_by_country_code ?? {}).length > 0 ||
-              Object.keys(stats.by_country).length > 0) && (
-              <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                <summary className="cursor-pointer font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
-                  Répartition par pays
-                </summary>
-                <div className="mt-3 space-y-0">
-                  {Object.keys(stats.counts_by_country_code ?? {}).length > 0
-                    ? Object.entries(stats.counts_by_country_code ?? {})
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([code, count]) => {
-                          const label =
-                            stats.country_labels_fr?.[code] ??
-                            COUNTRY_LABELS_FR[code] ??
-                            code;
-                          return (
-                            <div
-                              key={code}
-                              className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
-                            >
-                              <span className="text-foreground-body">{label}</span>
-                              <span className="tabular-nums font-medium text-foreground">
-                                {count}
-                              </span>
-                            </div>
-                          );
-                        })
-                    : Object.entries(stats.by_country)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([country, count]) => (
-                          <div
-                            key={country}
-                            className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
-                          >
-                            <span className="text-foreground-body">{country}</span>
-                            <span className="tabular-nums font-medium text-foreground">
-                              {count}
-                            </span>
-                          </div>
-                        ))}
-                </div>
-              </details>
-            )}
-
-          {Object.keys(stats.by_language).length > 0 && (
-            <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
-              <summary className="cursor-pointer font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
-                Répartition par langue
-              </summary>
-              <div className="mt-3 space-y-0">
-                {Object.entries(stats.by_language)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([lang, count]) => (
-                    <div
-                      key={lang}
-                      className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
-                    >
-                      <span className="text-foreground-body">
-                        {LANG_LABELS[lang] || lang.toUpperCase()}
-                      </span>
-                      <span className="tabular-nums font-medium text-foreground">
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
+      {stats ? (
+        <StatsDistributionPanels
+          byCountry={byCountryForStatsPanel}
+          byLanguage={stats.by_language}
+        />
+      ) : null}
 
       <section>
         <h2 className="olj-rubric olj-rule">Regroupements thématiques en cours</h2>

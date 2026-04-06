@@ -142,12 +142,8 @@ export function TopicDetail({
   const saveMutation = useMutation({
     mutationFn: (ids: string[]) =>
       api.editionTopicSelection(editionId, topic.id, ids),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: ["editionTopicDetail", editionId, topic.id],
-      });
-      qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
-    },
+    /** Pas d’invalidation immédiate : le store Zustand est la vérité locale (latence toggle). */
+    onSuccess: () => {},
   });
 
   const selectionDebounceRef = useRef<number | null>(null);

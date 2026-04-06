@@ -306,6 +306,20 @@ class Settings(BaseSettings):
         default=True,
         description="N'embedder que opinion/editorial/tribune/analysis (économise Cohere + bruit)",
     )
+    embedding_batch_limit: int = Field(
+        default=500,
+        ge=1,
+        le=2000,
+        description="Plafond articles par passage embed_pending_articles (file priorisée)",
+    )
+    embed_revue_registry_only: bool = Field(
+        default=False,
+        description="Si true : n'embedder que les articles dont media_source_id est dans MEDIA_REVUE_REGISTRY.json",
+    )
+    embed_prioritize_editorial_order: bool = Field(
+        default=True,
+        description="Dans le batch, traiter d'abord opinion/editorial/tribune/analysis puis le reste (si embed_only_editorial_types=false)",
+    )
 
     port: int = Field(default=8000)
     environment: str = Field(default="development")

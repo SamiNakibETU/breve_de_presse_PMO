@@ -1,4 +1,4 @@
-"""MEMW v2 — Édition (objet central) et sujets éditoriaux."""
+"""Modèles édition, sujets éditoriaux et journaux associés — revue de presse."""
 
 import uuid
 from datetime import date, datetime
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class Edition(Base):
-    """Intention de publication bornée dans le temps (MENA revue, spec §2)."""
+    """Parution cible et fenêtre de collecte (Asia/Beirut)."""
 
     __tablename__ = "editions"
 
@@ -165,7 +165,7 @@ class PipelineDebugLog(Base):
 
 
 class LLMCallLog(Base):
-    """Journal des appels LLM (spec §10 / cursorrules)."""
+    """Journal des appels LLM pour audit et suivi des coûts."""
 
     __tablename__ = "llm_call_logs"
 

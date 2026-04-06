@@ -436,18 +436,16 @@ export default function ComposePage() {
 
   return (
     <div className="space-y-10">
-      <nav className="text-[13px] text-muted-foreground">
-        <Link
-          href={`/edition/${date}`}
-          className="underline-offset-4 hover:underline"
-        >
+      <nav className="text-[13px]">
+        <Link href={`/edition/${date}`} className="olj-link-action">
           ← Retour au sommaire de l’édition
         </Link>
       </nav>
 
       <header className="space-y-4">
+        <p className="olj-rubric">Rédaction</p>
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold">
-          Rédaction · {titleFr}
+          {titleFr}
         </h1>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
@@ -465,10 +463,7 @@ export default function ComposePage() {
               value: selectedAnalysisCount,
             },
           ].map((kpi) => (
-            <div
-              key={kpi.label}
-              className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm"
-            >
+            <div key={kpi.label} className="olj-kpi-tile">
               <p className="text-[22px] font-semibold tabular-nums text-foreground">
                 {kpi.value}
               </p>
@@ -476,57 +471,64 @@ export default function ComposePage() {
             </div>
           ))}
         </div>
-        <div className="max-w-3xl rounded-lg border border-accent/20 bg-accent/5 px-4 py-4 text-[13px] leading-relaxed text-foreground-body">
-          <p className="mb-3 font-semibold text-foreground">
-            Parcours guidé (dans l’ordre)
+        {selectedIds.size === 0 ? (
+          <div className="max-w-3xl rounded-lg border border-accent/20 bg-accent/5 px-4 py-4 text-[13px] leading-relaxed text-foreground-body">
+            <p className="mb-3 font-semibold text-foreground">
+              Parcours guidé (dans l’ordre)
+            </p>
+            <ol className="list-none space-y-3">
+              <li className="flex gap-3">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
+                  aria-hidden
+                >
+                  1
+                </span>
+                <span>
+                  <strong className="text-foreground">Sélection</strong> : ordre des sujets (glisser-déposer) et articles cochés par sujet — au moins deux par bloc pour une génération fiable.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
+                  aria-hidden
+                >
+                  2
+                </span>
+                <span>
+                  <strong className="text-foreground">Enrichissement</strong> : pour chaque sujet, vérifiez les extraits (thèse, résumé) ; les analyses détaillées sont dans la fiche article.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
+                  aria-hidden
+                >
+                  3
+                </span>
+                <span>
+                  <strong className="text-foreground">Rédaction</strong> : consignes optionnelles puis « Rédiger ce bloc » ou génération globale — un texte par grand sujet.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-background text-[12px] font-bold text-accent"
+                  aria-hidden
+                >
+                  4
+                </span>
+                <span>
+                  <strong className="text-foreground">Révision</strong> : copier-coller, export, relecture depuis les sections ci-dessous.
+                </span>
+              </li>
+            </ol>
+          </div>
+        ) : (
+          <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
+            Sélection active : concentrez-vous sur l’ordre des articles, les consignes et la génération. Le parcours
+            détaillé réapparaît si vous retirez toutes les coches depuis le sommaire.
           </p>
-          <ol className="list-none space-y-3">
-            <li className="flex gap-3">
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
-                aria-hidden
-              >
-                1
-              </span>
-              <span>
-                <strong className="text-foreground">Sélection</strong> : ordre des sujets (glisser-déposer) et articles cochés par sujet — au moins deux par bloc pour une génération fiable.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
-                aria-hidden
-              >
-                2
-              </span>
-              <span>
-                <strong className="text-foreground">Enrichissement</strong> : pour chaque sujet, vérifiez les extraits (thèse, résumé) ; les analyses détaillées sont dans la fiche article.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-foreground"
-                aria-hidden
-              >
-                3
-              </span>
-              <span>
-                <strong className="text-foreground">Rédaction</strong> : consignes optionnelles puis « Rédiger ce bloc » ou génération globale — un texte par grand sujet.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-background text-[12px] font-bold text-accent"
-                aria-hidden
-              >
-                4
-              </span>
-              <span>
-                <strong className="text-foreground">Révision</strong> : copier-coller, export, relecture depuis les sections ci-dessous.
-              </span>
-            </li>
-          </ol>
-        </div>
+        )}
       </header>
 
       <section
@@ -648,15 +650,17 @@ export default function ComposePage() {
         />
       ) : null}
 
-      <CoverageGaps
-        selectedCountryCodes={selectedCountryCodes}
-        targets={coverageQ.data ?? null}
-      />
+      {selectedIds.size > 0 ? (
+        <CoverageGaps
+          selectedCountryCodes={selectedCountryCodes}
+          targets={coverageQ.data ?? null}
+        />
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          className="border border-foreground bg-foreground px-4 py-2 text-[13px] text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+          className="olj-btn-primary px-4 py-2 text-[13px] disabled:opacity-50"
           disabled={
             !editionId ||
             genAllMutation.isPending ||

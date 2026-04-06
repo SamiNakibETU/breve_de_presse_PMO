@@ -1,4 +1,4 @@
-"""API MEMW v2 — Éditions."""
+"""API — éditions et sujets (fenêtre Beyrouth)."""
 
 from collections import defaultdict
 from datetime import date
@@ -32,6 +32,7 @@ from src.services.selected_article_retention import (
     apply_retention_for_selected_article_ids,
     clear_retention_if_unselected,
 )
+from src.services.pipeline_edition_diagnostic import build_edition_pipeline_diagnostic
 from src.services.topic_detector import run_topic_detection_for_edition_id
 
 router = APIRouter(prefix="/api/editions", tags=["editions"])
@@ -685,6 +686,19 @@ async def trigger_curate(
     _: None = Depends(require_internal_key),
 ) -> Any:
     return await run_curator_for_edition(db, edition_id)
+
+
+@router.get("/{edition_id}/pipeline-diagnostic")
+async def get_edition_pipeline_diagnostic(
+    edition_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    """Couverture corpus vs fenêtre d’édition ; pistes « collecte » vs « pipeline seulement » (clé interne)."""
+    payload = await build_edition_pipeline_diagnostic(db, edition_id)
+    if payload.get("error") == "edition_not_found":
+        raise HTTPException(status_code=404, detail="Edition not found")
+    return payload
 
 
 @router.post("/{edition_id}/detect-topics")

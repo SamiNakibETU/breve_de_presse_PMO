@@ -86,6 +86,7 @@ function FiltersColumn({
   filters,
   setFilters,
   countsByCountry,
+  countryLabelsFr,
   activeEditionId,
 }: {
   statusFilter: string;
@@ -95,6 +96,7 @@ function FiltersColumn({
   filters: Filters;
   setFilters: (f: Filters) => void;
   countsByCountry: Record<string, number> | null;
+  countryLabelsFr: Record<string, string> | null;
   activeEditionId: string | null;
 }) {
   return (
@@ -111,6 +113,7 @@ function FiltersColumn({
         filters={filters}
         onChange={setFilters}
         countsByCountry={countsByCountry}
+        countryLabelsFr={countryLabelsFr}
         activeEditionId={activeEditionId}
       />
     </div>
@@ -209,6 +212,7 @@ export function ArticlesPageClient() {
 
   const total = data?.pages[0]?.total ?? 0;
   const countsByCountry = data?.pages[0]?.counts_by_country ?? null;
+  const countryLabelsFr = data?.pages[0]?.country_labels_fr ?? null;
 
   const toggle = useCallback((articleId: string) => {
     setSelected((prev) => {
@@ -235,6 +239,7 @@ export function ArticlesPageClient() {
     filters,
     setFilters,
     countsByCountry,
+    countryLabelsFr,
     activeEditionId,
   };
 
@@ -317,6 +322,28 @@ export function ArticlesPageClient() {
             {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
             {articles.length !== 1 ? "s" : ""}
           </p>
+          <details className="mt-3 rounded-sm border border-border bg-muted/10 px-3 py-2">
+            <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-accent">
+              Comprendre les vues (période, édition, filtres)
+            </summary>
+            <div className="mt-2 space-y-2 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground">
+              <p>
+                Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Pour
+                celle-ci : tableau de bord puis édition du jour.
+              </p>
+              <p>
+                Statut et tri sont dans la colonne de gauche. Les blocs « Thème · … » suivent la taxonomie OLJ ; décochez
+                le groupement pour une grille continue.
+              </p>
+              <p>
+                Traductions (relu, réessayer) :{" "}
+                <a href="/regie" className="font-medium text-accent underline underline-offset-2">
+                  Régie
+                </a>
+                .
+              </p>
+            </div>
+          </details>
         </header>
 
         <p className="text-[12px] text-muted-foreground">

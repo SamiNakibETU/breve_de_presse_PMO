@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +51,7 @@ interface ArticleFiltersProps {
   filters: Filters;
   onChange: (f: Filters) => void;
   countsByCountry?: Record<string, number> | null;
+  countryLabelsFr?: Record<string, string> | null;
   /** Filtre passé par l’URL (`edition_id`) depuis le sommaire d’édition. */
   activeEditionId?: string | null;
 }
@@ -63,9 +64,26 @@ export function ArticleFilters({
   filters,
   onChange,
   countsByCountry,
+  countryLabelsFr = null,
   activeEditionId = null,
 }: ArticleFiltersProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const countryRows = useMemo(() => {
+    const hasCounts =
+      countsByCountry != null && Object.keys(countsByCountry).length > 0;
+    const pairs: [string, number | null][] = hasCounts
+      ? Object.entries(countsByCountry!).sort(
+          (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr"),
+        )
+      : (Object.keys(COUNTRIES) as string[]).map((code) => [code, null]);
+    return pairs.map(([code, cnt]) => {
+      const base =
+        countryLabelsFr?.[code]?.trim() || COUNTRIES[code] || code;
+      const label = cnt != null ? `${base} (${cnt})` : base;
+      return { code, label };
+    });
+  }, [countsByCountry, countryLabelsFr]);
 
   return (
     <div className="olj-sidebar-filter space-y-5 border-b border-border-light pb-4 lg:border-0 lg:pb-0">
@@ -84,9 +102,7 @@ export function ArticleFilters({
       <div>
         <p className="olj-rubric mb-2">Pays</p>
         <ul className="max-h-[min(14rem,40vh)] space-y-1.5 overflow-y-auto lg:max-h-[min(18rem,50vh)]">
-          {Object.entries(COUNTRIES).map(([code, name]) => {
-            const c = countsByCountry?.[code];
-            const label = c != null ? `${name} (${c})` : name;
+          {countryRows.map(({ code, label }) => {
             const on = filters.countries.includes(code);
             const flag = REGION_FLAG_EMOJI[code];
             return (

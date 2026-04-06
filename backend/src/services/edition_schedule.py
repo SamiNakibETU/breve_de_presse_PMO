@@ -1,5 +1,5 @@
 """
-Fenêtres de collecte par date de parution (Asia/Beirut) — MEMW spec §2.3.
+Fenêtres de collecte par date de parution (Asia/Beirut).
 - Édition du lundi : vendredi 18:00 → lundi 06:00 (Beyrouth).
 - Mardi–vendredi : J-1 18:00 → J 06:00 (Beyrouth).
 """

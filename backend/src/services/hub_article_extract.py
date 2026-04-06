@@ -23,6 +23,7 @@ from src.services.hub_article_jsonld import merge_longest_body_with_jsonld
 from src.services.hub_fetch import fetch_html_robust, sanitize_structlog_payload
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
 from src.services.hub_rss import is_cloudflare_interstitial_html
+from src.services.content_display_sanitize import sanitize_extracted_plain_text
 from src.services.smart_content import extract_main_text
 from src.services.web_scraper import (
     _extract_author_from_html,
@@ -255,4 +256,4 @@ async def extract_hub_article_page(
     strat = "+".join(strategy) if strategy else "none"
     if not body:
         return None, author, title, pub_date, strat
-    return body, author, title, pub_date, strat
+    return sanitize_extracted_plain_text(body), author, title, pub_date, strat

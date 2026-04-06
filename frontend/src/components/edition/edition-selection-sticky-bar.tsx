@@ -288,7 +288,7 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Link
               href={`/edition/${editionDate}/compose`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-accent bg-accent px-4 py-2 text-center text-[13px] font-semibold text-accent-foreground shadow-sm hover:opacity-95 sm:w-auto"
+              className="olj-btn-primary w-full px-4 py-2 text-[13px] sm:w-auto"
             >
               <span>Aller à la rédaction</span>
               <span

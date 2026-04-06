@@ -20,7 +20,7 @@ interface ArticleCardProps {
 }
 
 const EDITORIAL_TYPES = new Set(["opinion", "editorial", "tribune"]);
-/** News / reportage / interview : hiérarchie visuelle plus discrète (MEMW §2.5.4) */
+/** News / reportage / interview : hiérarchie visuelle plus discrète. */
 const NEWS_LIKE_TYPES = new Set(["news", "reportage", "interview"]);
 
 function typeLabel(type: string | null | undefined): string {

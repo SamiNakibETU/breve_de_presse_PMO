@@ -49,7 +49,7 @@ export interface Article {
   editorial_angle?: string | null;
   event_tags?: string[] | null;
   is_flagship?: boolean | null;
-  /** Analyse experte (pipeline MEMW v2). */
+  /** Analyse experte post-traduction. */
   analysis_bullets_fr?: string[] | null;
   author_thesis_explicit_fr?: string | null;
   factual_context_fr?: string | null;
@@ -333,7 +333,7 @@ export type EditionDetectionStatus =
   | "done"
   | "failed";
 
-/** MEMW v2 — édition */
+/** Édition (parution + fenêtre de collecte). */
 export interface Edition {
   id: string;
   publish_date: string;
@@ -346,7 +346,7 @@ export interface Edition {
   curator_run_id: string | null;
   pipeline_trace_id: string | null;
   generated_text: string | null;
-  /** Détection sujets LLM (migration MEMW v2). */
+  /** Détection des sujets (pipeline LLM). */
   detection_status?: EditionDetectionStatus;
   /** Corpus éditorial dans la fenêtre d’édition (GET by-date). */
   corpus_article_count?: number | null;

@@ -9,22 +9,37 @@ import uuid
 
 import cohere
 import structlog
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
 from src.models.article import Article
+from src.services.article_analysis_priority import EDITORIAL_TYPES_SQL_TUPLE
 from src.services.cost_estimate import estimate_cohere_embed_usage
+from src.services.editorial_article_types import EDITORIAL_CLUSTER_TYPES
+from src.services.media_revue_registry import get_media_revue_registry_ids
 from src.services.provider_usage_ledger import append_provider_usage_commit
 
 logger = structlog.get_logger()
-
-_EDITORIAL_TYPES = ("opinion", "editorial", "tribune", "analysis")
 
 BATCH_SIZE = 96
 MODEL = "embed-multilingual-v3.0"
 INPUT_TYPE_DOCUMENT = "search_document"
 INPUT_TYPE_QUERY = "search_query"
+
+
+def _band_order_case():
+    return case(
+        (Article.relevance_band == "high", 0),
+        (Article.relevance_band == "medium", 1),
+        (Article.relevance_band == "low", 2),
+        else_=3,
+    )
+
+
+def _editorial_type_order_case():
+    lowered = func.lower(func.coalesce(Article.article_type, ""))
+    return case((lowered.in_(EDITORIAL_TYPES_SQL_TUPLE), 0), else_=1)
 
 
 def _batch_vectors_from_cohere_embeddings(embeddings_obj) -> list[list[float]]:
@@ -122,17 +137,52 @@ class EmbeddingService:
             .where(Article.embedding.is_(None))
             .where(Article.is_syndicated.is_(False))
             .where(Article.canonical_article_id.is_(None))
-            .limit(500)
         )
         if edition_id is not None:
             stmt = stmt.where(Article.edition_id == edition_id)
         if settings.embed_only_editorial_types:
-            stmt = stmt.where(Article.article_type.in_(_EDITORIAL_TYPES))
+            stmt = stmt.where(Article.article_type.in_(tuple(EDITORIAL_CLUSTER_TYPES)))
+        if settings.embed_revue_registry_only:
+            reg = get_media_revue_registry_ids()
+            if not reg:
+                logger.warning("embedding.revue_registry_empty_skip")
+                return 0
+            stmt = stmt.where(Article.media_source_id.in_(tuple(reg)))
+
+        lim = settings.embedding_batch_limit
+        if settings.embed_prioritize_editorial_order:
+            band_ord = _band_order_case()
+            type_ord = _editorial_type_order_case()
+            stmt = stmt.order_by(
+                type_ord.asc(),
+                band_ord.asc(),
+                Article.collected_at.desc(),
+            )
+        else:
+            stmt = stmt.order_by(Article.collected_at.desc())
+        stmt = stmt.limit(lim)
+
         result = await db.execute(stmt)
-        articles = result.scalars().all()
+        articles = list(result.scalars().all())
 
         if not articles:
             return 0
+
+        ed_count = sum(
+            1
+            for a in articles
+            if (a.article_type or "").strip().lower() in EDITORIAL_CLUSTER_TYPES
+        )
+        logger.info(
+            "embedding.batch_selected",
+            count=len(articles),
+            editorial_types_in_batch=ed_count,
+            non_editorial_in_batch=len(articles) - ed_count,
+            embed_only_editorial_types=settings.embed_only_editorial_types,
+            embed_revue_registry_only=settings.embed_revue_registry_only,
+            embedding_batch_limit=lim,
+            edition_id=str(edition_id) if edition_id else None,
+        )
 
         texts = [
             f"{a.title_fr or ''} {a.summary_fr or ''}".strip()

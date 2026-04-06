@@ -21,13 +21,11 @@ from src.config import get_settings
 from src.models.article import Article
 from src.models.cluster import TopicCluster
 from src.services.country_utils import REGIONAL_COUNTRY_CODES
+from src.services.editorial_article_types import EDITORIAL_CLUSTER_TYPES
 from src.services.editorial_scope import is_article_eligible_for_clustering
 
 logger = structlog.get_logger()
 
-EDITORIAL_CLUSTER_TYPES: frozenset[str] = frozenset({
-    "opinion", "editorial", "tribune", "analysis",
-})
 
 def _refine_mega_clusters(
     labels: list[int],

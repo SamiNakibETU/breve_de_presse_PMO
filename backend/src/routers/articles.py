@@ -22,6 +22,7 @@ from src.schemas.articles import (
     ArticleStatsResponse,
     MediaSourceResponse,
 )
+from src.services.article_analysis_display import compute_article_analysis_display
 from src.services.country_utils import country_label_fr, normalize_country_code
 from src.services.media_sources_health_payload import build_media_sources_health_payload
 from src.services.olj_taxonomy import load_topics_of_day
@@ -109,6 +110,7 @@ def _to_response(
         topics_of_day=topics_day,
     )
     olj_ids = art.olj_topic_ids if isinstance(art.olj_topic_ids, list) else None
+    ad_state, ad_hint = compute_article_analysis_display(art)
     return ArticleResponse(
         id=str(art.id),
         title_fr=art.title_fr,
@@ -178,6 +180,8 @@ def _to_response(
         retention_reason=getattr(art, "retention_reason", None),
         scrape_method=getattr(art, "scrape_method", None),
         scrape_cascade_attempts=getattr(art, "scrape_cascade_attempts", None),
+        analysis_display_state=ad_state,
+        analysis_display_hint_fr=ad_hint,
     )
 
 
@@ -292,7 +296,18 @@ async def list_articles(
         .group_by(MediaSource.country_code)
     )
     cc_rows = (await db.execute(cc_stmt)).all()
-    counts_by_country = {str(row[0]): int(row[1]) for row in cc_rows if row[0]}
+    merged_cc: dict[str, int] = defaultdict(int)
+    for raw_cc, cnt in cc_rows:
+        if raw_cc is None:
+            continue
+        cc = normalize_country_code(str(raw_cc))
+        merged_cc[cc] += int(cnt or 0)
+    counts_by_country = dict(
+        sorted(merged_cc.items(), key=lambda x: (-x[1], x[0]))
+    )
+    country_labels_fr_list = {
+        code: country_label_fr(code) for code in counts_by_country
+    }
 
     if sort == "date":
         query = query.order_by(Article.collected_at.desc())
@@ -344,6 +359,7 @@ async def list_articles(
         articles=articles,
         total=total,
         counts_by_country=counts_by_country or None,
+        country_labels_fr=country_labels_fr_list if counts_by_country else None,
     )
 
 

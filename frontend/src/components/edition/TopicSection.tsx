@@ -10,11 +10,37 @@ import {
 } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { countryCodesFromPreviews } from "@/lib/topic-country-codes";
-import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
+import type {
+  ArticleAnalysisDisplayState,
+  EditionTopic,
+  TopicArticlePreview,
+} from "@/lib/types";
 import { decodeHtmlEntities } from "@/lib/text-utils";
+import { cn } from "@/lib/utils";
 
 /** Nombre d’articles visibles par défaut avant « + N autres regards ». */
 export const VISIBLE_PER_TOPIC = 3;
+
+function analysisQueueBadge(preview: TopicArticlePreview): string | null {
+  if (preview.analysis_display_state === "complete") {
+    return null;
+  }
+  const hint = preview.analysis_display_hint_fr?.trim();
+  if (hint) {
+    return hint;
+  }
+  const state = preview.analysis_display_state as ArticleAnalysisDisplayState | null | undefined;
+  if (state === "pending") {
+    return "Analyse en attente";
+  }
+  if (state === "skipped_no_summary") {
+    return "Sans analyse (résumé)";
+  }
+  if (state === "skipped_out_of_scope") {
+    return "Hors périmètre analyse";
+  }
+  return null;
+}
 
 function previewGeneratedText(raw: string, maxChars = 380): string {
   const t = raw.replace(/\r\n/g, "\n").trim();
@@ -112,6 +138,18 @@ function TopicArticleLine({
                   <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
                 ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
+                {(() => {
+                  const b = analysisQueueBadge(preview);
+                  if (!b) return null;
+                  return (
+                    <span
+                      className="inline-flex max-w-[min(100%,14rem)] truncate rounded border border-border/60 bg-muted/30 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+                      title={b}
+                    >
+                      {b}
+                    </span>
+                  );
+                })()}
               </>
             ) : (
               <>
@@ -136,6 +174,18 @@ function TopicArticleLine({
                   <span className="text-[12px] text-muted-foreground">· {preview.author.trim()}</span>
                 ) : null}
                 {typeFr ? <span className="olj-type-chip">{typeFr}</span> : null}
+                {(() => {
+                  const b = analysisQueueBadge(preview);
+                  if (!b) return null;
+                  return (
+                    <span
+                      className="inline-flex max-w-[min(100%,14rem)] truncate rounded border border-border/60 bg-muted/30 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+                      title={b}
+                    >
+                      {b}
+                    </span>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -310,8 +360,19 @@ export function TopicSection({
 
   return (
     <section className={sectionClass}>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 lg:items-start">
-        <div className="min-w-0 space-y-4">
+      <div
+        className={cn(
+          "grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10",
+          mode === "summary" ? "lg:items-stretch" : "lg:items-start",
+        )}
+      >
+        <div className="min-w-0">
+          <div
+            className={cn(
+              "space-y-4",
+              mode === "summary" && "lg:sticky lg:top-28 lg:z-10",
+            )}
+          >
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span
               className="shrink-0 tabular-nums text-[11px] font-semibold text-muted-foreground"
@@ -512,6 +573,7 @@ export function TopicSection({
               </Link>
             </p>
           )}
+          </div>
         </div>
 
         <div className="min-w-0 lg:border-l lg:border-border lg:pl-8">

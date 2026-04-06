@@ -56,6 +56,16 @@ class SchedulerJobResponse(BaseModel):
     )
 
 
+class PipelineBatchLimits(BaseModel):
+    """Plafonds batch (liens coûts / files d’attente) — exposés pour la Régie."""
+
+    article_analysis_batch_limit: int
+    embedding_batch_limit: int
+    translation_pipeline_batch_limit: int
+    embed_only_editorial_types: bool
+    embed_revue_registry_only: bool
+
+
 class StatusResponse(BaseModel):
     status: str
     environment: str
@@ -79,6 +89,10 @@ class StatusResponse(BaseModel):
     pipeline_heartbeat_age_seconds: float | None = Field(
         default=None,
         description="Âge du dernier heartbeat lease (s) si lease actif ; null sinon.",
+    )
+    batch_limits: Optional[PipelineBatchLimits] = Field(
+        default=None,
+        description="Plafonds configurés (cohérence coûts / badges « hors batch »).",
     )
 
 

@@ -16,7 +16,12 @@ import { articleDetailQueryKey } from "@/contexts/article-reader";
 import { api } from "@/lib/api";
 import type { Article } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
-import { editorialBodySections } from "@/lib/editorial-body";
+import { normalizeBulletLine } from "@/lib/analysis-text-normalize";
+import {
+  editorialBodySections,
+  sanitizeTranslatedBodyForDisplay,
+} from "@/lib/editorial-body";
+import { cn } from "@/lib/utils";
 import {
   decodeHtmlEntities,
   formatQuoteForDisplay,
@@ -209,6 +214,21 @@ export default function ArticleFullPage() {
             </div>
           </header>
 
+          {a.analysis_display_hint_fr &&
+          a.analysis_display_state &&
+          a.analysis_display_state !== "complete" ? (
+            <p
+              className={cn(
+                "mb-4 rounded-md border px-2.5 py-1.5 text-[11px] leading-snug",
+                a.analysis_display_state.startsWith("skipped")
+                  ? "border-border-light bg-muted/25 text-muted-foreground"
+                  : "border-accent/20 bg-accent/5 text-foreground-body",
+              )}
+            >
+              {a.analysis_display_hint_fr}
+            </p>
+          ) : null}
+
           {(a.analysis_bullets_fr?.length ||
             a.author_thesis_explicit_fr?.trim() ||
             a.factual_context_fr?.trim()) ? (
@@ -238,28 +258,18 @@ export default function ArticleFullPage() {
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Idées majeures
                     </p>
-                    <ol className="list-none space-y-3 text-[13px] text-foreground-body">
-                      {a.analysis_bullets_fr.map((b, i) => (
-                        <li key={i} className="flex gap-2 whitespace-pre-wrap">
-                          <span
-                            className="mt-0.5 text-[11px] font-semibold tabular-nums text-accent"
-                            aria-hidden
-                          >
-                            {i + 1}.
-                          </span>
-                          <span
-                            className="mt-0.5 shrink-0 text-[0.75rem] leading-none"
-                            aria-hidden
-                          >
-                            {/^(fait|contexte|chronologie)/i.test(b.trim())
-                              ? "◆"
-                              : /(opinion|thèse|avis|position)/i.test(b.trim())
-                                ? "◇"
-                                : "•"}
-                          </span>
-                          <span>{b}</span>
-                        </li>
-                      ))}
+                    <ol className="list-decimal space-y-3 pl-5 text-[13px] text-foreground-body marker:font-semibold marker:text-accent">
+                      {a.analysis_bullets_fr.map((b, i) => {
+                        const line = normalizeBulletLine(b);
+                        if (!line) {
+                          return null;
+                        }
+                        return (
+                          <li key={i} className="whitespace-pre-wrap pl-1">
+                            {line}
+                          </li>
+                        );
+                      })}
                     </ol>
                   </div>
                 ) : null}
@@ -330,7 +340,9 @@ export default function ArticleFullPage() {
                   Corps traduit tel qu’enregistré après la chaîne de traitement.
                 </p>
                 <div className="font-[family-name:var(--font-serif)] text-[16px] leading-[1.85] text-foreground-body">
-                  {editorialBodySections(a.content_translated_fr!.trim()).map(
+                  {editorialBodySections(
+                    sanitizeTranslatedBodyForDisplay(a.content_translated_fr!.trim()),
+                  ).map(
                     (sec, si) => (
                       <div
                         key={si}

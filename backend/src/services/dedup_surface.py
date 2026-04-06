@@ -1,5 +1,5 @@
 """
-Déduplication surface — MinHash LSH sur texte FR (MEMW spec §3.2 passe 1).
+Déduplication en surface — MinHash LSH sur texte français (première passe).
 """
 
 from __future__ import annotations

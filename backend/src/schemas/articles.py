@@ -1,7 +1,14 @@
 from datetime import datetime
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+ArticleAnalysisDisplayState = Literal[
+    "complete",
+    "pending",
+    "skipped_no_summary",
+    "skipped_out_of_scope",
+]
 
 
 class ArticleIdBatchRequest(BaseModel):
@@ -70,12 +77,24 @@ class ArticleResponse(BaseModel):
     retention_reason: Optional[str] = None
     scrape_method: Optional[str] = None
     scrape_cascade_attempts: Optional[int] = None
+    analysis_display_state: Optional[ArticleAnalysisDisplayState] = Field(
+        default=None,
+        description="État dérivé pour badges analyse experte (UI).",
+    )
+    analysis_display_hint_fr: Optional[str] = Field(
+        default=None,
+        description="Court libellé FR pour tooltip / badge (optionnel).",
+    )
 
 
 class ArticleListResponse(BaseModel):
     articles: list[ArticleResponse]
     total: int
     counts_by_country: Optional[dict[str, int]] = None
+    country_labels_fr: Optional[dict[str, str]] = Field(
+        default=None,
+        description="Libellés FR canoniques pour chaque code ISO présent dans counts_by_country.",
+    )
 
 
 class ArticleIdsRequest(BaseModel):

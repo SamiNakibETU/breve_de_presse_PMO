@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useEffect, useRef } from "react";
 import { EditionDateRail } from "@/components/edition/edition-date-rail";
+import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
@@ -387,9 +388,7 @@ export default function EditionSommairePage() {
         void api
           .editionTopicSelection(editionId, topicId, ids)
           .then(() => {
-            void qc.invalidateQueries({
-              queryKey: ["editionSelections", editionId],
-            });
+            /* état local via Zustand ; évite refetch lourd à chaque toggle */
           })
           .catch(() => {
             /* erreur réseau : l’état local reste ; prochain refetch corrige */
@@ -437,9 +436,7 @@ export default function EditionSommairePage() {
             extra_selected_article_ids: [...ids],
           })
           .then(() => {
-            void qc.invalidateQueries({
-              queryKey: ["editionSelections", editionId],
-            });
+            /* idem sélections sujets */
           })
           .catch(() => {
             /* erreur réseau : l’état local reste ; prochain refetch corrige */
@@ -619,30 +616,6 @@ export default function EditionSommairePage() {
                 </nav>
               ) : null}
             </div>
-            {edition && editionWindowCompact ? (
-              <div className="mt-2 max-w-3xl space-y-2">
-                <p
-                  className="text-[12px] leading-snug text-foreground-body"
-                  title={editionWindowLabel ?? undefined}
-                >
-                  <span className="font-semibold text-foreground">Période couverte (Beyrouth) :</span>{" "}
-                  {editionWindowCompact}
-                </p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Les articles listés correspondent à la date de parution chez le média dans cette plage (mar.–ven. :
-                  veille 18h → jour J 6h ; lundi : week-end).{" "}
-                  <Link href="/regie/pipeline" className="olj-link-action">
-                    Horaires automatiques
-                  </Link>
-                </p>
-              </div>
-            ) : null}
-            {edition ? (
-              <p className="mt-1.5 text-[11px] tabular-nums text-muted-foreground">
-                {stats.articles} article{stats.articles > 1 ? "s" : ""} · {stats.countries} pays · {stats.developments}{" "}
-                sujet{stats.developments > 1 ? "s" : ""} au sommaire (max. {edition.target_topics_max})
-              </p>
-            ) : null}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
             {pipeline ? (
@@ -671,6 +644,15 @@ export default function EditionSommairePage() {
             ) : null}
           </div>
         </div>
+
+        {edition ? (
+          <EditionMetaStrip
+            windowCompact={editionWindowCompact}
+            titleAttr={editionWindowLabel}
+            statsSummary={`${stats.articles} article${stats.articles > 1 ? "s" : ""} · ${stats.countries} pays · ${stats.developments} sujet${stats.developments > 1 ? "s" : ""} au sommaire (max. ${edition.target_topics_max})`}
+            vigieHint={vigieGlobaleHint}
+          />
+        ) : null}
 
         {date ? (
           <div className="mt-3 space-y-2 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
@@ -722,10 +704,6 @@ export default function EditionSommairePage() {
               </div>
             </details>
           </div>
-        ) : null}
-
-        {vigieGlobaleHint ? (
-          <p className="mt-3 text-[10px] leading-snug text-muted-foreground">{vigieGlobaleHint}</p>
         ) : null}
 
         {detectionMessage ? (
@@ -825,6 +803,30 @@ export default function EditionSommairePage() {
 
           {!fullyEmpty && (
             <div className="mt-6 space-y-14">
+              <div
+                className="max-w-4xl rounded-xl border border-border/50 bg-muted/10 p-4 sm:p-5"
+                aria-label="Rôles des deux zones du sommaire"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Lecture du sommaire
+                </p>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-foreground">Grands sujets (en tête)</p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                      Ordre du numéro et coches qui alimentent la rédaction, l’export et le bandeau de sélection en bas
+                      d’écran.
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-foreground">Regroupements (plus bas)</p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                      Textes rapprochés par similarité pour comparer des angles. Les coches servent de complément pour
+                      la couverture affichée sur le sommaire.
+                    </p>
+                  </div>
+                </div>
+              </div>
               {hasTopicFeed ? (
                 <section>
                   <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>

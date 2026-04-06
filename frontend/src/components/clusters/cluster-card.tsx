@@ -13,9 +13,9 @@ const MAX_SECOND_VOICE = 200;
 const MAX_THIRD_VOICE = 180;
 
 const VOICE_HINTS: readonly [string, string, string] = [
-  "Voix la plus récente dans ce dossier",
-  "Autre média ou autre formulation",
-  "Troisième angle sur le même thème",
+  "Voix 1 — entrée la plus récente",
+  "Voix 2 — contrepoint ou angle voisin",
+  "Voix 3 — prolongation ou écho régional",
 ];
 
 const ARTICLE_TYPE_FR: Record<string, string> = {

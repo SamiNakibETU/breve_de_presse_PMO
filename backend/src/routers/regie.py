@@ -1,4 +1,4 @@
-"""API régie — logs pipeline / LLM (auth Bearer), feedback dédup (MEMW Sprint 8)."""
+"""API régie — journaux pipeline / LLM (auth Bearer), feedback déduplication."""
 
 from __future__ import annotations
 
