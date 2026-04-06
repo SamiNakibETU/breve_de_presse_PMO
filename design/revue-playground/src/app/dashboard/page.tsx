@@ -83,6 +83,22 @@ export default function DashboardPage() {
     [clusterRows, countryFilter, emergingOnly],
   );
 
+  const byCountryForStatsPanel = useMemo(() => {
+    if (!stats) {
+      return {};
+    }
+    if (Object.keys(stats.counts_by_country_code ?? {}).length > 0) {
+      const out: Record<string, number> = {};
+      for (const [code, n] of Object.entries(stats.counts_by_country_code ?? {})) {
+        const label =
+          stats.country_labels_fr?.[code] ?? COUNTRY_LABELS_FR[code] ?? code;
+        out[label] = (out[label] ?? 0) + n;
+      }
+      return out;
+    }
+    return { ...stats.by_country };
+  }, [stats]);
+
   const dateStr = formatTodayBeirutLongFr();
   const editionDate = todayBeirutIsoDate();
   const subjectCount = filteredClusters.length;
@@ -90,6 +106,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3">
+        <p className="olj-rubric">Vue régionale</p>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           Panorama
         </h1>
@@ -100,7 +117,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/edition/${editionDate}`}
-            className="inline-flex items-center rounded-md border border-accent bg-accent px-4 py-2 text-[13px] font-semibold text-accent-foreground hover:opacity-90"
+            className="olj-btn-primary text-[13px] px-4 py-2"
           >
             Édition du jour
           </Link>
@@ -121,20 +138,7 @@ export default function DashboardPage() {
 
       {stats ? (
         <StatsDistributionPanels
-          byCountry={
-            Object.keys(stats.counts_by_country_code ?? {}).length > 0
-              ? Object.fromEntries(
-                  Object.entries(stats.counts_by_country_code ?? {}).map(
-                    ([code, n]) => [
-                      stats.country_labels_fr?.[code] ??
-                        COUNTRY_LABELS_FR[code] ??
-                        code,
-                      n,
-                    ],
-                  ),
-                )
-              : stats.by_country
-          }
+          byCountry={byCountryForStatsPanel}
           byLanguage={stats.by_language}
         />
       ) : null}

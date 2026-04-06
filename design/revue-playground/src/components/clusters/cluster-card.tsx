@@ -12,10 +12,10 @@ const MAX_COUNTRIES_TEXT = 8;
 const MAX_SECOND_VOICE = 200;
 const MAX_THIRD_VOICE = 180;
 
-const VOICE_LABELS: readonly [string, string, string] = [
-  "Fil direct",
-  "Autre titre",
-  "À lire aussi",
+const VOICE_HINTS: readonly [string, string, string] = [
+  "Voix 1 — entrée la plus récente",
+  "Voix 2 — contrepoint ou angle voisin",
+  "Voix 3 — prolongation ou écho régional",
 ];
 
 const ARTICLE_TYPE_FR: Record<string, string> = {
@@ -129,7 +129,7 @@ function VoiceSnippetRow({
   preview: ThesisPreviewItem & { thesis: string };
   mode: "lead" | "quote";
 }) {
-  const label = VOICE_LABELS[voiceIndex - 1];
+  const hint = VOICE_HINTS[voiceIndex - 1];
   const body =
     mode === "lead"
       ? preview.thesis
@@ -140,30 +140,33 @@ function VoiceSnippetRow({
 
   return (
     <div
-      className="border-b border-border-light px-3 py-3 last:border-b-0 sm:px-4"
+      className="grid grid-cols-1 gap-2 border-b border-border/80 px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(0,7rem)_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-3.5"
       role="group"
       aria-labelledby={`cluster-${clusterId}-v${voiceIndex}-lbl`}
     >
-      <p
-        id={`cluster-${clusterId}-v${voiceIndex}-lbl`}
-        className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground"
-      >
-        {label}
-      </p>
-      <div className="mt-2 border-l-2 border-accent/30 pl-3">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span
+          id={`cluster-${clusterId}-v${voiceIndex}-lbl`}
+          className="inline-flex w-fit rounded-full border border-accent/40 bg-accent/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent"
+        >
+          Voix {voiceIndex}
+        </span>
+        <span className="text-[10px] leading-snug text-muted-foreground">{hint}</span>
+      </div>
+      <div className="min-w-0">
         {mode === "lead" ? (
           <p
-            className="text-[13px] leading-relaxed text-foreground-body line-clamp-4"
+            className="text-[14px] leading-relaxed text-foreground-body line-clamp-4"
             title={preview.thesis}
           >
             {body}
           </p>
         ) : (
           <p
-            className="font-[family-name:var(--font-serif)] text-[13px] italic leading-relaxed text-foreground"
+            className="font-[family-name:var(--font-serif)] text-[13px] italic leading-relaxed text-foreground-subtle"
             title={preview.thesis}
           >
-            {body}
+            «&nbsp;{body}&nbsp;»
           </p>
         )}
         <PreviewAttribution p={preview} />
@@ -234,7 +237,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
         });
       }}
     >
-      <article className="flex h-full flex-col rounded-md border border-border bg-card p-4 transition-colors hover:border-foreground/15 sm:p-5">
+      <article className="flex h-full flex-col rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:border-info/40 hover:shadow-md sm:p-6">
         {cluster.is_emerging ? (
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
             Nouveau sujet
@@ -249,11 +252,11 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
 
         <p className="mt-4 text-[12px] leading-relaxed text-foreground-body">{statsSentence}</p>
 
-        <div className="mt-4 flex min-h-0 flex-1 flex-col">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col">
           {voiceRows.length > 0 ? (
             <section
-              className="overflow-hidden rounded-md border border-border bg-muted/15"
-              aria-label="Aperçus des unes de ce dossier"
+              className="overflow-hidden rounded-lg border border-border bg-surface-warm/25"
+              aria-label="Trois voix maximum : aperçus des thèses"
             >
               {voiceRows.map(({ idx, p, mode }) => (
                 <VoiceSnippetRow
@@ -266,7 +269,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
               ))}
             </section>
           ) : (
-            <section className="rounded-md border border-dashed border-border bg-muted/15 px-3 py-3">
+            <section className="rounded-lg border border-border border-dashed bg-muted/20 px-3 py-4">
               <p className="text-[13px] italic text-muted-foreground">
                 Aucun aperçu de thèse pour ce dossier. Ouvrez-le pour lire les articles complets.
               </p>
