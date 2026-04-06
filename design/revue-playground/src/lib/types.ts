@@ -109,9 +109,7 @@ export interface MediaSourcesHealthResponse {
   critical_p0_sources_down?: number;
   /** Note API : agrégation des fiches médias doublon (IDs alias) */
   translation_metrics_note_fr?: string;
-  /** Présent si `revue_registry_only=true` : filtre registre revue OLJ. */
   revue_registry_only?: boolean;
-  /** Nombre d’IDs dans le registre JSON (référence), pas forcément le nombre de lignes retournées. */
   revue_registry_count?: number;
 }
 
@@ -128,9 +126,7 @@ export interface Stats {
   countries_covered: number;
   by_status: Record<string, number>;
   by_country: Record<string, number>;
-  /** Compteurs par code ISO2 (source de vérité agrégats). */
   counts_by_country_code?: Record<string, number>;
-  /** Libellés FR pour les codes présents dans counts_by_country_code. */
   country_labels_fr?: Record<string, string>;
   by_type: Record<string, number>;
   by_language: Record<string, number>;
@@ -196,7 +192,7 @@ export interface TopicCluster {
   avg_relevance: number;
   latest_article_at: string | null;
   is_active: boolean;
-  /** Codes pays ISO2 (régionaux prioritaires pour le Panorama). */
+  /** Codes pays ISO2 */
   countries: string[];
   is_emerging?: boolean;
   thesis_previews?: ThesisPreviewItem[] | string[];
@@ -215,7 +211,6 @@ export interface ClusterArticle {
   thesis_summary_fr?: string | null;
   summary_fr: string | null;
   source_name: string | null;
-  /** Libellé pays (FR) pour affichage. */
   country: string;
   country_code: string;
   published_at: string | null;
@@ -231,10 +226,8 @@ export interface ClusterArticle {
 export interface ClusterArticlesResponse {
   cluster_id: string;
   cluster_label: string | null;
-  /** Clés = codes ISO2. */
   articles_by_country: Record<string, ClusterArticle[]>;
   total_articles: number;
-  /** Codes pays régionaux présents dans le cluster. */
   countries: string[];
   international_sources?: string[];
 }

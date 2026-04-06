@@ -24,7 +24,12 @@ from src.schemas.clusters import (
 )
 from src.services.cluster_insights import enrich_cluster_insights
 from src.services.cluster_labeller import label_clusters
-from src.services.clustering_service import ClusteringService, REGIONAL_COUNTRIES
+from src.services.clustering_service import ClusteringService
+from src.services.country_utils import (
+    REGIONAL_COUNTRY_CODES,
+    country_label_fr,
+    normalize_country_code,
+)
 from src.services.curator_service import _cluster_display_label
 from src.services.embedding_service import EmbeddingService
 
@@ -101,6 +106,7 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
             Article.article_type,
             Article.author,
             MediaSource.country,
+            MediaSource.country_code,
             Article.source_language,
         )
         .join(MediaSource, Article.media_source_id == MediaSource.id)
@@ -124,6 +130,7 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         article_type,
         author_raw,
         media_country,
+        media_country_code,
         source_language,
     ) in thesis_rows:
         if cid is None or not thesis or not str(thesis).strip():
@@ -138,6 +145,9 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         thesis_dedup[cid].add(key)
         lang = (str(source_language).strip().lower()[:12] if source_language else None)
         lang = lang or None
+        cc_norm = normalize_country_code(
+            str(media_country_code) if media_country_code else None
+        )
         cur.append(
             ThesisPreviewItem(
                 thesis=t,
@@ -147,28 +157,31 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
                 author=clean_author_for_display(author_raw),
                 country=(str(media_country).strip() if media_country else None)
                 or None,
+                country_code=cc_norm,
                 source_language=lang,
             )
         )
 
-    # Une seule requête : (cluster_id, country) distincts — évite N+1 chargement d'articles
+    # Une seule requête : (cluster_id, country_code) distincts — clés ISO2
     countries_stmt = (
-        select(Article.cluster_id, MediaSource.country)
+        select(Article.cluster_id, MediaSource.country_code)
         .join(MediaSource, Article.media_source_id == MediaSource.id)
         .where(Article.cluster_id.in_(cluster_ids))
-        .where(MediaSource.country.isnot(None))
+        .where(MediaSource.country_code.isnot(None))
         .distinct()
     )
     countries_result = await db.execute(countries_stmt)
     by_cluster_all: dict[UUID, set[str]] = defaultdict(set)
-    for cid, country in countries_result.all():
-        if cid is not None and country:
-            by_cluster_all[cid].add(country)
+    for cid, raw_cc in countries_result.all():
+        if cid is None:
+            continue
+        cc = normalize_country_code(str(raw_cc) if raw_cc else None)
+        by_cluster_all[cid].add(cc)
 
     cluster_responses = []
     for cluster in clusters:
         all_countries = by_cluster_all.get(cluster.id, set())
-        regional_sorted = sorted(all_countries & REGIONAL_COUNTRIES)
+        regional_sorted = sorted(all_countries & REGIONAL_COUNTRY_CODES)
         country_count = (
             len(regional_sorted) if regional_sorted else len(all_countries)
         )
@@ -235,19 +248,20 @@ async def get_cluster_articles(
 
     by_country: dict[str, list] = {}
     for article in articles:
-        country = (
-            article.media_source.country
+        cc = (
+            normalize_country_code(article.media_source.country_code)
             if article.media_source
-            else "Inconnu"
+            else "XX"
         )
-        if country not in by_country:
-            by_country[country] = []
+        label = country_label_fr(cc)
+        if cc not in by_country:
+            by_country[cc] = []
         framing = article.framing_json if isinstance(article.framing_json, dict) else None
         framing_line = None
         if framing:
             framing_line = framing.get("one_line_fr") or framing.get("prescription")
 
-        by_country[country].append(
+        by_country[cc].append(
             {
                 "id": str(article.id),
                 "title_fr": article.title_fr,
@@ -255,7 +269,8 @@ async def get_cluster_articles(
                 "thesis_summary_fr": article.thesis_summary_fr,
                 "summary_fr": article.summary_fr,
                 "source_name": article.media_source.name if article.media_source else None,
-                "country": country,
+                "country": label,
+                "country_code": cc,
                 "published_at": article.published_at.isoformat() if article.published_at else None,
                 "article_type": article.article_type,
                 "author": clean_author_for_display(article.author),
@@ -269,8 +284,8 @@ async def get_cluster_articles(
             }
         )
 
-    regional = [c for c in by_country.keys() if c in REGIONAL_COUNTRIES]
-    other = [c for c in by_country.keys() if c not in REGIONAL_COUNTRIES]
+    regional = [c for c in by_country if c in REGIONAL_COUNTRY_CODES]
+    other = [c for c in by_country if c not in REGIONAL_COUNTRY_CODES]
 
     title_candidates = [(a.title_fr or a.title_original or "") for a in articles]
     cluster_label_out = _cluster_display_label(cluster, title_candidates)

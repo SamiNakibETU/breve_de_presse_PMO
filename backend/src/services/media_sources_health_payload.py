@@ -13,6 +13,7 @@ from src.models.article import Article
 from src.models.collection_log import CollectionLog
 from src.models.media_source import MediaSource
 from src.services.media_source_aliases import equivalent_media_source_ids
+from src.services.media_revue_registry import get_media_revue_registry_ids
 from src.services.source_health_metrics import (
     fetch_translation_24h_counts_by_source,
     sum_translation_24h_for_aliases,
@@ -82,7 +83,11 @@ def _pick_latest_log_among_ids(
     return max(candidates, key=lambda x: x.completed_at or datetime.min.replace(tzinfo=timezone.utc))
 
 
-async def build_media_sources_health_payload(db: AsyncSession) -> dict:
+async def build_media_sources_health_payload(
+    db: AsyncSession,
+    *,
+    revue_registry_only: bool = False,
+) -> dict:
     """Même structure que la route FastAPI `media_sources_health`."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=72)
     translated_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
@@ -90,6 +95,10 @@ async def build_media_sources_health_payload(db: AsyncSession) -> dict:
         select(MediaSource).where(MediaSource.is_active.is_(True)).order_by(MediaSource.name)
     )
     sources = result.scalars().all()
+    revue_ids: frozenset[str] | None = None
+    if revue_registry_only:
+        revue_ids = get_media_revue_registry_ids()
+        sources = [s for s in sources if s.id in revue_ids]
     counts_72h_raw, tr_by_src, last_logs_by_mid = await asyncio.gather(
         _fetch_article_counts_72h_by_source_id(db, cutoff),
         fetch_translation_24h_counts_by_source(db, translated_cutoff),
@@ -178,7 +187,7 @@ async def build_media_sources_health_payload(db: AsyncSession) -> dict:
         for r in out
         if r.get("tier_band") == "P0" and r.get("health_status") == "dead"
     ]
-    return {
+    payload: dict = {
         "sources": out,
         "window_hours": 72,
         "critical_p0_sources_down": len(p0_dead),
@@ -187,3 +196,7 @@ async def build_media_sources_health_payload(db: AsyncSession) -> dict:
             "les compteurs ci-dessous agrègent toutes ces fiches pour refléter l’activité réelle."
         ),
     }
+    if revue_registry_only and revue_ids is not None:
+        payload["revue_registry_only"] = True
+        payload["revue_registry_count"] = len(revue_ids)
+    return payload

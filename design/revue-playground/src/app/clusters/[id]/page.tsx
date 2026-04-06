@@ -5,9 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { countryLabelFr } from "@/lib/country-labels-fr";
 import { displayClusterTitle } from "@/lib/cluster-display";
 import { reviewPagePath } from "@/lib/review-url";
-import { countryLabelFr } from "@/lib/country-labels-fr";
 import type { ClusterArticlesResponse } from "@/lib/types";
 
 export default function ClusterDetailPage() {

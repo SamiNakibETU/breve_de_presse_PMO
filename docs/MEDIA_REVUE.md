@@ -77,6 +77,12 @@ python -m src.scripts.validate_rss_feeds --output data/RSS_VALIDATION_REPORT.jso
 python -m src.scripts.export_media_sources_health --output data/MEDIA_HEALTH_EXPORT.json --csv data/MEDIA_HEALTH_EXPORT.csv
 ```
 
+### API Régie : périmètre « revue » vs base complète
+
+- **`GET /api/media-sources/health`** : par défaut, toutes les sources **actives** en base (y compris hors liste CSV si elles existent encore en DB).
+- **`GET /api/media-sources/health?revue_registry_only=true`** : uniquement les IDs présents dans **`backend/data/MEDIA_REVUE_REGISTRY.json`** (liste validée OLJ). La page Régie **Santé des sources** utilise ce mode pour aligner chiffres et périmètre rédactionnel.
+- Construction du payload : `backend/src/services/media_sources_health_payload.py` (réutilisé par les scripts d’export).
+
 ## 5 quinte — Réconciliation CSV ↔ base
 
 ```bash

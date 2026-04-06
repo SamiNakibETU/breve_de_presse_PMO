@@ -14,6 +14,7 @@ class ThesisPreviewItem(BaseModel):
     article_type: str | None = None
     author: str | None = None
     country: str | None = None
+    country_code: str | None = None
     source_language: str | None = None
 
 

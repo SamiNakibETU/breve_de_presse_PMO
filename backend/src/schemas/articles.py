@@ -94,3 +94,25 @@ class MediaSourceResponse(BaseModel):
     paywall: str
     is_active: bool
     last_collected_at: Optional[datetime] = None
+
+
+class ArticleStatsResponse(BaseModel):
+    """GET /api/stats — vigie 24 h UTC (articles collectés)."""
+
+    total_collected_24h: int
+    total_translated: int
+    total_needs_review: int
+    total_errors: int
+    total_translation_abandoned: int = 0
+    total_pending: int
+    total_no_content: int
+    articles_with_embedding_24h: int = 0
+    articles_with_olj_topics_24h: int = 0
+    countries_covered: int
+    by_status: dict[str, int]
+    by_country: dict[str, int]
+    counts_by_country_code: dict[str, int] = Field(default_factory=dict)
+    country_labels_fr: dict[str, str] = Field(default_factory=dict)
+    by_type: dict[str, int]
+    by_language: dict[str, int]
+    by_media_source_top: list[dict[str, Any]] = Field(default_factory=list)

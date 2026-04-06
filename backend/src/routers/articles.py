@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Annotated, Optional
@@ -18,8 +19,10 @@ from src.schemas.articles import (
     ArticleIdsRequest,
     ArticleListResponse,
     ArticleResponse,
+    ArticleStatsResponse,
     MediaSourceResponse,
 )
+from src.services.country_utils import country_label_fr, normalize_country_code
 from src.services.media_sources_health_payload import build_media_sources_health_payload
 from src.services.olj_taxonomy import load_topics_of_day
 from src.services.relevance import explain_editorial_relevance
@@ -484,9 +487,17 @@ async def get_article(article_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/media-sources/health")
-async def media_sources_health(db: AsyncSession = Depends(get_db)):
+async def media_sources_health(
+    db: AsyncSession = Depends(get_db),
+    revue_registry_only: bool = Query(
+        False,
+        description="Limiter aux IDs présents dans MEDIA_REVUE_REGISTRY.json (liste revue OLJ).",
+    ),
+):
     """Santé des sources : articles collectés sur 72 h (MEMW)."""
-    return await build_media_sources_health_payload(db)
+    return await build_media_sources_health_payload(
+        db, revue_registry_only=revue_registry_only
+    )
 
 
 @router.get("/media-sources", response_model=list[MediaSourceResponse])
@@ -514,7 +525,7 @@ async def list_media_sources(db: AsyncSession = Depends(get_db)):
     ]
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=ArticleStatsResponse)
 async def get_stats(db: AsyncSession = Depends(get_db)):
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
 
@@ -548,17 +559,33 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     ).scalar() or 0
 
-    by_country_rows = (
+    by_country_code_rows = (
         await db.execute(
-            select(MediaSource.country, func.count(Article.id))
+            select(MediaSource.country_code, func.count(Article.id))
             .join(MediaSource, Article.media_source_id == MediaSource.id)
             .where(
                 Article.collected_at >= cutoff,
                 MediaSource.is_active.is_(True),
             )
-            .group_by(MediaSource.country)
+            .group_by(MediaSource.country_code)
         )
     ).all()
+    counts_by_country_code: dict[str, int] = defaultdict(int)
+    for raw_cc, cnt in by_country_code_rows:
+        cc = normalize_country_code(str(raw_cc) if raw_cc is not None else None)
+        counts_by_country_code[cc] += int(cnt or 0)
+    counts_by_country_code = dict(
+        sorted(counts_by_country_code.items(), key=lambda x: (-x[1], x[0]))
+    )
+    country_labels_fr = {
+        code: country_label_fr(code) for code in counts_by_country_code
+    }
+    by_country_merged: dict[str, int] = defaultdict(int)
+    for code, cnt in counts_by_country_code.items():
+        by_country_merged[country_label_fr(code)] += cnt
+    by_country = dict(
+        sorted(by_country_merged.items(), key=lambda x: (-x[1], x[0]))
+    )
 
     by_type_rows = (
         await db.execute(
@@ -608,22 +635,24 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     ).all()
 
-    return {
-        "total_collected_24h": total_24h,
-        "total_translated": translated,
-        "total_needs_review": needs_review,
-        "total_errors": errors,
-        "total_translation_abandoned": abandoned,
-        "total_pending": collected,
-        "total_no_content": no_content,
-        "articles_with_embedding_24h": with_embedding,
-        "articles_with_olj_topics_24h": with_olj_topics,
-        "countries_covered": len(by_country_rows),
-        "by_status": by_status,
-        "by_country": {row[0]: row[1] for row in by_country_rows},
-        "by_type": {row[0]: row[1] for row in by_type_rows},
-        "by_language": {row[0]: row[1] for row in by_lang_rows},
-        "by_media_source_top": [
-            {"media_source_id": row[0], "count": row[1]} for row in by_source_rows
+    return ArticleStatsResponse(
+        total_collected_24h=total_24h,
+        total_translated=translated,
+        total_needs_review=needs_review,
+        total_errors=errors,
+        total_translation_abandoned=abandoned,
+        total_pending=collected,
+        total_no_content=no_content,
+        articles_with_embedding_24h=with_embedding,
+        articles_with_olj_topics_24h=with_olj_topics,
+        countries_covered=len(counts_by_country_code),
+        by_status=by_status,
+        by_country=by_country,
+        counts_by_country_code=counts_by_country_code,
+        country_labels_fr=country_labels_fr,
+        by_type={row[0]: row[1] for row in by_type_rows},
+        by_language={row[0]: row[1] for row in by_lang_rows},
+        by_media_source_top=[
+            {"media_source_id": str(row[0]), "count": row[1]} for row in by_source_rows
         ],
-    }
+    )

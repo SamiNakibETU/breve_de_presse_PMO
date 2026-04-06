@@ -38,4 +38,5 @@ EXPOSE 8000
 # pour éviter les conflits si la plateforme injecte une commande sans shell.
 # Le shell expand ${PORT:-8000} (Railway définit PORT) ; évite --port '$PORT' littéral.
 ENTRYPOINT []
-CMD ["/bin/sh", "-c", "exec uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Migrations avant l’API (idempotent) — évite un déploiement GitHub→Railway sans `alembic upgrade head`.
+CMD ["/bin/sh", "-c", "alembic upgrade head && exec uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}"]

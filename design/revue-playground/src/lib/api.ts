@@ -3,6 +3,7 @@ import {
   formatErrorForDiagnostics,
   isApiRequestError,
 } from "./api-request-error";
+import { playgroundMockResponse } from "./playground-mock";
 import type {
   AnalyticsSummaryResponse,
   AppStatus,
@@ -33,6 +34,9 @@ import type {
   ReviewSummary,
   Stats,
 } from "./types";
+
+/** Données fictives locales — aucun appel FastAPI (voir `design/revue-playground/README.md`). */
+const PLAYGROUND_MOCK = process.env.NEXT_PUBLIC_PLAYGROUND_MOCK === "true";
 
 /** `direct` = navigateur → API FastAPI. `proxy` = BFF Next (`/api/proxy/...`, clé serveur uniquement). */
 const API_MODE = process.env.NEXT_PUBLIC_API_MODE ?? "direct";
@@ -99,6 +103,10 @@ function mergeAbortSignals(
 }
 
 async function request<T>(path: string, init?: RequestOptions): Promise<T> {
+  if (PLAYGROUND_MOCK) {
+    const { timeoutMs: _timeout, ...restInit } = init ?? {};
+    return playgroundMockResponse<T>(path, restInit);
+  }
   const method = (init?.method ?? "GET").toUpperCase();
   const { timeoutMs, signal: incomingSignal, ...restInit } = init ?? {};
   let timeoutId: ReturnType<typeof setTimeout> | undefined;

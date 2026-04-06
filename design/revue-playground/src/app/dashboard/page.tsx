@@ -8,19 +8,10 @@ import { formatTodayBeirutLongFr, todayBeirutIsoDate } from "@/lib/beirut-date";
 import type { AppStatus, ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { StatsDistributionPanels } from "@/components/dashboard/stats-distribution-panels";
 import { PipelineStatus } from "@/components/dashboard/pipeline-status";
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
-
-const LANG_LABELS: Record<string, string> = {
-  ar: "Arabe",
-  en: "Anglais",
-  fr: "Français",
-  he: "Hébreu",
-  fa: "Persan",
-  tr: "Turc",
-  ku: "Kurde",
-};
 
 function filterClusters(
   list: TopicCluster[],
@@ -128,79 +119,25 @@ export default function DashboardPage() {
 
       <StatsCards stats={stats} loading={statsQ.isPending} />
 
-      {stats && (
-        <div className="grid gap-6 sm:grid-cols-2">
-          {stats &&
-            (Object.keys(stats.counts_by_country_code ?? {}).length > 0 ||
-              Object.keys(stats.by_country).length > 0) && (
-              <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                <summary className="cursor-pointer font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
-                  Répartition par pays
-                </summary>
-                <div className="mt-3 space-y-0">
-                  {Object.keys(stats.counts_by_country_code ?? {}).length > 0
-                    ? Object.entries(stats.counts_by_country_code ?? {})
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([code, count]) => {
-                          const label =
-                            stats.country_labels_fr?.[code] ??
-                            COUNTRY_LABELS_FR[code] ??
-                            code;
-                          return (
-                            <div
-                              key={code}
-                              className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
-                            >
-                              <span className="text-foreground-body">{label}</span>
-                              <span className="tabular-nums font-medium text-foreground">
-                                {count}
-                              </span>
-                            </div>
-                          );
-                        })
-                    : Object.entries(stats.by_country)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([country, count]) => (
-                          <div
-                            key={country}
-                            className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
-                          >
-                            <span className="text-foreground-body">{country}</span>
-                            <span className="tabular-nums font-medium text-foreground">
-                              {count}
-                            </span>
-                          </div>
-                        ))}
-                </div>
-              </details>
-            )}
-
-          {Object.keys(stats.by_language).length > 0 && (
-            <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
-              <summary className="cursor-pointer font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
-                Répartition par langue
-              </summary>
-              <div className="mt-3 space-y-0">
-                {Object.entries(stats.by_language)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([lang, count]) => (
-                    <div
-                      key={lang}
-                      className="flex items-baseline justify-between border-b border-border-light py-2 text-[13px] last:border-b-0"
-                    >
-                      <span className="text-foreground-body">
-                        {LANG_LABELS[lang] || lang.toUpperCase()}
-                      </span>
-                      <span className="tabular-nums font-medium text-foreground">
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
+      {stats ? (
+        <StatsDistributionPanels
+          byCountry={
+            Object.keys(stats.counts_by_country_code ?? {}).length > 0
+              ? Object.fromEntries(
+                  Object.entries(stats.counts_by_country_code ?? {}).map(
+                    ([code, n]) => [
+                      stats.country_labels_fr?.[code] ??
+                        COUNTRY_LABELS_FR[code] ??
+                        code,
+                      n,
+                    ],
+                  ),
+                )
+              : stats.by_country
+          }
+          byLanguage={stats.by_language}
+        />
+      ) : null}
 
       <section>
         <h2 className="olj-rubric olj-rule">Regroupements thématiques en cours</h2>

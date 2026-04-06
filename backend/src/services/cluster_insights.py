@@ -26,6 +26,8 @@ async def enrich_cluster_insights(db: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=7)
     updated = 0
+    settings = get_settings()
+    thr = settings.alert_cluster_article_threshold
 
     for cluster in clusters:
         q = (
@@ -64,7 +66,10 @@ async def enrich_cluster_insights(db: AsyncSession) -> int:
         avg_score = round(sum(scores) / len(scores), 2) if scores else 0.0
         top_topics = sorted(topic_hits.items(), key=lambda x: -x[1])[:5]
 
-        base = dict(cluster.insight_metadata or {})
+        old_meta = dict(cluster.insight_metadata or {})
+        prev_total = old_meta.get("articles_total")
+        prev_7 = old_meta.get("articles_last_7d")
+        base = dict(old_meta)
         base.update(
             {
                 "articles_total": total,
@@ -79,8 +84,10 @@ async def enrich_cluster_insights(db: AsyncSession) -> int:
         updated += 1
 
         if thr is not None and thr > 0:
+            prev_t = int(prev_total) if prev_total is not None else 0
+            prev_r = int(prev_7) if prev_7 is not None else 0
             hot = total >= thr or recent >= thr
-            was_hot = prev_total >= thr or prev_7 >= thr
+            was_hot = prev_t >= thr or prev_r >= thr
             if hot and not was_hot:
                 await post_cluster_hot_alert(
                     cluster_id=str(cluster.id),

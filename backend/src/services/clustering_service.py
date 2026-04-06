@@ -20,16 +20,10 @@ from sqlalchemy.orm import selectinload
 from src.config import get_settings
 from src.models.article import Article
 from src.models.cluster import TopicCluster
+from src.services.country_utils import REGIONAL_COUNTRY_CODES
 from src.services.editorial_scope import is_article_eligible_for_clustering
 
 logger = structlog.get_logger()
-
-REGIONAL_COUNTRIES: frozenset[str] = frozenset({
-    "Liban", "Israël", "Iran", "EAU", "Émirats Arabes Unis",
-    "Arabie Saoudite", "Turquie", "Irak", "Syrie", "Qatar",
-    "Koweït", "Jordanie", "Égypte", "Oman", "Bahreïn", "Algérie",
-    "régional",
-})
 
 EDITORIAL_CLUSTER_TYPES: frozenset[str] = frozenset({
     "opinion", "editorial", "tribune", "analysis",
@@ -449,9 +443,17 @@ class ClusteringService:
                 if a.media_source and a.media_source.country:
                     countries.add(a.media_source.country)
                 if a.media_source and a.media_source.country_code:
-                    country_codes.add(a.media_source.country_code)
+                    cc = (a.media_source.country_code or "").strip().upper()
+                    if cc:
+                        country_codes.add(cc)
 
-            regional_countries = countries & REGIONAL_COUNTRIES
+            regional_codes = country_codes & REGIONAL_COUNTRY_CODES
+            if regional_codes:
+                regional_country_count = len(regional_codes)
+            elif country_codes:
+                regional_country_count = len(country_codes)
+            else:
+                regional_country_count = len(countries)
 
             confidences = [
                 a.translation_confidence
@@ -470,7 +472,7 @@ class ClusteringService:
                 id=uuid.uuid4(),
                 label=None,
                 article_count=len(cluster_articles),
-                country_count=len(regional_countries) if regional_countries else len(countries),
+                country_count=regional_country_count,
                 avg_relevance=avg_rel,
                 latest_article_at=max(
                     (a.published_at or a.created_at) for a in cluster_articles
