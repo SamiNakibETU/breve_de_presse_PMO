@@ -6,7 +6,7 @@ Ce dossier documente le **design system** à appliquer au site du journal : prin
 
 | Fichier | Contenu |
 |--------|---------|
-| [principles.md](./principles.md) | Mission, ton, anti-patterns, alignement avec `AGENTS.md` |
+| [principles.md](./principles.md) | Mission, ton, anti-patterns, alignement avec le README racine et `docs/DECISIONS_PO.md` |
 | [foundations.md](./foundations.md) | Tokens proposés (CSS variables), échelles, conventions nommage |
 | [typography.md](./typography.md) | Hiérarchie éditoriale, rôles sémantiques, règles de composition |
 | [color.md](./color.md) | Palette sémantique, états, accent éditorial |
@@ -17,10 +17,10 @@ Ce dossier documente le **design system** à appliquer au site du journal : prin
 
 ## Rapport au code
 
-- Le projet cible **Next.js**, **Tailwind CSS**, **TypeScript** (voir `AGENTS.md`).
+- Le projet cible **Next.js**, **Tailwind CSS**, **TypeScript** (voir `README.md` à la racine du dépôt).
 - Les tokens en `foundations.md` sont pensés pour être mappés dans `tailwind.config` ou `:root` — à valider en implémentation.
 
 ## Source de vérité
 
-- **Principes produit** : `AGENTS.md` à la racine du dépôt.
+- **Principes produit** : `README.md`, `docs/plan.md`, `docs/DECISIONS_PO.md`.
 - **Valeurs mesurées sur un site tiers** : à compléter par inspection DevTools si besoin (voir `olj-reference.md`).

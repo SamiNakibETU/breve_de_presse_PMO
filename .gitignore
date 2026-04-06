@@ -57,6 +57,11 @@ alembic/versions/__pycache__/
 # Archives locales (specs obsoletes, brouillons — voir plan refonte)
 archive/
 
+# Hors périmètre dépôt public (conventions outil local, maquettes, specs internes)
+AGENTS.md
+design/
+docs/superpowers/
+
 # Captures réseau / HAR (ne pas versionner)
 *.har
 

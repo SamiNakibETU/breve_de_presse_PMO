@@ -24,6 +24,7 @@ Les valeurs ci-dessous sont une **base de travail** pour le journal dans ce dép
   /* Accent éditorial (rubrique active, lien fort, état sélectionné) */
   --color-accent: #8b1e1e;
   --color-accent-muted: #b33a3a;
+  /* Note : l’app Next « revue de presse » utilise aujourd’hui #dd3b31 (voir globals.css / README racine) ; harmoniser tokens doc ↔ code en implémentation. */
 
   /* États */
   --color-focus-ring: #1a1a18;

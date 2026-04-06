@@ -38,4 +38,4 @@ Mention de partenaires techniques : **Design Datagif**, **développement WhiteBe
 
 ## Utilisation pour ce projet
 
-S’en inspirer pour **hiérarchie**, **modules** (direct, une, paywall), **ton conversion** — tout en appliquant les **principes** de `principles.md` et `AGENTS.md` (interface plus invisible, moins « carte SaaS » que beaucoup de sites d’actualité).
+S’en inspirer pour **hiérarchie**, **modules** (direct, une, paywall), **ton conversion** — tout en appliquant les **principes** de `principles.md` et du README racine (interface plus invisible, moins « carte SaaS » que beaucoup de sites d’actualité).

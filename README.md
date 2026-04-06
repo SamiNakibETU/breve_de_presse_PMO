@@ -1,22 +1,34 @@
-# OLJ Press Review — Revue de Presse Régionale Automatisée
+# Revue de presse régionale — L’Orient-Le Jour
 
-Système de collecte, traduction et mise en forme d'articles d'opinion/analyse provenant de 48 médias du Moyen-Orient pour L'Orient-Le Jour.
+Application web de **collecte**, **traduction** et **sélection éditoriale** d’articles d’opinion et d’analyse issus d’un périmètre médias validé par la rédaction OLJ.
 
-## Architecture
+**Déploiement (exemple)** : [revue-de-presse-olj.up.railway.app](https://revue-de-presse-olj.up.railway.app/)
+
+## Périmètre du dépôt
+
+| Dossier | Rôle |
+|--------|------|
+| `backend/` | API FastAPI, base PostgreSQL + pgvector, jobs pipeline |
+| `frontend/` | Interface Next.js (UI en français) |
+| `docs/` | Documentation produit et technique essentielle |
+| `DESIGN_SYSTEM/` | Fondations UI (tokens, composants, patterns) |
+| `scraper/` | Outils et configuration de collecte complémentaires (hors build Railway front/back) |
+
+## Architecture technique
 
 ```
 backend/    Python 3.11+ / FastAPI / SQLAlchemy async / PostgreSQL + pgvector
 frontend/   Next.js 15 / React 19 / Tailwind CSS / TypeScript
 ```
 
-**Pipeline quotidien :** collecte RSS (feedparser + trafilatura) → traduction + résumé (Claude Haiku 4.5) → extraction d'entités → sélection éditoriale (interface web) → génération format OLJ (Claude Sonnet 4.5) → copier-coller CMS.
+**Chaîne métier (résumé)** : ingestion des contenus → traduction et enrichissement → clustering / sujets → interface rédactionnelle (édition du jour, articles, régie) → export vers le CMS.
 
 ## Prérequis
 
 - Python 3.11+
 - Node.js 20+
-- Docker (pour PostgreSQL)
-- Clé API Anthropic
+- Docker (PostgreSQL local)
+- Clés API selon votre `.env` (ex. fournisseurs LLM configurés dans le projet)
 
 ## Installation
 
@@ -38,10 +50,10 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env
-# Remplir ANTHROPIC_API_KEY dans .env
+# Renseigner les variables requises (voir commentaires dans .env.example)
 ```
 
-### 3. Initialiser la BDD et les sources
+### 3. Initialiser la BDD et les sources médias
 
 ```bash
 cd backend
@@ -56,61 +68,44 @@ npm install
 cp .env.example .env.local
 ```
 
-## Lancement
+## Lancement local
 
-### Backend (port 8000)
+**Backend** (port 8000) :
 
 ```bash
 cd backend
 uvicorn src.app:app --reload --port 8000
 ```
 
-### Frontend (port 3000)
+**Frontend** (port 3000) :
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Ouvrir http://localhost:3000
+Ouvrir `http://localhost:3000`.
 
-## Workflow journaliste
+## Conventions dépôt
 
-1. Le pipeline collecte et traduit automatiquement à 06h00 et 14h00 UTC
-2. Le journaliste consulte le Dashboard et parcourt les Articles
-3. Il sélectionne 3 à 5 articles et clique « Générer la revue »
-4. Il copie le texte formaté OLJ et le colle dans le CMS
-5. Relecture et publication manuelle
+- **Fichiers gelés côté métier** (ne pas modifier sans arbitrage explicite) : `generator.py`, `editorial_scope.py`, `llm_router.py`, `collector.py`.
+- **Migrations Alembic** : uniquement **additives** (pas de `DROP` de colonnes/tables en production sans procédure dédiée).
+- **UI** : français ; **Tailwind** uniquement ; accent éditorial `#dd3b31` (tokens `--color-accent` / `accent`).
 
-## API
+## Documentation
 
-| Endpoint | Méthode | Description |
-|----------|---------|-------------|
-| `/health` | GET | Status de l'API |
-| `/api/status` | GET | Status scheduler + jobs |
-| `/api/stats` | GET | Métriques 24h |
-| `/api/articles` | GET | Liste articles (filtres: status, country, article_type, language, min_confidence) |
-| `/api/articles/{id}` | GET | Détail article |
-| `/api/media-sources` | GET | Liste des 48 sources |
-| `/api/collect` | POST | Lancer la collecte RSS |
-| `/api/translate` | POST | Lancer la traduction |
-| `/api/pipeline` | POST | Pipeline complet (collecte + traduction) |
-| `/api/reviews/generate` | POST | Générer revue de presse (body: `{article_ids: [...]}`) |
-| `/api/reviews` | GET | Historique des revues |
+- Index : [`docs/README.md`](docs/README.md)
+- Backlog / diagnostic pipeline : [`docs/plan.md`](docs/plan.md)
+- Décisions produit synthétiques : [`docs/DECISIONS_PO.md`](docs/DECISIONS_PO.md)
+- Périmètre légal / technique de la collecte : [`docs/MEMW_LEGITIMATE_SCRAPING_SCOPE.md`](docs/MEMW_LEGITIMATE_SCRAPING_SCOPE.md)
 
-## Vérification des hubs et du contenu des articles
+## Vérification des hubs (équipe technique)
 
-Depuis `backend/` (avec le venv activé et `python -m playwright install chromium` si besoin) :
+Depuis `backend/` (venv activé ; `python -m playwright install chromium` si besoin) :
 
-- **Hubs + un échantillon d’article par URL de hub** : `python -m src.scripts.validate_media_hubs` (sans `--no-article-sample` pour tester l’extraction du corps).
-- **Plusieurs articles par média** (rapport JSON + résumé console) : `python -m src.scripts.verify_opinion_hub_content --per-source 3 --max-media 10`
-- **Overrides hubs** (RSS, sélecteurs, `strict_link_pattern`) : `backend/data/OPINION_HUB_OVERRIDES.json`
-- **Index documentation** : `docs/README.md`
-- **Plan produit / backend** (phases, analyse, pays, embeddings, sessions journalistes) : `docs/plan.md`
-- **Taxonomie / glossaire** : `backend/data/OLJ_TOPIC_TAXONOMY.json`, `OLJ_GLOSSARY.json`, `OLJ_TOPICS_OF_DAY.json`
-- **Backfill topics** : `python -m src.scripts.backfill_olj_topics --limit 20`
-- **Recherche sémantique** (PostgreSQL + Cohere) : `POST /api/articles/search/semantic`
-- **Cache HTML hubs** (optionnel) : `HUB_HTML_CACHE_TTL_SECONDS=900` dans `.env`
+- Hubs + échantillon d’article : `python -m src.scripts.validate_media_hubs`
+- Plusieurs articles par média : `python -m src.scripts.verify_opinion_hub_content --per-source 3 --max-media 10`
+- Overrides flux / sélecteurs : `backend/data/OPINION_HUB_OVERRIDES.json`
 
 ## Tests
 
@@ -119,8 +114,20 @@ cd backend
 pytest tests/ -v
 ```
 
-## Specs
+## API (aperçu)
 
-Les spécifications complètes sont dans `olj_press_review_specs/`.
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/health` | GET | Santé de l’API |
+| `/api/status` | GET | Scheduler et jobs |
+| `/api/stats` | GET | Métriques récentes |
+| `/api/articles` | GET | Liste articles (filtres) |
+| `/api/articles/{id}` | GET | Détail article |
+| `/api/media-sources` | GET | Sources médias |
+| `/api/collect` | POST | Lancer la collecte |
+| `/api/translate` | POST | Lancer la traduction |
+| `/api/pipeline` | POST | Pipeline complet |
+| `/api/reviews/generate` | POST | Générer une revue (`{ "article_ids": [...] }`) |
+| `/api/reviews` | GET | Historique des revues |
 
-Liste de médias (CSV OLJ, import) : voir [`docs/MEDIA_SOURCE_CSV.md`](docs/MEDIA_SOURCE_CSV.md).
+La liste complète des routes métier est dans le code FastAPI (`backend/src`).

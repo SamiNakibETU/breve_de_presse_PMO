@@ -1,8 +1,8 @@
 # Plan backend & produit LLM — post-validation UI
 
-Ce document complète la vision produit ; l’implémentation UI cible **`frontend/src`** et **`DESIGN_SYSTEM/`**. Les dossiers `design/prototype/` et `design/revue-playground/` restent de l’**expérimentation** (non contractuelle) — voir `design/revue-playground/README.md`.
+Ce document complète la vision produit ; l’implémentation UI cible **`frontend/src`** et **`DESIGN_SYSTEM/`**. Un sandbox de maquettes peut exister localement sous `design/` ; il n’est **pas versionné** (voir `.gitignore`).
 
-**Onboarding agent** : `docs/ONBOARDING.md` (prompt court + pointeurs vers ce fichier et les specs).
+**Onboarding** : `docs/ONBOARDING.md`.
 
 ---
 
@@ -45,7 +45,7 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 - Double marqueur dans le modal : liste ordonnée + glyphe `•/◇/◆` (`frontend/src/contexts/article-reader.tsx`) alors que le LLM peut déjà fournir du texte avec puces.
 - Champs distincts : `summary_fr`, `thesis_summary_fr`, `analysis_bullets_fr`, `factual_context_fr`, `author_thesis_explicit_fr`, etc.
 
-### Pistes (sans modifier les fichiers interdits par `AGENTS.md`)
+### Pistes (sans modifier les fichiers gelés listés dans le `README.md` racine)
 
 - **Affichage** : une seule liste numérotée pour les idées majeures ; normaliser en amont les chaînes (strip préfixes `-`, `•`, lignes vides) dans un module **autorisé** (ex. utilitaire TS ou service Python hors fichiers interdits).
 - **Produit** : écran unique « Synthèse lecture » combinant chapô + 5 points + lien corps — à spécifier après prototype.
@@ -72,7 +72,7 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 
 ### Rôle actuel (rappel)
 
-- Embeddings / HDBSCAN : fenêtre `CLUSTERING_WINDOW_HOURS`, sujets et regroupements dans le pipeline métier (voir `AGENTS.md`).
+- Embeddings / HDBSCAN : fenêtre `CLUSTERING_WINDOW_HOURS`, sujets et regroupements dans le pipeline métier (temporalités et fenêtres : voir `README.md` et `docs/DECISIONS_PO.md`).
 
 ### Objectif produit
 
@@ -144,7 +144,7 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 
 ### UI
 
-- Espace journaliste clair sur `/edition/.../compose` : recommandations **conditionnelles** (ex. seulement sans articles sélectionnés), version minimaliste — voir aussi la phase UX dans [`docs/superpowers/specs/2026-04-06-phase-ux-design-system-design.md`](./superpowers/specs/2026-04-06-phase-ux-design-system-design.md).
+- Espace journaliste clair sur `/edition/.../compose` : recommandations **conditionnelles** (ex. seulement sans articles sélectionnés), version minimaliste — alignement avec `DESIGN_SYSTEM/patterns-pages.md` et `frontend/src`.
 
 ### Backend / données
 
@@ -173,7 +173,7 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 
 ## 11. Coûts & performances LLM
 
-- S’appuyer sur `provider_usage_events`, `llm_call_logs`, dashboard Régie analytics (`AGENTS.md`).
+- S’appuyer sur `provider_usage_events`, `llm_call_logs`, dashboard Régie analytics (voir `README.md`, section analytique / coûts si documentée).
 - Relier choix produit (batch analyse, traduction, embeddings) aux **plafonds** documentés et aux retours UI (badges « hors batch », files d’attente).
 
 ---
@@ -181,24 +181,18 @@ Ce document complète la vision produit ; l’implémentation UI cible **`fronte
 ## Phases de livraison (validées par le PO)
 
 1. **Phase A — Backend ciblé** : rédaction, sources/registre, correctifs Panorama/Articles si données boguées ; nettoyage prompts/affichage analyse (hors fichiers interdits).
-2. **Phase B — Uniformisation front** : design system, mobile, Panorama, thèmes/articles ; idéalement depuis prototype `design/` puis portage `frontend/`.
+2. **Phase B — Uniformisation front** : design system, mobile, Panorama, thèmes/articles ; itération sur `frontend/src` en cohérence avec `DESIGN_SYSTEM/` (sandbox local `design/` possible, non versionné).
 3. **Phase C — Tests & corrections** selon retours après déploiement (Railway, local).
 
-_L’ordre « valider prototype / maquettes dans `design/` puis portage `frontend/src` » reste la voie privilégiée pour ne pas casser la prod tant que l’UI n’est pas figée._
+_L’ordre « valider maquettes hors dépôt ou en sandbox local puis portage `frontend/src` » reste la voie privilégiée pour ne pas casser la prod tant que l’UI n’est pas figée._
 
 ---
 
 ## Ordre de travail recommandé (détail technique)
 
-1. Valider le prototype (`design/`) et ajuster `DESIGN_SYSTEM/` en cohérence.
+1. Valider les maquettes (hors dépôt ou sandbox local `design/`) et ajuster `DESIGN_SYSTEM/` en cohérence.
 2. Porter les composants React vers `frontend/src` par bandes (édition → articles → dashboard).
 3. Appliquer les correctifs backend dans l’ordre : **affichage / normalisation pays** (impact immédiat) → **file analyse / priorités** → **corps / extraction** → **embeddings** → **pipeline par date & modes partiels** → **perf sélection** → **sessions multi-utilisateurs** (quand spec prête).
-
----
-
-## Specs techniques par vagues (découpage livrable)
-
-Contrat d’ordre et détails par vague : dossier [`docs/superpowers/specs/`](./superpowers/specs/README.md) — index `README.md`, vue d’ensemble `2026-04-06-backend-waves-overview-design.md`, puis vagues 1 à 4 et phase UX / design system.
 
 ---
 
