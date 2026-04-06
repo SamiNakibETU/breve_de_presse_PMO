@@ -1,3 +1,10 @@
+/** État dérivé pour badges analyse experte (GET article). */
+export type ArticleAnalysisDisplayState =
+  | "complete"
+  | "pending"
+  | "skipped_no_summary"
+  | "skipped_out_of_scope";
+
 export interface Article {
   id: string;
   title_fr: string | null;
@@ -59,12 +66,15 @@ export interface Article {
   framing_actor?: string | null;
   framing_tone?: string | null;
   framing_prescription?: string | null;
+  analysis_display_state?: ArticleAnalysisDisplayState | null;
+  analysis_display_hint_fr?: string | null;
 }
 
 export interface ArticleListResponse {
   articles: Article[];
   total: number;
   counts_by_country?: Record<string, number> | null;
+  country_labels_fr?: Record<string, string> | null;
 }
 
 export interface MediaSource {
@@ -146,6 +156,15 @@ export interface SchedulerJob {
   last_run_ok?: boolean | null;
 }
 
+/** Plafonds batch (GET /api/status) — coûts / files. */
+export interface PipelineBatchLimits {
+  article_analysis_batch_limit: number;
+  embedding_batch_limit: number;
+  translation_pipeline_batch_limit: number;
+  embed_only_editorial_types: boolean;
+  embed_revue_registry_only: boolean;
+}
+
 export interface AppStatus {
   status: string;
   environment: string;
@@ -156,6 +175,22 @@ export interface AppStatus {
   pipeline_lease_active?: boolean;
   pipeline_lease_holder_prefix?: string | null;
   pipeline_heartbeat_age_seconds?: number | null;
+  batch_limits?: PipelineBatchLimits | null;
+}
+
+/** GET /api/editions/{id}/pipeline-diagnostic (clé interne). */
+export interface PipelineEditionDiagnosticResponse {
+  edition_id: string;
+  publish_date: string;
+  window_start: string | null;
+  window_end: string | null;
+  corpus_article_count: number;
+  by_status: Record<string, number>;
+  translated_pending_embedding: number;
+  corpus_in_revue_registry_count: number;
+  corpus_outside_revue_registry_count: number;
+  revue_registry_ids_loaded: number;
+  suggested_actions: { id: string; label_fr: string }[];
 }
 
 export interface ReviewSummary {
@@ -341,6 +376,8 @@ export interface TopicArticlePreview {
   summary_fr?: string | null;
   /** Corps traduit disponible (hors résumé seul). */
   has_full_translation_fr?: boolean;
+  analysis_display_state?: ArticleAnalysisDisplayState | null;
+  analysis_display_hint_fr?: string | null;
 }
 
 /** GET /api/editions/{id}/selections */

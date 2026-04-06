@@ -26,6 +26,7 @@ import type {
   MediaSource,
   MediaSourcesHealthResponse,
   PipelineDebugLogsResponse,
+  PipelineEditionDiagnosticResponse,
   PipelineResumeStatus,
   PipelineTaskKind,
   PipelineTaskStartResponse,
@@ -417,6 +418,11 @@ export const api = {
   editionSelections: (editionId: string) =>
     request<EditionSelectionsResponse>(
       `/api/editions/${editionId}/selections`,
+    ),
+
+  editionPipelineDiagnostic: (editionId: string) =>
+    request<PipelineEditionDiagnosticResponse>(
+      `/api/editions/${editionId}/pipeline-diagnostic`,
     ),
 
   editionTopics: (
