@@ -264,22 +264,19 @@ export function ArticlesPageClient() {
 
       <div className="min-w-0 flex-1 space-y-5 pb-24">
         <header>
-          <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
+          <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold leading-tight sm:text-[24px]">
             Articles
           </h1>
           <p className="mt-1 text-[12px] leading-snug text-foreground-body">
             {activeEditionId ? (
-              <>
-                Articles du corpus de l’édition liée (fenêtre Beyrouth côté serveur).
-              </>
+              <>Corpus de l’édition liée (fenêtre Beyrouth côté serveur).</>
             ) : beirutDate ? (
               <>
-                Articles collectés entre minuit et minuit suivant (fuseau{" "}
-                <strong className="font-medium text-foreground">Asia/Beirut</strong>) pour le jour{" "}
+                Jour calendaire{" "}
                 <strong className="font-medium text-foreground">
                   {formatIsoCalendarDayLongFr(beirutDate)}
-                </strong>
-                .
+                </strong>{" "}
+                (<strong className="font-medium text-foreground">Asia/Beirut</strong>), minuit → lendemain minuit.
               </>
             ) : (
               formatArticlesExplorationPeriodHint(ARTICLES_ROLLING_DAYS)
@@ -291,6 +288,7 @@ export function ArticlesPageClient() {
                 <span className="text-muted-foreground">Jour de collecte (Beyrouth)</span>
                 <input
                   type="date"
+                  lang="fr"
                   value={beirutDate ?? ""}
                   onChange={(e) =>
                     setBeirutDate(e.target.value.trim() || null)
@@ -307,37 +305,28 @@ export function ArticlesPageClient() {
                   Revenir à la période glissante
                 </button>
               ) : null}
-              <span className="max-w-md text-[11px] leading-snug text-muted-foreground">
-                Ce filtre est la journée calendaire Beyrouth (minuit → lendemain minuit), pas la fenêtre
-                d’édition de la revue (veille 18 h → jour J 6 h). Pour cette dernière, ouvrir{" "}
-                <a href="/panorama" className="underline underline-offset-2 hover:text-foreground">
-                  Panorama
-                </a>{" "}
-                puis l’édition du jour.
-              </span>
             </div>
           ) : null}
-          <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
-            Filtres et tri dans la colonne de gauche. Les séparateurs « Thème · … »
-            regroupent les articles par rubriques OLJ ; vous pouvez désactiver ce
-            groupement pour une grille continue.
-          </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
+          <p className="mt-2 text-[13px] tabular-nums text-muted-foreground">
             {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
             {articles.length !== 1 ? "s" : ""}
           </p>
           <details className="mt-3 rounded-sm border border-border bg-muted/10 px-3 py-2">
             <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-accent">
-              Comprendre les vues (période, édition, filtres)
+              Aide : période, édition, filtres et traductions
             </summary>
             <div className="mt-2 space-y-2 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground">
               <p>
                 Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Pour
-                celle-ci : tableau de bord puis édition du jour.
+                celle-ci :{" "}
+                <a href="/panorama" className="font-medium text-accent underline underline-offset-2">
+                  Panorama
+                </a>{" "}
+                puis l’édition du jour.
               </p>
               <p>
-                Statut et tri sont dans la colonne de gauche. Les blocs « Thème · … » suivent la taxonomie OLJ ; décochez
-                le groupement pour une grille continue.
+                Statut et tri : colonne de gauche. Les blocs « Thème · … » suivent la taxonomie OLJ ; décochez le
+                groupement pour une grille continue.
               </p>
               <p>
                 Traductions (relu, réessayer) :{" "}
@@ -349,17 +338,6 @@ export function ArticlesPageClient() {
             </div>
           </details>
         </header>
-
-        <p className="text-[12px] text-muted-foreground">
-          Traductions (relu, réessayer) :{" "}
-          <a
-            href="/regie"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            Régie
-          </a>
-          .
-        </p>
 
         {error && (
           <p className="olj-alert-destructive px-3 py-2">

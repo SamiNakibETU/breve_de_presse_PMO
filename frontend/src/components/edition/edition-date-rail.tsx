@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shiftIsoDate } from "@/lib/beirut-date";
 import {
   chipLabelsEditionRail,
+  formatEditionDayHeadingFr,
   formatWindowEdgeBeirut,
 } from "@/lib/dates-display-fr";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
@@ -190,7 +191,7 @@ export function EditionDateRail({
               <div className="relative mx-auto flex min-w-max flex-row justify-center sm:mx-0 sm:justify-start">
                 {windowOnStrip ? (
                   <div
-                    className="pointer-events-none absolute inset-y-1 z-0 rounded-md bg-[color-mix(in_srgb,var(--color-accent)_10%,var(--color-muted))] opacity-90"
+                    className="pointer-events-none absolute inset-y-1 z-0 rounded-md bg-[color-mix(in_srgb,var(--color-accent-tint)_55%,var(--color-surface-warm)_45%)] opacity-95 ring-1 ring-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]"
                     style={{
                       left: `${windowOnStrip.leftPct}%`,
                       width: `${windowOnStrip.widthPct}%`,
@@ -202,6 +203,7 @@ export function EditionDateRail({
                   {days.map((iso) => {
                     const active = iso === currentIso;
                     const { weekday, dayMonth } = chipLabelsEditionRail(iso);
+                    const dayTitle = formatEditionDayHeadingFr(iso);
                     const dayStart = new Date(`${iso}T00:00:00.000Z`).getTime();
                     const dayEnd = dayStart + 24 * 3600 * 1000;
                     const inWindowBand = Boolean(
@@ -219,7 +221,7 @@ export function EditionDateRail({
                           href={`/edition/${iso}`}
                           scroll={false}
                           aria-current={active ? "page" : undefined}
-                          title={`Édition du ${iso}`}
+                          title={`Édition — ${dayTitle}`}
                           className={`relative flex min-h-[2.75rem] min-w-[2.75rem] flex-col items-center justify-center px-2.5 py-2 text-center no-underline transition-[color,opacity] duration-200 touch-manipulation sm:min-h-[2.5rem] sm:px-3 ${
                             active
                               ? "text-foreground"

@@ -442,7 +442,10 @@ export default function ComposePage() {
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold">
           {titleFr}
         </h1>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div
+          className="flex flex-wrap gap-3 rounded-xl border border-border/50 bg-muted/10 p-3 sm:p-4"
+          aria-label="Indicateurs de la sélection"
+        >
           {[
             {
               label: "Articles sélectionnés",
@@ -458,7 +461,10 @@ export default function ComposePage() {
               value: selectedAnalysisCount,
             },
           ].map((kpi) => (
-            <div key={kpi.label} className="olj-kpi-tile">
+            <div
+              key={kpi.label}
+              className="olj-kpi-tile min-w-[6.5rem] flex-1 basis-[6.5rem] sm:min-w-[7.5rem] sm:basis-[7.5rem]"
+            >
               <p className="text-[22px] font-semibold tabular-nums text-foreground">
                 {kpi.value}
               </p>
@@ -467,31 +473,29 @@ export default function ComposePage() {
           ))}
         </div>
         {selectedIds.size === 0 ? (
-          <div className="max-w-2xl rounded-lg border border-border/60 bg-muted/10 px-4 py-3 text-[12px] leading-relaxed text-muted-foreground">
-            <p className="mb-2 font-medium text-foreground/90">Ordre de travail</p>
-            <ol className="list-decimal space-y-1.5 pl-4 marker:text-muted-foreground">
+          <div className="max-w-2xl space-y-3 rounded-lg border border-border/60 bg-surface-warm/25 px-4 py-4 text-[12px] leading-relaxed text-muted-foreground">
+            <p className="font-medium text-foreground">
+              Aucune sélection pour l’instant — par où commencer
+            </p>
+            <ul className="list-inside list-disc space-y-1.5 text-foreground-body">
               <li>
-                <span className="text-foreground-body">
-                  Sommaire : ordre des sujets (glisser-déposer) et au moins deux articles cochés par bloc pour une
-                  génération fiable.
-                </span>
+                <Link href={`/edition/${date}`} className="olj-link-action">
+                  Sommaire de l’édition
+                </Link>{" "}
+                : cocher au moins <strong className="font-medium text-foreground">deux articles</strong> dans un grand
+                sujet (condition minimale pour générer un texte fiable).
               </li>
               <li>
-                <span className="text-foreground-body">
-                  Vérifier les extraits (thèse, résumé) ; le détail analytique est dans la fiche article.
-                </span>
+                <Link href="/panorama" className="olj-link-action">
+                  Panorama
+                </Link>{" "}
+                : vue globale des volumes et de l’édition du jour si besoin de contexte hors cette date.
               </li>
-              <li>
-                <span className="text-foreground-body">
-                  Consignes optionnelles, puis « Rédiger ce bloc » ou génération globale (un texte par grand sujet).
-                </span>
-              </li>
-              <li>
-                <span className="text-foreground-body">
-                  Copier-coller, export et relecture depuis les sections ci-dessous.
-                </span>
-              </li>
-            </ol>
+            </ul>
+            <p className="text-[11px] text-muted-foreground">
+              Ensuite : ordre des sujets (glisser-déposer), consignes optionnelles, puis « Rédiger ce bloc » ou génération
+              globale — copier-coller et export plus bas.
+            </p>
           </div>
         ) : (
           <p className="max-w-2xl text-[12px] leading-relaxed text-muted-foreground">

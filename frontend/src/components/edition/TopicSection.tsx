@@ -337,19 +337,22 @@ export function TopicSection({
 
   const displayRank = topic.user_rank ?? topic.rank;
 
+  const topicTitle = topic.title_final ?? topic.title_proposed;
+
   const titleNode =
     mode === "summary" && editionDate ? (
       <h2 className="font-[family-name:var(--font-serif)] text-[17px] font-semibold leading-snug tracking-tight text-foreground sm:text-[19px]">
         <Link
           href={`/edition/${editionDate}/topic/${topic.id}`}
+          title={`Fiche sujet — ${topicTitle}`}
           className="hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          {topic.title_final ?? topic.title_proposed}
+          {topicTitle}
         </Link>
       </h2>
     ) : (
       <h2 className="max-w-3xl font-[family-name:var(--font-serif)] text-[20px] font-semibold leading-snug tracking-tight text-foreground sm:text-[21px]">
-        {topic.title_final ?? topic.title_proposed}
+        {topicTitle}
       </h2>
     );
 
@@ -376,7 +379,7 @@ export function TopicSection({
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span
               className="shrink-0 tabular-nums text-[11px] font-semibold text-muted-foreground"
-              title="Rang dans le brief (1 en tête). Aligné sur user_rank côté API si présent."
+              title="Rang dans le sommaire (1 en tête), selon l’ordre éditorial enregistré."
             >
               Sujet {displayRank}
             </span>
@@ -571,7 +574,7 @@ export function TopicSection({
                 href={`/edition/${editionDate}/topic/${topic.id}`}
                 className="olj-link-action text-[12px]"
               >
-                Voir le détail
+                Fiche sujet
               </Link>
             </p>
           )}
@@ -647,8 +650,8 @@ export function TopicSection({
           onClick={() => setExpanded(true)}
         >
           {restCount === 1
-            ? "Afficher 1 autre texte"
-            : `Afficher les ${restCount} autres textes`}
+            ? "Déplier 1 texte supplémentaire"
+            : `Déplier ${restCount} textes supplémentaires`}
         </button>
       )}
     </section>

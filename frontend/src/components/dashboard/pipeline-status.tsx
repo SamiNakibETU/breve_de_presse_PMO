@@ -5,6 +5,11 @@ import { useState } from "react";
 import { usePipelineRunner } from "@/contexts/pipeline-runner";
 import { api } from "@/lib/api";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
+import {
+  articlesWindowLabel,
+  collecteStatusFr,
+  formatTranslationHint,
+} from "@/lib/media-source-health-display";
 import type {
   AppStatus,
   MediaSourcesHealthResponse,
@@ -111,48 +116,6 @@ const ADVANCED_ACTIONS: {
       "Recalcule les grands sujets du sommaire pour l’édition choisie ci-dessous, ou l’édition courante serveur si coché. Coût LLM.",
   },
 ];
-
-/** Libellés métier pour les statuts API (éviter « degraded / dead » bruts). */
-function collecteStatusFr(code: string): { label: string; rowClass: string } {
-  const c = (code || "").toLowerCase();
-  if (c === "dead") {
-    return {
-      label: "Collecte interrompue",
-      rowClass: "bg-destructive/[0.07]",
-    };
-  }
-  if (c === "degraded") {
-    return {
-      label: "Collecte irrégulière",
-      rowClass: "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)]",
-    };
-  }
-  return {
-    label: "Collecte normale",
-    rowClass: "bg-transparent",
-  };
-}
-
-function formatTranslationHint(s: {
-  translation_24h_ok_persisted?: number | null;
-  translation_24h_errors_persisted?: number | null;
-}): string | null {
-  const okP = s.translation_24h_ok_persisted;
-  const err = s.translation_24h_errors_persisted;
-  if (okP == null && (err == null || err === 0)) return null;
-  const parts: string[] = [];
-  if (okP != null) {
-    parts.push(
-      `${okP} traduction${okP !== 1 ? "s" : ""} enregistrée${okP !== 1 ? "s" : ""} (24 h)`,
-    );
-  }
-  if (err != null && err > 0) {
-    parts.push(
-      `${err} erreur${err !== 1 ? "s" : ""} de traduction persistée${err !== 1 ? "s" : ""}`,
-    );
-  }
-  return parts.length ? parts.join(". ") : null;
-}
 
 export function PipelineStatus({
   status,
@@ -441,7 +404,7 @@ export function PipelineStatus({
                       s.health_status,
                     );
                     const n = s.articles_72h;
-                    const artLabel = `${n} article${n !== 1 ? "s" : ""} (${wh} h)`;
+                    const artLabel = articlesWindowLabel(n, wh);
                     const trad = formatTranslationHint(s);
                     const statusTone =
                       s.health_status === "dead"

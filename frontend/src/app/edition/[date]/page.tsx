@@ -793,17 +793,21 @@ export default function EditionSommairePage() {
                 </p>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-foreground">Grands sujets (en tête)</p>
+                    <p className="text-[13px] font-semibold text-foreground">Grands sujets (cette édition)</p>
                     <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                      Ordre du numéro et coches qui alimentent la rédaction, l’export et le bandeau de sélection en bas
-                      d’écran.
+                      Proposition éditoriale pour la date affichée : ordre, coches et textes générés alimentent la
+                      rédaction, l’export et le bandeau de sélection en bas d’écran.
                     </p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-foreground">Regroupements (plus bas)</p>
+                    <p className="text-[13px] font-semibold text-foreground">Regroupements (complément)</p>
                     <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                      Textes rapprochés par similarité pour comparer des angles. Les coches servent de complément pour
-                      la couverture affichée sur le sommaire.
+                      Regroupements thématiques sur un corpus plus large (utile pour comparer des angles). Ce n’est pas
+                      le sommaire publié ; pour la vue globale et les volumes, utiliser{" "}
+                      <Link href="/panorama" className="olj-link-action">
+                        Panorama
+                      </Link>
+                      .
                     </p>
                   </div>
                 </div>
@@ -811,11 +815,16 @@ export default function EditionSommairePage() {
               {hasTopicFeed ? (
                 <section>
                   <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>
-                  <p className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
-                    Chaque bloc affiche son <strong className="font-medium text-foreground/90">rang</strong> dans le
-                    sommaire (ordre éditorial). Les numéros suivent <code className="text-[10px]">user_rank</code>{" "}
-                    lorsqu’il est défini.
-                  </p>
+                  <details className="mb-6 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+                    <summary className="cursor-pointer font-medium text-foreground-subtle hover:text-foreground">
+                      Ordre des sujets (rang éditorial)
+                    </summary>
+                    <p className="mt-2">
+                      Chaque bloc affiche son <strong className="font-medium text-foreground/90">rang</strong> dans le
+                      sommaire. Lorsque la rédaction a fixé un ordre côté serveur, les numéros suivent le champ{" "}
+                      <code className="text-[10px]">user_rank</code> ; sinon l’ordre par défaut de l’API s’applique.
+                    </p>
+                  </details>
                   <div className="space-y-10">
                     {topics.map((t: EditionTopic) => (
                       <TopicSection
