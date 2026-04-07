@@ -20,8 +20,8 @@ export function EditionMetaStrip({
     return null;
   }
   return (
-    <div className="mt-5 w-full max-w-4xl border-t border-border-light pt-4">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-6">
+    <div className="mt-4 w-full max-w-4xl border-t border-border-light pt-3">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-5">
         <div className="min-w-0 space-y-2">
           {windowCompact ? (
             <p
@@ -51,15 +51,16 @@ export function EditionMetaStrip({
           </div>
         ) : null}
       </div>
-      <details className="mt-3 rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
-        <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
-          Aide · périmètre et chiffres
+      <details className="group mt-2 border-t border-border/30 pt-2">
+        <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
+          <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
+            Aide · périmètre et chiffres
+          </span>
         </summary>
-        <div className="mt-2 space-y-2 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground">
+        <div className="mt-1.5 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
           <p>
-            La plage horaire précise (Beyrouth) est indiquée sous le sélecteur de dates, au-dessus. Les textes listés
-            correspondent à la date de parution chez le média dans cette plage (mar.–ven. : veille 18 h → jour J 6 h ;
-            lundi : week-end).
+            La plage (Beyrouth) est matérialisée sur la frise au-dessus. Les textes listés correspondent à la date de
+            parution dans cette fenêtre (mar.–ven. : veille 18 h → jour J 6 h ; lundi : week-end).
           </p>
           <p>
             <Link href="/regie/pipeline" className="olj-link-action font-medium">

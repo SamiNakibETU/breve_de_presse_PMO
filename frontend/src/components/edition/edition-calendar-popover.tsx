@@ -67,6 +67,8 @@ export type EditionCalendarPopoverProps = {
   /** Libellé court du bouton déclencheur */
   triggerLabel?: string;
   className?: string;
+  /** Icône seule (navigation édition minimaliste). */
+  compact?: boolean;
   /** Si défini : appelé à la sélection au lieu de naviguer vers `/edition/…`. */
   onDateSelect?: (iso: string) => void;
 };
@@ -75,6 +77,7 @@ export function EditionCalendarPopover({
   currentIso,
   triggerLabel = "Autre",
   className = "",
+  compact = false,
   onDateSelect,
 }: EditionCalendarPopoverProps) {
   const router = useRouter();
@@ -272,15 +275,25 @@ export function EditionCalendarPopover({
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex shrink-0 flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/80 px-2.5 py-2 text-center text-muted-foreground shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-border hover:bg-muted/25 hover:text-foreground ${className}`.trim()}
+        className={
+          compact
+            ? `inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground ${className}`.trim()
+            : `inline-flex shrink-0 flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/80 px-2.5 py-2 text-center text-muted-foreground shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-border hover:bg-muted/25 hover:text-foreground ${className}`.trim()
+        }
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? panelId : undefined}
+        aria-label={compact ? "Choisir une date dans le calendrier" : undefined}
       >
-        <Calendar className="h-3.5 w-3.5 opacity-80" aria-hidden />
-        <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.12em]">
-          {triggerLabel}
-        </span>
+        <Calendar
+          className={compact ? "h-4 w-4 opacity-85" : "h-3.5 w-3.5 opacity-80"}
+          aria-hidden
+        />
+        {compact ? null : (
+          <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.12em]">
+            {triggerLabel}
+          </span>
+        )}
       </button>
       {mounted && panel ? createPortal(panel, document.body) : null}
     </>

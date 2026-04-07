@@ -575,7 +575,7 @@ export default function EditionSommairePage() {
               </h1>
               {date ? (
                 <nav
-                  className="mt-2 flex w-full min-w-0 max-w-3xl justify-center text-[11px] sm:max-w-2xl sm:justify-start"
+                  className="mt-1 flex w-full min-w-0 max-w-3xl justify-center text-[11px] sm:max-w-2xl sm:justify-start"
                   aria-label="Naviguer entre les jours"
                 >
                   <EditionDateRail
@@ -620,15 +620,21 @@ export default function EditionSommairePage() {
 
         {edition ? (
           <EditionMetaStrip
-            windowCompact={editionWindowCompact}
-            titleAttr={editionWindowLabel}
+            windowCompact={
+              edition.window_start && edition.window_end
+                ? null
+                : editionWindowCompact
+            }
+            titleAttr={
+              edition.window_start && edition.window_end ? null : editionWindowLabel
+            }
             statsSummary={`${stats.articles} article${stats.articles > 1 ? "s" : ""} · ${stats.countries} pays · ${stats.developments} sujet${stats.developments > 1 ? "s" : ""} au sommaire (max. ${edition.target_topics_max})`}
             vigieHint={vigieGlobaleHint}
           />
         ) : null}
 
         {date ? (
-          <div className="mt-3 space-y-2 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
+          <div className="mt-2 space-y-1.5 border-t border-border pt-2 text-[10px] leading-relaxed text-muted-foreground">
             {statusQ.data?.pipeline_running && !pipeline?.running ? (
               <p
                 className="rounded-md bg-muted/40 px-2.5 py-1.5 text-foreground-body"
@@ -645,13 +651,13 @@ export default function EditionSommairePage() {
                 {pipeline.running.label}…
               </p>
             ) : null}
-            <details className="group rounded-md border border-border/50 bg-muted/20 px-2 py-1.5">
-              <summary className="cursor-pointer list-none text-[11px] font-medium text-foreground/80 marker:content-none [&::-webkit-details-marker]:hidden">
-                <span className="underline decoration-border underline-offset-2 group-open:no-underline">
+            <details className="group border-t border-border/30 pt-1.5">
+              <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
+                <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
                   Planification et journaux (régie)
                 </span>
               </summary>
-              <div className="mt-2 space-y-2 pl-0.5">
+              <div className="mt-1.5 space-y-1.5 pl-0.5 text-[10px]">
                 {statusQ.isError ? (
                   <p className="olj-alert-destructive px-2 py-1.5 text-[11px]">
                     Statut automatique indisponible.

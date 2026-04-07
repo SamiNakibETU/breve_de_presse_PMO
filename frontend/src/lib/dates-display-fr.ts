@@ -162,6 +162,26 @@ export function formatWindowEdgeBeirut(iso: string): string {
     .replace(/\.$/, "");
 }
 
+/** Borne de frise (jour civil Beyrouth) — ex. « lundi 6 avril ». */
+export function formatFriseBoundaryDateFr(iso: string): string {
+  const raw = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: TZ_BEIRUT,
+  }).format(new Date(iso));
+  return raw.length > 0 ? raw.charAt(0).toUpperCase() + raw.slice(1) : raw;
+}
+
+/** Heure seule (Beyrouth) pour les bornes de frise — ex. « 18:00 ». */
+export function formatFriseBoundaryTimeFr(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ_BEIRUT,
+  }).format(new Date(iso));
+}
+
 /** Jour agrégé `YYYY-MM-DD` (UTC) pour tableaux d’usage. */
 export function formatUtcDayShortFr(isoYmd: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
