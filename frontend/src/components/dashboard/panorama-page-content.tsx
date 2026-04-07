@@ -7,11 +7,18 @@ import { api } from "@/lib/api";
 import { formatTodayBeirutLongFr, todayBeirutIsoDate } from "@/lib/beirut-date";
 import type { ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
-import { EditionWindowTimeline } from "@/components/edition/edition-window-timeline";
+import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { StatsDistributionPanels } from "@/components/dashboard/stats-distribution-panels";
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
+import {
+  UI_SURFACE_FRISE_SEPARATOR,
+  UI_SURFACE_HERO,
+  UI_SURFACE_INSET,
+  UI_SURFACE_INSET_PAD,
+  UI_SURFACE_SKELETON_INSET,
+} from "@/lib/ui-surface-classes";
 
 function filterClusters(
   list: TopicCluster[],
@@ -78,22 +85,6 @@ export function PanoramaPageContent() {
     [clusterRows, countryFilter, emergingOnly],
   );
 
-  const byCountryForStatsPanel = useMemo(() => {
-    if (!stats) {
-      return {};
-    }
-    if (Object.keys(stats.counts_by_country_code ?? {}).length > 0) {
-      const out: Record<string, number> = {};
-      for (const [code, n] of Object.entries(stats.counts_by_country_code ?? {})) {
-        const label =
-          stats.country_labels_fr?.[code] ?? COUNTRY_LABELS_FR[code] ?? code;
-        out[label] = (out[label] ?? 0) + n;
-      }
-      return out;
-    }
-    return { ...stats.by_country };
-  }, [stats]);
-
   const dateStr = formatTodayBeirutLongFr();
   const subjectCount = filteredClusters.length;
 
@@ -105,65 +96,81 @@ export function PanoramaPageContent() {
 
   return (
     <div className="space-y-10">
-      <header className="space-y-4 text-center sm:text-left">
-        <p className="olj-rubric">Vue régionale</p>
-        <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight sm:text-[28px]">
-          Panorama
-        </h1>
-        <p className="text-[13px] capitalize text-muted-foreground">
-          {dateStr} · {subjectCount} regroupement{subjectCount !== 1 ? "s" : ""}
-          {countryFilter.length > 0 || emergingOnly ? " (filtrés)" : ""}
-        </p>
-        <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
-          <Link
-            href={`/edition/${editionDate}`}
-            className="olj-btn-primary px-4 py-2 text-[13px]"
-          >
-            Édition du jour
-          </Link>
-          <Link
-            href="/regie/pipeline"
-            className="olj-btn-secondary px-4 py-2 text-[13px]"
-          >
-            Collecte et traitement
-          </Link>
-          <Link
-            href="/articles"
-            className="olj-btn-secondary px-4 py-2 text-[13px]"
-          >
-            Articles (période Beyrouth)
-          </Link>
-        </div>
-        <p className="mx-auto max-w-2xl text-[12px] leading-relaxed text-muted-foreground sm:mx-0">
-          Inventaire global et regroupements thématiques (volumes récents, toutes éditions confondues).
-          Les statistiques ci-dessous ne sont pas limitées à la fenêtre du sommaire. Pour le livrable daté
-          (grands sujets, coches, rédaction), ouvrir l’édition du jour.
-        </p>
-        {editionWindowOk ? (
-          <div className="mx-auto max-w-2xl rounded-lg border border-border/50 bg-muted/10 p-3 text-left sm:mx-0 sm:max-w-3xl sm:p-4">
-            {editionToday.corpus_article_count != null ? (
-              <p className="mb-2 text-[11px] text-muted-foreground">
-                Corpus dans la fenêtre d’édition du jour :{" "}
-                <span className="font-medium tabular-nums text-foreground">
-                  {editionToday.corpus_article_count}
-                </span>{" "}
-                article
-                {editionToday.corpus_article_count !== 1 ? "s" : ""} (sommaire).
+      <header className="space-y-6">
+        <div className={`${UI_SURFACE_HERO} p-5 sm:p-6`}>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0 text-center sm:text-left">
+              <p className="olj-rubric">Vue régionale</p>
+              <h1 className="mt-1 font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight sm:text-[32px]">
+                Panorama
+              </h1>
+              <p className="mt-2 text-[13px] capitalize text-muted-foreground">
+                {dateStr} · {subjectCount} regroupement
+                {subjectCount !== 1 ? "s" : ""}
+                {countryFilter.length > 0 || emergingOnly ? " (filtrés)" : ""}
               </p>
-            ) : null}
-            <EditionWindowTimeline
-              windowStartIso={editionToday.window_start!}
-              windowEndIso={editionToday.window_end!}
-              publishRouteIso={editionDate}
-              variant="compact"
-            />
+            </div>
+            <div className="flex flex-wrap justify-center gap-2.5 sm:shrink-0 sm:justify-end">
+              <Link
+                href={`/edition/${editionDate}`}
+                className="olj-btn-primary px-4 py-2 text-[13px]"
+              >
+                Édition du jour
+              </Link>
+              <Link
+                href="/regie/pipeline"
+                className="olj-btn-secondary px-4 py-2 text-[13px]"
+              >
+                Collecte et traitement
+              </Link>
+              <Link
+                href="/articles"
+                className="olj-btn-secondary px-4 py-2 text-[13px]"
+              >
+                Articles (période Beyrouth)
+              </Link>
+            </div>
           </div>
-        ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (
-          <div
-            className="mx-auto h-8 max-w-2xl animate-pulse rounded-md bg-border/40 sm:mx-0"
-            aria-hidden
-          />
-        ) : null}
+          <p className="mx-auto mt-4 max-w-2xl text-[12px] leading-relaxed text-muted-foreground sm:mx-0">
+            Inventaire global et regroupements thématiques (volumes récents, toutes éditions confondues).
+            Les statistiques ci-dessous ne sont pas limitées à la fenêtre du sommaire. Pour le livrable daté
+            (grands sujets, coches, rédaction), ouvrir l’édition du jour.
+          </p>
+
+          {editionWindowOk ? (
+            <div
+              className={`mt-5 text-left ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
+            >
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                {editionToday.corpus_article_count != null ? (
+                  <p className="text-[12px] text-muted-foreground">
+                    Corpus du sommaire (fenêtre d’édition du jour) :{" "}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {editionToday.corpus_article_count}
+                    </span>{" "}
+                    article
+                    {editionToday.corpus_article_count !== 1 ? "s" : ""}
+                  </p>
+                ) : null}
+                <p className="text-[11px] italic leading-snug text-muted-foreground sm:max-w-[55%] sm:text-right">
+                  Plage du sommaire (Beyrouth), même repère que sur la page Édition
+                </p>
+              </div>
+              <div className={UI_SURFACE_FRISE_SEPARATOR}>
+                <EditionPeriodFrise
+                  windowStartIso={editionToday.window_start!}
+                  windowEndIso={editionToday.window_end!}
+                  publishRouteIso={editionDate}
+                />
+              </div>
+            </div>
+          ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (
+            <div
+              className={`mt-5 h-24 animate-pulse ${UI_SURFACE_SKELETON_INSET}`}
+              aria-hidden
+            />
+          ) : null}
+        </div>
       </header>
 
       {error ? (
@@ -176,7 +183,9 @@ export function PanoramaPageContent() {
 
       {stats ? (
         <StatsDistributionPanels
-          byCountry={byCountryForStatsPanel}
+          byCountry={stats.by_country}
+          byCountryCode={stats.counts_by_country_code}
+          countryLabelsFr={stats.country_labels_fr}
           byLanguage={stats.by_language}
         />
       ) : null}

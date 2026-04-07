@@ -59,8 +59,9 @@ export function EditionMetaStrip({
         </summary>
         <div className="mt-1.5 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
           <p>
-            La plage (Beyrouth) est matérialisée sur la frise au-dessus. Les textes listés correspondent à la date de
-            parution dans cette fenêtre (mar.–ven. : veille 18 h → jour J 6 h ; lundi : week-end).
+            La plage du sommaire (Beyrouth) est matérialisée sur la frise du bandeau ci-dessus. Les textes listés
+            correspondent à la date de parution dans cette fenêtre (mar.–ven. : veille 18 h → jour J 6 h ; lundi :
+            week-end).
           </p>
           <p>
             <Link href="/regie/pipeline" className="olj-link-action font-medium">

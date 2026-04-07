@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { shiftIsoDate, todayBeirutIsoDate } from "@/lib/beirut-date";
 import { chipLabelsEditionRail } from "@/lib/dates-display-fr";
+import { UI_SURFACE_INSET, UI_SURFACE_INSET_PAD } from "@/lib/ui-surface-classes";
 
 const RADIUS = 5;
 
@@ -135,7 +136,9 @@ export function ArticlesPeriodRail({
       className={`olj-date-rail flex w-full max-w-full flex-col items-center gap-0 sm:items-stretch ${className}`.trim()}
       aria-label="Choisir une période (articles)"
     >
-      <div className="w-full max-w-full rounded-xl border border-border/35 bg-muted/15 p-3 sm:p-3.5">
+      <div
+        className={`w-full max-w-full ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
+      >
         {rangeActive ? (
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/25 pb-3 text-[11px] text-foreground-body">
             <span className="tabular-nums">

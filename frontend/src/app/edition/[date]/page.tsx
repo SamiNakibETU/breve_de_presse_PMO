@@ -16,10 +16,7 @@ import type {
   EditionDetectionStatus,
   EditionTopic,
 } from "@/lib/types";
-import {
-  formatEditionCalendarTitleFr,
-  formatEditionWindowFr,
-} from "@/lib/dates-display-fr";
+import { formatEditionWindowFr } from "@/lib/dates-display-fr";
 
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
@@ -569,17 +566,15 @@ export default function EditionSommairePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <p className="olj-rubric">Édition</p>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-2">
-              <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold capitalize leading-tight text-foreground sm:text-[30px]">
-                {date ? formatEditionCalendarTitleFr(date) : "Date non renseignée"}
-              </h1>
+            <div className="mt-2 w-full min-w-0">
               {date ? (
                 <nav
-                  className="mt-1 flex w-full min-w-0 max-w-3xl justify-center text-[11px] sm:max-w-2xl sm:justify-start"
+                  className="w-full min-w-0 text-[11px]"
                   aria-label="Naviguer entre les jours"
                 >
                   <EditionDateRail
                     currentIso={date}
+                    unifiedHeader
                     editionWindow={
                       edition?.window_start && edition?.window_end
                         ? { start: edition.window_start, end: edition.window_end }
@@ -587,7 +582,11 @@ export default function EditionSommairePage() {
                     }
                   />
                 </nav>
-              ) : null}
+              ) : (
+                <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold capitalize leading-tight text-foreground sm:text-[30px]">
+                  Date non renseignée
+                </h1>
+              )}
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">

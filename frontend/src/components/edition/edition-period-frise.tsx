@@ -101,13 +101,13 @@ export function EditionPeriodFrise({
         </div>
       </div>
 
-      <div className="relative mx-auto h-4 w-full max-w-3xl overflow-visible sm:h-[18px]">
+      <div className="relative h-5 w-full overflow-visible sm:h-6">
         {ticks.map((i) => {
           const pct = TICK_COUNT <= 1 ? 0 : (i / (TICK_COUNT - 1)) * 100;
           return (
             <div
               key={i}
-              className="pointer-events-none absolute bottom-0 top-0 w-px bg-foreground/10"
+              className="pointer-events-none absolute bottom-0 top-0 w-px bg-foreground/[0.14]"
               style={{ left: `${pct}%` }}
               aria-hidden
             />
@@ -124,7 +124,7 @@ export function EditionPeriodFrise({
         />
 
         <div
-          className="pointer-events-none absolute -top-1.5 bottom-0 w-px bg-foreground"
+          className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
           style={{
             left: `${windowLeft}%`,
             transform: "translateX(-50%)",
@@ -132,7 +132,7 @@ export function EditionPeriodFrise({
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -top-1.5 bottom-0 w-px bg-foreground"
+          className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
           style={{
             left: `${windowRight}%`,
             transform: "translateX(-50%)",
@@ -140,7 +140,7 @@ export function EditionPeriodFrise({
           aria-hidden
         />
         <span
-          className="pointer-events-none absolute -top-2 left-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[var(--color-accent)]"
+          className="pointer-events-none absolute -top-2.5 left-0 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
           style={{ left: `${windowRight}%` }}
           aria-hidden
         />
