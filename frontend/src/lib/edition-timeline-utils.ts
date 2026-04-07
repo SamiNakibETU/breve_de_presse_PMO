@@ -127,6 +127,33 @@ export function timelineVisibleRange(
   return { rangeStart, rangeEnd };
 }
 
+/**
+ * Étend la plage « cœur » (API + padding) pour permettre un pan horizontal sur la frise.
+ * `sidePadRatio` : fraction de la durée cœur ajoutée à gauche et à droite (ex. 0.42 → ~84 % de largeur en plus).
+ */
+export function extendedTimelineBounds(
+  windowStartMs: number,
+  windowEndMs: number,
+  publishRouteIso: string,
+  paddingMs: number,
+  sidePadRatio: number,
+): { extStart: number; extEnd: number; coreStart: number; coreEnd: number } {
+  const { rangeStart: coreStart, rangeEnd: coreEnd } = timelineVisibleRange(
+    windowStartMs,
+    windowEndMs,
+    publishRouteIso,
+    paddingMs,
+  );
+  const coreSpan = coreEnd - coreStart;
+  const side = coreSpan * sidePadRatio;
+  return {
+    coreStart,
+    coreEnd,
+    extStart: coreStart - side,
+    extEnd: coreEnd + side,
+  };
+}
+
 export function percentAlong(
   ms: number,
   rangeStart: number,

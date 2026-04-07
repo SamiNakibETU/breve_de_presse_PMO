@@ -1,17 +1,27 @@
 "use client";
 
-import { useMemo } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import {
   formatFriseBoundaryDateFr,
   formatFriseBoundaryTimeFr,
 } from "@/lib/dates-display-fr";
 import {
+  extendedTimelineBounds,
   percentAlong,
-  timelineVisibleRange,
 } from "@/lib/edition-timeline-utils";
 
 const TICK_COUNT = 96;
 const PADDING_MS = 20 * 60 * 1000;
+/** Marge temporelle de chaque côté (fraction de la plage « cœur ») pour le pan horizontal */
+const SIDE_PAD_RATIO = 0.42;
+const KEY_SCROLL_PX = 88;
 
 export type EditionPeriodFriseProps = {
   windowStartIso: string;
@@ -20,9 +30,20 @@ export type EditionPeriodFriseProps = {
   className?: string;
 };
 
+type FriseLayout = {
+  windowLeftPct: number;
+  windowRightPct: number;
+  windowWidthPct: number;
+  innerWidthPct: number;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  summaryA11y: string;
+};
+
 /**
- * Frise minimaliste (repère Figma) : traits verticaux, plage en accent léger,
- * marqueurs noirs aux bornes, libellés date + heure, point d’accent sur la fin.
+ * Frise temporelle : plage revue sur contexte élargi, défilable (glisser, Maj + molette, flèches).
  */
 export function EditionPeriodFrise({
   windowStartIso,
@@ -30,124 +51,280 @@ export function EditionPeriodFrise({
   publishRouteIso,
   className = "",
 }: EditionPeriodFriseProps) {
-  const layout = useMemo(() => {
+  const hintId = useId();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startScroll: number;
+  } | null>(null);
+
+  const layout = useMemo((): FriseLayout | null => {
     const ws = Date.parse(windowStartIso);
     const we = Date.parse(windowEndIso);
     if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= ws) {
       return null;
     }
-    const { rangeStart, rangeEnd } = timelineVisibleRange(
+    const { extStart, extEnd, coreStart, coreEnd } = extendedTimelineBounds(
       ws,
       we,
       publishRouteIso,
       PADDING_MS,
+      SIDE_PAD_RATIO,
     );
-    const windowLeft = percentAlong(ws, rangeStart, rangeEnd);
-    const windowWidth = percentAlong(we, rangeStart, rangeEnd) - windowLeft;
+    const coreSpan = coreEnd - coreStart;
+    if (coreSpan <= 0) {
+      return null;
+    }
+    const windowLeftPct = percentAlong(ws, extStart, extEnd);
+    const windowRightPct = percentAlong(we, extStart, extEnd);
+    const windowWidthPct = Math.max(windowRightPct - windowLeftPct, 0.35);
+    const innerWidthPct = ((extEnd - extStart) / coreSpan) * 100;
+    const startDate = formatFriseBoundaryDateFr(windowStartIso);
+    const startTime = formatFriseBoundaryTimeFr(windowStartIso);
+    const endDate = formatFriseBoundaryDateFr(windowEndIso);
+    const endTime = formatFriseBoundaryTimeFr(windowEndIso);
+    const summaryA11y = `Période couverte par la revue du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`;
     return {
-      windowLeft,
-      windowWidth: Math.max(windowWidth, 0.35),
-      startDate: formatFriseBoundaryDateFr(windowStartIso),
-      startTime: formatFriseBoundaryTimeFr(windowStartIso),
-      endDate: formatFriseBoundaryDateFr(windowEndIso),
-      endTime: formatFriseBoundaryTimeFr(windowEndIso),
+      windowLeftPct,
+      windowRightPct: windowLeftPct + windowWidthPct,
+      windowWidthPct,
+      innerWidthPct,
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      summaryA11y,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso]);
+
+  const centerScroll = useCallback(() => {
+    const sc = scrollRef.current;
+    const inner = innerRef.current;
+    if (!layout || !sc || !inner) {
+      return;
+    }
+    const innerW = inner.scrollWidth;
+    const outerW = sc.clientWidth;
+    if (innerW <= outerW + 1) {
+      sc.scrollLeft = 0;
+      return;
+    }
+    const midPct = (layout.windowLeftPct + layout.windowRightPct) / 2;
+    const midPx = (midPct / 100) * innerW;
+    sc.scrollLeft = Math.max(0, Math.min(midPx - outerW / 2, innerW - outerW));
+  }, [layout]);
+
+  useLayoutEffect(() => {
+    centerScroll();
+  }, [centerScroll]);
+
+  useEffect(() => {
+    const ro = new ResizeObserver(() => centerScroll());
+    const sc = scrollRef.current;
+    if (sc) {
+      ro.observe(sc);
+    }
+    return () => ro.disconnect();
+  }, [centerScroll]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) {
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    el.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startScroll: el.scrollLeft,
+    };
+  }, []);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    const el = scrollRef.current;
+    if (!d || e.pointerId !== d.pointerId || !el) {
+      return;
+    }
+    el.scrollLeft = d.startScroll - (e.clientX - d.startX);
+  }, []);
+
+  const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) {
+      return;
+    }
+    dragRef.current = null;
+    try {
+      scrollRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      el.scrollBy({ left: -KEY_SCROLL_PX, behavior: "smooth" });
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      el.scrollBy({ left: KEY_SCROLL_PX, behavior: "smooth" });
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !layout) {
+      return;
+    }
+    const onWheelNative = (e: WheelEvent) => {
+      if (!e.shiftKey) {
+        return;
+      }
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => el.removeEventListener("wheel", onWheelNative);
+  }, [layout]);
 
   if (!layout) {
     return null;
   }
 
-  const { windowLeft, windowWidth, startDate, startTime, endDate, endTime } =
-    layout;
-  const windowRight = windowLeft + windowWidth;
+  const {
+    windowLeftPct,
+    windowRightPct,
+    windowWidthPct,
+    innerWidthPct,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    summaryA11y,
+  } = layout;
 
   const ticks = Array.from({ length: TICK_COUNT }, (_, i) => i);
 
   return (
-    <div
-      className={`w-full ${className}`.trim()}
-      role="img"
-      aria-label={`Période couverte par la revue du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`}
-    >
-      <div className="relative mb-0.5 min-h-[2.5rem] sm:min-h-[2.75rem]">
+    <div className={`w-full ${className}`.trim()}>
+      <div
+        ref={scrollRef}
+        tabIndex={0}
+        role="region"
+        aria-label={summaryA11y}
+        aria-describedby={hintId}
+        className="olj-scrollbar-none relative w-full cursor-grab touch-pan-x overflow-x-auto overflow-y-visible scroll-smooth outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_55%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={onKeyDown}
+      >
         <div
-          className="absolute left-0 top-0 max-w-[42%] sm:max-w-[38%]"
+          ref={innerRef}
+          className="relative select-none"
           style={{
-            left: `${windowLeft}%`,
-            transform: "translateX(-1px)",
+            width: `${innerWidthPct}%`,
+            minWidth: "100%",
           }}
         >
-          <p className="text-[12px] font-semibold leading-tight text-foreground sm:text-[13px]">
-            {startDate}
-          </p>
-          <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
-            {startTime}
-          </p>
-        </div>
-        <div
-          className="absolute top-0 max-w-[42%] text-right sm:max-w-[38%]"
-          style={{
-            left: `${windowRight}%`,
-            transform: "translateX(calc(-100% + 1px))",
-          }}
-        >
-          <p className="text-[12px] font-semibold leading-tight text-foreground sm:text-[13px]">
-            {endDate}
-          </p>
-          <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
-            {endTime}
-          </p>
-        </div>
-      </div>
-
-      <div className="relative h-5 w-full overflow-visible sm:h-6">
-        {ticks.map((i) => {
-          const pct = TICK_COUNT <= 1 ? 0 : (i / (TICK_COUNT - 1)) * 100;
-          return (
+          <div className="relative mb-0.5 min-h-[2.5rem] sm:min-h-[2.75rem]">
             <div
-              key={i}
-              className="pointer-events-none absolute bottom-0 top-0 w-px bg-foreground/[0.14]"
-              style={{ left: `${pct}%` }}
+              className="absolute left-0 top-0 max-w-[42%] sm:max-w-[38%]"
+              style={{
+                left: `${windowLeftPct}%`,
+                transform: "translateX(-1px)",
+              }}
+            >
+              <p className="text-[12px] font-semibold leading-tight text-foreground sm:text-[13px]">
+                {startDate}
+              </p>
+              <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
+                {startTime}
+              </p>
+            </div>
+            <div
+              className="absolute top-0 max-w-[42%] text-right sm:max-w-[38%]"
+              style={{
+                left: `${windowRightPct}%`,
+                transform: "translateX(calc(-100% + 1px))",
+              }}
+            >
+              <p className="text-[12px] font-semibold leading-tight text-foreground sm:text-[13px]">
+                {endDate}
+              </p>
+              <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
+                {endTime}
+              </p>
+            </div>
+          </div>
+
+          <div className="relative h-5 w-full sm:h-6">
+            {ticks.map((i) => {
+              const pct = TICK_COUNT <= 1 ? 0 : (i / (TICK_COUNT - 1)) * 100;
+              return (
+                <div
+                  key={i}
+                  className="pointer-events-none absolute bottom-0 top-0 w-px bg-foreground/[0.14]"
+                  style={{ left: `${pct}%` }}
+                  aria-hidden
+                />
+              );
+            })}
+
+            <div
+              className="pointer-events-none absolute bottom-0 top-0 bg-[color-mix(in_srgb,var(--color-accent)_20%,transparent)]"
+              style={{
+                left: `${Math.max(0, windowLeftPct)}%`,
+                width: `${Math.min(100 - Math.max(0, windowLeftPct), windowWidthPct)}%`,
+              }}
               aria-hidden
             />
-          );
-        })}
 
-        <div
-          className="pointer-events-none absolute bottom-0 top-0 bg-[color-mix(in_srgb,var(--color-accent)_20%,transparent)]"
-          style={{
-            left: `${Math.max(0, windowLeft)}%`,
-            width: `${Math.min(100 - Math.max(0, windowLeft), windowWidth)}%`,
-          }}
-          aria-hidden
-        />
-
-        <div
-          className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
-          style={{
-            left: `${windowLeft}%`,
-            transform: "translateX(-50%)",
-          }}
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
-          style={{
-            left: `${windowRight}%`,
-            transform: "translateX(-50%)",
-          }}
-          aria-hidden
-        />
-        <span
-          className="pointer-events-none absolute -top-2.5 left-0 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
-          style={{ left: `${windowRight}%` }}
-          aria-hidden
-        />
+            <div
+              className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
+              style={{
+                left: `${windowLeftPct}%`,
+                transform: "translateX(-50%)",
+              }}
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
+              style={{
+                left: `${windowRightPct}%`,
+                transform: "translateX(-50%)",
+              }}
+              aria-hidden
+            />
+            <span
+              className="pointer-events-none absolute -top-2.5 left-0 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
+              style={{ left: `${windowRightPct}%` }}
+              aria-hidden
+            />
+          </div>
+        </div>
       </div>
 
-      <p className="mt-2 text-center text-[10px] italic text-muted-foreground sm:text-[11px]">
-        Période couverte par la revue
+      <p
+        id={hintId}
+        className="mt-2 space-y-0.5 text-center text-[10px] text-muted-foreground sm:text-[11px]"
+      >
+        <span className="block italic">Période couverte par la revue</span>
+        <span className="block font-normal not-italic text-[9px] leading-snug text-muted-foreground/90 sm:text-[10px]">
+          Glisser horizontalement, Maj + molette, ou flèches ← → après focus (Tab) pour parcourir le
+          contexte.
+        </span>
       </p>
     </div>
   );

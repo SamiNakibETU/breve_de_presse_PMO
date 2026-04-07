@@ -32,6 +32,7 @@ import {
   type ArticleReorderItem,
 } from "@/components/composition/ArticleReorderInTopic";
 import { formatEditionCalendarTitleFr } from "@/lib/dates-display-fr";
+import { UI_SURFACE_INSET, UI_SURFACE_INSET_PAD } from "@/lib/ui-surface-classes";
 
 function topicPlainText(t: EditionTopic): string {
   const title = t.title_final ?? t.title_proposed;
@@ -443,7 +444,7 @@ export default function ComposePage() {
           {titleFr}
         </h1>
         <div
-          className="flex flex-wrap gap-3 rounded-xl border border-border/50 bg-muted/10 p-3 sm:p-4"
+          className={`flex flex-wrap gap-3 ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
           aria-label="Indicateurs de la sélection"
         >
           {[

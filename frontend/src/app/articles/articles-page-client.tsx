@@ -20,6 +20,7 @@ import {
   formatArticlesExplorationPeriodHint,
   formatIsoCalendarDayLongFr,
 } from "@/lib/dates-display-fr";
+import { UI_SURFACE_INSET, UI_SURFACE_INSET_PAD } from "@/lib/ui-surface-classes";
 import { reviewPagePath } from "@/lib/review-url";
 import type { Article } from "@/lib/types";
 
@@ -348,8 +349,11 @@ export function ArticlesPageClient() {
             )}
           </p>
           {!activeEditionId ? (
-            <div className="mt-4 space-y-4">
+            <div
+              className={`mt-4 space-y-4 ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
+            >
               <ArticlesPeriodRail
+                embedded
                 beirutDate={beirutDate}
                 beirutFrom={beirutFrom}
                 beirutTo={beirutTo}

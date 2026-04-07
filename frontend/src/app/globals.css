@@ -353,6 +353,17 @@ input[type="checkbox"] {
   height: 0;
 }
 
+/* Listes / frises : défilement sans barre système (Windows, etc.) */
+.olj-scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.olj-scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .olj-date-rail__chevron {
   display: inline-flex;
   flex-shrink: 0;

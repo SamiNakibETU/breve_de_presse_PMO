@@ -29,6 +29,8 @@ export function mergeArticlesQuery(
 
 export type ArticlesPeriodRailProps = {
   className?: string;
+  /** Sans carte : le parent fournit la surface (ex. page Articles unifiée). */
+  embedded?: boolean;
   /** Jour unique Beyrouth (YYYY-MM-DD) ou null si plage / glissant */
   beirutDate: string | null;
   beirutFrom: string | null;
@@ -41,6 +43,7 @@ export type ArticlesPeriodRailProps = {
  */
 export function ArticlesPeriodRail({
   className = "",
+  embedded = false,
   beirutDate,
   beirutFrom,
   beirutTo,
@@ -131,14 +134,8 @@ export function ArticlesPeriodRail({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);
 
-  return (
-    <div
-      className={`olj-date-rail flex w-full max-w-full flex-col items-center gap-0 sm:items-stretch ${className}`.trim()}
-      aria-label="Choisir une période (articles)"
-    >
-      <div
-        className={`w-full max-w-full ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
-      >
+  const body = (
+    <>
         {rangeActive ? (
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/25 pb-3 text-[11px] text-foreground-body">
             <span className="tabular-nums">
@@ -169,7 +166,7 @@ export function ArticlesPeriodRail({
           <div className="min-h-0 min-w-0 flex-1">
             <div
               ref={scrollRef}
-              className="olj-date-rail__viewport overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="olj-date-rail__viewport olj-scrollbar-none overflow-x-auto scroll-smooth"
             >
               <div className="relative mx-auto flex min-w-max flex-row justify-center sm:mx-0 sm:justify-start">
                 <ul className="relative z-[1] m-0 flex list-none flex-row items-stretch gap-0 px-0.5 py-1">
@@ -241,7 +238,23 @@ export function ArticlesPeriodRail({
             }}
           />
         </div>
-      </div>
+    </>
+  );
+
+  return (
+    <div
+      className={`olj-date-rail flex w-full max-w-full flex-col items-center gap-0 sm:items-stretch ${className}`.trim()}
+      aria-label="Choisir une période (articles)"
+    >
+      {embedded ? (
+        <div className="w-full max-w-full">{body}</div>
+      ) : (
+        <div
+          className={`w-full max-w-full ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
+        >
+          {body}
+        </div>
+      )}
     </div>
   );
 }

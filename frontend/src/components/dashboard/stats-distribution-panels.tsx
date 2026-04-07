@@ -104,7 +104,7 @@ export function StatsDistributionPanels({
           <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Pays
           </h3>
-          <ul className="max-h-[min(22rem,55vh)] space-y-0 overflow-y-auto pr-1">
+          <ul className="olj-scrollbar-none max-h-[min(22rem,55vh)] space-y-0 overflow-y-auto pr-1">
             {countryRows.map((row) => {
               const flag = row.isoCode
                 ? (REGION_FLAG_EMOJI[row.isoCode] ?? null)
@@ -140,7 +140,7 @@ export function StatsDistributionPanels({
           <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Langues
           </h3>
-          <ul className="max-h-[min(22rem,55vh)] space-y-0 overflow-y-auto pr-1">
+          <ul className="olj-scrollbar-none max-h-[min(22rem,55vh)] space-y-0 overflow-y-auto pr-1">
             {langRows.map((row) => (
               <li
                 key={row.key}
