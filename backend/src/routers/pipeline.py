@@ -12,7 +12,10 @@ from src.schemas.pipeline import (
 )
 from src.services import pipeline_task_store
 from src.services.collector import run_collection
-from src.services.pipeline_async_jobs import execute_pipeline_task
+from src.services.pipeline_async_jobs import (
+    execute_pipeline_chain_task,
+    execute_pipeline_task,
+)
 from src.services.scheduler import (
     PipelineBusyError,
     pipeline_is_busy_async,
@@ -130,14 +133,34 @@ async def start_pipeline_task(
     Lance une tâche pipeline en arrière-plan. Suivi : **GET /api/pipeline/tasks/{task_id}**
     (polling client ~1 s).     Types : `collect`, `translate`, `refresh_clusters`, `full_pipeline`,
     `resume_pipeline`, et les étapes unitaires (`relevance_scoring`, `article_analysis`, …).
+    Avec `chain_steps` : une chaîne ordonnée (tâche unique `pipeline_chain`).
     """
+    edition_id_str = str(body.edition_id) if body.edition_id else None
+
+    if body.chain_steps:
+        steps = [s.value for s in body.chain_steps]
+        if any(s in ("full_pipeline", "resume_pipeline") for s in steps) and await pipeline_is_busy_async():
+            raise HTTPException(
+                status_code=409,
+                detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",
+            )
+        task_id = await pipeline_task_store.create_task("pipeline_chain")
+        background_tasks.add_task(
+            execute_pipeline_chain_task,
+            task_id,
+            steps,
+            body.translate_limit,
+            edition_id_str,
+            body.analysis_force,
+        )
+        return PipelineTaskStartResponse(task_id=task_id)
+
     if body.kind.value in ("full_pipeline", "resume_pipeline") and await pipeline_is_busy_async():
         raise HTTPException(
             status_code=409,
             detail="Un pipeline complet est déjà en cours (planificateur ou autre session).",
         )
     task_id = await pipeline_task_store.create_task(body.kind.value)
-    edition_id_str = str(body.edition_id) if body.edition_id else None
     background_tasks.add_task(
         execute_pipeline_task,
         task_id,

@@ -177,6 +177,100 @@ async def execute_resume_pipeline_task(task_id: str) -> None:
         await task_store.finish_error(task_id, str(exc))
 
 
+_STEP_LABEL_FR: dict[str, str] = {
+    "collect": "Collecte",
+    "translate": "Traduction",
+    "refresh_clusters": "Embeddings, clusters et libellés",
+    "full_pipeline": "Traitement complet",
+    "resume_pipeline": "Reprise du pipeline",
+    "relevance_scoring": "Scores de pertinence",
+    "article_analysis": "Analyse 5 puces",
+    "dedup_surface": "Dédoublonnage surface",
+    "syndication_simhash": "Dépêches (simhash)",
+    "dedup_semantic": "Dédoublonnage sémantique",
+    "embedding_only": "Embeddings seuls",
+    "clustering_only": "Regroupements seuls",
+    "cluster_labelling": "Libellés des clusters",
+    "topic_detection": "Grands sujets (sommaire)",
+}
+
+
+def _pipeline_step_label_fr(kind: str) -> str:
+    return _STEP_LABEL_FR.get(kind, kind)
+
+
+async def execute_pipeline_chain_task(
+    task_id: str,
+    steps: list[str],
+    translate_limit: int | None,
+    edition_id_str: str | None,
+    analysis_force: bool,
+) -> None:
+    structlog.contextvars.bind_contextvars(
+        pipeline_task_id=task_id,
+        pipeline_kind="pipeline_chain",
+    )
+    try:
+        await task_store.update_step(
+            task_id,
+            "chain_start",
+            f"Chaîne : {len(steps)} étape(s)",
+        )
+        if len(steps) == 1:
+            await execute_pipeline_task(
+                task_id,
+                steps[0],
+                translate_limit,
+                edition_id_str,
+                analysis_force,
+            )
+            return
+
+        chain_payload: list[dict] = []
+        for i, step in enumerate(steps):
+            label = _pipeline_step_label_fr(step)
+            await task_store.update_step(
+                task_id,
+                f"chain_{i}_{step}",
+                f"{i + 1}/{len(steps)} · {label}",
+            )
+            child_id = await task_store.create_task(step)
+            await execute_pipeline_task(
+                child_id,
+                step,
+                translate_limit,
+                edition_id_str,
+                analysis_force,
+            )
+            st = await task_store.get_task(child_id)
+            if not st:
+                await task_store.finish_error(
+                    task_id,
+                    "État d’une sous-tâche introuvable après exécution.",
+                )
+                return
+            if st.get("status") == "error":
+                err = st.get("error") or "erreur inconnue"
+                await task_store.finish_error(
+                    task_id,
+                    f"Échec à l’étape « {label} » : {err}",
+                )
+                return
+            chain_payload.append({"step": step, "result": st.get("result")})
+
+        await task_store.finish_ok(
+            task_id,
+            {"status": "ok", "chain": chain_payload},
+        )
+    except Exception as exc:  # noqa: BLE001
+        await task_store.finish_error(task_id, str(exc))
+    finally:
+        structlog.contextvars.unbind_contextvars(
+            "pipeline_task_id",
+            "pipeline_kind",
+        )
+
+
 async def execute_pipeline_task(
     task_id: str,
     kind: str,

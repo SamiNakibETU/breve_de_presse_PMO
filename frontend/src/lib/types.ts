@@ -296,7 +296,8 @@ export type PipelineTaskKind =
   | "embedding_only"
   | "clustering_only"
   | "cluster_labelling"
-  | "topic_detection";
+  | "topic_detection"
+  | "pipeline_chain";
 
 /** GET /api/pipeline/resume-status */
 export interface PipelineResumeStatus {

@@ -306,11 +306,15 @@ export const api = {
   /** Démarre une tâche longue (collecte, traduction, clusters, pipeline complet, étapes unitaires). */
   startPipelineTask: (body: {
     kind: PipelineTaskKind;
+    chain_steps?: PipelineTaskKind[] | null;
     translate_limit?: number | null;
     edition_id?: string | null;
     analysis_force?: boolean;
   }) => {
     const payload: Record<string, unknown> = { kind: body.kind };
+    if (body.chain_steps != null && body.chain_steps.length > 0) {
+      payload.chain_steps = body.chain_steps;
+    }
     if (body.translate_limit != null) {
       payload.translate_limit = body.translate_limit;
     }

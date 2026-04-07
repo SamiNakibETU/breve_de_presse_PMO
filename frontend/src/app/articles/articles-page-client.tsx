@@ -9,7 +9,13 @@ import {
   type Filters,
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
+import {
+  ArticlesPeriodRail,
+  mergeArticlesQuery,
+} from "@/components/articles/articles-period-rail";
+import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { api } from "@/lib/api";
+import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import {
   formatArticlesExplorationPeriodHint,
   formatIsoCalendarDayLongFr,
@@ -35,22 +41,7 @@ const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   },
 };
 
-const SORT_OPTIONS: Record<string, { label: string; value: string }> = {
-  relevance: { label: "Pertinence", value: "relevance" },
-  date: { label: "Date de collecte", value: "date" },
-  confidence: { label: "Qualité de traduction", value: "confidence" },
-  confidence_asc: {
-    label: "Qualité de traduction (basse d’abord)",
-    value: "confidence_asc",
-  },
-};
-
 const STATUS_NAV = Object.entries(STATUS_OPTIONS).map(([key, { label }]) => ({
-  key,
-  label,
-}));
-
-const SORT_NAV = Object.entries(SORT_OPTIONS).map(([key, { label }]) => ({
   key,
   label,
 }));
@@ -62,13 +53,15 @@ function buildArticleParams(
   offset: number,
   editionId: string | null,
   beirutDate: string | null,
+  beirutFrom: string | null,
+  beirutTo: string | null,
+  dateBasis: "collected" | "published",
 ): Record<string, string> {
   const params: Record<string, string> = {
     status: STATUS_OPTIONS[statusFilter].value,
     limit: String(PAGE_SIZE),
     offset: String(offset),
     sort: sortBy,
-    days: String(ARTICLES_ROLLING_DAYS),
   };
   if (filters.countries.length > 0) params.country = filters.countries.join(",");
   if (filters.types.length > 0) params.article_type = filters.types.join(",");
@@ -77,8 +70,18 @@ function buildArticleParams(
   if (filters.includeLowQuality) params.include_low_quality = "true";
   if (filters.hideSyndicated) params.hide_syndicated = "true";
   if (filters.groupSyndicated) params.group_syndicated = "true";
-  if (editionId) params.edition_id = editionId;
-  if (beirutDate) params.beirut_date = beirutDate;
+  if (editionId) {
+    params.edition_id = editionId;
+  } else if (beirutFrom && beirutTo) {
+    params.beirut_from = beirutFrom;
+    params.beirut_to = beirutTo;
+    params.date_basis = dateBasis;
+  } else if (beirutDate) {
+    params.beirut_date = beirutDate;
+    params.date_basis = dateBasis;
+  } else {
+    params.days = String(ARTICLES_ROLLING_DAYS);
+  }
   return params;
 }
 
@@ -92,6 +95,7 @@ function FiltersColumn({
   countsByCountry,
   countryLabelsFr,
   activeEditionId,
+  sortOptions,
 }: {
   statusFilter: string;
   sortBy: string;
@@ -102,6 +106,7 @@ function FiltersColumn({
   countsByCountry: Record<string, number> | null;
   countryLabelsFr: Record<string, string> | null;
   activeEditionId: string | null;
+  sortOptions: { key: string; label: string }[];
 }) {
   return (
     <div className="space-y-6">
@@ -111,7 +116,7 @@ function FiltersColumn({
         onStatusChange={setStatusFilter}
         onSortChange={setSortBy}
         statusOptions={STATUS_NAV}
-        sortOptions={SORT_NAV}
+        sortOptions={sortOptions}
       />
       <ArticleFilters
         filters={filters}
@@ -143,22 +148,37 @@ export function ArticlesPageClient() {
     groupSyndicated: false,
   });
   const [groupByOljTheme, setGroupByOljTheme] = useState(true);
-  /** Journée calendaire Asia/Beirut (YYYY-MM-DD) via `?date=` ; null = fenêtre glissante `days`. */
-  const beirutDate = searchParams.get("date")?.trim() || null;
 
-  const setBeirutDate = useCallback(
-    (d: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (d) {
-        params.set("date", d);
-      } else {
-        params.delete("date");
-      }
-      const qs = params.toString();
+  const beirutDate = searchParams.get("date")?.trim() || null;
+  const beirutFrom = searchParams.get("date_from")?.trim() || null;
+  const beirutTo = searchParams.get("date_to")?.trim() || null;
+  const dateBasisRaw = searchParams.get("date_basis")?.trim();
+  const dateBasis: "collected" | "published" =
+    dateBasisRaw === "published" ? "published" : "collected";
+
+  const patchSearch = useCallback(
+    (patch: Record<string, string | null | undefined>) => {
+      const qs = mergeArticlesQuery(searchParams, patch);
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [router, pathname, searchParams],
   );
+
+  const sortNav = useMemo(() => {
+    const dateLabel =
+      dateBasis === "published"
+        ? "Date (parution, repli sur collecte)"
+        : "Date (collecte)";
+    return [
+      { key: "relevance", label: "Pertinence" },
+      { key: "date", label: dateLabel },
+      { key: "confidence", label: "Qualité de traduction" },
+      {
+        key: "confidence_asc",
+        label: "Qualité de traduction (basse d’abord)",
+      },
+    ];
+  }, [dateBasis]);
 
   const oljLabelsQ = useQuery({
     queryKey: ["oljTopicLabels"] as const,
@@ -176,9 +196,21 @@ export function ArticlesPageClient() {
           filters,
           activeEditionId,
           beirutDate,
+          beirutFrom,
+          beirutTo,
+          dateBasis,
         },
       ] as const,
-    [statusFilter, sortBy, filters, activeEditionId, beirutDate],
+    [
+      statusFilter,
+      sortBy,
+      filters,
+      activeEditionId,
+      beirutDate,
+      beirutFrom,
+      beirutTo,
+      dateBasis,
+    ],
   );
 
   const {
@@ -199,6 +231,9 @@ export function ArticlesPageClient() {
         pageParam,
         activeEditionId,
         beirutDate,
+        beirutFrom,
+        beirutTo,
+        dateBasis,
       );
       return api.articles(params);
     },
@@ -235,6 +270,9 @@ export function ArticlesPageClient() {
     router.push(reviewPagePath([...selected]));
   }
 
+  const rangeActive = Boolean(beirutFrom && beirutTo);
+  const todayIso = todayBeirutIsoDate();
+
   const filterColumnProps = {
     statusFilter,
     sortBy,
@@ -245,6 +283,7 @@ export function ArticlesPageClient() {
     countsByCountry,
     countryLabelsFr,
     activeEditionId,
+    sortOptions: sortNav,
   };
 
   return (
@@ -270,41 +309,117 @@ export function ArticlesPageClient() {
           <p className="mt-1 text-[12px] leading-snug text-foreground-body">
             {activeEditionId ? (
               <>Corpus de l’édition liée (fenêtre Beyrouth côté serveur).</>
+            ) : rangeActive ? (
+              <>
+                Plage calendaire{" "}
+                <strong className="font-medium text-foreground">
+                  {beirutFrom} → {beirutTo}
+                </strong>{" "}
+                (<strong className="font-medium text-foreground">Asia/Beirut</strong>
+                ), critère :{" "}
+                {dateBasis === "published" ? (
+                  <span className="font-medium text-foreground">
+                    date de parution (repli sur collecte)
+                  </span>
+                ) : (
+                  <span className="font-medium text-foreground">date de collecte</span>
+                )}
+                .
+              </>
             ) : beirutDate ? (
               <>
                 Jour calendaire{" "}
                 <strong className="font-medium text-foreground">
                   {formatIsoCalendarDayLongFr(beirutDate)}
                 </strong>{" "}
-                (<strong className="font-medium text-foreground">Asia/Beirut</strong>), minuit → lendemain minuit.
+                (<strong className="font-medium text-foreground">Asia/Beirut</strong>
+                ), critère :{" "}
+                {dateBasis === "published" ? (
+                  <span className="font-medium text-foreground">
+                    parution (repli sur collecte)
+                  </span>
+                ) : (
+                  <span className="font-medium text-foreground">collecte</span>
+                )}
+                .
               </>
             ) : (
               formatArticlesExplorationPeriodHint(ARTICLES_ROLLING_DAYS)
             )}
           </p>
           {!activeEditionId ? (
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
-              <label className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground">Jour de collecte (Beyrouth)</span>
-                <input
-                  type="date"
-                  lang="fr"
-                  value={beirutDate ?? ""}
-                  onChange={(e) =>
-                    setBeirutDate(e.target.value.trim() || null)
-                  }
-                  className="rounded border border-border bg-background px-2 py-1 font-mono text-[12px] text-foreground"
+            <div className="mt-4 space-y-4">
+              <ArticlesPeriodRail
+                beirutDate={beirutDate}
+                beirutFrom={beirutFrom}
+                beirutTo={beirutTo}
+              />
+              <div className="flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
+                <span className="text-muted-foreground">Critère temporel (hors édition)</span>
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="articles-date-basis"
+                    className="olj-focus accent-[var(--color-accent)]"
+                    checked={dateBasis === "collected"}
+                    onChange={() => patchSearch({ date_basis: "collected" })}
+                  />
+                  Collecte
+                </label>
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="articles-date-basis"
+                    className="olj-focus accent-[var(--color-accent)]"
+                    checked={dateBasis === "published"}
+                    onChange={() => patchSearch({ date_basis: "published" })}
+                  />
+                  Parution
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-foreground-body">
+                <span className="text-muted-foreground">Plage multi-jours (max. 31)</span>
+                <EditionCalendarPopover
+                  currentIso={beirutFrom ?? todayIso}
+                  triggerLabel={beirutFrom ? `Depuis ${beirutFrom}` : "Depuis"}
+                  onDateSelect={(iso) => {
+                    const existingTo = searchParams.get("date_to")?.trim();
+                    patchSearch({
+                      date: null,
+                      date_from: iso,
+                      date_to: existingTo && existingTo >= iso ? existingTo : iso,
+                    });
+                  }}
                 />
-              </label>
-              {beirutDate ? (
-                <button
-                  type="button"
-                  className="text-accent underline underline-offset-2 hover:opacity-90"
-                  onClick={() => setBeirutDate(null)}
-                >
-                  Revenir à la période glissante
-                </button>
-              ) : null}
+                <EditionCalendarPopover
+                  currentIso={beirutTo ?? beirutFrom ?? todayIso}
+                  triggerLabel={beirutTo ? `Jusqu’au ${beirutTo}` : "Jusqu’au"}
+                  onDateSelect={(iso) => {
+                    const existingFrom = searchParams.get("date_from")?.trim();
+                    patchSearch({
+                      date: null,
+                      date_to: iso,
+                      date_from:
+                        existingFrom && existingFrom <= iso ? existingFrom : iso,
+                    });
+                  }}
+                />
+                {(beirutDate || rangeActive) && (
+                  <button
+                    type="button"
+                    className="text-accent underline underline-offset-2 hover:opacity-90"
+                    onClick={() =>
+                      patchSearch({
+                        date: null,
+                        date_from: null,
+                        date_to: null,
+                      })
+                    }
+                  >
+                    Période glissante ({ARTICLES_ROLLING_DAYS} j.)
+                  </button>
+                )}
+              </div>
             </div>
           ) : null}
           <p className="mt-2 text-[13px] tabular-nums text-muted-foreground">

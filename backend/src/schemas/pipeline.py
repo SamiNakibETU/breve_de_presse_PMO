@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CollectionStats(BaseModel):
@@ -129,6 +129,15 @@ class PipelineTaskStartRequest(BaseModel):
     """Démarrage d’une tâche longue suivie par GET /api/pipeline/tasks/{id}."""
 
     kind: PipelineTaskKind
+    chain_steps: list[PipelineTaskKind] | None = Field(
+        default=None,
+        max_length=40,
+        description=(
+            "Si défini (non vide) : exécute ces étapes dans l’ordre, une seule tâche parente "
+            "(kind enregistré « pipeline_chain »). ``full_pipeline`` / ``resume_pipeline`` "
+            "ne peuvent figurer qu’isolément."
+        ),
+    )
     translate_limit: int | None = Field(
         default=None,
         description="Pour kind=translate : plafond articles (1–1000) ; null = TRANSLATION_PIPELINE_BATCH_LIMIT",
@@ -148,6 +157,22 @@ class PipelineTaskStartRequest(BaseModel):
         if v is not None and not (1 <= v <= 1000):
             raise ValueError("translate_limit must be between 1 and 1000")
         return v
+
+    @model_validator(mode="after")
+    def _chain_steps_rules(self) -> "PipelineTaskStartRequest":
+        if not self.chain_steps:
+            return self
+        vals = [s.value for s in self.chain_steps]
+        if not vals:
+            raise ValueError("chain_steps ne peut pas être une liste vide")
+        heavy = frozenset({"full_pipeline", "resume_pipeline"})
+        bad = [x for x in vals if x in heavy]
+        if bad and len(vals) > 1:
+            raise ValueError(
+                "full_pipeline et resume_pipeline ne peuvent pas être mélangés "
+                "à d'autres étapes dans chain_steps",
+            )
+        return self
 
 
 class PipelineTaskStartResponse(BaseModel):

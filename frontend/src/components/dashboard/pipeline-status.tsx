@@ -10,9 +10,11 @@ import {
   collecteStatusFr,
   formatTranslationHint,
 } from "@/lib/media-source-health-display";
+import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import type {
   AppStatus,
   MediaSourcesHealthResponse,
+  PipelineTaskKind,
 } from "@/lib/types";
 import {
   PipelineResultPanel,
@@ -117,17 +119,41 @@ const ADVANCED_ACTIONS: {
   },
 ];
 
+const CHAIN_STEP_DEFS: {
+  kind: PipelineTaskKind;
+  label: string;
+}[] = [
+  { kind: "collect", label: "Collecte" },
+  { kind: "translate", label: "Traduction" },
+  { kind: "relevance_scoring", label: "Pertinence" },
+  { kind: "article_analysis", label: "Analyse 5 puces" },
+  { kind: "dedup_surface", label: "Dédoublonnage surface" },
+  { kind: "syndication_simhash", label: "Dépêches (simhash)" },
+  { kind: "dedup_semantic", label: "Dédoublonnage sens" },
+  { kind: "refresh_clusters", label: "Embeddings, clusters, libellés" },
+  { kind: "topic_detection", label: "Grands sujets" },
+];
+
 export function PipelineStatus({
   status,
   sourceHealth,
   revueRegistryOnly = true,
   onRevueRegistryOnlyChange,
 }: PipelineStatusProps) {
-  const { running, lastRun, diagnostics, startRun, clearDiagnostics } =
+  const { running, lastRun, diagnostics, startRun, startSequentialChain, clearDiagnostics } =
     usePipelineRunner();
   const [showAllSources, setShowAllSources] = useState(false);
   const [useServerEdition, setUseServerEdition] = useState(true);
   const [publishDateIso, setPublishDateIso] = useState(todayBeirutIsoDate);
+  const [chainSelected, setChainSelected] = useState<Set<PipelineTaskKind>>(
+    () =>
+      new Set<PipelineTaskKind>([
+        "collect",
+        "translate",
+        "relevance_scoring",
+        "article_analysis",
+      ]),
+  );
 
   const editionQ = useQuery({
     queryKey: ["regie", "editionByDate", publishDateIso] as const,
@@ -155,6 +181,39 @@ export function PipelineStatus({
       startRun(key, label, { editionId: resolvedEditionId });
     }
   };
+
+  const toggleChainKind = (kind: PipelineTaskKind) => {
+    setChainSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(kind)) {
+        n.delete(kind);
+      } else {
+        n.add(kind);
+      }
+      return n;
+    });
+  };
+
+  const chainOrder = CHAIN_STEP_DEFS.map((d) => d.kind).filter((k) =>
+    chainSelected.has(k),
+  );
+
+  const runChainOrdered = () => {
+    if (chainOrder.length === 0) {
+      return;
+    }
+    const label = `Chaîne (${chainOrder.length} étapes)`;
+    if (useServerEdition) {
+      startSequentialChain(chainOrder, label);
+      return;
+    }
+    if (resolvedEditionId) {
+      startSequentialChain(chainOrder, label, { editionId: resolvedEditionId });
+    }
+  };
+
+  const chainSequentialBusy = running !== null && running.key === "sequentialChain";
+  const chainBlocked = advancedBlocked || chainSequentialBusy;
 
   return (
     <div className="space-y-4">
@@ -204,16 +263,15 @@ export function PipelineStatus({
           </label>
           {!useServerEdition ? (
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <label htmlFor="regie-pipeline-publish-date" className="text-[11px] text-foreground-subtle">
-                Date de parution
-              </label>
-              <input
-                id="regie-pipeline-publish-date"
-                type="date"
-                value={publishDateIso}
-                onChange={(e) => setPublishDateIso(e.target.value)}
-                className="rounded border border-border bg-background px-2 py-1 text-[11px] text-foreground tabular-nums"
+              <span className="text-[11px] text-foreground-subtle">Date de parution</span>
+              <EditionCalendarPopover
+                currentIso={publishDateIso}
+                triggerLabel="Calendrier"
+                onDateSelect={(iso) => setPublishDateIso(iso)}
               />
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                {publishDateIso}
+              </span>
               {editionQ.isPending ? (
                 <span className="text-[11px] text-muted-foreground" role="status">
                   Chargement de l’édition…
@@ -256,6 +314,70 @@ export function PipelineStatus({
               {running?.key === key ? "En cours…" : label}
             </button>
           ))}
+        </div>
+        <div className="mt-4 rounded border border-border/60 bg-muted/20 px-3 py-2.5">
+          <p className="text-[11px] font-medium text-foreground-subtle">
+            Chaîne séquentielle (une seule tâche suivie)
+          </p>
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+            Cochez les étapes dans l’ordre logique ci-dessous ; exécution du haut vers le bas. Même cible édition que
+            les étapes avancées.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
+            {CHAIN_STEP_DEFS.map(({ kind, label }) => (
+              <label
+                key={kind}
+                className="flex cursor-pointer items-center gap-1.5 text-[11px] text-foreground-body"
+              >
+                <input
+                  type="checkbox"
+                  className="olj-focus accent-[var(--color-accent)]"
+                  checked={chainSelected.has(kind)}
+                  onChange={() => toggleChainKind(kind)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="olj-btn-primary px-3 py-1.5 text-[11px] disabled:opacity-40"
+              disabled={
+                chainBlocked ||
+                chainOrder.length === 0 ||
+                (!useServerEdition && !resolvedEditionId)
+              }
+              title={
+                !useServerEdition && !resolvedEditionId
+                  ? "Choisissez une date de parution avec édition résolue."
+                  : undefined
+              }
+              onClick={runChainOrdered}
+            >
+              {chainSequentialBusy
+                ? "Chaîne en cours…"
+                : `Lancer la chaîne (${chainOrder.length})`}
+            </button>
+            <button
+              type="button"
+              className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              onClick={() =>
+                setChainSelected(
+                  new Set(CHAIN_STEP_DEFS.map((d) => d.kind)),
+                )
+              }
+            >
+              Tout sélectionner
+            </button>
+            <button
+              type="button"
+              className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              onClick={() => setChainSelected(new Set())}
+            >
+              Tout désélectionner
+            </button>
+          </div>
         </div>
       </details>
 

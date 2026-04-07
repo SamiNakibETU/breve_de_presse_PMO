@@ -127,6 +127,12 @@ export function PanoramaPageContent() {
           >
             Collecte et traitement
           </Link>
+          <Link
+            href="/articles"
+            className="olj-btn-secondary px-4 py-2 text-[13px]"
+          >
+            Articles (période Beyrouth)
+          </Link>
         </div>
         <p className="mx-auto max-w-2xl text-[12px] leading-relaxed text-muted-foreground sm:mx-0">
           Inventaire global et regroupements thématiques (volumes récents, toutes éditions confondues).

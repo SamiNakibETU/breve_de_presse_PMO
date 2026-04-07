@@ -44,6 +44,8 @@ const TASK_KIND_BY_ACTION: Record<PipelineActionKey, PipelineTaskKind> = {
   clusteringOnly: "clustering_only",
   clusterLabelling: "cluster_labelling",
   topicDetection: "topic_detection",
+  /** Placeholder : utiliser `startSequentialChain` (jamais via `startRun`). */
+  sequentialChain: "pipeline_chain",
 };
 
 /** Options pour cibler une édition (ex. analyse 5 puces depuis la page Édition). */
@@ -95,6 +97,12 @@ type PipelineRunnerValue = {
   diagnostics: string[];
   startRun: (
     key: PipelineActionKey,
+    label: string,
+    options?: StartPipelineRunOptions,
+  ) => void;
+  /** Enchaîne plusieurs étapes dans l’ordre (une tâche serveur `pipeline_chain`). */
+  startSequentialChain: (
+    steps: PipelineTaskKind[],
     label: string,
     options?: StartPipelineRunOptions,
   ) => void;
@@ -269,6 +277,80 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const startSequentialChain = useCallback(
+    (steps: PipelineTaskKind[], label: string, options?: StartPipelineRunOptions) => {
+      if (inFlightTaskIdRef.current !== null || startingRef.current) {
+        appendDiagnostic(
+          "Une tâche est déjà en cours ou en démarrage. Attendez la fin.",
+        );
+        return;
+      }
+      const filtered = steps.filter((s) => s !== "pipeline_chain");
+      if (filtered.length === 0) {
+        appendDiagnostic("Sélectionnez au moins une étape pour la chaîne.");
+        return;
+      }
+      const at = new Date().toLocaleString("fr-FR", {
+        dateStyle: "short",
+        timeStyle: "medium",
+      });
+      const t0 = performance.now();
+      startingRef.current = true;
+
+      void (async () => {
+        let taskId: string | undefined;
+        try {
+          const body: Parameters<typeof api.startPipelineTask>[0] = {
+            kind: "collect",
+            chain_steps: filtered,
+          };
+          if (options?.editionId) {
+            body.edition_id = options.editionId;
+          }
+          if (options?.analysisForce === false) {
+            body.analysis_force = false;
+          }
+          const { task_id } = await api.startPipelineTask(body);
+          taskId = task_id;
+
+          const stored: StoredPipelineTask = {
+            v: 1,
+            taskId: task_id,
+            actionKey: "sequentialChain",
+            actionLabel: label,
+            kind: "pipeline_chain",
+            startedAt: Date.now(),
+          };
+          writeStoredPipelineTask(stored);
+
+          await runTrackedPollRef.current(stored, { startedAtMs: t0 });
+        } catch (err) {
+          clearStoredPipelineTask();
+          const durationMs = performance.now() - t0;
+          setLastRun(
+            buildErrorRecord(err, {
+              action: "sequentialChain",
+              label,
+              durationMs,
+              at,
+              taskId,
+              diagnostics: [],
+            }),
+          );
+          if (isApiRequestError(err)) {
+            err.toDetailLines().forEach((l) => appendDiagnostic(l));
+          }
+          queueMicrotask(() => {
+            invalidateDashboardQueries(queryClient);
+          });
+        } finally {
+          startingRef.current = false;
+        }
+      })();
+    },
+    [appendDiagnostic, queryClient],
+  );
+
   const startRun = useCallback(
     (key: PipelineActionKey, label: string, options?: StartPipelineRunOptions) => {
       if (inFlightTaskIdRef.current !== null || startingRef.current) {
@@ -348,7 +430,9 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
       document.title =
         running.key === "resumePipeline"
           ? `⏳ Reprise pipeline… | OLJ`
-          : `⏳ Mise à jour… | OLJ`;
+          : running.key === "sequentialChain"
+            ? `⏳ Chaîne pipeline… | OLJ`
+            : `⏳ Mise à jour… | OLJ`;
     } else if (savedTitleRef.current != null) {
       document.title = savedTitleRef.current;
       savedTitleRef.current = null;
@@ -361,9 +445,10 @@ export function PipelineRunnerProvider({ children }: { children: ReactNode }) {
       lastRun,
       diagnostics,
       startRun,
+      startSequentialChain,
       clearDiagnostics,
     }),
-    [running, lastRun, diagnostics, startRun, clearDiagnostics],
+    [running, lastRun, diagnostics, startRun, startSequentialChain, clearDiagnostics],
   );
 
   return (

@@ -61,6 +61,11 @@ class Settings(BaseSettings):
         le=59,
         description="Minute locale Paris du passage pipeline",
     )
+    weekend_collect_enabled: bool = Field(
+        default=True,
+        description="Si true : samedi et dimanche à l’heure Paris du pipeline, collecte seule "
+        "(pas de traduction ni post-traitement). Lundi : passage complet inchangé.",
+    )
     pipeline_timeout_seconds: int = Field(
         default=10800,
         ge=600,

@@ -2,7 +2,7 @@ import uuid
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_, select, update
@@ -32,12 +32,24 @@ router = APIRouter(prefix="/api")
 
 _BEIRUT_TZ = ZoneInfo("Asia/Beirut")
 
+# Plage calendaire Beyrouth (hors corpus édition) : borne dure côté API.
+_ARTICLES_BEIRUT_RANGE_MAX_DAYS = 31
+
+
+def _article_effective_date_expr(
+    date_basis: Literal["collected", "published"],
+):
+    if date_basis == "published":
+        return func.coalesce(Article.published_at, Article.collected_at)
+    return Article.collected_at
+
 
 def _article_list_conditions(
     *,
     edition: Optional[Edition] = None,
     collected_after: Optional[datetime] = None,
     collected_before: Optional[datetime] = None,
+    date_basis: Literal["collected", "published"] = "collected",
     status: Optional[str],
     country: Optional[str],
     article_type: Optional[str],
@@ -54,9 +66,10 @@ def _article_list_conditions(
     else:
         if collected_after is None:
             raise ValueError("collected_after requis sans edition")
-        conds.append(Article.collected_at >= collected_after)
+        date_expr = _article_effective_date_expr(date_basis)
+        conds.append(date_expr >= collected_after)
         if collected_before is not None:
-            conds.append(Article.collected_at < collected_before)
+            conds.append(date_expr < collected_before)
     if status:
         statuses = [s.strip() for s in status.split(",")]
         conds.append(Article.status.in_(statuses))
@@ -227,8 +240,29 @@ async def list_articles(
     beirut_date: Optional[str] = Query(
         default=None,
         description=(
-            "Journée calendaire Asia/Beirut (YYYY-MM-DD) : filtre ``collected_at`` sur "
-            "[minuit local, lendemain minuit local[) converti en UTC. Remplace le glissement ``days``."
+            "Journée calendaire Asia/Beirut (YYYY-MM-DD) : filtre la date effective (voir "
+            "``date_basis``) sur [minuit local, lendemain minuit local[). Ignoré si "
+            "``beirut_from`` et ``beirut_to`` sont fournis. Sinon remplace le glissement ``days``."
+        ),
+    ),
+    beirut_from: Optional[str] = Query(
+        default=None,
+        description=(
+            "Début de plage calendaire Asia/Beirut (YYYY-MM-DD, inclus). "
+            "Requiert ``beirut_to`` ; prioritaire sur ``beirut_date`` et ``days``."
+        ),
+    ),
+    beirut_to: Optional[str] = Query(
+        default=None,
+        description=(
+            "Fin de plage calendaire Asia/Beirut (YYYY-MM-DD, inclus). Requiert ``beirut_from``."
+        ),
+    ),
+    date_basis: Literal["collected", "published"] = Query(
+        default="collected",
+        description=(
+            "Hors ``edition_id`` : colonne de filtre temporel — ``collected`` = ``collected_at`` ; "
+            "``published`` = COALESCE(published_at, collected_at)."
         ),
     ),
 ):
@@ -242,6 +276,41 @@ async def list_articles(
         edition_for_filter = ed
         collected_after = None
         collected_before = None
+    elif (beirut_from and beirut_from.strip()) or (beirut_to and beirut_to.strip()):
+        raw_f = (beirut_from or "").strip()[:10]
+        raw_t = (beirut_to or "").strip()[:10]
+        if not raw_f or not raw_t:
+            raise HTTPException(
+                status_code=400,
+                detail="beirut_from et beirut_to sont requis ensemble (format YYYY-MM-DD).",
+            )
+        try:
+            d_from = date.fromisoformat(raw_f)
+            d_to = date.fromisoformat(raw_t)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="beirut_from / beirut_to : format YYYY-MM-DD attendu.",
+            ) from exc
+        if d_from > d_to:
+            raise HTTPException(
+                status_code=400,
+                detail="beirut_from doit être antérieur ou égal à beirut_to.",
+            )
+        span_days = (d_to - d_from).days + 1
+        if span_days > _ARTICLES_BEIRUT_RANGE_MAX_DAYS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Plage Beyrouth limitée à {_ARTICLES_BEIRUT_RANGE_MAX_DAYS} jours inclus "
+                    f"(demandé : {span_days})."
+                ),
+            )
+        start_local = datetime.combine(d_from, datetime.min.time(), tzinfo=_BEIRUT_TZ)
+        end_local = datetime.combine(d_to, datetime.min.time(), tzinfo=_BEIRUT_TZ)
+        end_exclusive = end_local + timedelta(days=1)
+        collected_after = start_local.astimezone(timezone.utc)
+        collected_before = end_exclusive.astimezone(timezone.utc)
     elif beirut_date and beirut_date.strip():
         try:
             d0 = date.fromisoformat(beirut_date.strip()[:10])
@@ -262,6 +331,7 @@ async def list_articles(
         edition=edition_for_filter,
         collected_after=collected_after,
         collected_before=collected_before,
+        date_basis=date_basis,
         status=status,
         country=country,
         article_type=article_type,
@@ -310,7 +380,11 @@ async def list_articles(
     }
 
     if sort == "date":
-        query = query.order_by(Article.collected_at.desc())
+        if edition_for_filter is not None:
+            query = query.order_by(Article.collected_at.desc())
+        else:
+            date_ord = _article_effective_date_expr(date_basis)
+            query = query.order_by(date_ord.desc().nullslast())
     elif sort == "confidence":
         query = query.order_by(Article.translation_confidence.desc().nullslast())
     elif sort == "confidence_asc":

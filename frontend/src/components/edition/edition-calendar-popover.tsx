@@ -67,12 +67,15 @@ export type EditionCalendarPopoverProps = {
   /** Libellé court du bouton déclencheur */
   triggerLabel?: string;
   className?: string;
+  /** Si défini : appelé à la sélection au lieu de naviguer vers `/edition/…`. */
+  onDateSelect?: (iso: string) => void;
 };
 
 export function EditionCalendarPopover({
   currentIso,
   triggerLabel = "Autre",
   className = "",
+  onDateSelect,
 }: EditionCalendarPopoverProps) {
   const router = useRouter();
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -165,6 +168,10 @@ export function EditionCalendarPopover({
 
   const selectIso = (iso: string) => {
     setOpen(false);
+    if (onDateSelect) {
+      onDateSelect(iso);
+      return;
+    }
     router.push(`/edition/${iso}`);
   };
 
@@ -229,7 +236,9 @@ export function EditionCalendarPopover({
                     : "text-foreground hover:bg-muted/50"
               }`}
               aria-pressed={selected}
-              aria-label={`Édition du ${c.iso}`}
+              aria-label={
+                onDateSelect ? `Choisir le jour ${c.iso}` : `Édition du ${c.iso}`
+              }
             >
               {c.day}
             </button>

@@ -16,7 +16,8 @@ export type PipelineActionKey =
   | "embeddingOnly"
   | "clusteringOnly"
   | "clusterLabelling"
-  | "topicDetection";
+  | "topicDetection"
+  | "sequentialChain";
 
 export interface PipelineRunRecord {
   action: PipelineActionKey;
@@ -61,6 +62,9 @@ function extractStats(
   const pipelineLike = action === "pipeline" || action === "resumePipeline";
   if (pipelineLike && root.status === "ok" && isRecord(root.stats)) {
     return root.stats;
+  }
+  if (action === "sequentialChain" && root.status === "ok" && Array.isArray(root.chain)) {
+    return { chain_steps: root.chain.length, chain: root.chain };
   }
   return null;
 }
@@ -133,6 +137,10 @@ const TYPICAL_SERVER_STEPS: Record<PipelineActionKey, string[]> = {
   resumePipeline: [
     "Reprise : collecte et traduction peuvent être ignorées si déjà enregistrées ce jour",
     "Puis enchaînement relevance, dédup, embeddings, clustering, sujets",
+  ],
+  sequentialChain: [
+    "Exécution séquentielle des étapes cochées (sous-tâches serveur une par une)",
+    "Suivi : barre de progression et libellé d’étape courante",
   ],
 };
 
@@ -639,6 +647,21 @@ export function PipelineResultPanel({
       case "pipeline":
       case "resumePipeline":
         return <PipelineFullSummary stats={stats} />;
+      case "sequentialChain":
+        return (
+          <div className="space-y-2 text-[12px] text-foreground-body">
+            <p>
+              Chaîne terminée :{" "}
+              <span className="font-medium tabular-nums">
+                {typeof stats.chain_steps === "number" ? stats.chain_steps : "—"}
+              </span>{" "}
+              étape(s).
+            </p>
+            <pre className="max-h-48 overflow-auto rounded border border-border-light bg-muted/40 p-2 text-[10px] leading-relaxed text-muted-foreground">
+              {JSON.stringify(stats.chain, null, 2)}
+            </pre>
+          </div>
+        );
     }
   }, [run]);
 

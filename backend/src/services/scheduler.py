@@ -3,7 +3,9 @@ Planificateur pipeline : APScheduler AsyncIOScheduler.
 
 - Lundi 9h Europe/Paris : passage « week-end » (fenêtre éditoriale large).
 - Mardi–vendredi 9h Europe/Paris : un seul passage par jour ouvré.
-- Plus de second passage 14h UTC ; pas de run samedi/dimanche.
+- Plus de second passage 14h UTC.
+- Samedi–dimanche (même créneau Paris) : collecte seule si ``weekend_collect_enabled`` (journal
+  ``weekend_collect``, hors reprise auto. du pipeline).
 - Minuit Asia/Beirut : création de l’édition du lendemain ouvré.
 
 Verrou asyncio (processus) + lease Postgres (multi-réplicas) + budgets de temps par étape.
@@ -775,6 +777,40 @@ async def pipeline_completion_retry_tick() -> None:
     await run_daily_pipeline(trigger="cron_completion_retry", resume=True)
 
 
+async def run_weekend_collect_only(*, trigger: str) -> None:
+    """
+    Collecte RSS/scrapers uniquement (week-end). N’utilise pas le verrou pipeline complet.
+    Journal : ``weekend_collect`` (pas ``collect``) pour ne pas fausser la reprise du lundi.
+    """
+    try:
+
+        def collect_pb(k: str, lbl: str) -> None:
+            logger.info(
+                "weekend_collect.progress",
+                step_key=k,
+                step_label=(lbl[:120] if lbl else ""),
+            )
+
+        eid = await resolve_current_edition_id()
+        stats = await run_collection(on_progress=collect_pb)
+        await log_pipeline_step(
+            eid,
+            "weekend_collect",
+            compact_payload({"stats": stats, "trigger": trigger}),
+        )
+        logger.info(
+            "weekend_collect.done",
+            trigger=trigger,
+            edition_id=str(eid) if eid else None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "weekend_collect.failed",
+            trigger=trigger,
+            error=str(exc)[:500],
+        )
+
+
 async def retention_cleanup_tick() -> None:
     """Nettoie les drapeaux ``retention_until`` expirés (TTL articles sélectionnés)."""
     try:
@@ -854,6 +890,26 @@ def create_scheduler() -> AsyncIOScheduler:
         coalesce=True,
     )
 
+    if settings.weekend_collect_enabled:
+
+        async def _cron_weekend_collect() -> None:
+            await run_weekend_collect_only(trigger="cron_weekend_collect")
+
+        scheduler.add_job(
+            _cron_weekend_collect,
+            trigger=CronTrigger(
+                day_of_week="sat-sun",
+                hour=h,
+                minute=m,
+                timezone=tz_paris,
+            ),
+            id="weekend_collect_only",
+            name=f"Collecte week-end seule (sam.–dim. {h:02d}:{m:02d} Paris)",
+            replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
+        )
+
     if settings.pipeline_completion_retry_minutes > 0:
         scheduler.add_job(
             pipeline_completion_retry_tick,
@@ -925,6 +981,7 @@ def create_scheduler() -> AsyncIOScheduler:
     logger.info(
         "scheduler.configured",
         paris_morning=f"{h:02d}:{m:02d} Europe/Paris (lun. + mar.–ven.)",
+        weekend_collect=settings.weekend_collect_enabled,
         edition_cron="00:00 Asia/Beirut",
         completion_retry_minutes=settings.pipeline_completion_retry_minutes,
         stall_check_minutes=settings.pipeline_stall_check_interval_minutes,
