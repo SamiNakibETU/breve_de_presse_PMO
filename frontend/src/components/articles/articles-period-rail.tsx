@@ -9,7 +9,9 @@ import { shiftIsoDate, todayBeirutIsoDate } from "@/lib/beirut-date";
 import { chipLabelsEditionRail } from "@/lib/dates-display-fr";
 import { UI_SURFACE_INSET, UI_SURFACE_INSET_PAD } from "@/lib/ui-surface-classes";
 
-const RADIUS = 5;
+const RADIUS_ARTICLES = 5;
+/** Panorama : plus de jours visibles pour forcer le défilement horizontal + puce tactile. */
+const RADIUS_PANORAMA = 14;
 
 export function mergeArticlesQuery(
   base: URLSearchParams,
@@ -78,13 +80,14 @@ export function ArticlesPeriodRail({
   const anchorIso = beirutDate ?? todayBeirutIsoDate();
   const rangeActive = Boolean(beirutFrom && beirutTo);
 
+  const dayRadius = variant === "panorama" ? RADIUS_PANORAMA : RADIUS_ARTICLES;
   const days = useMemo(() => {
     const out: string[] = [];
-    for (let i = -RADIUS; i <= RADIUS; i++) {
+    for (let i = -dayRadius; i <= dayRadius; i++) {
       out.push(shiftIsoDate(anchorIso, i));
     }
     return out;
-  }, [anchorIso]);
+  }, [anchorIso, dayRadius]);
 
   const hrefForDay = useCallback(
     (iso: string) => {
@@ -176,26 +179,36 @@ export function ArticlesPeriodRail({
           </div>
         ) : null}
         <div className="flex w-full min-w-0 items-center justify-center gap-0.5 sm:gap-1">
-          <button
-            type="button"
-            className="olj-date-rail__chevron shrink-0"
-            aria-label="Faire défiler vers les jours précédents"
-            disabled={!canLeft}
-            onClick={scrollPrev}
-          >
-            <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-          </button>
+          {variant === "panorama" ? (
+            <Link
+              href={hrefForDay(shiftIsoDate(anchorIso, -1))}
+              scroll={false}
+              className="olj-date-rail__chevron shrink-0"
+              aria-label={`Jour précédent : ${shiftIsoDate(anchorIso, -1)}`}
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="olj-date-rail__chevron shrink-0"
+              aria-label="Faire défiler la liste vers les jours précédents"
+              onClick={scrollPrev}
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+            </button>
+          )}
           <div className="min-h-0 min-w-0 flex-1">
             <div
               ref={scrollRef}
-              className="olj-date-rail__viewport olj-scrollbar-none overflow-x-auto scroll-smooth"
+              className="olj-date-rail__viewport olj-scrollbar-none touch-pan-x overscroll-x-contain overflow-x-auto scroll-smooth [-webkit-overflow-scrolling:touch]"
             >
-              <div className="relative mx-auto flex min-w-max flex-row justify-center sm:mx-0 sm:justify-start">
+              <div className="relative mx-auto flex min-w-max flex-row justify-center px-0.5 sm:mx-0 sm:justify-start">
                 <ul className="relative z-[1] m-0 flex list-none flex-row items-stretch gap-0 px-0.5 py-1">
                   {days.map((iso) => {
                     const active =
                       variant === "panorama"
-                        ? !rangeActive && beirutDate != null && iso === beirutDate
+                        ? !rangeActive && iso === beirutDate
                         : !rangeActive && Boolean(beirutDate) && iso === beirutDate;
                     const { weekday, dayMonth } = chipLabelsEditionRail(iso);
                     const dayAria =
@@ -245,15 +258,25 @@ export function ArticlesPeriodRail({
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            className="olj-date-rail__chevron shrink-0"
-            aria-label="Faire défiler vers les jours suivants"
-            disabled={!canRight}
-            onClick={scrollNext}
-          >
-            <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-          </button>
+          {variant === "panorama" ? (
+            <Link
+              href={hrefForDay(shiftIsoDate(anchorIso, 1))}
+              scroll={false}
+              className="olj-date-rail__chevron shrink-0"
+              aria-label={`Jour suivant : ${shiftIsoDate(anchorIso, 1)}`}
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="olj-date-rail__chevron shrink-0"
+              aria-label="Faire défiler la liste vers les jours suivants"
+              onClick={scrollNext}
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+            </button>
+          )}
           <EditionCalendarPopover
             currentIso={anchorIso}
             triggerLabel="Calendrier"

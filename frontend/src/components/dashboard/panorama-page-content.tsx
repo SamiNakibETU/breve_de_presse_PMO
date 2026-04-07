@@ -152,10 +152,12 @@ export function PanoramaPageContent() {
             <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
               <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Jour d’édition de référence pour la frise (Beyrouth). L’inventaire et les regroupements ci-dessous
-                  restent{" "}
-                  <span className="font-medium text-foreground/90">globaux</span> ; seule la fenêtre du sommaire suit
-                  le jour choisi (rail + calendrier).
+                  Jour d’édition de référence pour la frise (Beyrouth). Les{" "}
+                  <span className="font-medium text-foreground/90">flèches</span> à gauche et à droite du rail passent
+                  au jour précédent / suivant ; cliquez une puce ou faites défiler horizontalement pour un autre jour ;
+                  le <span className="font-medium text-foreground/90">calendrier</span> ouvre une date précise.
+                  L’inventaire et les regroupements ci-dessous restent{" "}
+                  <span className="font-medium text-foreground/90">globaux</span>.
                 </p>
                 {urlPanoramaDate ? (
                   <Link

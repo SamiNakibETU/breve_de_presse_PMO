@@ -14,6 +14,7 @@ import {
 } from "@/lib/dates-display-fr";
 import {
   extendedTimelineBounds,
+  hourTicksBetween,
   percentAlong,
 } from "@/lib/edition-timeline-utils";
 
@@ -30,6 +31,8 @@ export type EditionPeriodFriseProps = {
   className?: string;
 };
 
+type HourTick = { pct: number; label: string };
+
 type FriseLayout = {
   windowLeftPct: number;
   windowRightPct: number;
@@ -40,6 +43,7 @@ type FriseLayout = {
   endDate: string;
   endTime: string;
   summaryA11y: string;
+  hourStrip: HourTick[];
 };
 
 /**
@@ -86,6 +90,27 @@ export function EditionPeriodFrise({
     const endDate = formatFriseBoundaryDateFr(windowEndIso);
     const endTime = formatFriseBoundaryTimeFr(windowEndIso);
     const summaryA11y = `Période couverte par la revue du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`;
+
+    const spanMs = extEnd - extStart;
+    let stepH = 6;
+    if (spanMs < 16 * 3600 * 1000) {
+      stepH = 3;
+    }
+    if (spanMs < 8 * 3600 * 1000) {
+      stepH = 1;
+    }
+    let stripTicks = hourTicksBetween(extStart, extEnd, stepH);
+    let guard = 0;
+    while (stripTicks.length > 14 && guard < 10) {
+      stepH *= 2;
+      stripTicks = hourTicksBetween(extStart, extEnd, stepH);
+      guard += 1;
+    }
+    const hourStrip: HourTick[] = stripTicks.map((tick) => ({
+      pct: percentAlong(tick.ms, extStart, extEnd),
+      label: tick.label,
+    }));
+
     return {
       windowLeftPct,
       windowRightPct: windowLeftPct + windowWidthPct,
@@ -96,6 +121,7 @@ export function EditionPeriodFrise({
       endDate,
       endTime,
       summaryA11y,
+      hourStrip,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso]);
 
@@ -211,6 +237,7 @@ export function EditionPeriodFrise({
     endDate,
     endTime,
     summaryA11y,
+    hourStrip,
   } = layout;
 
   const ticks = Array.from({ length: TICK_COUNT }, (_, i) => i);
@@ -313,6 +340,25 @@ export function EditionPeriodFrise({
               aria-hidden
             />
           </div>
+
+          <div
+            className="relative mt-1 h-5 w-full border-t border-border/15 pt-1"
+            aria-hidden
+          >
+            {hourStrip.map((h, i) => (
+              <span
+                key={`${h.pct}-${i}`}
+                className="pointer-events-none absolute left-0 top-0 -translate-x-1/2 whitespace-nowrap text-[9px] tabular-nums tracking-tight text-muted-foreground sm:text-[10px]"
+                style={{ left: `${h.pct}%` }}
+              >
+                {h.label}
+              </span>
+            ))}
+            <span className="sr-only">
+              Graduations horaires (Beyrouth) sur la plage affichée :{" "}
+              {hourStrip.map((x) => x.label).join(", ")}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -322,8 +368,9 @@ export function EditionPeriodFrise({
       >
         <span className="block italic">Période couverte par la revue</span>
         <span className="block font-normal not-italic text-[9px] leading-snug text-muted-foreground/90 sm:text-[10px]">
-          Glisser horizontalement, Maj + molette, ou flèches ← → après focus (Tab) pour parcourir le
-          contexte.
+          Heures en bas : repères Beyrouth sur toute la plage. Glisser ici fait défiler le{" "}
+          <span className="font-medium text-muted-foreground">contexte</span> (pas le jour) ; utiliser
+          les flèches ou les puces du rail de jours pour changer de jour.
         </span>
       </p>
     </div>
