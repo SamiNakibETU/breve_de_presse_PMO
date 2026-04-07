@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { EditionTopic } from "@/lib/types";
 import { formatEditionDayHeadingFr } from "@/lib/dates-display-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -52,19 +53,90 @@ export function TopicSubjectSummary({
 
   const multiFromData = effectiveCodes.length >= 2;
 
+  const coverageEntries = topic.country_coverage
+    ? [...Object.entries(topic.country_coverage)].sort((a, b) => b[1] - a[1])
+    : [];
+  const coverageMax =
+    coverageEntries.length > 0
+      ? Math.max(...coverageEntries.map(([, n]) => n))
+      : 0;
+
   return (
     <header className="space-y-4 border-b border-border-light pb-6">
       {publishDate && (
-        <p className="text-[12px] text-muted-foreground tabular-nums">
-          Édition du {formatEditionDayHeadingFr(publishDate)}
-          {articleCount != null && articleCount > 0
-            ? ` · ${articleCount} texte${articleCount > 1 ? "s" : ""} lié${articleCount > 1 ? "s" : ""}`
-            : ""}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[12px] text-muted-foreground tabular-nums">
+            Édition du {formatEditionDayHeadingFr(publishDate)}
+            {articleCount != null && articleCount > 0
+              ? ` · ${articleCount} texte${articleCount > 1 ? "s" : ""} lié${articleCount > 1 ? "s" : ""}`
+              : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/edition/${publishDate}`}
+              className="olj-btn-secondary px-2.5 py-1 text-[11px] sm:text-[12px]"
+            >
+              Sommaire
+            </Link>
+            <Link
+              href={`/edition/${publishDate}/compose`}
+              className="olj-btn-primary px-2.5 py-1 text-[11px] sm:text-[12px]"
+            >
+              Rédaction
+            </Link>
+          </div>
+        </div>
       )}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-md border border-border bg-muted/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+          {topic.status}
+        </span>
+        {topic.article_count != null ? (
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {topic.article_count} article{topic.article_count > 1 ? "s" : ""} (sujet)
+          </span>
+        ) : null}
+      </div>
       <h1 className="font-[family-name:var(--font-serif)] text-[24px] font-semibold leading-tight tracking-tight text-foreground sm:text-[26px]">
         {title}
       </h1>
+
+      {coverageEntries.length > 0 && coverageMax > 0 ? (
+        <div className="max-w-2xl space-y-2">
+          <p className="olj-rubric">Répartition par pays (corpus sujet)</p>
+          <ul className="space-y-1.5">
+            {coverageEntries.slice(0, 12).map(([code, n]) => {
+              const cc = code.trim().toUpperCase();
+              const label = countryLabelsFr?.[cc] ?? code;
+              const flag = REGION_FLAG_EMOJI[cc];
+              const pct = Math.round((n / coverageMax) * 100);
+              return (
+                <li
+                  key={code}
+                  className="grid grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)_2rem] items-center gap-2 text-[11px]"
+                >
+                  <span className="truncate text-foreground-body">
+                    {flag ? <span aria-hidden>{flag} </span> : null}
+                    {label}
+                  </span>
+                  <span
+                    className="h-1.5 min-w-0 overflow-hidden rounded-full bg-border"
+                    title={`${label} : ${n}`}
+                  >
+                    <span
+                      className="block h-full rounded-full bg-[color-mix(in_srgb,var(--color-accent)_55%,var(--color-border))]"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </span>
+                  <span className="shrink-0 text-right tabular-nums text-muted-foreground">
+                    {n}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {(topic.angle_summary?.trim() || topic.description?.trim()) && (
         <div className="max-w-3xl space-y-3 text-[15px] leading-relaxed text-foreground-body">

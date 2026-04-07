@@ -41,9 +41,12 @@ export default function RegieSourcesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold">
-        Vie des sources
-      </h1>
+      <header className="space-y-2">
+        <p className="olj-rubric">Régie · Données & suivi</p>
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
+          Vie des sources
+        </h1>
+      </header>
       <p className="max-w-3xl text-[13px] leading-relaxed text-foreground-body">
         Même périmètre et libellés que le bloc « État des sources » de la Régie (collecte) : volumes sur{" "}
         <strong className="font-medium text-foreground">{wh} h</strong>, traductions sur{" "}

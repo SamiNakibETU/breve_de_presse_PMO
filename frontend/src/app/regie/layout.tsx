@@ -6,9 +6,9 @@ export default function RegieLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[72rem] space-y-8">
       <RegieNav />
-      {children}
+      <div className="space-y-6">{children}</div>
     </div>
   );
 }

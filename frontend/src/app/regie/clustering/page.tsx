@@ -4,9 +4,12 @@ import Link from "next/link";
 export default function RegieClusteringPage() {
   return (
     <div className="space-y-4 text-[13px] leading-relaxed text-foreground-body">
-      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
-        Regroupement thématique (régie)
-      </h1>
+      <header className="space-y-2">
+        <p className="olj-rubric">Régie · Production</p>
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
+          Regroupements (paramètres)
+        </h1>
+      </header>
       <p>
         Les réglages UMAP / HDBSCAN sont dans le backend (
         <code className="text-[12px]">clustering_use_umap</code>,{" "}

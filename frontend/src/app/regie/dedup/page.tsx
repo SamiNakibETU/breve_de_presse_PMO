@@ -42,13 +42,16 @@ export default function RegieDedupPage() {
 
   return (
     <div className="space-y-8 text-[13px] leading-relaxed text-foreground-body">
-      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
-        Déduplication
-      </h1>
-      <p>
-        Rapports d’étapes surface et sémantique (filtre sur les étapes dont le
-        nom contient « dedup »). Signalement d’un cas douteux ci-dessous.
-      </p>
+      <header className="space-y-2">
+        <p className="olj-rubric">Régie · Production</p>
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
+          Déduplication
+        </h1>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-foreground-body">
+          Rapports d’étapes surface et sémantique (filtre sur les étapes dont le nom contient « dedup »).
+          Signalement d’un cas douteux en bas de page.
+        </p>
+      </header>
 
       {pipelineQ.isPending && (
         <p className="text-muted-foreground" role="status">

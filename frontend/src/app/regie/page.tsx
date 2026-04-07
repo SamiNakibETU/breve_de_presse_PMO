@@ -23,8 +23,8 @@ const sections: { href: string; title: string; blurb: string }[] = [
   },
   {
     href: "/panorama",
-    title: "Cartes de regroupements",
-    blurb: "Vue technique des clusters en base (sous-section regroupements).",
+    title: "Panorama",
+    blurb: "Vue d’ensemble des volumes et des regroupements thématiques (produit).",
   },
   {
     href: "/regie/curator",

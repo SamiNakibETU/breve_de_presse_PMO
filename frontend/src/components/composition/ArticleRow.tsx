@@ -8,7 +8,8 @@ import {
   formatArticleMetaLine,
 } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
-import type { Article } from "@/lib/types";
+import { formatDateTimeBeirutFr } from "@/lib/dates-display-fr";
+import type { Article, TopicArticleRef } from "@/lib/types";
 
 export function ArticleRow({
   article,
@@ -16,14 +17,17 @@ export function ArticleRow({
   onSelectedChange,
   attachmentLabel,
   variant = "default",
+  topicRef,
 }: {
   article: Article;
   selected: boolean;
   onSelectedChange: (next: boolean) => void;
   /** Rattachement sujet / thème (corpus édition). */
   attachmentLabel?: string | null;
-  /** `dense` : en-tête journal + pays + type mis en avant (grille corpus). */
-  variant?: "default" | "dense";
+  /** `dense` : en-tête journal + pays + type mis en avant (grille corpus). `topicDetail` : fiche sujet enrichie. */
+  variant?: "default" | "dense" | "topicDetail";
+  /** Métadonnées de rattachement au sujet (GET topic detail). */
+  topicRef?: TopicArticleRef | null;
 }) {
   const { openArticle, prefetchArticle } = useArticleReader();
   const [open, setOpen] = useState(false);
@@ -31,6 +35,46 @@ export function ArticleRow({
   const cc = (article.country_code ?? "").trim().toUpperCase();
   const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
   const typeFr = articleTypeLabelFr(article.article_type);
+
+  const analysisCount = article.analysis_bullets_fr?.length ?? 0;
+  const topicDetailChips =
+    variant === "topicDetail" ? (
+      <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+        {article.editorial_relevance != null ? (
+          <span className="rounded border border-border-light bg-muted/20 px-1.5 py-0.5 tabular-nums">
+            Pertinence {article.editorial_relevance.toFixed(2)}
+          </span>
+        ) : null}
+        {article.translation_confidence != null ? (
+          <span className="rounded border border-border-light bg-muted/20 px-1.5 py-0.5 tabular-nums">
+            Trad. {Math.round(article.translation_confidence * 100)}%
+          </span>
+        ) : null}
+        <span className="rounded border border-border-light bg-muted/20 px-1.5 py-0.5">
+          Collecte {formatDateTimeBeirutFr(article.collected_at)}
+        </span>
+        {article.source_language ? (
+          <span className="rounded border border-border-light bg-muted/20 px-1.5 py-0.5 uppercase">
+            {article.source_language}
+          </span>
+        ) : null}
+        {analysisCount > 0 ? (
+          <span className="rounded border border-border-light bg-muted/20 px-1.5 py-0.5 tabular-nums">
+            {analysisCount} puce{analysisCount > 1 ? "s" : ""} analyse
+          </span>
+        ) : null}
+        {topicRef?.fit_confidence != null ? (
+          <span className="rounded border border-border-light bg-muted/20 px-1.5 py-0.5 tabular-nums">
+            Adéquation sujet {topicRef.fit_confidence.toFixed(2)}
+          </span>
+        ) : null}
+        {topicRef?.is_recommended ? (
+          <span className="rounded border border-info/30 bg-info/10 px-1.5 py-0.5 font-medium text-foreground-body">
+            Regard mis en avant
+          </span>
+        ) : null}
+      </div>
+    ) : null;
 
   const metaDense = (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -62,9 +106,11 @@ export function ArticleRow({
   return (
     <div
       className={
-        variant === "dense"
-          ? "text-[13px]"
-          : "border-b border-border-light py-3 text-[13px]"
+        variant === "topicDetail"
+          ? "border-b border-border-light py-3 text-[13px]"
+          : variant === "dense"
+            ? "text-[13px]"
+            : "border-b border-border-light py-3 text-[13px]"
       }
     >
       <div className="flex items-start gap-3">
@@ -81,22 +127,23 @@ export function ArticleRow({
           onClick={() => setOpen(!open)}
           aria-expanded={open}
         >
-          {variant === "dense" ? (
+          {variant === "dense" || variant === "topicDetail" ? (
             <div className="space-y-1">{metaDense}</div>
           ) : null}
           <span
             className={
-              variant === "dense"
+              variant === "dense" || variant === "topicDetail"
                 ? "mt-1 block font-[family-name:var(--font-serif)] text-[14px] font-medium leading-snug text-foreground"
                 : "font-medium leading-snug text-foreground"
             }
           >
             {title}
           </span>
+          {variant === "topicDetail" ? topicDetailChips : null}
           {article.thesis_summary_fr && (
             <p
               className={
-                variant === "dense"
+                variant === "dense" || variant === "topicDetail"
                   ? "mt-1.5 line-clamp-2 font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-body"
                   : "mt-1.5 italic leading-relaxed text-foreground-body"
               }
@@ -173,9 +220,18 @@ export function ArticleRow({
         </p>
       ) : null}
       {open && article.summary_fr && (
-        <p className="mt-3 max-w-2xl rounded-md bg-muted/15 px-3 py-2 text-[13px] leading-relaxed text-foreground-body">
-          {article.summary_fr}
-        </p>
+        <div className="mt-3 max-w-2xl space-y-2 rounded-md bg-muted/15 px-3 py-2 text-[13px] leading-relaxed text-foreground-body">
+          <p>{article.summary_fr}</p>
+          {variant === "topicDetail" &&
+          article.analysis_bullets_fr &&
+          article.analysis_bullets_fr.length > 0 ? (
+            <ul className="list-inside list-decimal space-y-1 border-t border-border/40 pt-2 text-[12px] text-foreground-body">
+              {article.analysis_bullets_fr.slice(0, 3).map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       )}
     </div>
   );

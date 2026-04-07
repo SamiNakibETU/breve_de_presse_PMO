@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatTodayBeirutLongFr, todayBeirutIsoDate } from "@/lib/beirut-date";
 import type { ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
+import { EditionWindowTimeline } from "@/components/edition/edition-window-timeline";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { StatsDistributionPanels } from "@/components/dashboard/stats-distribution-panels";
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
@@ -35,6 +36,15 @@ function filterClusters(
 export function PanoramaPageContent() {
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [emergingOnly, setEmergingOnly] = useState(false);
+  const editionDate = todayBeirutIsoDate();
+
+  const editionTodayQ = useQuery({
+    queryKey: ["edition", editionDate, "panorama"] as const,
+    queryFn: () => api.editionByDate(editionDate),
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const [statsQ, clustersQ] = useQueries({
     queries: [
       {
@@ -85,14 +95,19 @@ export function PanoramaPageContent() {
   }, [stats]);
 
   const dateStr = formatTodayBeirutLongFr();
-  const editionDate = todayBeirutIsoDate();
   const subjectCount = filteredClusters.length;
+
+  const editionToday = editionTodayQ.data;
+  const editionWindowOk =
+    editionToday?.window_start &&
+    editionToday?.window_end &&
+    editionTodayQ.isSuccess;
 
   return (
     <div className="space-y-10">
-      <header className="space-y-3 text-center sm:text-left">
+      <header className="space-y-4 text-center sm:text-left">
         <p className="olj-rubric">Vue régionale</p>
-        <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
+        <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight sm:text-[28px]">
           Panorama
         </h1>
         <p className="text-[13px] capitalize text-muted-foreground">
@@ -102,22 +117,47 @@ export function PanoramaPageContent() {
         <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
           <Link
             href={`/edition/${editionDate}`}
-            className="olj-btn-primary text-[13px] px-4 py-2"
+            className="olj-btn-primary px-4 py-2 text-[13px]"
           >
             Édition du jour
           </Link>
           <Link
             href="/regie/pipeline"
-            className="olj-btn-secondary text-[13px] px-4 py-2"
+            className="olj-btn-secondary px-4 py-2 text-[13px]"
           >
             Collecte et traitement
           </Link>
         </div>
         <p className="mx-auto max-w-2xl text-[12px] leading-relaxed text-muted-foreground sm:mx-0">
-          Vue d’ensemble des textes en base, indépendante du calendrier d’édition.
-          Le sommaire daté se consulte via « Édition du jour ». Le pilotage pipeline
-          est sous Régie.
+          Inventaire global et regroupements thématiques (volumes récents, toutes éditions confondues).
+          Les statistiques ci-dessous ne sont pas limitées à la fenêtre du sommaire. Pour le livrable daté
+          (grands sujets, coches, rédaction), ouvrir l’édition du jour.
         </p>
+        {editionWindowOk ? (
+          <div className="mx-auto max-w-2xl rounded-lg border border-border/50 bg-muted/10 p-3 text-left sm:mx-0 sm:max-w-3xl sm:p-4">
+            {editionToday.corpus_article_count != null ? (
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                Corpus dans la fenêtre d’édition du jour :{" "}
+                <span className="font-medium tabular-nums text-foreground">
+                  {editionToday.corpus_article_count}
+                </span>{" "}
+                article
+                {editionToday.corpus_article_count !== 1 ? "s" : ""} (sommaire).
+              </p>
+            ) : null}
+            <EditionWindowTimeline
+              windowStartIso={editionToday.window_start!}
+              windowEndIso={editionToday.window_end!}
+              publishRouteIso={editionDate}
+              variant="compact"
+            />
+          </div>
+        ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (
+          <div
+            className="mx-auto h-8 max-w-2xl animate-pulse rounded-md bg-border/40 sm:mx-0"
+            aria-hidden
+          />
+        ) : null}
       </header>
 
       {error ? (

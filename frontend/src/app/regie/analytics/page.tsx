@@ -9,6 +9,7 @@ export default function RegieAnalyticsPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
+        <p className="olj-rubric">Régie · Données & suivi</p>
         <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
           Analytique interne
         </h1>

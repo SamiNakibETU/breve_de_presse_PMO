@@ -21,16 +21,19 @@ export default function RegieCuratorPage() {
 
   return (
     <div className="space-y-4 text-[13px] leading-relaxed text-foreground-body">
-      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
-        Curateur
-      </h1>
-      <p>
-        Appels LLM du curateur (« {CURATOR_PROMPT_ID} »). Liste complète :{" "}
-        <Link href="/regie/logs" className="underline-offset-4 hover:underline">
-          Logs LLM
-        </Link>
-        .
-      </p>
+      <header className="space-y-2">
+        <p className="olj-rubric">Régie · Production</p>
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
+          Curateur
+        </h1>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-foreground-body">
+          Appels LLM du curateur (« {CURATOR_PROMPT_ID} »). Liste complète :{" "}
+          <Link href="/regie/logs" className="underline-offset-4 hover:underline">
+            Journaux
+          </Link>
+          .
+        </p>
+      </header>
 
       {q.isPending && (
         <p className="text-muted-foreground" role="status">

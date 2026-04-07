@@ -71,13 +71,14 @@ export default function RegiePipelinePage() {
 
   return (
     <div className="space-y-10 text-[13px] leading-relaxed text-foreground-body">
-      <header>
-        <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
+      <header className="space-y-2">
+        <p className="olj-rubric">Régie · Production</p>
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
           Collecte et traduction
         </h1>
-        <p className="mt-2 max-w-[52rem] text-[13px]">
-          Démarrez une étape ci-dessous. Les rapports détaillés suivent. Journaux
-          LLM :{" "}
+        <p className="max-w-[52rem] text-[13px] leading-relaxed text-foreground-body">
+          Démarrez une étape ci-dessous ; les rapports détaillés et le diagnostic édition suivent sur cette page.
+          Journaux LLM :{" "}
           <Link href="/regie/logs" className="underline-offset-4 hover:underline">
             Journaux
           </Link>

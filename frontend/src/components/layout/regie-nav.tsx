@@ -8,7 +8,7 @@ const PRODUCTION: { href: string; label: string }[] = [
   { href: "/regie/pipeline", label: "Collecte et traduction" },
   { href: "/regie/dedup", label: "Dédoublonnage" },
   { href: "/regie/clustering", label: "Regroupements" },
-  { href: "/panorama", label: "Cartes clusters" },
+  { href: "/panorama", label: "Panorama" },
   { href: "/regie/curator", label: "Curateur" },
 ];
 
@@ -33,13 +33,20 @@ function NavRow({
   title,
   links,
   pathname,
+  className,
 }: {
   title: string;
   links: { href: string; label: string }[];
   pathname: string;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
+    <div
+      className={cn(
+        "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2",
+        className,
+      )}
+    >
       <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {title}
       </span>
@@ -76,6 +83,7 @@ export function RegieNav() {
         title="Données & suivi"
         links={DATA_AND_OPS}
         pathname={pathname}
+        className="border-t border-border/60 pt-4"
       />
     </nav>
   );

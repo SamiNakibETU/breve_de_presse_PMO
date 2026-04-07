@@ -49,18 +49,19 @@ export default function RegieLogsPage() {
 
   return (
     <div className="space-y-8 text-[13px] leading-relaxed text-foreground-body">
-      <h1 className="font-[family-name:var(--font-serif)] text-[20px] font-semibold text-foreground">
-        Logs
-      </h1>
-      <p>
-        Rapports d’étapes pipeline et{" "}
-        <span className="text-foreground">journal des appels modèle</span> (régie
-        uniquement).{" "}
-        <Link href="/regie/pipeline" className="underline-offset-4 hover:underline">
-          Pipeline seul
-        </Link>
-        .
-      </p>
+      <header className="space-y-2">
+        <p className="olj-rubric">Régie · Données & suivi</p>
+        <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold text-foreground">
+          Journaux
+        </h1>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-foreground-body">
+          Rapports d’étapes pipeline et journal des appels modèle (régie uniquement).{" "}
+          <Link href="/regie/pipeline" className="underline-offset-4 hover:underline">
+            Retour pipeline
+          </Link>
+          .
+        </p>
+      </header>
 
       <section className="space-y-3" aria-labelledby="logs-pipeline">
         <h2

@@ -39,6 +39,14 @@ function ArticleBlock({
     [articles, refs, articleIdsOrder],
   );
 
+  const refByArticleId = useMemo(() => {
+    const m = new Map<string, TopicArticleRef>();
+    for (const r of refs) {
+      m.set(r.article_id, r);
+    }
+    return m;
+  }, [refs]);
+
   const groups = useMemo(
     () => groupArticlesByCountryIfNeeded(sorted, countryLabelsFr ?? undefined),
     [sorted, countryLabelsFr],
@@ -69,6 +77,8 @@ function ArticleBlock({
                     article={a}
                     selected={selected.has(a.id)}
                     onSelectedChange={(v) => onToggle(a.id, v)}
+                    variant="topicDetail"
+                    topicRef={refByArticleId.get(a.id) ?? null}
                   />
                 ))}
               </div>

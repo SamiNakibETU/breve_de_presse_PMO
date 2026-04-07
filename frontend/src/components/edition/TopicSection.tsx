@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, FileText } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useArticleReader } from "@/contexts/article-reader";
@@ -568,16 +569,6 @@ export function TopicSection({
               </div>
             </div>
           ) : null}
-          {mode === "summary" && editionDate && (
-            <p className="pt-1">
-              <Link
-                href={`/edition/${editionDate}/topic/${topic.id}`}
-                className="olj-link-action text-[12px]"
-              >
-                Fiche sujet
-              </Link>
-            </p>
-          )}
           </div>
         </div>
 
@@ -632,26 +623,40 @@ export function TopicSection({
         </div>
       </div>
 
+      {mode === "summary" && editionDate ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border-light pt-4">
+          <Link
+            href={`/edition/${editionDate}/topic/${topic.id}`}
+            className="olj-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium sm:text-[12px]"
+          >
+            <FileText className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+            Fiche sujet
+          </Link>
+          {!expanded && restCount > 0 ? (
+            <button
+              type="button"
+              className="olj-focus inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:text-[12px]"
+              onClick={() => setExpanded(true)}
+            >
+              <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {restCount === 1
+                ? "Déplier 1 texte de plus"
+                : `Déplier ${restCount} textes de plus`}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {!expanded && restCount > 0 && mode === "full" && (
         <button
           type="button"
-          className="olj-link-action mt-4"
+          className="olj-focus mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={() => setExpanded(true)}
         >
+          <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {restCount === 1
             ? "Voir 1 autre article sur ce sujet"
             : `Voir ${restCount} autres articles sur ce sujet`}
-        </button>
-      )}
-      {!expanded && restCount > 0 && mode === "summary" && (
-        <button
-          type="button"
-          className="olj-link-action mt-4 text-[12px]"
-          onClick={() => setExpanded(true)}
-        >
-          {restCount === 1
-            ? "Déplier 1 texte supplémentaire"
-            : `Déplier ${restCount} textes supplémentaires`}
         </button>
       )}
     </section>

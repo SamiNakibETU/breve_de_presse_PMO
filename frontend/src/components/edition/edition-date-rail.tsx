@@ -10,41 +10,10 @@ import {
   formatWindowEdgeBeirut,
 } from "@/lib/dates-display-fr";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
+import { EditionWindowTimeline } from "@/components/edition/edition-window-timeline";
 
 /** Jours avant / après la date courante (bande scrollable). */
 const RADIUS = 5;
-
-/** Fenêtre éditoriale projetée sur la plage de jours visible (même axe que la frise). */
-function windowVisibleFractions(
-  windowStartIso: string,
-  windowEndIso: string,
-  visibleFirstIso: string,
-  visibleLastIso: string,
-): { leftPct: number; widthPct: number } | null {
-  const ws = new Date(windowStartIso).getTime();
-  const we = new Date(windowEndIso).getTime();
-  const vs = new Date(`${visibleFirstIso}T00:00:00.000Z`).getTime();
-  const ve =
-    new Date(`${visibleLastIso}T00:00:00.000Z`).getTime() +
-    24 * 3600 * 1000;
-  if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= ws) {
-    return null;
-  }
-  if (ve <= vs) {
-    return null;
-  }
-  const overlapStart = Math.max(ws, vs);
-  const overlapEnd = Math.min(we, ve);
-  if (overlapEnd <= overlapStart) {
-    return null;
-  }
-  const leftPct = ((overlapStart - vs) / (ve - vs)) * 100;
-  const widthPct = ((overlapEnd - overlapStart) / (ve - vs)) * 100;
-  return {
-    leftPct: Math.max(0, Math.min(100, leftPct)),
-    widthPct: Math.max(0.6, Math.min(100, widthPct)),
-  };
-}
 
 export type EditionDateRailWindow = { start: string; end: string };
 
@@ -71,23 +40,6 @@ export function EditionDateRail({
     }
     return out;
   }, [currentIso]);
-
-  const windowOnStrip = useMemo(() => {
-    if (!editionWindow?.start || !editionWindow?.end || days.length === 0) {
-      return null;
-    }
-    const first = days[0];
-    const last = days[days.length - 1];
-    if (!first || !last) {
-      return null;
-    }
-    return windowVisibleFractions(
-      editionWindow.start,
-      editionWindow.end,
-      first,
-      last,
-    );
-  }, [editionWindow, days]);
 
   const startLabel = editionWindow?.start
     ? formatWindowEdgeBeirut(editionWindow.start)
@@ -172,7 +124,7 @@ export function EditionDateRail({
       className={`olj-date-rail flex w-full max-w-full flex-col items-center gap-0 sm:items-stretch ${className}`.trim()}
       aria-label="Choisir une date d’édition"
     >
-      <div className="w-full max-w-full rounded-xl border border-border/35 bg-muted/15 p-2 sm:p-2.5">
+      <div className="w-full max-w-full rounded-xl border border-border/35 bg-muted/15 p-3 sm:p-3.5">
         <div className="flex w-full min-w-0 items-center justify-center gap-0.5 sm:gap-1">
           <button
             type="button"
@@ -189,21 +141,11 @@ export function EditionDateRail({
               className="olj-date-rail__viewport overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               <div className="relative mx-auto flex min-w-max flex-row justify-center sm:mx-0 sm:justify-start">
-                {windowOnStrip ? (
-                  <div
-                    className="pointer-events-none absolute inset-y-1 z-0 rounded-md bg-[color-mix(in_srgb,var(--color-accent-tint)_55%,var(--color-surface-warm)_45%)] opacity-95 ring-1 ring-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]"
-                    style={{
-                      left: `${windowOnStrip.leftPct}%`,
-                      width: `${windowOnStrip.widthPct}%`,
-                    }}
-                    aria-hidden
-                  />
-                ) : null}
                 <ul className="relative z-[1] m-0 flex list-none flex-row items-stretch gap-0 px-0.5 py-1">
                   {days.map((iso) => {
                     const active = iso === currentIso;
                     const { weekday, dayMonth } = chipLabelsEditionRail(iso);
-                    const dayTitle = formatEditionDayHeadingFr(iso);
+                    const dayHeading = formatEditionDayHeadingFr(iso);
                     const dayStart = new Date(`${iso}T00:00:00.000Z`).getTime();
                     const dayEnd = dayStart + 24 * 3600 * 1000;
                     const inWindowBand = Boolean(
@@ -221,19 +163,25 @@ export function EditionDateRail({
                           href={`/edition/${iso}`}
                           scroll={false}
                           aria-current={active ? "page" : undefined}
-                          title={`Édition — ${dayTitle}`}
-                          className={`relative flex min-h-[2.75rem] min-w-[2.75rem] flex-col items-center justify-center px-2.5 py-2 text-center no-underline transition-[color,opacity] duration-200 touch-manipulation sm:min-h-[2.5rem] sm:px-3 ${
+                          aria-label={`Édition ${dayHeading}`}
+                          className={`relative flex min-h-[3rem] min-w-[3rem] flex-col items-center justify-center rounded-md px-2.5 py-2 text-center no-underline transition-[color,background,box-shadow] duration-200 touch-manipulation sm:min-h-[2.85rem] sm:px-3 ${
                             active
-                              ? "text-foreground"
+                              ? "text-foreground ring-1 ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] ring-offset-2 ring-offset-[color-mix(in_srgb,var(--color-muted)_70%,transparent)]"
                               : inWindowBand
-                                ? "text-foreground/80 hover:text-foreground"
-                                : "text-muted-foreground/55 hover:text-foreground/70"
+                                ? "text-foreground/85 hover:bg-muted/40 hover:text-foreground"
+                                : "text-muted-foreground/55 hover:bg-muted/25 hover:text-foreground/75"
                           }`}
                         >
+                          {inWindowBand && !active ? (
+                            <span
+                              className="pointer-events-none absolute inset-x-1 bottom-1 h-0.5 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_35%,transparent)]"
+                              aria-hidden
+                            />
+                          ) : null}
                           <span className="text-[9px] font-medium uppercase tracking-[0.08em]">
                             {weekday}
                           </span>
-                          <span className="font-[family-name:var(--font-serif)] text-[13px] font-semibold tabular-nums leading-tight">
+                          <span className="font-[family-name:var(--font-serif)] text-[14px] font-semibold tabular-nums leading-tight sm:text-[15px]">
                             {dayMonth}
                           </span>
                           <span
@@ -268,18 +216,29 @@ export function EditionDateRail({
           <EditionCalendarPopover currentIso={currentIso} />
         </div>
 
-        {windowOnStrip && editionWindow && startLabel && endLabel ? (
+        {editionWindow?.start &&
+        editionWindow?.end &&
+        startLabel &&
+        endLabel ? (
           <div
-            className="mt-2 border-t border-border/25 pt-2 text-center sm:text-left"
+            className="mt-4 border-t border-border/25 pt-3"
             role="group"
-            aria-label="Plage horaire de collecte pour cette édition (Beyrouth)"
+            aria-label="Fenêtre de collecte et axe horaire (Beyrouth)"
           >
-            <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Fenêtre de collecte (Beyrouth)
-            </p>
-            <div className="mt-0.5 flex flex-wrap justify-center gap-x-4 gap-y-0.5 text-[10px] tabular-nums text-muted-foreground sm:justify-between">
-              <span className="text-foreground/80">{startLabel}</span>
-              <span className="text-foreground/80">{endLabel}</span>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-foreground/85">{startLabel}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Fenêtre de collecte
+              </span>
+              <span className="text-foreground/85">{endLabel}</span>
+            </div>
+            <div className="pb-5">
+              <EditionWindowTimeline
+                windowStartIso={editionWindow.start}
+                windowEndIso={editionWindow.end}
+                publishRouteIso={currentIso}
+                variant="default"
+              />
             </div>
           </div>
         ) : null}
