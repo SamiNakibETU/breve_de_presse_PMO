@@ -14,13 +14,17 @@ import {
   mergeArticlesQuery,
 } from "@/components/articles/articles-period-rail";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
+import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
 import { api } from "@/lib/api";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import {
   formatArticlesExplorationPeriodHint,
   formatIsoCalendarDayLongFr,
 } from "@/lib/dates-display-fr";
-import { UI_SURFACE_INSET, UI_SURFACE_INSET_PAD } from "@/lib/ui-surface-classes";
+import {
+  UI_SURFACE_FRise_INSET,
+  UI_SURFACE_FRISE_SEPARATOR,
+} from "@/lib/ui-surface-classes";
 import { reviewPagePath } from "@/lib/review-url";
 import type { Article } from "@/lib/types";
 
@@ -181,6 +185,22 @@ export function ArticlesPageClient() {
     ];
   }, [dateBasis]);
 
+  const rangeActive = Boolean(beirutFrom && beirutTo);
+  const editionFriseIso = useMemo(() => {
+    if (activeEditionId || rangeActive) {
+      return null;
+    }
+    return beirutDate ?? todayBeirutIsoDate();
+  }, [activeEditionId, rangeActive, beirutDate]);
+
+  const editionFriseQ = useQuery({
+    queryKey: ["edition", editionFriseIso, "articlesFrise"] as const,
+    queryFn: () => api.editionByDate(editionFriseIso!),
+    enabled: editionFriseIso != null,
+    staleTime: 60_000,
+    retry: false,
+  });
+
   const oljLabelsQ = useQuery({
     queryKey: ["oljTopicLabels"] as const,
     queryFn: () => api.oljTopicLabels(),
@@ -271,8 +291,13 @@ export function ArticlesPageClient() {
     router.push(reviewPagePath([...selected]));
   }
 
-  const rangeActive = Boolean(beirutFrom && beirutTo);
   const todayIso = todayBeirutIsoDate();
+  const articlesFriseWindowOk =
+    editionFriseQ.data?.window_start != null &&
+    editionFriseQ.data?.window_end != null;
+  const showArticlesFriseStrip =
+    editionFriseIso != null &&
+    (editionFriseQ.isPending || articlesFriseWindowOk);
 
   const filterColumnProps = {
     statusFilter,
@@ -349,15 +374,53 @@ export function ArticlesPageClient() {
             )}
           </p>
           {!activeEditionId ? (
-            <div
-              className={`mt-4 space-y-4 ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
-            >
+            <div className={`mt-4 space-y-4 ${UI_SURFACE_FRise_INSET}`}>
               <ArticlesPeriodRail
                 embedded
                 beirutDate={beirutDate}
                 beirutFrom={beirutFrom}
                 beirutTo={beirutTo}
               />
+              {editionFriseIso ? (
+                articlesFriseWindowOk && editionFriseQ.data ? (
+                  <div className={UI_SURFACE_FRISE_SEPARATOR}>
+                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      {editionFriseQ.data.corpus_article_count != null ? (
+                        <p className="text-[12px] text-muted-foreground">
+                          Corpus du sommaire (jour d’édition affiché) :{" "}
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {editionFriseQ.data.corpus_article_count}
+                          </span>{" "}
+                          article
+                          {editionFriseQ.data.corpus_article_count !== 1 ? "s" : ""}
+                        </p>
+                      ) : null}
+                      <p className="text-[11px] italic leading-snug text-muted-foreground sm:max-w-[55%] sm:text-right">
+                        Plage du sommaire (Beyrouth), même repère que sur la page Édition
+                      </p>
+                    </div>
+                    <EditionPeriodFrise
+                      windowStartIso={editionFriseQ.data.window_start}
+                      windowEndIso={editionFriseQ.data.window_end}
+                      publishRouteIso={editionFriseIso}
+                    />
+                  </div>
+                ) : editionFriseQ.isPending ? (
+                  <div className={UI_SURFACE_FRISE_SEPARATOR}>
+                    <div
+                      className="h-20 animate-pulse rounded-md bg-[color-mix(in_srgb,var(--color-muted)_22%,transparent)]"
+                      aria-hidden
+                    />
+                  </div>
+                ) : null
+              ) : null}
+              <div
+                className={
+                  showArticlesFriseStrip
+                    ? "space-y-4 border-t border-border/25 pt-4"
+                    : "space-y-4"
+                }
+              >
               <div className="flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
                 <span className="text-muted-foreground">Critère temporel (hors édition)</span>
                 <label className="flex cursor-pointer items-center gap-1.5">
@@ -424,6 +487,7 @@ export function ArticlesPageClient() {
                   </button>
                 )}
               </div>
+              </div>
             </div>
           ) : null}
           <p className="mt-2 text-[13px] tabular-nums text-muted-foreground">
@@ -436,12 +500,13 @@ export function ArticlesPageClient() {
             </summary>
             <div className="mt-2 space-y-2 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground">
               <p>
-                Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Pour
-                celle-ci :{" "}
+                Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Sous le
+                rail de jours, la frise reprend la fenêtre du sommaire pour le jour d’édition de référence (aujourd’hui
+                ou le jour choisi), comme sur Panorama et l’édition du jour. Pour le livrable rédactionnel :{" "}
                 <a href="/panorama" className="font-medium text-accent underline underline-offset-2">
                   Panorama
                 </a>{" "}
-                puis l’édition du jour.
+                ou l’édition datée.
               </p>
               <p>
                 Statut et tri : colonne de gauche. Les blocs « Thème · … » suivent la taxonomie OLJ ; décochez le

@@ -13,10 +13,9 @@ import { StatsDistributionPanels } from "@/components/dashboard/stats-distributi
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import {
+  UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
   UI_SURFACE_HERO,
-  UI_SURFACE_INSET,
-  UI_SURFACE_INSET_PAD,
   UI_SURFACE_SKELETON_INSET,
 } from "@/lib/ui-surface-classes";
 
@@ -138,9 +137,7 @@ export function PanoramaPageContent() {
           </p>
 
           {editionWindowOk ? (
-            <div
-              className={`mt-5 text-left ${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}
-            >
+            <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
               <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
                 {editionToday.corpus_article_count != null ? (
                   <p className="text-[12px] text-muted-foreground">

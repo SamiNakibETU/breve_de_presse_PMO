@@ -17,6 +17,10 @@ export const UI_SURFACE_INSET_PAD = "p-3 sm:p-4";
 /** Rail édition (titre + contrôles + frise) : padding horizontal un peu plus large sur sm */
 export const UI_SURFACE_RAIL_PAD = "px-3 py-3 sm:px-4 sm:py-3.5";
 
+/** Bloc frise + méta : même carte que le bandeau Édition (largeur max + padding rail) */
+export const UI_SURFACE_FRise_INSET =
+  `${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD} max-w-4xl`;
+
 /** Panneaux liste (Pays, Langues) */
 export const UI_SURFACE_PANEL =
   "rounded-xl border border-border/35 bg-[color-mix(in_srgb,var(--color-muted)_14%,transparent)] p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)]";
