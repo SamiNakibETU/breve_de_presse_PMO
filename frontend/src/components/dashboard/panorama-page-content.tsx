@@ -21,6 +21,7 @@ import { StatsDistributionPanels } from "@/components/dashboard/stats-distributi
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import {
+  UI_FRISE_CONTROL_ROW,
   UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
   UI_SURFACE_HERO,
@@ -177,7 +178,7 @@ export function PanoramaPageContent() {
                   </Link>
                 ) : null}
               </div>
-              <div className="mb-4 flex w-full flex-wrap items-center justify-center gap-2 sm:justify-start">
+              <div className={`mb-4 ${UI_FRISE_CONTROL_ROW}`}>
                 <Link
                   href={buildPanoramaDayHref(
                     pathname,

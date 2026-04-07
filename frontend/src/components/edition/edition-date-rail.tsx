@@ -10,6 +10,7 @@ import {
   formatEditionDayHeadingFr,
 } from "@/lib/dates-display-fr";
 import {
+  UI_FRISE_CONTROL_ROW,
   UI_SURFACE_FRISE_DIVIDER,
   UI_SURFACE_INSET,
   UI_SURFACE_RAIL_PAD,
@@ -69,11 +70,11 @@ export function EditionDateRail({
         className={`w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD} ${className}`.trim()}
         aria-label="Choisir une date d’édition"
       >
-        <div className="flex items-center gap-2 sm:gap-3">
+        <h1 className="mb-3 text-center font-[family-name:var(--font-serif)] text-[1.35rem] font-semibold capitalize leading-tight text-foreground sm:text-[1.65rem] sm:leading-tight">
+          {title}
+        </h1>
+        <div className={UI_FRISE_CONTROL_ROW}>
           {controls}
-          <h1 className="min-w-0 flex-1 text-center font-[family-name:var(--font-serif)] text-[1.25rem] font-semibold capitalize leading-tight text-foreground sm:text-left sm:text-[1.65rem] sm:leading-tight">
-            {title}
-          </h1>
         </div>
         {editionWindow?.start && editionWindow?.end ? (
           <div className={UI_SURFACE_FRISE_DIVIDER}>

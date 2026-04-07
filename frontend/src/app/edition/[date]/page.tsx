@@ -633,7 +633,7 @@ export default function EditionSommairePage() {
         ) : null}
 
         {date ? (
-          <div className="mt-2 space-y-1.5 border-t border-border pt-2 text-[10px] leading-relaxed text-muted-foreground">
+          <div className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
             {statusQ.data?.pipeline_running && !pipeline?.running ? (
               <p
                 className="rounded-md bg-muted/40 px-2.5 py-1.5 text-foreground-body"
@@ -650,7 +650,7 @@ export default function EditionSommairePage() {
                 {pipeline.running.label}…
               </p>
             ) : null}
-            <details className="group border-t border-border/30 pt-1.5">
+            <details className="group pt-0.5">
               <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
                 <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
                   Planification et journaux (régie)

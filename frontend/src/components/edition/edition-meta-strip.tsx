@@ -51,28 +51,30 @@ export function EditionMetaStrip({
           </div>
         ) : null}
       </div>
-      <details className="group mt-2 border-t border-border/30 pt-2">
-        <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
-          <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
-            Aide · périmètre et chiffres
-          </span>
-        </summary>
-        <div className="mt-1.5 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
-          <p>
-            La plage du sommaire (Beyrouth) est matérialisée sur la frise du bandeau ci-dessus (glisser horizontalement
-            pour parcourir le contexte). Les textes listés correspondent à la date de parution dans cette fenêtre
-            (mar.–ven. : veille 18 h → jour J 6 h ; lundi : week-end).
-          </p>
-          <p>
-            <Link href="/regie/pipeline" className="olj-link-action font-medium">
-              Horaires et pipeline automatiques
-            </Link>
-          </p>
-          {vigieHint ? (
-            <p className="text-[10px] leading-snug text-muted-foreground/90">{vigieHint}</p>
-          ) : null}
-        </div>
-      </details>
+      <div className="mt-3 border-t border-border/20 pt-2">
+        <details className="group">
+          <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
+            <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
+              Aide · périmètre et chiffres
+            </span>
+          </summary>
+          <div className="mt-1.5 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
+            <p>
+              La plage du sommaire (Beyrouth) est matérialisée sur la frise du bandeau ci-dessus (glisser horizontalement
+              pour parcourir le contexte). Les textes listés correspondent à la date de parution dans cette fenêtre
+              (mar.–ven. : veille 18 h → jour J 6 h ; lundi : week-end).
+            </p>
+            <p>
+              <Link href="/regie/pipeline" className="olj-link-action font-medium">
+                Horaires et pipeline automatiques
+              </Link>
+            </p>
+            {vigieHint ? (
+              <p className="text-[10px] leading-snug text-muted-foreground/90">{vigieHint}</p>
+            ) : null}
+          </div>
+        </details>
+      </div>
     </div>
   );
 }

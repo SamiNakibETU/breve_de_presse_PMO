@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import type { CSSProperties } from "react";
 import {
   useCallback,
   useEffect,
@@ -35,33 +36,40 @@ const KEY_SCROLL_PX = 88;
 
 const TZ_BEIRUT = "Asia/Beirut";
 
-function formatUnifiedFriseDayLabels(iso: string): {
-  weekdayLine: string;
-  dateLine: string;
-} {
+function formatUnifiedFriseDayChip(iso: string): { chipLine: string } {
   const parts = iso.split("-").map(Number);
   const y = parts[0] ?? 1970;
   const mo = parts[1] ?? 1;
   const d = parts[2] ?? 1;
   const utc = Date.UTC(y, mo - 1, d, 12, 0, 0);
-  const weekdayLine = new Intl.DateTimeFormat("fr-FR", {
+  const wd = new Intl.DateTimeFormat("fr-FR", {
     weekday: "short",
     timeZone: TZ_BEIRUT,
   })
     .format(utc)
     .replace(/\.$/, "")
-    .toUpperCase();
+    .toLowerCase();
   const dateLine = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
     timeZone: TZ_BEIRUT,
   }).format(utc);
-  return { weekdayLine, dateLine };
+  return { chipLine: `${wd}. ${dateLine}` };
 }
 
-function clampFrisePct(pct: number): number {
-  return Math.min(98, Math.max(2, pct));
+/** Évite le côté « tout à gauche » : ancrage du chip selon la position sur la frise. */
+function markerAnchorStyle(pct: number): CSSProperties {
+  const p = Math.min(100, Math.max(0, pct));
+  if (p < 7) {
+    return { left: `${p}%`, transform: "translateX(0)" };
+  }
+  if (p > 93) {
+    return { left: `${p}%`, transform: "translateX(-100%)" };
+  }
+  return { left: `${p}%`, transform: "translateX(-50%)" };
 }
+
+const MARKER_MIN_GAP_PCT = 3.85;
 
 export type FriseUnifiedDayNav =
   | { mode: "edition"; dayRadius?: number }
@@ -82,8 +90,8 @@ type HourTick = { pct: number; label: string };
 type DayMarker = {
   iso: string;
   pct: number;
-  weekdayLine: string;
-  dateLine: string;
+  chipLine: string;
+  nudgeY: number;
 };
 
 type FriseLayout = {
@@ -120,6 +128,7 @@ export function EditionPeriodFrise({
     pointerId: number;
     startX: number;
     startScroll: number;
+    moved: boolean;
   } | null>(null);
 
   const layout = useMemo((): FriseLayout | null => {
@@ -173,17 +182,29 @@ export function EditionPeriodFrise({
     let scrollCenterPct = (windowLeftPct + windowRightPct) / 2;
     if (unifiedDayNav) {
       const radius = unifiedDayNav.dayRadius ?? 14;
+      const raw: Omit<DayMarker, "nudgeY">[] = [];
       for (let i = -radius; i <= radius; i += 1) {
         const iso = shiftIsoDate(publishRouteIso, i);
         const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
         const anchorMs = findBeirutMidnightUtc(y, m, d) + 12 * 3600 * 1000;
         const pct = percentAlong(anchorMs, extStart, extEnd);
-        const { weekdayLine, dateLine } = formatUnifiedFriseDayLabels(iso);
-        dayMarkers.push({ iso, pct, weekdayLine, dateLine });
+        const { chipLine } = formatUnifiedFriseDayChip(iso);
+        raw.push({ iso, pct, chipLine });
         if (iso === publishRouteIso) {
           scrollCenterPct = pct;
         }
       }
+      const sorted = [...raw].sort((a, b) => a.pct - b.pct);
+      const placed: DayMarker[] = [];
+      for (const cur of sorted) {
+        const prev = placed[placed.length - 1];
+        let nudgeY = 0;
+        if (prev && Math.abs(cur.pct - prev.pct) < MARKER_MIN_GAP_PCT) {
+          nudgeY = prev.nudgeY === 0 ? 13 : 0;
+        }
+        placed.push({ ...cur, nudgeY });
+      }
+      dayMarkers.push(...placed);
     }
 
     return {
@@ -253,6 +274,27 @@ export function EditionPeriodFrise({
     return () => ro.disconnect();
   }, [centerScroll]);
 
+  const seekScrollToClientX = useCallback((clientX: number) => {
+    const sc = scrollRef.current;
+    const inner = innerRef.current;
+    if (!sc || !inner) {
+      return;
+    }
+    const rect = inner.getBoundingClientRect();
+    const x = clientX - rect.left;
+    if (x < 0 || x > rect.width) {
+      return;
+    }
+    const innerW = inner.scrollWidth;
+    const outerW = sc.clientWidth;
+    const ratio = rect.width > 0 ? x / rect.width : 0;
+    const target = ratio * innerW - outerW / 2;
+    sc.scrollTo({
+      left: Math.max(0, Math.min(target, innerW - outerW)),
+      behavior: "smooth",
+    });
+  }, []);
+
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) {
       return;
@@ -266,6 +308,7 @@ export function EditionPeriodFrise({
       pointerId: e.pointerId,
       startX: e.clientX,
       startScroll: el.scrollLeft,
+      moved: false,
     };
   }, []);
 
@@ -275,7 +318,14 @@ export function EditionPeriodFrise({
     if (!d || e.pointerId !== d.pointerId || !el) {
       return;
     }
-    el.scrollLeft = d.startScroll - (e.clientX - d.startX);
+    const dx = e.clientX - d.startX;
+    if (!d.moved) {
+      if (Math.abs(dx) <= 8) {
+        return;
+      }
+      d.moved = true;
+    }
+    el.scrollLeft = d.startScroll - dx;
   }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -283,13 +333,20 @@ export function EditionPeriodFrise({
     if (!d || e.pointerId !== d.pointerId) {
       return;
     }
+    const dx = e.clientX - d.startX;
+    if (!d.moved && Math.abs(dx) <= 8) {
+      const t = (e.target as HTMLElement | null)?.closest("a[href]");
+      if (!t) {
+        seekScrollToClientX(e.clientX);
+      }
+    }
     dragRef.current = null;
     try {
       scrollRef.current?.releasePointerCapture(e.pointerId);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [seekScrollToClientX]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
@@ -396,10 +453,13 @@ export function EditionPeriodFrise({
           </div>
 
           {dayMarkers.length > 0 ? (
-            <div className="relative mb-1 min-h-[3rem] w-full sm:min-h-[3.1rem]">
+            <div
+              className="relative isolate mb-2 min-h-[3.1rem] w-full antialiased sm:min-h-[3.35rem]"
+              style={{ WebkitFontSmoothing: "antialiased" }}
+            >
               {dayMarkers.map((dm) => {
                 const active = dm.iso === publishRouteIso;
-                const leftPct = clampFrisePct(dm.pct);
+                const anchor = markerAnchorStyle(dm.pct);
                 return (
                   <Link
                     key={dm.iso}
@@ -407,18 +467,15 @@ export function EditionPeriodFrise({
                     scroll={false}
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label={`Frise du sommaire · jour ${dm.iso}`}
-                    className={`absolute top-0 flex min-h-[2.65rem] min-w-[2.5rem] -translate-x-1/2 flex-col items-center justify-center rounded-md px-1.5 py-1 text-center no-underline transition-[color,background-color,box-shadow] duration-200 touch-manipulation sm:min-h-[2.85rem] sm:min-w-[2.65rem] sm:px-2 ${
+                    className={`absolute z-[4] flex min-h-[2.35rem] min-w-[3rem] max-w-[min(100%,5.5rem)] flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center no-underline transition-[color,background-color,box-shadow] duration-200 touch-manipulation sm:min-h-[2.5rem] sm:min-w-[3.15rem] ${
                       active
-                        ? "z-[3] bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.04)] ring-1 ring-[color-mix(in_srgb,var(--color-accent)_42%,transparent)]"
-                        : "z-[2] text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground/85"
+                        ? "bg-[color-mix(in_srgb,var(--color-accent)_11%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)] [box-shadow:0_0_0_1px_color-mix(in_srgb,var(--color-accent)_38%,transparent),0_1px_0_rgba(0,0,0,0.05)]"
+                        : "text-muted-foreground hover:bg-[color-mix(in_srgb,var(--color-muted)_35%,transparent)] hover:text-foreground"
                     }`}
-                    style={{ left: `${leftPct}%` }}
+                    style={{ ...anchor, top: dm.nudgeY }}
                   >
-                    <span className="text-[9px] font-semibold uppercase leading-none tracking-tight sm:text-[10px]">
-                      {dm.weekdayLine}
-                    </span>
-                    <span className="mt-0.5 font-[family-name:var(--font-serif)] text-[12px] font-semibold tabular-nums leading-tight sm:text-[13px]">
-                      {dm.dateLine}
+                    <span className="whitespace-nowrap text-center font-[family-name:var(--font-sans)] text-[10px] font-medium leading-none tracking-wide sm:text-[11px]">
+                      {dm.chipLine}
                     </span>
                   </Link>
                 );
@@ -426,16 +483,42 @@ export function EditionPeriodFrise({
             </div>
           ) : null}
 
-          <div className="relative h-5 w-full sm:h-6">
+          <div
+            className="relative h-5 w-full sm:h-6"
+            title="Glisser pour parcourir le contexte ; cliquer sur la piste recentre la vue sur cet endroit."
+          >
             {ticks.map((i) => {
               const pct = TICK_COUNT <= 1 ? 0 : (i / (TICK_COUNT - 1)) * 100;
+              const isHit =
+                i === 0 || i === TICK_COUNT - 1 || i % 8 === 0;
               return (
                 <div
                   key={i}
-                  className="pointer-events-none absolute bottom-0 top-0 w-px bg-foreground/[0.14]"
-                  style={{ left: `${pct}%` }}
-                  aria-hidden
-                />
+                  className="absolute bottom-0 top-0"
+                  style={{
+                    left: `${pct}%`,
+                    transform: "translateX(-50%)",
+                    width: "max(10px, 1.8%)",
+                  }}
+                >
+                  {isHit ? (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      aria-hidden
+                      className="absolute inset-0 z-[1] cursor-pointer border-0 bg-transparent p-0 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        seekScrollToClientX(e.clientX);
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-foreground/[0.14]"
+                    aria-hidden
+                  />
+                </div>
               );
             })}
 
@@ -497,14 +580,15 @@ export function EditionPeriodFrise({
         className="mt-2 space-y-0.5 text-center text-[10px] text-muted-foreground sm:text-[11px]"
       >
         <span className="block italic">Période couverte par la revue</span>
-        <span className="block font-normal not-italic text-[9px] leading-snug text-muted-foreground/90 sm:text-[10px]">
-          Heures en bas : repères Beyrouth sur toute la plage. Glisser ici fait défiler le{" "}
-          <span className="font-medium text-muted-foreground">contexte</span> (pas le jour).
+        <span className="mx-auto block max-w-prose font-normal not-italic text-[9px] leading-snug text-muted-foreground/90 sm:text-[10px]">
+          Heures en bas : repères Beyrouth sur toute la plage. Glisser fait défiler le{" "}
+          <span className="font-medium text-muted-foreground">contexte</span> (pas le jour) ; un clic sur la{" "}
+          <span className="font-medium text-muted-foreground">piste</span> ou sur certaines barres recentre la vue.
           {unifiedDayNav ? (
             <>
               {" "}
-              Cliquer un <span className="font-medium text-muted-foreground">jour</span> sur la frise
-              ouvre la même vue à cette date ; les flèches et le calendrier au-dessus restent disponibles.
+              Les <span className="font-medium text-muted-foreground">étiquettes de jour</span> ouvrent la même vue à
+              cette date ; les flèches et le calendrier au-dessus restent disponibles.
             </>
           ) : (
             <>

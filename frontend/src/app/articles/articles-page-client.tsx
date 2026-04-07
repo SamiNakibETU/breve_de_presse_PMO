@@ -22,6 +22,7 @@ import {
   formatIsoCalendarDayLongFr,
 } from "@/lib/dates-display-fr";
 import {
+  UI_FRISE_CONTROL_ROW,
   UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
 } from "@/lib/ui-surface-classes";
@@ -405,7 +406,7 @@ export function ArticlesPageClient() {
                 </div>
               ) : null}
               {!rangeActive ? (
-                <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <div className={UI_FRISE_CONTROL_ROW}>
                   <Link
                     href={articlesDayHref(shiftIsoDate(editionFriseIso!, -1))}
                     scroll={false}
