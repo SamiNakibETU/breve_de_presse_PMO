@@ -23,6 +23,9 @@ import {
 } from "@/lib/dates-display-fr";
 import {
   UI_FRISE_CONTROL_ROW,
+  UI_FRISE_CORPUS_STRIP,
+  UI_FRISE_INTRO_HEADER,
+  UI_FRISE_META_TEXT,
   UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
 } from "@/lib/ui-surface-classes";
@@ -406,6 +409,14 @@ export function ArticlesPageClient() {
                 </div>
               ) : null}
               {!rangeActive ? (
+                <>
+                <div className={UI_FRISE_INTRO_HEADER}>
+                  <p className={UI_FRISE_META_TEXT}>
+                    <span className="font-medium text-foreground/90">Frise</span> : jour d’édition Beyrouth. Flèches et
+                    calendrier ; puis jour ou piste sur la frise, ou glisser le contexte — comme sur Panorama et l’édition
+                    du jour.
+                  </p>
+                </div>
                 <div className={UI_FRISE_CONTROL_ROW}>
                   <Link
                     href={articlesDayHref(shiftIsoDate(editionFriseIso!, -1))}
@@ -435,11 +446,12 @@ export function ArticlesPageClient() {
                     <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                   </Link>
                 </div>
+                </>
               ) : null}
               {editionFriseIso ? (
                 articlesFriseWindowOk && editionFriseQ.data ? (
                   <div className={UI_SURFACE_FRISE_SEPARATOR}>
-                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                    <div className={UI_FRISE_CORPUS_STRIP}>
                       {editionFriseQ.data.corpus_article_count != null ? (
                         <p className="text-[12px] text-muted-foreground">
                           Corpus du sommaire (jour d’édition affiché) :{" "}
@@ -450,7 +462,9 @@ export function ArticlesPageClient() {
                           {editionFriseQ.data.corpus_article_count !== 1 ? "s" : ""}
                         </p>
                       ) : null}
-                      <p className="text-[11px] italic leading-snug text-muted-foreground sm:max-w-[55%] sm:text-right">
+                      <p
+                        className={`italic sm:max-w-[55%] sm:text-right ${UI_FRISE_META_TEXT} leading-snug`}
+                      >
                         Plage du sommaire (Beyrouth), même repère que sur la page Édition
                       </p>
                     </div>

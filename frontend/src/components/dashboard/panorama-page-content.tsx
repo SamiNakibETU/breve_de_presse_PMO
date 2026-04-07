@@ -22,6 +22,9 @@ import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import {
   UI_FRISE_CONTROL_ROW,
+  UI_FRISE_CORPUS_STRIP,
+  UI_FRISE_INTRO_HEADER,
+  UI_FRISE_META_TEXT,
   UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
   UI_SURFACE_HERO,
@@ -158,8 +161,8 @@ export function PanoramaPageContent() {
 
           {editionWindowOk ? (
             <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <div className={UI_FRISE_INTRO_HEADER}>
+                <p className={UI_FRISE_META_TEXT}>
                   Jour d’édition de référence pour la frise (Beyrouth). Les{" "}
                   <span className="font-medium text-foreground/90">flèches</span> et le{" "}
                   <span className="font-medium text-foreground/90">calendrier</span> changent la date ; vous pouvez aussi
@@ -215,7 +218,7 @@ export function PanoramaPageContent() {
                 </Link>
               </div>
               <div className={UI_SURFACE_FRISE_SEPARATOR}>
-                <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                <div className={UI_FRISE_CORPUS_STRIP}>
                   {editionToday.corpus_article_count != null ? (
                     <p className="text-[12px] text-muted-foreground">
                       Corpus du sommaire (fenêtre d’édition) :{" "}
@@ -226,7 +229,9 @@ export function PanoramaPageContent() {
                       {editionToday.corpus_article_count !== 1 ? "s" : ""}
                     </p>
                   ) : null}
-                  <p className="text-[11px] italic leading-snug text-muted-foreground sm:max-w-[55%] sm:text-right">
+                  <p
+                    className={`italic sm:max-w-[55%] sm:text-right ${UI_FRISE_META_TEXT} leading-snug`}
+                  >
                     Plage du sommaire (Beyrouth), même repère que sur la page Édition
                   </p>
                 </div>

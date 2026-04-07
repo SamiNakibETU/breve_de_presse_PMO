@@ -17,6 +17,25 @@ export const UI_SURFACE_INSET_PAD = "p-3 sm:p-4";
 /** Rail édition (titre + contrôles + frise) : padding horizontal un peu plus large sur sm */
 export const UI_SURFACE_RAIL_PAD = "px-3 py-3 sm:px-4 sm:py-3.5";
 
+/**
+ * Rangée date : ← · calendrier · → — identique sur Édition (sous le titre), Articles et Panorama.
+ * Centrée, espacement serré (ligne éditoriale sobre).
+ */
+export const UI_FRISE_CONTROL_ROW =
+  "flex w-full flex-wrap items-center justify-center gap-1.5 sm:gap-2";
+
+/** Texte d’aide au-dessus de la rangée date / frise (même ton sur les trois vues) */
+export const UI_FRISE_META_TEXT =
+  "text-[11px] leading-relaxed text-muted-foreground";
+
+/** Conteneur du paragraphe d’aide + lien secondaire (ex. « Aujourd’hui ») */
+export const UI_FRISE_INTRO_HEADER =
+  "mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4";
+
+/** Ligne corpus + mention « plage du sommaire » au-dessus de la frise (Articles, Panorama) */
+export const UI_FRISE_CORPUS_STRIP =
+  "mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4";
+
 /** Bloc frise + méta : même carte que le bandeau Édition (largeur max + padding rail) */
 export const UI_SURFACE_FRise_INSET =
   `w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD}`;

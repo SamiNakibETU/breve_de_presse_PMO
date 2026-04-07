@@ -11,6 +11,7 @@ import {
 } from "@/lib/dates-display-fr";
 import {
   UI_FRISE_CONTROL_ROW,
+  UI_FRISE_META_TEXT,
   UI_SURFACE_FRISE_DIVIDER,
   UI_SURFACE_INSET,
   UI_SURFACE_RAIL_PAD,
@@ -76,6 +77,9 @@ export function EditionDateRail({
         <div className={UI_FRISE_CONTROL_ROW}>
           {controls}
         </div>
+        <p className={`mx-auto mb-1 max-w-prose text-center ${UI_FRISE_META_TEXT}`}>
+          Même frise que Panorama et Articles : jours et piste, glisser pour le contexte temporel.
+        </p>
         {editionWindow?.start && editionWindow?.end ? (
           <div className={UI_SURFACE_FRISE_DIVIDER}>
             <EditionPeriodFrise
@@ -95,10 +99,13 @@ export function EditionDateRail({
       className={`flex w-full max-w-full flex-col gap-3 ${className}`.trim()}
       aria-label="Choisir une date d’édition"
     >
-      <div className="flex w-full items-center justify-center gap-2 sm:justify-start">
+      <div className={UI_FRISE_CONTROL_ROW}>
         {controls}
         <span className="sr-only">Date affichée : {headingA11y}</span>
       </div>
+      <p className={`text-center ${UI_FRISE_META_TEXT}`}>
+        Même frise que Panorama et Articles : jours et piste, glisser pour le contexte temporel.
+      </p>
       {editionWindow?.start && editionWindow?.end ? (
         <EditionPeriodFrise
           windowStartIso={editionWindow.start}
