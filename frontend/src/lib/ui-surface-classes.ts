@@ -36,19 +36,21 @@ export const UI_FRISE_INTRO_HEADER =
 export const UI_FRISE_CORPUS_STRIP =
   "mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4";
 
-/** Bloc frise + méta : même carte que le bandeau Édition (largeur max + padding rail) */
+/**
+ * Carte unique « date + frise » (Édition, Panorama, Articles) : même volume, centrage, ombre légère.
+ */
 export const UI_SURFACE_FRise_INSET =
-  `w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD}`;
+  "mx-auto w-full max-w-4xl rounded-2xl border border-border/45 bg-[linear-gradient(165deg,color-mix(in_srgb,var(--color-muted)_16%,var(--color-background))_0%,var(--color-background)_52%)] px-4 py-4 shadow-[0_2px_14px_rgba(15,15,15,0.045)] sm:px-5 sm:py-[1.15rem]";
 
 /** Panneaux liste (Pays, Langues) */
 export const UI_SURFACE_PANEL =
   "rounded-xl border border-border/35 bg-[color-mix(in_srgb,var(--color-muted)_14%,transparent)] p-4 shadow-[0_1px_0_rgba(0,0,0,0.04)]";
 
 /** Filet au-dessus de la frise (dans une carte qui a déjà un bloc méta au-dessus) */
-export const UI_SURFACE_FRISE_SEPARATOR = "border-t border-border/25 pt-4";
+export const UI_SURFACE_FRISE_SEPARATOR = "border-t border-border/15 pt-4";
 
 /** Séparateur + marge avant la frise (sous la rangée titre + contrôles) */
-export const UI_SURFACE_FRISE_DIVIDER = `mt-4 ${UI_SURFACE_FRISE_SEPARATOR}`;
+export const UI_SURFACE_FRISE_DIVIDER = `mt-3 ${UI_SURFACE_FRISE_SEPARATOR}`;
 
 /** Placeholder de chargement aligné sur les cartes encastrées */
 export const UI_SURFACE_SKELETON_INSET =

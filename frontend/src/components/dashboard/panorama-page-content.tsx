@@ -160,12 +160,13 @@ export function PanoramaPageContent() {
           </p>
 
           {editionWindowOk ? (
-            <div className={`mx-auto mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
+            <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
               <div className={UI_FRISE_INTRO_HEADER}>
-                <p className={`min-w-0 max-w-md flex-1 ${UI_FRISE_META_TEXT}`}>
-                  Frise identique à l’édition (Beyrouth). Données plus bas :{" "}
-                  <span className="font-medium text-foreground/85">vue globale</span> ; seul{" "}
-                  <span className="font-mono text-[10px] text-foreground/80">?date=</span> suit le jour.
+                <p className="min-w-0 max-w-md flex-1 text-[10px] leading-snug text-muted-foreground/90 sm:text-[11px]">
+                  Frise = repère édition (Beyrouth). Données ci‑dessous :{" "}
+                  <span className="font-medium text-foreground/80">globales</span> ;{" "}
+                  <span className="rounded bg-muted/50 px-1 font-mono text-[9px] text-foreground/75">?date=</span>{" "}
+                  = jour affiché.
                 </p>
                 {urlPanoramaDate ? (
                   <Link

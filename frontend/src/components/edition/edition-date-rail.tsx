@@ -11,10 +11,8 @@ import {
 } from "@/lib/dates-display-fr";
 import {
   UI_FRISE_CONTROL_ROW,
-  UI_FRISE_META_TEXT,
+  UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_DIVIDER,
-  UI_SURFACE_INSET,
-  UI_SURFACE_RAIL_PAD,
 } from "@/lib/ui-surface-classes";
 
 export type EditionDateRailWindow = { start: string; end: string };
@@ -68,17 +66,17 @@ export function EditionDateRail({
   if (unifiedHeader) {
     return (
       <div
-        className={`mx-auto w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD} ${className}`.trim()}
+        className={`${UI_SURFACE_FRise_INSET} ${className}`.trim()}
         aria-label="Choisir une date d’édition"
       >
-        <h1 className="mb-3 text-center font-[family-name:var(--font-serif)] text-[1.35rem] font-semibold capitalize leading-tight text-foreground sm:text-[1.65rem] sm:leading-tight">
+        <h1 className="mb-4 text-balance text-center font-[family-name:var(--font-serif)] text-[1.35rem] font-semibold capitalize leading-[1.15] tracking-tight text-foreground sm:text-[1.625rem]">
           {title}
         </h1>
-        <div className={UI_FRISE_CONTROL_ROW}>
+        <div className={`${UI_FRISE_CONTROL_ROW} mb-2`}>
           {controls}
         </div>
-        <p className={`mx-auto mb-1 max-w-md text-center ${UI_FRISE_META_TEXT}`}>
-          Frise identique à Panorama et Articles — glisser le contexte, cliquer un jour ou la piste.
+        <p className="mx-auto mb-0 max-w-sm text-center text-[10px] leading-snug text-muted-foreground/90 sm:max-w-md sm:text-[11px]">
+          Glisser le contexte · jour ou piste · même repère que Panorama et Articles.
         </p>
         {editionWindow?.start && editionWindow?.end ? (
           <div className={UI_SURFACE_FRISE_DIVIDER}>
@@ -103,8 +101,8 @@ export function EditionDateRail({
         {controls}
         <span className="sr-only">Date affichée : {headingA11y}</span>
       </div>
-      <p className={`mx-auto max-w-md text-center ${UI_FRISE_META_TEXT}`}>
-        Frise identique à Panorama et Articles — glisser le contexte, cliquer un jour ou la piste.
+      <p className="mx-auto max-w-md text-center text-[10px] leading-snug text-muted-foreground/90 sm:text-[11px]">
+        Glisser le contexte · jour ou piste · même repère que Panorama et l’édition.
       </p>
       {editionWindow?.start && editionWindow?.end ? (
         <EditionPeriodFrise

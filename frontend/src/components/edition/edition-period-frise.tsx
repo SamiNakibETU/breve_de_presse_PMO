@@ -406,7 +406,7 @@ export function EditionPeriodFrise({
         role="region"
         aria-label={summaryA11y}
         aria-describedby={hintId}
-        className="olj-scrollbar-none relative w-full cursor-grab touch-pan-x overflow-x-auto overflow-y-visible scroll-smooth outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_55%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
+        className="olj-scrollbar-none relative w-full cursor-grab touch-pan-x overflow-x-auto overflow-y-visible rounded-xl bg-[color-mix(in_srgb,var(--color-muted)_8%,transparent)] px-0.5 py-0.5 scroll-smooth outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_55%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing sm:px-1 sm:py-1"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -582,23 +582,20 @@ export function EditionPeriodFrise({
 
       <p
         id={hintId}
-        className="mt-2 space-y-1 text-center text-[10px] text-muted-foreground sm:text-[11px]"
+        className="mt-4 space-y-1 border-t border-border/10 pt-3 text-center text-[10px] text-muted-foreground sm:text-[11px]"
       >
-        <span className="block font-[family-name:var(--font-serif)] italic text-foreground/80">
+        <span className="block font-[family-name:var(--font-serif)] text-[11px] italic leading-tight text-foreground/75 sm:text-[12px]">
           Période couverte par la revue
         </span>
-        <span className="mx-auto block max-w-md font-normal not-italic leading-snug text-muted-foreground/88 sm:max-w-lg">
+        <span className="mx-auto block max-w-sm font-normal not-italic leading-relaxed text-muted-foreground/85 sm:max-w-md">
           {unifiedDayNav ? (
             <>
-              Heures (Beyrouth) sous la piste.{" "}
-              <span className="whitespace-nowrap">Glisser</span> = contexte ·{" "}
-              <span className="whitespace-nowrap">clic piste</span> = centrer ·{" "}
+              Beyrouth sous la piste · <span className="whitespace-nowrap">glisser</span> le contexte ·{" "}
+              <span className="whitespace-nowrap">clic</span> pour centrer ·{" "}
               <span className="whitespace-nowrap">étiquette</span> = jour.
             </>
           ) : (
-            <>
-              Heures (Beyrouth) sous la piste. Glisser pour le contexte ; jour via flèches ou calendrier.
-            </>
+            <>Beyrouth sous la piste · glisser le contexte · jour : flèches ou calendrier.</>
           )}
         </span>
       </p>

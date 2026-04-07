@@ -390,7 +390,7 @@ export function ArticlesPageClient() {
             )}
           </p>
           {!activeEditionId ? (
-            <div className={`mx-auto mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
+            <div className={`mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
               {rangeActive ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/25 pb-3 text-[11px] text-foreground-body">
                   <span className="tabular-nums">
@@ -411,8 +411,8 @@ export function ArticlesPageClient() {
               {!rangeActive ? (
                 <>
                 <div className={`${UI_FRISE_INTRO_HEADER} justify-center`}>
-                  <p className={`max-w-md text-center ${UI_FRISE_META_TEXT}`}>
-                    Frise identique à l’édition et Panorama — glisser le contexte, cliquer un jour ou la piste.
+                  <p className="max-w-md text-center text-[10px] leading-snug text-muted-foreground/90 sm:text-[11px]">
+                    Glisser le contexte · jour ou piste · même repère que l’édition et Panorama.
                   </p>
                 </div>
                 <div className={UI_FRISE_CONTROL_ROW}>

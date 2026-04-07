@@ -53,8 +53,8 @@ export function EditionMetaStrip({
       </div>
       <div className="mt-3 border-t border-border/20 pt-2">
         <details className="group">
-          <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
-            <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
+          <summary className="cursor-pointer list-none rounded-md py-1 pl-1 pr-1.5 text-[10px] font-medium tracking-wide text-muted-foreground transition-colors marker:content-none [-webkit-tap-highlight-color:transparent] [&::-webkit-details-marker]:hidden hover:bg-muted/45 hover:text-foreground">
+            <span className="underline decoration-border/50 underline-offset-[3px] group-open:no-underline">
               Aide · périmètre et chiffres
             </span>
           </summary>

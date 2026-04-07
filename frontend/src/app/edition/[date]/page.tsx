@@ -563,58 +563,54 @@ export default function EditionSommairePage() {
   return (
     <div className="space-y-10">
       <header className="mx-auto max-w-4xl border-b border-border pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="olj-rubric">Édition</p>
-            <div className="mt-2 w-full min-w-0">
-              {date ? (
-                <nav
-                  className="flex w-full min-w-0 justify-center text-[11px]"
-                  aria-label="Naviguer entre les jours"
-                >
-                  <EditionDateRail
-                    currentIso={date}
-                    unifiedHeader
-                    editionWindow={
-                      edition?.window_start && edition?.window_end
-                        ? { start: edition.window_start, end: edition.window_end }
-                        : null
-                    }
-                  />
-                </nav>
-              ) : (
-                <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold capitalize leading-tight text-foreground sm:text-[30px]">
-                  Date non renseignée
-                </h1>
-              )}
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            {pipeline ? (
-              <button
-                type="button"
-                className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
-                disabled={
-                  pipeline.running !== null ||
-                  Boolean(statusQ.data?.pipeline_running)
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="olj-rubric">Édition</p>
+          {pipeline ? (
+            <button
+              type="button"
+              className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
+              disabled={
+                pipeline.running !== null ||
+                Boolean(statusQ.data?.pipeline_running)
+              }
+              title={
+                statusQ.data?.pipeline_running
+                  ? "Une mise à jour complète est déjà en cours sur le serveur."
+                  : undefined
+              }
+              onClick={() =>
+                pipeline.startRun("pipeline", "Mise à jour complète")
+              }
+            >
+              {pipeline.running?.key === "pipeline"
+                ? "Mise à jour…"
+                : statusQ.data?.pipeline_running
+                  ? "Mise à jour serveur…"
+                  : "Mise à jour"}
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-3 w-full">
+          {date ? (
+            <nav
+              className="w-full text-[11px]"
+              aria-label="Naviguer entre les jours"
+            >
+              <EditionDateRail
+                currentIso={date}
+                unifiedHeader
+                editionWindow={
+                  edition?.window_start && edition?.window_end
+                    ? { start: edition.window_start, end: edition.window_end }
+                    : null
                 }
-                title={
-                  statusQ.data?.pipeline_running
-                    ? "Une mise à jour complète est déjà en cours sur le serveur."
-                    : undefined
-                }
-                onClick={() =>
-                  pipeline.startRun("pipeline", "Mise à jour complète")
-                }
-              >
-                {pipeline.running?.key === "pipeline"
-                  ? "Mise à jour…"
-                  : statusQ.data?.pipeline_running
-                    ? "Mise à jour serveur…"
-                    : "Mise à jour"}
-              </button>
-            ) : null}
-          </div>
+              />
+            </nav>
+          ) : (
+            <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold capitalize leading-tight text-foreground sm:text-[30px]">
+              Date non renseignée
+            </h1>
+          )}
         </div>
 
         {edition ? (
