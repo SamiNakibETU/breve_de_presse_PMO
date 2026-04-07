@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -9,11 +11,18 @@ import {
   useRef,
 } from "react";
 import {
+  buildPanoramaDayHref,
+  mergeArticlesQuery,
+} from "@/lib/articles-url-query";
+import { shiftIsoDate } from "@/lib/beirut-date";
+import {
   formatFriseBoundaryDateFr,
   formatFriseBoundaryTimeFr,
 } from "@/lib/dates-display-fr";
 import {
+  beirutCalendarFromRouteDateIso,
   extendedTimelineBounds,
+  findBeirutMidnightUtc,
   hourTicksBetween,
   percentAlong,
 } from "@/lib/edition-timeline-utils";
@@ -24,14 +33,58 @@ const PADDING_MS = 20 * 60 * 1000;
 const SIDE_PAD_RATIO = 0.42;
 const KEY_SCROLL_PX = 88;
 
+const TZ_BEIRUT = "Asia/Beirut";
+
+function formatUnifiedFriseDayLabels(iso: string): {
+  weekdayLine: string;
+  dateLine: string;
+} {
+  const parts = iso.split("-").map(Number);
+  const y = parts[0] ?? 1970;
+  const mo = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const utc = Date.UTC(y, mo - 1, d, 12, 0, 0);
+  const weekdayLine = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    timeZone: TZ_BEIRUT,
+  })
+    .format(utc)
+    .replace(/\.$/, "")
+    .toUpperCase();
+  const dateLine = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    timeZone: TZ_BEIRUT,
+  }).format(utc);
+  return { weekdayLine, dateLine };
+}
+
+function clampFrisePct(pct: number): number {
+  return Math.min(98, Math.max(2, pct));
+}
+
+export type FriseUnifiedDayNav =
+  | { mode: "edition"; dayRadius?: number }
+  | { mode: "articles"; dayRadius?: number }
+  | { mode: "panorama"; dayRadius?: number };
+
 export type EditionPeriodFriseProps = {
   windowStartIso: string;
   windowEndIso: string;
   publishRouteIso: string;
   className?: string;
+  /** Jours cliquables sur la frise (liens vers édition, Articles ou Panorama). */
+  unifiedDayNav?: FriseUnifiedDayNav | null;
 };
 
 type HourTick = { pct: number; label: string };
+
+type DayMarker = {
+  iso: string;
+  pct: number;
+  weekdayLine: string;
+  dateLine: string;
+};
 
 type FriseLayout = {
   windowLeftPct: number;
@@ -44,6 +97,8 @@ type FriseLayout = {
   endTime: string;
   summaryA11y: string;
   hourStrip: HourTick[];
+  dayMarkers: DayMarker[];
+  scrollCenterPct: number;
 };
 
 /**
@@ -54,7 +109,10 @@ export function EditionPeriodFrise({
   windowEndIso,
   publishRouteIso,
   className = "",
+  unifiedDayNav = null,
 }: EditionPeriodFriseProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const hintId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +169,23 @@ export function EditionPeriodFrise({
       label: tick.label,
     }));
 
+    const dayMarkers: DayMarker[] = [];
+    let scrollCenterPct = (windowLeftPct + windowRightPct) / 2;
+    if (unifiedDayNav) {
+      const radius = unifiedDayNav.dayRadius ?? 14;
+      for (let i = -radius; i <= radius; i += 1) {
+        const iso = shiftIsoDate(publishRouteIso, i);
+        const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
+        const anchorMs = findBeirutMidnightUtc(y, m, d) + 12 * 3600 * 1000;
+        const pct = percentAlong(anchorMs, extStart, extEnd);
+        const { weekdayLine, dateLine } = formatUnifiedFriseDayLabels(iso);
+        dayMarkers.push({ iso, pct, weekdayLine, dateLine });
+        if (iso === publishRouteIso) {
+          scrollCenterPct = pct;
+        }
+      }
+    }
+
     return {
       windowLeftPct,
       windowRightPct: windowLeftPct + windowWidthPct,
@@ -122,8 +197,31 @@ export function EditionPeriodFrise({
       endTime,
       summaryA11y,
       hourStrip,
+      dayMarkers,
+      scrollCenterPct,
     };
-  }, [windowStartIso, windowEndIso, publishRouteIso]);
+  }, [windowStartIso, windowEndIso, publishRouteIso, unifiedDayNav]);
+
+  const dayHref = useCallback(
+    (iso: string) => {
+      if (!unifiedDayNav) {
+        return "#";
+      }
+      if (unifiedDayNav.mode === "edition") {
+        return `/edition/${iso}`;
+      }
+      if (unifiedDayNav.mode === "panorama") {
+        return buildPanoramaDayHref(pathname, searchParams, iso);
+      }
+      const qs = mergeArticlesQuery(searchParams, {
+        date: iso,
+        date_from: null,
+        date_to: null,
+      });
+      return qs ? `${pathname}?${qs}` : pathname;
+    },
+    [unifiedDayNav, pathname, searchParams],
+  );
 
   const centerScroll = useCallback(() => {
     const sc = scrollRef.current;
@@ -137,7 +235,7 @@ export function EditionPeriodFrise({
       sc.scrollLeft = 0;
       return;
     }
-    const midPct = (layout.windowLeftPct + layout.windowRightPct) / 2;
+    const midPct = layout.scrollCenterPct;
     const midPx = (midPct / 100) * innerW;
     sc.scrollLeft = Math.max(0, Math.min(midPx - outerW / 2, innerW - outerW));
   }, [layout]);
@@ -238,6 +336,7 @@ export function EditionPeriodFrise({
     endTime,
     summaryA11y,
     hourStrip,
+    dayMarkers,
   } = layout;
 
   const ticks = Array.from({ length: TICK_COUNT }, (_, i) => i);
@@ -295,6 +394,37 @@ export function EditionPeriodFrise({
               </p>
             </div>
           </div>
+
+          {dayMarkers.length > 0 ? (
+            <div className="relative mb-1 min-h-[3rem] w-full sm:min-h-[3.1rem]">
+              {dayMarkers.map((dm) => {
+                const active = dm.iso === publishRouteIso;
+                const leftPct = clampFrisePct(dm.pct);
+                return (
+                  <Link
+                    key={dm.iso}
+                    href={dayHref(dm.iso)}
+                    scroll={false}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label={`Frise du sommaire · jour ${dm.iso}`}
+                    className={`absolute top-0 flex min-h-[2.65rem] min-w-[2.5rem] -translate-x-1/2 flex-col items-center justify-center rounded-md px-1.5 py-1 text-center no-underline transition-[color,background-color,box-shadow] duration-200 touch-manipulation sm:min-h-[2.85rem] sm:min-w-[2.65rem] sm:px-2 ${
+                      active
+                        ? "z-[3] bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.04)] ring-1 ring-[color-mix(in_srgb,var(--color-accent)_42%,transparent)]"
+                        : "z-[2] text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground/85"
+                    }`}
+                    style={{ left: `${leftPct}%` }}
+                  >
+                    <span className="text-[9px] font-semibold uppercase leading-none tracking-tight sm:text-[10px]">
+                      {dm.weekdayLine}
+                    </span>
+                    <span className="mt-0.5 font-[family-name:var(--font-serif)] text-[12px] font-semibold tabular-nums leading-tight sm:text-[13px]">
+                      {dm.dateLine}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
 
           <div className="relative h-5 w-full sm:h-6">
             {ticks.map((i) => {
@@ -369,8 +499,19 @@ export function EditionPeriodFrise({
         <span className="block italic">Période couverte par la revue</span>
         <span className="block font-normal not-italic text-[9px] leading-snug text-muted-foreground/90 sm:text-[10px]">
           Heures en bas : repères Beyrouth sur toute la plage. Glisser ici fait défiler le{" "}
-          <span className="font-medium text-muted-foreground">contexte</span> (pas le jour) ; utiliser
-          les flèches ou les puces du rail de jours pour changer de jour.
+          <span className="font-medium text-muted-foreground">contexte</span> (pas le jour).
+          {unifiedDayNav ? (
+            <>
+              {" "}
+              Cliquer un <span className="font-medium text-muted-foreground">jour</span> sur la frise
+              ouvre la même vue à cette date ; les flèches et le calendrier au-dessus restent disponibles.
+            </>
+          ) : (
+            <>
+              {" "}
+              Utiliser les flèches ou le calendrier pour changer de jour.
+            </>
+          )}
         </span>
       </p>
     </div>

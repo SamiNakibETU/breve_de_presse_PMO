@@ -1,6 +1,8 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -9,16 +11,14 @@ import {
   type Filters,
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
-import {
-  ArticlesPeriodRail,
-  mergeArticlesQuery,
-} from "@/components/articles/articles-period-rail";
+import { mergeArticlesQuery } from "@/lib/articles-url-query";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
 import { api } from "@/lib/api";
-import { todayBeirutIsoDate } from "@/lib/beirut-date";
+import { shiftIsoDate, todayBeirutIsoDate } from "@/lib/beirut-date";
 import {
   formatArticlesExplorationPeriodHint,
+  formatEditionDayHeadingFr,
   formatIsoCalendarDayLongFr,
 } from "@/lib/dates-display-fr";
 import {
@@ -167,6 +167,18 @@ export function ArticlesPageClient() {
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [router, pathname, searchParams],
+  );
+
+  const articlesDayHref = useCallback(
+    (iso: string) => {
+      const qs = mergeArticlesQuery(searchParams, {
+        date: iso,
+        date_from: null,
+        date_to: null,
+      });
+      return qs ? `${pathname}?${qs}` : pathname;
+    },
+    [pathname, searchParams],
   );
 
   const sortNav = useMemo(() => {
@@ -375,12 +387,54 @@ export function ArticlesPageClient() {
           </p>
           {!activeEditionId ? (
             <div className={`mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
-              <ArticlesPeriodRail
-                embedded
-                beirutDate={beirutDate}
-                beirutFrom={beirutFrom}
-                beirutTo={beirutTo}
-              />
+              {rangeActive ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/25 pb-3 text-[11px] text-foreground-body">
+                  <span className="tabular-nums">
+                    Plage sélectionnée :{" "}
+                    <strong className="font-medium text-foreground">
+                      {beirutFrom} → {beirutTo}
+                    </strong>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-accent underline underline-offset-2 hover:opacity-90"
+                    onClick={() => patchSearch({ date_from: null, date_to: null })}
+                  >
+                    Effacer la plage
+                  </button>
+                </div>
+              ) : null}
+              {!rangeActive ? (
+                <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <Link
+                    href={articlesDayHref(shiftIsoDate(editionFriseIso!, -1))}
+                    scroll={false}
+                    className="olj-date-rail__chevron shrink-0"
+                    aria-label={`Jour précédent : ${formatEditionDayHeadingFr(shiftIsoDate(editionFriseIso!, -1))}`}
+                  >
+                    <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                  </Link>
+                  <EditionCalendarPopover
+                    currentIso={editionFriseIso!}
+                    triggerLabel="Calendrier"
+                    onDateSelect={(iso) =>
+                      patchSearch({
+                        date: iso,
+                        date_from: null,
+                        date_to: null,
+                      })
+                    }
+                  />
+                  <Link
+                    href={articlesDayHref(shiftIsoDate(editionFriseIso!, 1))}
+                    scroll={false}
+                    className="olj-date-rail__chevron shrink-0"
+                    aria-label={`Jour suivant : ${formatEditionDayHeadingFr(shiftIsoDate(editionFriseIso!, 1))}`}
+                  >
+                    <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                  </Link>
+                </div>
+              ) : null}
               {editionFriseIso ? (
                 articlesFriseWindowOk && editionFriseQ.data ? (
                   <div className={UI_SURFACE_FRISE_SEPARATOR}>
@@ -403,6 +457,7 @@ export function ArticlesPageClient() {
                       windowStartIso={editionFriseQ.data.window_start}
                       windowEndIso={editionFriseQ.data.window_end}
                       publishRouteIso={editionFriseIso}
+                      unifiedDayNav={{ mode: "articles", dayRadius: 14 }}
                     />
                   </div>
                 ) : editionFriseQ.isPending ? (
@@ -500,9 +555,10 @@ export function ArticlesPageClient() {
             </summary>
             <div className="mt-2 space-y-2 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground">
               <p>
-                Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Sous le
-                rail de jours, la frise reprend la fenêtre du sommaire pour le jour d’édition de référence (aujourd’hui
-                ou le jour choisi), comme sur Panorama et l’édition du jour. Pour le livrable rédactionnel :{" "}
+                Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Sur la
+                frise, les jours cliquables et la bande horaire reprennent la fenêtre du sommaire pour le jour d’édition
+                de référence (aujourd’hui ou le jour choisi), comme sur Panorama et l’édition du jour. Pour le livrable
+                rédactionnel :{" "}
                 <a href="/panorama" className="font-medium text-accent underline underline-offset-2">
                   Panorama
                 </a>{" "}

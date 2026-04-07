@@ -2,12 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ArticlesPeriodRail } from "@/components/articles/articles-period-rail";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { api } from "@/lib/api";
-import { todayBeirutIsoDate } from "@/lib/beirut-date";
-import { formatIsoCalendarDayLongFr } from "@/lib/dates-display-fr";
+import { buildPanoramaDayHref } from "@/lib/articles-url-query";
+import { shiftIsoDate, todayBeirutIsoDate } from "@/lib/beirut-date";
+import {
+  formatEditionDayHeadingFr,
+  formatIsoCalendarDayLongFr,
+} from "@/lib/dates-display-fr";
 import type { ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
@@ -50,6 +55,8 @@ const CHIP_ON =
   "border-[color-mix(in_srgb,var(--color-accent)_48%,transparent)] bg-[color-mix(in_srgb,var(--color-accent)_11%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)]";
 
 export function PanoramaPageContent() {
+  const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [emergingOnly, setEmergingOnly] = useState(false);
@@ -153,10 +160,12 @@ export function PanoramaPageContent() {
               <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Jour d’édition de référence pour la frise (Beyrouth). Les{" "}
-                  <span className="font-medium text-foreground/90">flèches</span> à gauche et à droite du rail passent
-                  au jour précédent / suivant ; cliquez une puce ou faites défiler horizontalement pour un autre jour ;
-                  le <span className="font-medium text-foreground/90">calendrier</span> ouvre une date précise.
-                  L’inventaire et les regroupements ci-dessous restent{" "}
+                  <span className="font-medium text-foreground/90">flèches</span> et le{" "}
+                  <span className="font-medium text-foreground/90">calendrier</span> changent la date ; vous pouvez aussi
+                  cliquer un <span className="font-medium text-foreground/90">jour</span> sur la frise ou faire défiler le
+                  contexte temporel. Le paramètre{" "}
+                  <span className="font-medium text-foreground/90">?date=</span> suit la sélection. L’inventaire et les
+                  regroupements ci-dessous restent{" "}
                   <span className="font-medium text-foreground/90">globaux</span>.
                 </p>
                 {urlPanoramaDate ? (
@@ -168,13 +177,42 @@ export function PanoramaPageContent() {
                   </Link>
                 ) : null}
               </div>
-              <ArticlesPeriodRail
-                variant="panorama"
-                embedded
-                beirutDate={editionDate}
-                beirutFrom={null}
-                beirutTo={null}
-              />
+              <div className="mb-4 flex w-full flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <Link
+                  href={buildPanoramaDayHref(
+                    pathname,
+                    searchParams,
+                    shiftIsoDate(editionDate, -1),
+                  )}
+                  scroll={false}
+                  className="olj-date-rail__chevron shrink-0"
+                  aria-label={`Jour précédent : ${formatEditionDayHeadingFr(shiftIsoDate(editionDate, -1))}`}
+                >
+                  <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                </Link>
+                <EditionCalendarPopover
+                  currentIso={editionDate}
+                  triggerLabel="Calendrier"
+                  onDateSelect={(iso) => {
+                    router.replace(
+                      buildPanoramaDayHref(pathname, searchParams, iso),
+                      { scroll: false },
+                    );
+                  }}
+                />
+                <Link
+                  href={buildPanoramaDayHref(
+                    pathname,
+                    searchParams,
+                    shiftIsoDate(editionDate, 1),
+                  )}
+                  scroll={false}
+                  className="olj-date-rail__chevron shrink-0"
+                  aria-label={`Jour suivant : ${formatEditionDayHeadingFr(shiftIsoDate(editionDate, 1))}`}
+                >
+                  <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                </Link>
+              </div>
               <div className={UI_SURFACE_FRISE_SEPARATOR}>
                 <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
                   {editionToday.corpus_article_count != null ? (
@@ -195,6 +233,7 @@ export function PanoramaPageContent() {
                   windowStartIso={editionToday.window_start!}
                   windowEndIso={editionToday.window_end!}
                   publishRouteIso={editionDate}
+                  unifiedDayNav={{ mode: "panorama", dayRadius: 14 }}
                 />
               </div>
             </div>
