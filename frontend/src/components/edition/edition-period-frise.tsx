@@ -458,8 +458,13 @@ export function EditionPeriodFrise({
               style={{ WebkitFontSmoothing: "antialiased" }}
             >
               {dayMarkers.map((dm) => {
+                if (dm.pct < -8 || dm.pct > 108) {
+                  return null;
+                }
                 const active = dm.iso === publishRouteIso;
                 const anchor = markerAnchorStyle(dm.pct);
+                const edgeMuted =
+                  !active && (dm.pct < 9 || dm.pct > 91);
                 return (
                   <Link
                     key={dm.iso}
@@ -467,10 +472,10 @@ export function EditionPeriodFrise({
                     scroll={false}
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label={`Frise du sommaire · jour ${dm.iso}`}
-                    className={`absolute z-[4] flex min-h-[2.35rem] min-w-[3rem] max-w-[min(100%,5.5rem)] flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center no-underline transition-[color,background-color,box-shadow] duration-200 touch-manipulation sm:min-h-[2.5rem] sm:min-w-[3.15rem] ${
+                    className={`absolute z-[4] flex min-h-[2.35rem] min-w-[3rem] max-w-[min(100%,5.5rem)] flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center no-underline transition-[color,background-color,box-shadow,opacity] duration-200 touch-manipulation sm:min-h-[2.5rem] sm:min-w-[3.15rem] ${
                       active
                         ? "bg-[color-mix(in_srgb,var(--color-accent)_11%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)] [box-shadow:0_0_0_1px_color-mix(in_srgb,var(--color-accent)_38%,transparent),0_1px_0_rgba(0,0,0,0.05)]"
-                        : "text-muted-foreground hover:bg-[color-mix(in_srgb,var(--color-muted)_35%,transparent)] hover:text-foreground"
+                        : `text-muted-foreground hover:bg-[color-mix(in_srgb,var(--color-muted)_35%,transparent)] hover:text-foreground ${edgeMuted ? "opacity-[0.62]" : ""}`
                     }`}
                     style={{ ...anchor, top: dm.nudgeY }}
                   >
@@ -577,23 +582,22 @@ export function EditionPeriodFrise({
 
       <p
         id={hintId}
-        className="mt-2 space-y-0.5 text-center text-[10px] text-muted-foreground sm:text-[11px]"
+        className="mt-2 space-y-1 text-center text-[10px] text-muted-foreground sm:text-[11px]"
       >
-        <span className="block italic">Période couverte par la revue</span>
-        <span className="mx-auto block max-w-prose font-normal not-italic text-[9px] leading-snug text-muted-foreground/90 sm:text-[10px]">
-          Heures en bas : repères Beyrouth sur toute la plage. Glisser fait défiler le{" "}
-          <span className="font-medium text-muted-foreground">contexte</span> (pas le jour) ; un clic sur la{" "}
-          <span className="font-medium text-muted-foreground">piste</span> ou sur certaines barres recentre la vue.
+        <span className="block font-[family-name:var(--font-serif)] italic text-foreground/80">
+          Période couverte par la revue
+        </span>
+        <span className="mx-auto block max-w-md font-normal not-italic leading-snug text-muted-foreground/88 sm:max-w-lg">
           {unifiedDayNav ? (
             <>
-              {" "}
-              Les <span className="font-medium text-muted-foreground">étiquettes de jour</span> ouvrent la même vue à
-              cette date ; les flèches et le calendrier au-dessus restent disponibles.
+              Heures (Beyrouth) sous la piste.{" "}
+              <span className="whitespace-nowrap">Glisser</span> = contexte ·{" "}
+              <span className="whitespace-nowrap">clic piste</span> = centrer ·{" "}
+              <span className="whitespace-nowrap">étiquette</span> = jour.
             </>
           ) : (
             <>
-              {" "}
-              Utiliser les flèches ou le calendrier pour changer de jour.
+              Heures (Beyrouth) sous la piste. Glisser pour le contexte ; jour via flèches ou calendrier.
             </>
           )}
         </span>

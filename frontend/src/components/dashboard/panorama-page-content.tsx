@@ -160,17 +160,12 @@ export function PanoramaPageContent() {
           </p>
 
           {editionWindowOk ? (
-            <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
+            <div className={`mx-auto mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
               <div className={UI_FRISE_INTRO_HEADER}>
-                <p className={UI_FRISE_META_TEXT}>
-                  Jour d’édition de référence pour la frise (Beyrouth). Les{" "}
-                  <span className="font-medium text-foreground/90">flèches</span> et le{" "}
-                  <span className="font-medium text-foreground/90">calendrier</span> changent la date ; vous pouvez aussi
-                  cliquer un <span className="font-medium text-foreground/90">jour</span> sur la frise ou faire défiler le
-                  contexte temporel. Le paramètre{" "}
-                  <span className="font-medium text-foreground/90">?date=</span> suit la sélection. L’inventaire et les
-                  regroupements ci-dessous restent{" "}
-                  <span className="font-medium text-foreground/90">globaux</span>.
+                <p className={`min-w-0 max-w-md flex-1 ${UI_FRISE_META_TEXT}`}>
+                  Frise identique à l’édition (Beyrouth). Données plus bas :{" "}
+                  <span className="font-medium text-foreground/85">vue globale</span> ; seul{" "}
+                  <span className="font-mono text-[10px] text-foreground/80">?date=</span> suit le jour.
                 </p>
                 {urlPanoramaDate ? (
                   <Link

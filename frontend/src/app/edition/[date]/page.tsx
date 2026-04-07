@@ -562,14 +562,14 @@ export default function EditionSommairePage() {
 
   return (
     <div className="space-y-10">
-      <header className="max-w-4xl border-b border-border pb-5">
+      <header className="mx-auto max-w-4xl border-b border-border pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <p className="olj-rubric">Édition</p>
             <div className="mt-2 w-full min-w-0">
               {date ? (
                 <nav
-                  className="w-full min-w-0 text-[11px]"
+                  className="flex w-full min-w-0 justify-center text-[11px]"
                   aria-label="Naviguer entre les jours"
                 >
                   <EditionDateRail

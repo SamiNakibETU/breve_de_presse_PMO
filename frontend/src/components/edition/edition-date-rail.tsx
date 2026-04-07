@@ -68,7 +68,7 @@ export function EditionDateRail({
   if (unifiedHeader) {
     return (
       <div
-        className={`w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD} ${className}`.trim()}
+        className={`mx-auto w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD} ${className}`.trim()}
         aria-label="Choisir une date d’édition"
       >
         <h1 className="mb-3 text-center font-[family-name:var(--font-serif)] text-[1.35rem] font-semibold capitalize leading-tight text-foreground sm:text-[1.65rem] sm:leading-tight">
@@ -77,8 +77,8 @@ export function EditionDateRail({
         <div className={UI_FRISE_CONTROL_ROW}>
           {controls}
         </div>
-        <p className={`mx-auto mb-1 max-w-prose text-center ${UI_FRISE_META_TEXT}`}>
-          Même frise que Panorama et Articles : jours et piste, glisser pour le contexte temporel.
+        <p className={`mx-auto mb-1 max-w-md text-center ${UI_FRISE_META_TEXT}`}>
+          Frise identique à Panorama et Articles — glisser le contexte, cliquer un jour ou la piste.
         </p>
         {editionWindow?.start && editionWindow?.end ? (
           <div className={UI_SURFACE_FRISE_DIVIDER}>
@@ -86,7 +86,7 @@ export function EditionDateRail({
               windowStartIso={editionWindow.start}
               windowEndIso={editionWindow.end}
               publishRouteIso={currentIso}
-              unifiedDayNav={{ mode: "edition", dayRadius: 10 }}
+              unifiedDayNav={{ mode: "edition", dayRadius: 8 }}
             />
           </div>
         ) : null}
@@ -103,15 +103,15 @@ export function EditionDateRail({
         {controls}
         <span className="sr-only">Date affichée : {headingA11y}</span>
       </div>
-      <p className={`text-center ${UI_FRISE_META_TEXT}`}>
-        Même frise que Panorama et Articles : jours et piste, glisser pour le contexte temporel.
+      <p className={`mx-auto max-w-md text-center ${UI_FRISE_META_TEXT}`}>
+        Frise identique à Panorama et Articles — glisser le contexte, cliquer un jour ou la piste.
       </p>
       {editionWindow?.start && editionWindow?.end ? (
         <EditionPeriodFrise
           windowStartIso={editionWindow.start}
           windowEndIso={editionWindow.end}
           publishRouteIso={currentIso}
-          unifiedDayNav={{ mode: "edition", dayRadius: 10 }}
+          unifiedDayNav={{ mode: "edition", dayRadius: 8 }}
         />
       ) : null}
     </div>

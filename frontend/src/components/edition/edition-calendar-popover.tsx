@@ -277,7 +277,7 @@ export function EditionCalendarPopover({
         onClick={() => setOpen((v) => !v)}
         className={
           compact
-            ? `inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground ${className}`.trim()
+            ? `olj-date-rail__chevron shrink-0 ${className}`.trim()
             : `inline-flex shrink-0 flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/80 px-2.5 py-2 text-center text-muted-foreground shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-border hover:bg-muted/25 hover:text-foreground ${className}`.trim()
         }
         aria-expanded={open}

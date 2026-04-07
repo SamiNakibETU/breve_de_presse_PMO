@@ -390,7 +390,7 @@ export function ArticlesPageClient() {
             )}
           </p>
           {!activeEditionId ? (
-            <div className={`mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
+            <div className={`mx-auto mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
               {rangeActive ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/25 pb-3 text-[11px] text-foreground-body">
                   <span className="tabular-nums">
@@ -410,11 +410,9 @@ export function ArticlesPageClient() {
               ) : null}
               {!rangeActive ? (
                 <>
-                <div className={UI_FRISE_INTRO_HEADER}>
-                  <p className={UI_FRISE_META_TEXT}>
-                    <span className="font-medium text-foreground/90">Frise</span> : jour d’édition Beyrouth. Flèches et
-                    calendrier ; puis jour ou piste sur la frise, ou glisser le contexte — comme sur Panorama et l’édition
-                    du jour.
+                <div className={`${UI_FRISE_INTRO_HEADER} justify-center`}>
+                  <p className={`max-w-md text-center ${UI_FRISE_META_TEXT}`}>
+                    Frise identique à l’édition et Panorama — glisser le contexte, cliquer un jour ou la piste.
                   </p>
                 </div>
                 <div className={UI_FRISE_CONTROL_ROW}>
