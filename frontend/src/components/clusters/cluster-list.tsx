@@ -32,12 +32,6 @@ export function ClusterList({ clusters, noiseCount, loading }: ClusterListProps)
 
   return (
     <div className="space-y-5">
-      <p className="max-w-3xl text-[12px] leading-relaxed text-muted-foreground">
-        Chaque carte regroupe des textes rapprochés automatiquement (ce n’est pas le sommaire éditorial de
-        l’édition). Grille en deux colonnes, tri par pertinence moyenne. Les pastilles « Voix » résument
-        des thèses courtes — la fiche détail liste tous les articles et la couverture par pays.
-      </p>
-
       <ul className="grid list-none grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         {clusters.map((cluster) => (
           <li key={cluster.id} className="min-w-0">

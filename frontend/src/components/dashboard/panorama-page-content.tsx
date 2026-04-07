@@ -24,7 +24,6 @@ import {
   UI_FRISE_CONTROL_ROW,
   UI_FRISE_CORPUS_STRIP,
   UI_FRISE_INTRO_HEADER,
-  UI_FRISE_META_TEXT,
   UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
   UI_SURFACE_HERO,
@@ -149,34 +148,26 @@ export function PanoramaPageContent() {
                 href="/articles"
                 className="olj-btn-secondary px-4 py-2 text-[13px]"
               >
-                Articles (période Beyrouth)
+                Articles
               </Link>
             </div>
           </div>
-          <p className="mx-auto mt-4 max-w-2xl text-[12px] leading-relaxed text-muted-foreground sm:mx-0">
-            Inventaire global et regroupements thématiques (volumes récents, toutes éditions confondues).
-            Les statistiques ci-dessous ne sont pas limitées à la fenêtre du sommaire. Pour le livrable daté
-            (grands sujets, coches, rédaction), ouvrir l’édition du jour.
+          <p className="mx-auto mt-4 max-w-md text-[11px] leading-snug text-muted-foreground sm:mx-0">
+            Statistiques globales · la frise fixe le jour du sommaire.
           </p>
 
           {editionWindowOk ? (
             <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
-              <div className={UI_FRISE_INTRO_HEADER}>
-                <p className="min-w-0 max-w-md flex-1 text-[10px] leading-snug text-muted-foreground/90 sm:text-[11px]">
-                  Frise = repère édition (Beyrouth). Données ci‑dessous :{" "}
-                  <span className="font-medium text-foreground/80">globales</span> ;{" "}
-                  <span className="rounded bg-muted/50 px-1 font-mono text-[9px] text-foreground/75">?date=</span>{" "}
-                  = jour affiché.
-                </p>
-                {urlPanoramaDate ? (
+              {urlPanoramaDate ? (
+                <div className={`${UI_FRISE_INTRO_HEADER} justify-end`}>
                   <Link
                     href="/panorama"
                     className="shrink-0 rounded-full border border-border/50 bg-background px-2.5 py-1 text-center text-[11px] font-medium text-accent transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-accent)_6%,transparent)]"
                   >
-                    Aujourd’hui (Beyrouth)
+                    Aujourd’hui
                   </Link>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               <div className={`mb-4 ${UI_FRISE_CONTROL_ROW}`}>
                 <Link
                   href={buildPanoramaDayHref(
@@ -215,20 +206,19 @@ export function PanoramaPageContent() {
               </div>
               <div className={UI_SURFACE_FRISE_SEPARATOR}>
                 <div className={UI_FRISE_CORPUS_STRIP}>
-                  {editionToday.corpus_article_count != null ? (
-                    <p className="text-[12px] text-muted-foreground">
-                      Corpus du sommaire (fenêtre d’édition) :{" "}
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {editionToday.corpus_article_count}
-                      </span>{" "}
-                      article
-                      {editionToday.corpus_article_count !== 1 ? "s" : ""}
-                    </p>
-                  ) : null}
-                  <p
-                    className={`italic sm:max-w-[55%] sm:text-right ${UI_FRISE_META_TEXT} leading-snug`}
-                  >
-                    Plage du sommaire (Beyrouth), même repère que sur la page Édition
+                  <p className="text-[11px] text-muted-foreground">
+                    {editionToday.corpus_article_count != null ? (
+                      <>
+                        Sommaire ·{" "}
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {editionToday.corpus_article_count}
+                        </span>{" "}
+                        article
+                        {editionToday.corpus_article_count !== 1 ? "s" : ""}
+                      </>
+                    ) : (
+                      <>Sommaire</>
+                    )}
                   </p>
                 </div>
                 <EditionPeriodFrise
@@ -266,13 +256,10 @@ export function PanoramaPageContent() {
       ) : null}
 
       <section>
-        <h2 className="olj-rubric olj-rule">Regroupements thématiques en cours</h2>
+        <h2 className="olj-rubric olj-rule">Regroupements</h2>
         {!clustersOnlyLoading && clusterRows.length > 0 ? (
-          <div className="mb-5 flex flex-wrap items-baseline justify-center gap-x-4 gap-y-2 border-b border-border-light pb-3 text-[12px] text-muted-foreground sm:justify-start">
-            <span className="font-semibold uppercase tracking-[0.08em] text-foreground-subtle">
-              Filtres
-            </span>
-            <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+          <div className="mb-5 flex flex-col gap-3 border-b border-border-light pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
+            <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto pb-0.5 olj-scrollbar-none sm:flex-1 sm:flex-wrap sm:overflow-visible">
               {countryOptions.map((code) => {
                 const on = countryFilter.includes(code);
                 const flag = REGION_FLAG_EMOJI[code];
@@ -298,25 +285,27 @@ export function PanoramaPageContent() {
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={() => setEmergingOnly((v) => !v)}
-              className={`${CHIP_BASE} ${emergingOnly ? CHIP_ON : CHIP_OFF}`}
-            >
-              Seulement nouveaux sujets
-            </button>
-            {(countryFilter.length > 0 || emergingOnly) && (
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 sm:justify-end">
               <button
                 type="button"
-                onClick={() => {
-                  setCountryFilter([]);
-                  setEmergingOnly(false);
-                }}
-                className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+                onClick={() => setEmergingOnly((v) => !v)}
+                className={`${CHIP_BASE} ${emergingOnly ? CHIP_ON : CHIP_OFF}`}
               >
-                Réinitialiser
+                Nouveaux sujets
               </button>
-            )}
+              {(countryFilter.length > 0 || emergingOnly) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCountryFilter([]);
+                    setEmergingOnly(false);
+                  }}
+                  className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+                >
+                  Tout afficher
+                </button>
+              )}
+            </div>
           </div>
         ) : null}
         {!clustersOnlyLoading &&

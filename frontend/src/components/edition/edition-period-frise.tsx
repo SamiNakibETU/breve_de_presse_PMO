@@ -488,14 +488,25 @@ export function EditionPeriodFrise({
             </div>
           ) : null}
 
-          <div
-            className="relative h-5 w-full sm:h-6"
-            title="Glisser pour parcourir le contexte ; cliquer sur la piste recentre la vue sur cet endroit."
-          >
+          <div className="relative h-5 w-full sm:h-6">
             {ticks.map((i) => {
               const pct = TICK_COUNT <= 1 ? 0 : (i / (TICK_COUNT - 1)) * 100;
               const isHit =
                 i === 0 || i === TICK_COUNT - 1 || i % 8 === 0;
+              const tickTop =
+                i % 8 === 0
+                  ? "top-0"
+                  : i % 4 === 0
+                    ? "top-[20%]"
+                    : i % 2 === 0
+                      ? "top-[36%]"
+                      : "top-[52%]";
+              const tickOpacity =
+                i % 8 === 0
+                  ? "bg-foreground/[0.22]"
+                  : i % 4 === 0
+                    ? "bg-foreground/[0.16]"
+                    : "bg-foreground/[0.11]";
               return (
                 <div
                   key={i}
@@ -520,7 +531,7 @@ export function EditionPeriodFrise({
                     />
                   ) : null}
                   <div
-                    className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-foreground/[0.14]"
+                    className={`pointer-events-none absolute bottom-0 left-1/2 w-px -translate-x-1/2 ${tickOpacity} ${tickTop}`}
                     aria-hidden
                   />
                 </div>
@@ -537,7 +548,7 @@ export function EditionPeriodFrise({
             />
 
             <div
-              className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
+              className="pointer-events-none absolute -top-1 bottom-0 w-px bg-[color-mix(in_srgb,var(--color-accent)_82%,transparent)]"
               style={{
                 left: `${windowLeftPct}%`,
                 transform: "translateX(-50%)",
@@ -545,7 +556,7 @@ export function EditionPeriodFrise({
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute -top-2 bottom-0 w-[2px] bg-foreground"
+              className="pointer-events-none absolute -top-1 bottom-0 w-px bg-[color-mix(in_srgb,var(--color-accent)_82%,transparent)]"
               style={{
                 left: `${windowRightPct}%`,
                 transform: "translateX(-50%)",
@@ -553,7 +564,7 @@ export function EditionPeriodFrise({
               aria-hidden
             />
             <span
-              className="pointer-events-none absolute -top-2.5 left-0 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
+              className="pointer-events-none absolute -top-2 left-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
               style={{ left: `${windowRightPct}%` }}
               aria-hidden
             />
@@ -566,7 +577,7 @@ export function EditionPeriodFrise({
             {hourStrip.map((h, i) => (
               <span
                 key={`${h.pct}-${i}`}
-                className="pointer-events-none absolute left-0 top-0 -translate-x-1/2 whitespace-nowrap text-[9px] tabular-nums tracking-tight text-muted-foreground sm:text-[10px]"
+                className="pointer-events-none absolute left-0 top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[9px] tabular-nums tracking-tight text-muted-foreground/90 sm:text-[10px]"
                 style={{ left: `${h.pct}%` }}
               >
                 {h.label}
@@ -580,25 +591,13 @@ export function EditionPeriodFrise({
         </div>
       </div>
 
-      <p
-        id={hintId}
-        className="mt-4 space-y-1 border-t border-border/10 pt-3 text-center text-[10px] text-muted-foreground sm:text-[11px]"
-      >
-        <span className="block font-[family-name:var(--font-serif)] text-[11px] italic leading-tight text-foreground/75 sm:text-[12px]">
-          Période couverte par la revue
-        </span>
-        <span className="mx-auto block max-w-sm font-normal not-italic leading-relaxed text-muted-foreground/85 sm:max-w-md">
-          {unifiedDayNav ? (
-            <>
-              Beyrouth sous la piste · <span className="whitespace-nowrap">glisser</span> le contexte ·{" "}
-              <span className="whitespace-nowrap">clic</span> pour centrer ·{" "}
-              <span className="whitespace-nowrap">étiquette</span> = jour.
-            </>
-          ) : (
-            <>Beyrouth sous la piste · glisser le contexte · jour : flèches ou calendrier.</>
-          )}
-        </span>
-      </p>
+      <span id={hintId} className="sr-only">
+        {summaryA11y}. Bande colorée : fenêtre du sommaire. Graduations : heures Beyrouth sur le contexte
+        affiché. Glisser pour parcourir sans changer de jour.
+        {unifiedDayNav
+          ? " Clic sur la piste pour recentrer ; chaque jour ouvre cette date."
+          : " Changer de jour : flèches ou calendrier."}
+      </span>
     </div>
   );
 }

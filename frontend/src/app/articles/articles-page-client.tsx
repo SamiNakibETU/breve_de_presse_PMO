@@ -24,8 +24,6 @@ import {
 import {
   UI_FRISE_CONTROL_ROW,
   UI_FRISE_CORPUS_STRIP,
-  UI_FRISE_INTRO_HEADER,
-  UI_FRISE_META_TEXT,
   UI_SURFACE_FRise_INSET,
   UI_SURFACE_FRISE_SEPARATOR,
 } from "@/lib/ui-surface-classes";
@@ -39,7 +37,7 @@ const ARTICLES_ROLLING_DAYS: number = 2;
 
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   editorial: {
-    label: "Pour la revue (traduits + à relire)",
+    label: "Revue",
     value: "translated,needs_review",
   },
   needs_review: { label: "À relire", value: "needs_review" },
@@ -115,7 +113,7 @@ function FiltersColumn({
   countsByCountry: Record<string, number> | null;
   countryLabelsFr: Record<string, string> | null;
   activeEditionId: string | null;
-  sortOptions: { key: string; label: string }[];
+  sortOptions: { key: string; label: string; title?: string }[];
 }) {
   return (
     <div className="space-y-6">
@@ -186,18 +184,15 @@ export function ArticlesPageClient() {
   );
 
   const sortNav = useMemo(() => {
-    const dateLabel =
+    const dateTitle =
       dateBasis === "published"
-        ? "Date (parution, repli sur collecte)"
-        : "Date (collecte)";
+        ? "Parution (repli sur collecte si besoin)"
+        : "Heure de collecte";
     return [
-      { key: "relevance", label: "Pertinence" },
-      { key: "date", label: dateLabel },
-      { key: "confidence", label: "Qualité de traduction" },
-      {
-        key: "confidence_asc",
-        label: "Qualité de traduction (basse d’abord)",
-      },
+      { key: "relevance", label: "Pertinence", title: undefined as string | undefined },
+      { key: "date", label: "Date", title: dateTitle },
+      { key: "confidence", label: "Qualité ↓", title: "Meilleure traduction d’abord" },
+      { key: "confidence_asc", label: "Qualité ↑", title: "Traduction la moins sûre d’abord" },
     ];
   }, [dateBasis]);
 
@@ -350,40 +345,16 @@ export function ArticlesPageClient() {
           </h1>
           <p className="mt-1 text-[12px] leading-snug text-foreground-body">
             {activeEditionId ? (
-              <>Corpus de l’édition liée (fenêtre Beyrouth côté serveur).</>
+              <>Édition liée · filtre serveur (Beyrouth).</>
             ) : rangeActive ? (
               <>
-                Plage calendaire{" "}
-                <strong className="font-medium text-foreground">
-                  {beirutFrom} → {beirutTo}
-                </strong>{" "}
-                (<strong className="font-medium text-foreground">Asia/Beirut</strong>
-                ), critère :{" "}
-                {dateBasis === "published" ? (
-                  <span className="font-medium text-foreground">
-                    date de parution (repli sur collecte)
-                  </span>
-                ) : (
-                  <span className="font-medium text-foreground">date de collecte</span>
-                )}
-                .
+                {beirutFrom} → {beirutTo} · Beyrouth ·{" "}
+                {dateBasis === "published" ? "parution" : "collecte"}
               </>
             ) : beirutDate ? (
               <>
-                Jour calendaire{" "}
-                <strong className="font-medium text-foreground">
-                  {formatIsoCalendarDayLongFr(beirutDate)}
-                </strong>{" "}
-                (<strong className="font-medium text-foreground">Asia/Beirut</strong>
-                ), critère :{" "}
-                {dateBasis === "published" ? (
-                  <span className="font-medium text-foreground">
-                    parution (repli sur collecte)
-                  </span>
-                ) : (
-                  <span className="font-medium text-foreground">collecte</span>
-                )}
-                .
+                {formatIsoCalendarDayLongFr(beirutDate)} · Beyrouth ·{" "}
+                {dateBasis === "published" ? "parution" : "collecte"}
               </>
             ) : (
               formatArticlesExplorationPeriodHint(ARTICLES_ROLLING_DAYS)
@@ -393,11 +364,8 @@ export function ArticlesPageClient() {
             <div className={`mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
               {rangeActive ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/25 pb-3 text-[11px] text-foreground-body">
-                  <span className="tabular-nums">
-                    Plage sélectionnée :{" "}
-                    <strong className="font-medium text-foreground">
-                      {beirutFrom} → {beirutTo}
-                    </strong>
+                  <span className="tabular-nums text-muted-foreground">
+                    {beirutFrom} → {beirutTo}
                   </span>
                   <button
                     type="button"
@@ -409,12 +377,6 @@ export function ArticlesPageClient() {
                 </div>
               ) : null}
               {!rangeActive ? (
-                <>
-                <div className={`${UI_FRISE_INTRO_HEADER} justify-center`}>
-                  <p className="max-w-md text-center text-[10px] leading-snug text-muted-foreground/90 sm:text-[11px]">
-                    Glisser le contexte · jour ou piste · même repère que l’édition et Panorama.
-                  </p>
-                </div>
                 <div className={UI_FRISE_CONTROL_ROW}>
                   <Link
                     href={articlesDayHref(shiftIsoDate(editionFriseIso!, -1))}
@@ -444,26 +406,24 @@ export function ArticlesPageClient() {
                     <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                   </Link>
                 </div>
-                </>
               ) : null}
               {editionFriseIso ? (
                 articlesFriseWindowOk && editionFriseQ.data ? (
                   <div className={UI_SURFACE_FRISE_SEPARATOR}>
                     <div className={UI_FRISE_CORPUS_STRIP}>
-                      {editionFriseQ.data.corpus_article_count != null ? (
-                        <p className="text-[12px] text-muted-foreground">
-                          Corpus du sommaire (jour d’édition affiché) :{" "}
-                          <span className="font-semibold tabular-nums text-foreground">
-                            {editionFriseQ.data.corpus_article_count}
-                          </span>{" "}
-                          article
-                          {editionFriseQ.data.corpus_article_count !== 1 ? "s" : ""}
-                        </p>
-                      ) : null}
-                      <p
-                        className={`italic sm:max-w-[55%] sm:text-right ${UI_FRISE_META_TEXT} leading-snug`}
-                      >
-                        Plage du sommaire (Beyrouth), même repère que sur la page Édition
+                      <p className="text-[11px] text-muted-foreground">
+                        {editionFriseQ.data.corpus_article_count != null ? (
+                          <>
+                            Sommaire ·{" "}
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {editionFriseQ.data.corpus_article_count}
+                            </span>{" "}
+                            article
+                            {editionFriseQ.data.corpus_article_count !== 1 ? "s" : ""}
+                          </>
+                        ) : (
+                          <>Sommaire</>
+                        )}
                       </p>
                     </div>
                     <EditionPeriodFrise
@@ -490,7 +450,7 @@ export function ArticlesPageClient() {
                 }
               >
               <div className="flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
-                <span className="text-muted-foreground">Critère temporel (hors édition)</span>
+                <span className="text-muted-foreground">Liste filtrée par</span>
                 <label className="flex cursor-pointer items-center gap-1.5">
                   <input
                     type="radio"
@@ -513,7 +473,7 @@ export function ArticlesPageClient() {
                 </label>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-foreground-body">
-                <span className="text-muted-foreground">Plage multi-jours (max. 31)</span>
+                <span className="text-muted-foreground">Plage · max. 31 j.</span>
                 <EditionCalendarPopover
                   currentIso={beirutFrom ?? todayIso}
                   triggerLabel={beirutFrom ? `Depuis ${beirutFrom}` : "Depuis"}
@@ -605,7 +565,7 @@ export function ArticlesPageClient() {
             checked={groupByOljTheme}
             onChange={(e) => setGroupByOljTheme(e.target.checked)}
           />
-          Grouper par thème OLJ (rubriques de la taxonomie)
+          Grouper par thème OLJ
         </label>
 
         <ArticleList

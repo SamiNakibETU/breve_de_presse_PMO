@@ -75,9 +75,6 @@ export function EditionDateRail({
         <div className={`${UI_FRISE_CONTROL_ROW} mb-2`}>
           {controls}
         </div>
-        <p className="mx-auto mb-0 max-w-sm text-center text-[10px] leading-snug text-muted-foreground/90 sm:max-w-md sm:text-[11px]">
-          Glisser le contexte · jour ou piste · même repère que Panorama et Articles.
-        </p>
         {editionWindow?.start && editionWindow?.end ? (
           <div className={UI_SURFACE_FRISE_DIVIDER}>
             <EditionPeriodFrise
@@ -101,9 +98,6 @@ export function EditionDateRail({
         {controls}
         <span className="sr-only">Date affichée : {headingA11y}</span>
       </div>
-      <p className="mx-auto max-w-md text-center text-[10px] leading-snug text-muted-foreground/90 sm:text-[11px]">
-        Glisser le contexte · jour ou piste · même repère que Panorama et l’édition.
-      </p>
       {editionWindow?.start && editionWindow?.end ? (
         <EditionPeriodFrise
           windowStartIso={editionWindow.start}

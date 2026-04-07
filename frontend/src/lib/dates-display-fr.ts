@@ -212,7 +212,7 @@ export function formatIsoCalendarDayLongFr(iso: string): string {
 export function formatArticlesExplorationPeriodHint(days: number): string {
   const period =
     days <= 1
-      ? "Période : le dernier jour (glissant, UTC)."
-      : `Période : les ${days} derniers jours (glissant, UTC).`;
-  return `${period} Vue d’exploration ; pour le sommaire daté, ouvrir l’édition du jour.`;
+      ? "Dernier jour (UTC, glissant)."
+      : `${days} derniers jours (UTC, glissant).`;
+  return `${period} Sommaire daté : Édition du jour.`;
 }
