@@ -374,7 +374,7 @@ export function ArticlesPageClient() {
             )}
           </p>
           {!activeEditionId ? (
-            <div className={`mt-4 space-y-4 ${UI_SURFACE_FRise_INSET}`}>
+            <div className={`mt-4 w-full space-y-4 ${UI_SURFACE_FRise_INSET}`}>
               <ArticlesPeriodRail
                 embedded
                 beirutDate={beirutDate}

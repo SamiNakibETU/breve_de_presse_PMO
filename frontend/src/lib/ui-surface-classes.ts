@@ -19,7 +19,7 @@ export const UI_SURFACE_RAIL_PAD = "px-3 py-3 sm:px-4 sm:py-3.5";
 
 /** Bloc frise + méta : même carte que le bandeau Édition (largeur max + padding rail) */
 export const UI_SURFACE_FRise_INSET =
-  `${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD} max-w-4xl`;
+  `w-full max-w-4xl ${UI_SURFACE_INSET} ${UI_SURFACE_RAIL_PAD}`;
 
 /** Panneaux liste (Pays, Langues) */
 export const UI_SURFACE_PANEL =

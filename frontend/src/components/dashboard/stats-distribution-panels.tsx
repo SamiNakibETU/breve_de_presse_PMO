@@ -112,7 +112,7 @@ export function StatsDistributionPanels({
               return (
                 <li
                   key={row.key}
-                  className="flex items-center gap-1 border-b border-border-light py-2.5 text-[13px] last:border-b-0"
+                  className="flex items-center gap-1 rounded-md border-b border-border-light py-2.5 text-[13px] transition-colors last:border-b-0 hover:bg-[color-mix(in_srgb,var(--color-muted)_22%,transparent)]"
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-2">
                     {flag ? (
@@ -144,7 +144,7 @@ export function StatsDistributionPanels({
             {langRows.map((row) => (
               <li
                 key={row.key}
-                className="flex items-center gap-1 border-b border-border-light py-2.5 text-[13px] last:border-b-0"
+                className="flex items-center gap-1 rounded-md border-b border-border-light py-2.5 text-[13px] transition-colors last:border-b-0 hover:bg-[color-mix(in_srgb,var(--color-muted)_22%,transparent)]"
               >
                 <span className="min-w-0 flex-1 truncate text-foreground-body">
                   {row.label}

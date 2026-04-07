@@ -31,6 +31,11 @@ export type ArticlesPeriodRailProps = {
   className?: string;
   /** Sans carte : le parent fournit la surface (ex. page Articles unifiée). */
   embedded?: boolean;
+  /**
+   * `panorama` : URLs `?date=` uniquement (frise d’édition), sans params Articles.
+   * `articles` : comportement liste Articles (défaut).
+   */
+  variant?: "articles" | "panorama";
   /** Jour unique Beyrouth (YYYY-MM-DD) ou null si plage / glissant */
   beirutDate: string | null;
   beirutFrom: string | null;
@@ -41,9 +46,23 @@ export type ArticlesPeriodRailProps = {
  * Frise de jours (même gabarit visuel que l’édition) pour la page Articles : navigation par jour,
  * calendrier popover, sans fenêtre d’édition.
  */
+function buildPanoramaDayHref(
+  pathname: string,
+  searchParams: URLSearchParams,
+  iso: string,
+): string {
+  const p = new URLSearchParams(searchParams.toString());
+  p.set("date", iso);
+  p.delete("date_from");
+  p.delete("date_to");
+  const qs = p.toString();
+  return qs ? `${pathname}?${qs}` : `${pathname}?date=${iso}`;
+}
+
 export function ArticlesPeriodRail({
   className = "",
   embedded = false,
+  variant = "articles",
   beirutDate,
   beirutFrom,
   beirutTo,
@@ -69,6 +88,9 @@ export function ArticlesPeriodRail({
 
   const hrefForDay = useCallback(
     (iso: string) => {
+      if (variant === "panorama") {
+        return buildPanoramaDayHref(pathname, searchParams, iso);
+      }
       const qs = mergeArticlesQuery(searchParams, {
         date: iso,
         date_from: null,
@@ -76,7 +98,7 @@ export function ArticlesPeriodRail({
       });
       return qs ? `${pathname}?${qs}` : pathname;
     },
-    [pathname, searchParams],
+    [pathname, searchParams, variant],
   );
 
   const updateScrollArrows = useCallback(() => {
@@ -171,8 +193,15 @@ export function ArticlesPeriodRail({
               <div className="relative mx-auto flex min-w-max flex-row justify-center sm:mx-0 sm:justify-start">
                 <ul className="relative z-[1] m-0 flex list-none flex-row items-stretch gap-0 px-0.5 py-1">
                   {days.map((iso) => {
-                    const active = !rangeActive && Boolean(beirutDate) && iso === beirutDate;
+                    const active =
+                      variant === "panorama"
+                        ? !rangeActive && beirutDate != null && iso === beirutDate
+                        : !rangeActive && Boolean(beirutDate) && iso === beirutDate;
                     const { weekday, dayMonth } = chipLabelsEditionRail(iso);
+                    const dayAria =
+                      variant === "panorama"
+                        ? `Frise du sommaire · jour ${iso}`
+                        : `Articles du jour ${iso}`;
                     return (
                       <li
                         key={iso}
@@ -183,7 +212,7 @@ export function ArticlesPeriodRail({
                           href={hrefForDay(iso)}
                           scroll={false}
                           aria-current={active ? "page" : undefined}
-                          aria-label={`Articles du jour ${iso}`}
+                          aria-label={dayAria}
                           className={`relative flex min-h-[3rem] min-w-[3rem] flex-col items-center justify-center rounded-md px-2.5 py-2 text-center no-underline transition-[color,background,box-shadow] duration-200 touch-manipulation sm:min-h-[2.85rem] sm:px-3 ${
                             active
                               ? "text-foreground ring-1 ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] ring-offset-2 ring-offset-[color-mix(in_srgb,var(--color-muted)_70%,transparent)]"
@@ -229,6 +258,12 @@ export function ArticlesPeriodRail({
             currentIso={anchorIso}
             triggerLabel="Calendrier"
             onDateSelect={(iso) => {
+              if (variant === "panorama") {
+                router.replace(buildPanoramaDayHref(pathname, searchParams, iso), {
+                  scroll: false,
+                });
+                return;
+              }
               const qs = mergeArticlesQuery(searchParams, {
                 date: iso,
                 date_from: null,
@@ -244,7 +279,11 @@ export function ArticlesPeriodRail({
   return (
     <div
       className={`olj-date-rail flex w-full max-w-full flex-col items-center gap-0 sm:items-stretch ${className}`.trim()}
-      aria-label="Choisir une période (articles)"
+      aria-label={
+        variant === "panorama"
+          ? "Choisir le jour d’édition de référence (frise Panorama)"
+          : "Choisir une période (articles)"
+      }
     >
       {embedded ? (
         <div className="w-full max-w-full">{body}</div>
