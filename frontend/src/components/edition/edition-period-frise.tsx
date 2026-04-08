@@ -72,16 +72,31 @@ function formatDayNavCompact(iso: string): string {
   }).format(utc);
 }
 
+/** Hiérarchie fixe : minuit (jour) > heures collecte > heures hors collecte — mêmes hauteurs partout pour lisibilité. */
 function hourTickClass(tk: FriseHourTick): string {
   const base =
     "pointer-events-none absolute bottom-0 -translate-x-1/2 rounded-[1px] transition-colors duration-150";
   if (tk.isMidnightBeirut) {
-    return `${base} z-[3] h-[52px] w-[3px] bg-foreground sm:h-14 sm:w-[3px]`;
+    return `${base} z-[2] h-[52px] w-[3px] bg-foreground sm:h-14 sm:w-[3px]`;
   }
   if (tk.inCollectWindow) {
-    return `${base} z-[1] h-[22px] w-[2px] bg-[#f44f1e] sm:h-6 sm:w-[2px]`;
+    return `${base} z-[1] h-[26px] w-[2px] bg-[#f44f1e] sm:h-7 sm:w-[2px]`;
   }
-  return `${base} z-[1] h-[9px] w-px bg-foreground/28 sm:h-2.5`;
+  return `${base} z-[1] h-[11px] w-px bg-foreground/32 sm:h-3`;
+}
+
+const PCT_NEAR_EDGE = 0.35;
+
+function filterHourTicksNearWindowEdges(
+  ticks: FriseHourTick[],
+  windowLeftPct: number,
+  windowRightPct: number,
+): FriseHourTick[] {
+  return ticks.filter(
+    (tk) =>
+      Math.abs(tk.pct - windowLeftPct) > PCT_NEAR_EDGE &&
+      Math.abs(tk.pct - windowRightPct) > PCT_NEAR_EDGE,
+  );
 }
 
 export type FriseUnifiedDayNav =
@@ -115,7 +130,7 @@ type FriseLayout = {
   endDate: string;
   endTime: string;
   summaryA11y: string;
-  hourTicks: FriseHourTick[];
+  hourTicksDraw: FriseHourTick[];
   dayNavItems: DayNavItem[];
   scrollCenterPct: number;
   activeDayPct: number;
@@ -171,6 +186,11 @@ export function EditionPeriodFrise({
     const summaryA11y = `Période couverte par la revue du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`;
 
     const hourTicks = buildFriseHourTicks(extStart, extEnd, ws, we);
+    const hourTicksDraw = filterHourTicksNearWindowEdges(
+      hourTicks,
+      windowLeftPct,
+      windowRightPct,
+    );
 
     let scrollCenterPct = (windowLeftPct + windowRightPct) / 2;
     const { y: py, m: pm, d: pd } = beirutCalendarFromRouteDateIso(publishRouteIso);
@@ -209,7 +229,7 @@ export function EditionPeriodFrise({
       endDate,
       endTime,
       summaryA11y,
-      hourTicks,
+      hourTicksDraw,
       dayNavItems,
       scrollCenterPct,
       activeDayPct,
@@ -408,7 +428,7 @@ export function EditionPeriodFrise({
     endDate,
     endTime,
     summaryA11y,
-    hourTicks,
+    hourTicksDraw,
     dayNavItems,
     activeDayPct,
   } = layout;
@@ -440,15 +460,18 @@ export function EditionPeriodFrise({
             minWidth: "100%",
           }}
         >
-          <div className="relative mb-2 min-h-[2.75rem] w-full sm:min-h-[3rem]">
+          <div className="relative mb-2 min-h-[3.25rem] w-full sm:min-h-[3.5rem]">
             <div
-              className="absolute top-0 max-w-[min(46%,11rem)]"
+              className="absolute top-0 max-w-[min(48%,12rem)]"
               style={{
                 left: `${windowLeftPct}%`,
                 transform: "translateX(-2px)",
               }}
             >
-              <p className="font-[family-name:var(--font-sans)] text-[11px] font-normal leading-tight tracking-tight text-foreground sm:text-xs">
+              <p className="font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground/90">
+                Début collecte
+              </p>
+              <p className="mt-1 font-[family-name:var(--font-sans)] text-[11px] font-normal leading-tight tracking-tight text-foreground sm:text-xs">
                 {startDate}
               </p>
               <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
@@ -456,13 +479,16 @@ export function EditionPeriodFrise({
               </p>
             </div>
             <div
-              className="absolute top-0 max-w-[min(46%,11rem)] text-right"
+              className="absolute top-0 max-w-[min(48%,12rem)] text-right"
               style={{
                 left: `${windowRightPct}%`,
                 transform: "translateX(calc(-100% + 2px))",
               }}
             >
-              <p className="font-[family-name:var(--font-sans)] text-[11px] font-semibold leading-tight tracking-tight text-foreground sm:text-xs">
+              <p className="font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground/90">
+                Fin collecte
+              </p>
+              <p className="mt-1 font-[family-name:var(--font-sans)] text-[11px] font-semibold leading-tight tracking-tight text-foreground sm:text-xs">
                 {endDate}
               </p>
               <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
@@ -473,7 +499,7 @@ export function EditionPeriodFrise({
 
           <div className="relative mx-auto w-full">
             <div className="relative mx-auto h-[52px] w-full sm:h-14">
-              {hourTicks.map((tk) => (
+              {hourTicksDraw.map((tk) => (
                 <div
                   key={tk.ms}
                   className={hourTickClass(tk)}
@@ -483,18 +509,18 @@ export function EditionPeriodFrise({
               ))}
 
               <div
-                className="pointer-events-none absolute bottom-0 z-[4] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
+                className="pointer-events-none absolute bottom-0 z-[5] h-[52px] w-[3px] -translate-x-1/2 bg-foreground shadow-[0_0_0_1px_rgba(244,79,30,0.22)] sm:h-14"
                 style={{ left: `${windowLeftPct}%` }}
                 aria-hidden
               />
               <div
-                className="pointer-events-none absolute bottom-0 z-[4] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
+                className="pointer-events-none absolute bottom-0 z-[5] h-[52px] w-[3px] -translate-x-1/2 bg-foreground shadow-[0_0_0_1px_rgba(244,79,30,0.22)] sm:h-14"
                 style={{ left: `${windowRightPct}%` }}
                 aria-hidden
               />
 
               <div
-                className="pointer-events-none absolute z-[5] h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] shadow-sm ring-2 ring-background sm:h-2.5 sm:w-2.5 bottom-[52px] sm:bottom-14"
+                className="pointer-events-none absolute z-[6] h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] shadow-sm ring-2 ring-background sm:h-2.5 sm:w-2.5 bottom-[52px] sm:bottom-14"
                 style={{ left: `${dotPct}%` }}
                 aria-hidden
               />
@@ -503,64 +529,83 @@ export function EditionPeriodFrise({
             {dayNavItems.length > 0 ? (
               <div
                 role="group"
-                aria-label="Jours alignés sur la frise"
-                className="relative mx-auto min-h-[1.5rem] w-full border-t border-border/25 pt-0.5"
+                aria-label="Jours d’édition (navigation)"
+                className="relative mx-auto min-h-[3.5rem] w-full border-t border-border/30 pb-1 pt-2"
               >
-                {dayNavItems.map((item) => {
-                  const active = item.iso === publishRouteIso;
-                  const p = Math.min(100, Math.max(0, item.pct));
-                  const emphasize = dotsEmphasis && !active;
-                  const inWin = item.inCollectWindow;
-                  const mark = [
-                    "pointer-events-none block shrink-0 rounded-[1.5px] transition-[height,width,background-color,box-shadow] duration-150 ease-out",
-                    "-mt-[6px] sm:-mt-1.5",
-                    !inWin && !active && "h-[5px] w-px bg-foreground/20 sm:h-1.5 sm:w-px",
-                    inWin && !active && "h-[11px] w-[2.5px] bg-[#f44f1e] sm:h-3 sm:w-[2.5px]",
-                    active &&
-                      inWin &&
-                      "h-[15px] w-[2.5px] bg-[#f44f1e] shadow-[0_0_0_1px_rgba(255,255,255,0.95)] sm:h-[17px]",
-                    active &&
-                      !inWin &&
-                      "h-[15px] w-[2.5px] bg-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.9)] sm:h-[17px]",
-                    emphasize && "ring-1 ring-[#f44f1e]/30 ring-offset-1 ring-offset-background",
-                  ]
-                    .filter(Boolean)
-                    .join(" ");
-                  const line =
-                    dayLabelCompact && !active
-                      ? "max-w-[2.75rem] truncate text-[9px] sm:text-[10px]"
-                      : "max-w-[min(5.5rem,22vw)] truncate text-[9px] sm:max-w-[6rem] sm:text-[10px]";
-                  const tone = active
-                    ? "font-semibold text-[#f44f1e]"
-                    : inWin
-                      ? "font-medium text-foreground/88"
-                      : "font-normal text-muted-foreground/90";
-                  return (
-                    <Link
-                      key={item.iso}
-                      href={dayHref(item.iso)}
-                      scroll={false}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      title={item.label}
-                      className="absolute top-0 left-1/2 z-[4] flex min-w-[2.25rem] -translate-x-1/2 flex-col items-center gap-1 px-1 touch-manipulation outline-none transition-transform duration-150 ease-out active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      style={{ left: `${p}%` }}
-                      aria-current={active ? "true" : undefined}
-                    >
-                      <span className={mark} aria-hidden />
-                      <span className="sr-only">Aller au {item.label}</span>
-                      <span
-                        aria-hidden
-                        className={`whitespace-nowrap text-center font-mono tabular-nums leading-none tracking-tight ${line} ${tone}`}
+                {(() => {
+                  let prevPct = -1e9;
+                  let crowdRun = 0;
+                  return dayNavItems.map((item, idx) => {
+                    const active = item.iso === publishRouteIso;
+                    const p = Math.min(100, Math.max(0, item.pct));
+                    const gap = idx === 0 ? 100 : Math.abs(p - prevPct);
+                    prevPct = p;
+                    const crowded = gap < 4.75;
+                    if (crowded) {
+                      crowdRun += 1;
+                    } else {
+                      crowdRun = 0;
+                    }
+                    const labelOffsetPx = crowded && crowdRun > 0 ? (crowdRun % 2 === 0 ? 15 : 0) : 0;
+                    const emphasize = dotsEmphasis && !active;
+                    const inWin = item.inCollectWindow;
+                    const mark = [
+                      "pointer-events-none block shrink-0 rounded-[1.5px] transition-[height,width,background-color,box-shadow] duration-150 ease-out",
+                      "-mt-[7px] sm:-mt-2",
+                      !inWin && !active && "h-[6px] w-px bg-foreground/25 sm:h-2 sm:w-px",
+                      inWin && !active && "h-[12px] w-[2.5px] bg-[#f44f1e] sm:h-[13px]",
+                      active &&
+                        inWin &&
+                        "h-[16px] w-[2.5px] bg-[#f44f1e] shadow-[0_0_0_1px_rgba(255,255,255,0.95)] sm:h-[18px]",
+                      active &&
+                        !inWin &&
+                        "h-[16px] w-[2.5px] bg-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.9)] sm:h-[18px]",
+                      emphasize && "ring-1 ring-[#f44f1e]/30 ring-offset-1 ring-offset-background",
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    const line =
+                      dayLabelCompact && !active
+                        ? "max-w-[2.75rem] truncate text-[9px] sm:text-[10px]"
+                        : "max-w-[min(5.5rem,22vw)] truncate text-[9px] sm:max-w-[6rem] sm:text-[10px]";
+                    const tone = active
+                      ? "font-semibold text-[#f44f1e]"
+                      : inWin
+                        ? "font-medium text-foreground/88"
+                        : "font-normal text-muted-foreground/90";
+                    return (
+                      <Link
+                        key={item.iso}
+                        href={dayHref(item.iso)}
+                        scroll={false}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        title={item.label}
+                        className="absolute top-0 left-1/2 flex min-w-[2.75rem] -translate-x-1/2 flex-col items-center gap-1.5 px-1.5 touch-manipulation outline-none transition-transform duration-150 ease-out active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        style={{
+                          left: `${p}%`,
+                          zIndex: active ? 45 : 12 + idx,
+                        }}
+                        aria-current={active ? "true" : undefined}
                       >
-                        {dayLabelCompact ? item.labelCompact : item.label}
-                      </span>
-                    </Link>
-                  );
-                })}
+                        <span className={mark} aria-hidden />
+                        <span className="sr-only">Aller au {item.label}</span>
+                        <span
+                          aria-hidden
+                          className={`whitespace-nowrap text-center font-mono tabular-nums leading-none tracking-tight ${line} ${tone}`}
+                          style={
+                            labelOffsetPx > 0 ? { marginTop: labelOffsetPx } : undefined
+                          }
+                        >
+                          {dayLabelCompact ? item.labelCompact : item.label}
+                        </span>
+                      </Link>
+                    );
+                  });
+                })()}
               </div>
             ) : null}
 
-            <p className="mx-auto mt-4 max-w-lg text-center font-[family-name:var(--font-sans)] text-[11px] not-italic leading-snug tracking-tight text-muted-foreground sm:mt-5 sm:text-xs">
+            <p className="mx-auto mt-4 max-w-lg px-4 text-center font-[family-name:var(--font-sans)] text-[11px] not-italic leading-snug tracking-tight text-muted-foreground sm:mt-5 sm:text-xs">
               Période couverte par la revue
             </p>
           </div>
@@ -568,12 +613,12 @@ export function EditionPeriodFrise({
       </div>
 
       <span id={hintId} className="sr-only">
-        {summaryA11y}. Un trait par heure : orange si l’heure chevauche la fenêtre de collecte du sommaire (ex. 12 h
-        ou 72 h week-end selon l’API) ; gris clair sinon ; traits noirs pleine hauteur aux minuits Beyrouth. Traits
-        très larges aux extrémités : début et fin exacts de collecte. Point rouge : jour d’édition affiché. Sous la
-        règle : repère et libellé de jour alignés au même pourcentage ; orange si le jour civil intersecte la
-        fenêtre. Clic pour changer de jour. Glisser pour parcourir ; après un glissement, les autres jours sont mis
-        en avant. Flèches et clic piste : défilement animé.
+        {summaryA11y}. En haut : début et fin de collecte (bornes API). Sur la règle : un trait par heure — orange si
+        l’heure chevauche la fenêtre de collecte ; gris court sinon ; noir plein aux minuits Beyrouth. Deux traits
+        noirs avec halo discret : limites exactes de la fenêtre (sans doublon avec le trait horaire voisin). Point
+        rouge : jour d’édition choisi. Sous la règle : navigation par jour d’édition ; libellés décalés en escalier
+        quand les jours sont très rapprochés. Clic pour changer de jour. Glisser pour parcourir. Flèches et clic
+        piste : défilement animé.
       </span>
     </div>
   );
