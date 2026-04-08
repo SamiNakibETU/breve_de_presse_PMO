@@ -162,3 +162,69 @@ export function percentAlong(
   if (rangeEnd <= rangeStart) return 0;
   return ((ms - rangeStart) / (rangeEnd - rangeStart)) * 100;
 }
+
+const shortWeekdayDayMonthBeirut = (ms: number): string =>
+  new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: TZ_BEIRUT,
+  })
+    .format(new Date(ms))
+    .replace(/\.$/, "")
+    .toLowerCase();
+
+/**
+ * Graduations sous la piste : heure seule tant qu’on reste le même jour civil Beyrouth,
+ * puis « mer. 8 avr. · 9:00 » au changement de jour (évite les heures « sans jour »).
+ */
+export function friseTimeStripTicks(
+  extStart: number,
+  extEnd: number,
+  stepHours: number,
+): { pct: number; label: string }[] {
+  const raw = hourTicksBetween(extStart, extEnd, stepHours);
+  let prevDayKey: string | null = null;
+  const out: { pct: number; label: string }[] = [];
+  for (const tick of raw) {
+    const p = beirutParts(tick.ms);
+    const dayKey = `${p.y}-${p.m}-${p.d}`;
+    const label =
+      prevDayKey === null || dayKey !== prevDayKey
+        ? `${shortWeekdayDayMonthBeirut(tick.ms)} · ${tick.label}`
+        : tick.label;
+    prevDayKey = dayKey;
+    out.push({
+      pct: percentAlong(tick.ms, extStart, extEnd),
+      label,
+    });
+  }
+  return out;
+}
+
+/** Positions (% de la plage étendue) des minuits Beyrouth pour filets verticaux jour / nuit. */
+export function midnightDividerPcts(
+  extStart: number,
+  extEnd: number,
+  publishRouteIso: string,
+  dayRadius: number,
+): number[] {
+  const seen = new Set<string>();
+  const pcts: number[] = [];
+  for (let i = -dayRadius; i <= dayRadius; i += 1) {
+    const iso = shiftIsoDate(publishRouteIso, i);
+    const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
+    const ms = findBeirutMidnightUtc(y, m, d);
+    if (ms < extStart - 60_000 || ms > extEnd + 60_000) {
+      continue;
+    }
+    const pct = percentAlong(ms, extStart, extEnd);
+    const key = pct.toFixed(2);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    pcts.push(pct);
+  }
+  return pcts.sort((a, b) => a - b);
+}

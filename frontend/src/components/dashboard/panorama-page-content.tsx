@@ -152,10 +152,6 @@ export function PanoramaPageContent() {
               </Link>
             </div>
           </div>
-          <p className="mx-auto mt-4 max-w-md text-[11px] leading-snug text-muted-foreground sm:mx-0">
-            Statistiques globales · la frise fixe le jour du sommaire.
-          </p>
-
           {editionWindowOk ? (
             <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
               {urlPanoramaDate ? (
@@ -225,7 +221,7 @@ export function PanoramaPageContent() {
                   windowStartIso={editionToday.window_start!}
                   windowEndIso={editionToday.window_end!}
                   publishRouteIso={editionDate}
-                  unifiedDayNav={{ mode: "panorama", dayRadius: 14 }}
+                  unifiedDayNav={{ mode: "panorama", dayRadius: 9 }}
                 />
               </div>
             </div>

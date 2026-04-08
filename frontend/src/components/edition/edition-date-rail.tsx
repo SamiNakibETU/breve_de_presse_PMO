@@ -81,7 +81,7 @@ export function EditionDateRail({
               windowStartIso={editionWindow.start}
               windowEndIso={editionWindow.end}
               publishRouteIso={currentIso}
-              unifiedDayNav={{ mode: "edition", dayRadius: 8 }}
+              unifiedDayNav={{ mode: "edition", dayRadius: 6 }}
             />
           </div>
         ) : null}
@@ -103,7 +103,7 @@ export function EditionDateRail({
           windowStartIso={editionWindow.start}
           windowEndIso={editionWindow.end}
           publishRouteIso={currentIso}
-          unifiedDayNav={{ mode: "edition", dayRadius: 8 }}
+          unifiedDayNav={{ mode: "edition", dayRadius: 6 }}
         />
       ) : null}
     </div>

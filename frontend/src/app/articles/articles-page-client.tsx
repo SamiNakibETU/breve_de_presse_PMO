@@ -430,7 +430,7 @@ export function ArticlesPageClient() {
                       windowStartIso={editionFriseQ.data.window_start}
                       windowEndIso={editionFriseQ.data.window_end}
                       publishRouteIso={editionFriseIso}
-                      unifiedDayNav={{ mode: "articles", dayRadius: 14 }}
+                      unifiedDayNav={{ mode: "articles", dayRadius: 9 }}
                     />
                   </div>
                 ) : editionFriseQ.isPending ? (
