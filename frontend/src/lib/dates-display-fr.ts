@@ -6,20 +6,23 @@
 const TZ_BEIRUT = "Asia/Beirut";
 const TZ_UTC = "UTC";
 
-/** Titre du jour d’édition pour `YYYY-MM-DD` (parties calendaires UTC, aligné route). */
+/**
+ * Titre du jour d’édition pour `YYYY-MM-DD` (calendrier **Beyrouth**, aligné sur la frise et la fenêtre API).
+ */
 export function formatEditionCalendarTitleFr(isoDate: string): string {
   const parts = isoDate.split("-").map(Number);
   const y = parts[0] ?? 0;
   const m = parts[1] ?? 1;
   const d = parts[2] ?? 1;
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return new Intl.DateTimeFormat("fr-FR", {
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const raw = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: TZ_UTC,
+    timeZone: TZ_BEIRUT,
   }).format(dt);
+  return raw.length > 0 ? raw.charAt(0).toUpperCase() + raw.slice(1) : raw;
 }
 
 /** Titre de jour d’édition pour en-tête (première lettre en capitale). */
@@ -171,6 +174,26 @@ export function formatFriseBoundaryDateFr(iso: string): string {
     timeZone: TZ_BEIRUT,
   }).format(new Date(iso));
   return raw.length > 0 ? raw.charAt(0).toUpperCase() + raw.slice(1) : raw;
+}
+
+/**
+ * Date de borne de frise au même format que l’axe des jours (ex. « lun. 6 avr. ») pour cohérence visuelle.
+ */
+export function formatFriseEdgeDayFr(iso: string): string {
+  const d = new Date(iso);
+  const wd = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    timeZone: TZ_BEIRUT,
+  })
+    .format(d)
+    .replace(/\.$/, "")
+    .toLowerCase();
+  const dayMonth = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    timeZone: TZ_BEIRUT,
+  }).format(d);
+  return `${wd}. ${dayMonth}`;
 }
 
 /** Heure seule (Beyrouth) pour les bornes de frise — ex. « 18:00 ». */

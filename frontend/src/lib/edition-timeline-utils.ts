@@ -164,20 +164,35 @@ export function percentAlong(
 }
 
 const HOUR_MS = 3600 * 1000;
+const MAX_FRISE_HOUR_TICKS = 520;
 
-/** Repères DOM uniquement : minuit Beyrouth (jour) et heures pleines multiples de 6h. Les demi-heures sont rendues par grille CSS dans la frise. */
-export type FriseRulerTickKind = "day" | "major";
-
-export type FriseRulerTick = {
+/** Une graduation par heure ; chevauchement avec [windowStart, windowEnd) pour la couleur collecte. */
+export type FriseHourTick = {
   ms: number;
   pct: number;
-  kind: FriseRulerTickKind;
+  /** Minuit civil Beyrouth (séparation des jours sur la règle). */
+  isMidnightBeirut: boolean;
+  /** L’intervalle [ms, ms + 1h) intersecte la fenêtre de collecte du sommaire. */
+  inCollectWindow: boolean;
 };
 
-export function buildFriseRulerTicks(
+function hourIntervalOverlapsWindow(t: number, windowStartMs: number, windowEndMs: number): boolean {
+  if (!Number.isFinite(windowStartMs) || !Number.isFinite(windowEndMs) || windowEndMs <= windowStartMs) {
+    return false;
+  }
+  return t < windowEndMs && t + HOUR_MS > windowStartMs;
+}
+
+/**
+ * Graduations horaires sur la plage étendue : un trait par heure, aligné sur le grille UTC.
+ * `windowStartMs` / `windowEndMs` : bornes API de collecte (réveil 24 h ou 72 h week-end).
+ */
+export function buildFriseHourTicks(
   extStart: number,
   extEnd: number,
-): FriseRulerTick[] {
+  windowStartMs: number,
+  windowEndMs: number,
+): FriseHourTick[] {
   if (!Number.isFinite(extStart) || !Number.isFinite(extEnd) || extEnd <= extStart) {
     return [];
   }
@@ -185,20 +200,18 @@ export function buildFriseRulerTicks(
   if (t < extStart) {
     t += HOUR_MS;
   }
-  const out: FriseRulerTick[] = [];
-  while (t <= extEnd + 1) {
+  const out: FriseHourTick[] = [];
+  let n = 0;
+  while (t <= extEnd + 1 && n < MAX_FRISE_HOUR_TICKS) {
     const p = beirutParts(t);
-    const isDay = p.h === 0 && p.min === 0;
-    const isMajor = p.h % 6 === 0 && p.min === 0;
-    if (!isDay && !isMajor) {
-      t += HOUR_MS;
-      continue;
-    }
+    const isMidnightBeirut = p.h === 0 && p.min === 0;
     out.push({
       ms: t,
       pct: percentAlong(t, extStart, extEnd),
-      kind: isDay ? "day" : "major",
+      isMidnightBeirut,
+      inCollectWindow: hourIntervalOverlapsWindow(t, windowStartMs, windowEndMs),
     });
+    n += 1;
     t += HOUR_MS;
   }
   return out;
