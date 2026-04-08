@@ -23,6 +23,7 @@ import {
 } from "@/lib/dates-display-fr";
 import {
   beirutCalendarFromRouteDateIso,
+  beirutDayBoundsFromRouteDate,
   buildFriseRulerTicks,
   extendedTimelineBounds,
   findBeirutMidnightUtc,
@@ -66,8 +67,6 @@ function tickClass(kind: FriseRulerTick["kind"]): string {
       return "bottom-0 h-11 w-[2.5px] -translate-x-1/2 bg-foreground sm:h-12";
     case "major":
       return "bottom-0 h-[22px] w-px -translate-x-1/2 bg-foreground/78 sm:h-6";
-    case "minor":
-      return "bottom-0 h-[7px] w-px -translate-x-1/2 bg-foreground/26 sm:h-2";
   }
 }
 
@@ -84,7 +83,12 @@ export type EditionPeriodFriseProps = {
   unifiedDayNav?: FriseUnifiedDayNav | null;
 };
 
-type DayNavItem = { iso: string; label: string; pct: number };
+type DayNavItem = {
+  iso: string;
+  label: string;
+  pct: number;
+  inCollectWindow: boolean;
+};
 
 type FriseLayout = {
   windowLeftPct: number;
@@ -100,6 +104,8 @@ type FriseLayout = {
   dayNavItems: DayNavItem[];
   scrollCenterPct: number;
   activeDayPct: number;
+  friseHalfSteps: number;
+  friseMinorPhasePct: number;
 };
 
 export function EditionPeriodFrise({
@@ -153,6 +159,16 @@ export function EditionPeriodFrise({
 
     const rulerTicks = buildFriseRulerTicks(extStart, extEnd);
 
+    const HALF_H = 30 * 60 * 1000;
+    const rawHalfSteps = Math.ceil((extEnd - extStart) / HALF_H);
+    const MAX_FRISE_HALF_STEPS = 480;
+    const useCalendarMinor = rawHalfSteps <= MAX_FRISE_HALF_STEPS;
+    const friseHalfSteps = useCalendarMinor ? Math.max(1, rawHalfSteps) : MAX_FRISE_HALF_STEPS;
+    const firstHalfMs = Math.ceil(extStart / HALF_H) * HALF_H;
+    const friseMinorPhasePct = useCalendarMinor
+      ? percentAlong(firstHalfMs, extStart, extEnd)
+      : 0;
+
     let scrollCenterPct = (windowLeftPct + windowRightPct) / 2;
     const { y: py, m: pm, d: pd } = beirutCalendarFromRouteDateIso(publishRouteIso);
     const activeAnchorMs = findBeirutMidnightUtc(py, pm, pd) + 12 * 3600 * 1000;
@@ -167,10 +183,13 @@ export function EditionPeriodFrise({
         const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
         const anchorMs = findBeirutMidnightUtc(y, m, d) + 12 * 3600 * 1000;
         const pct = percentAlong(anchorMs, extStart, extEnd);
+        const { startMs: dayStart, endMs: dayEnd } = beirutDayBoundsFromRouteDate(iso);
+        const inCollectWindow = dayEnd > ws && dayStart < we;
         dayNavItems.push({
           iso,
           label: formatDayNavLabel(iso),
           pct,
+          inCollectWindow,
         });
       }
       dayNavItems.sort((a, b) => a.iso.localeCompare(b.iso, "en-CA"));
@@ -190,6 +209,8 @@ export function EditionPeriodFrise({
       dayNavItems,
       scrollCenterPct,
       activeDayPct,
+      friseHalfSteps,
+      friseMinorPhasePct,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso, unifiedDayNav]);
 
@@ -388,9 +409,15 @@ export function EditionPeriodFrise({
     rulerTicks,
     dayNavItems,
     activeDayPct,
+    friseHalfSteps,
+    friseMinorPhasePct,
   } = layout;
 
   const dotPct = Math.min(100, Math.max(0, activeDayPct));
+  const minorGridStyle = {
+    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent calc(100% / ${friseHalfSteps} - 0.35px), color-mix(in srgb, var(--foreground) 20%, transparent) calc(100% / ${friseHalfSteps} - 0.35px), color-mix(in srgb, var(--foreground) 20%, transparent) calc(100% / ${friseHalfSteps}))`,
+    backgroundPosition: `${friseMinorPhasePct}% 0`,
+  } as const;
 
   return (
     <div className={`w-full ${className}`.trim()}>
@@ -449,14 +476,8 @@ export function EditionPeriodFrise({
 
           <div className="relative mx-auto h-[52px] w-full sm:h-14">
             <div
-              className="pointer-events-none absolute bottom-0 z-0 rounded-[1px] opacity-90"
-              style={{
-                left: `${Math.max(0, windowLeftPct)}%`,
-                width: `${Math.min(100 - Math.max(0, windowLeftPct), windowWidthPct)}%`,
-                height: "48px",
-                backgroundColor: `color-mix(in srgb, ${FRISE_COLLECT_HEX} 16%, transparent)`,
-                boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${FRISE_COLLECT_HEX} 35%, transparent)`,
-              }}
+              className="pointer-events-none absolute inset-x-0 bottom-0 top-0 z-0"
+              style={minorGridStyle}
               aria-hidden
             />
 
@@ -490,6 +511,29 @@ export function EditionPeriodFrise({
               const active = item.iso === publishRouteIso;
               const p = Math.min(100, Math.max(0, item.pct));
               const emphasize = dotsEmphasis && !active;
+              const inWin = item.inCollectWindow;
+              /* Repères type rail : trait vertical sur l’axe (pas de gros disques). Zone tactile 36×36. */
+              const hit = [
+                "absolute bottom-0 z-[4] -translate-x-1/2",
+                "flex h-9 w-9 touch-manipulation items-end justify-center",
+                "rounded-sm outline-none transition-transform duration-150 ease-out",
+                "focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "active:scale-[0.97]",
+              ].join(" ");
+              const mark = [
+                "pointer-events-none block origin-bottom rounded-[1.5px] transition-[height,width,background-color,box-shadow] duration-150 ease-out",
+                !inWin && !active && "mb-px h-[5px] w-px bg-foreground/20 sm:h-1.5 sm:w-px",
+                inWin && !active && "mb-0 h-[11px] w-[2.5px] bg-[#f44f1e] sm:h-3 sm:w-[2.5px]",
+                active &&
+                  inWin &&
+                  "mb-0 h-[15px] w-[2.5px] bg-[#f44f1e] shadow-[0_0_0_1px_rgba(255,255,255,0.95)] sm:h-[17px]",
+                active &&
+                  !inWin &&
+                  "mb-0 h-[15px] w-[2.5px] bg-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.9)] sm:h-[17px]",
+                emphasize && "ring-1 ring-[#f44f1e]/30 ring-offset-1 ring-offset-background",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
                 <Link
                   key={item.iso}
@@ -497,16 +541,11 @@ export function EditionPeriodFrise({
                   scroll={false}
                   onPointerDown={(e) => e.stopPropagation()}
                   title={`Ouvrir ${item.label}`}
-                  className={`absolute bottom-0 z-[4] flex h-6 w-6 -translate-x-1/2 translate-y-[55%] items-center justify-center rounded-full border-2 border-[#f44f1e]/55 bg-background transition-transform duration-200 hover:scale-110 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f44f1e]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                    active
-                      ? "scale-110 border-[#f44f1e] bg-[color-mix(in_srgb,#f44f1e_14%,var(--color-background))]"
-                      : emphasize
-                        ? "animate-pulse ring-2 ring-[#f44f1e]/30"
-                        : ""
-                  }`}
+                  className={hit}
                   style={{ left: `${p}%` }}
                   aria-current={active ? "true" : undefined}
                 >
+                  <span className={mark} aria-hidden />
                   <span className="sr-only">Aller au {item.label}</span>
                 </Link>
               );
@@ -552,11 +591,12 @@ export function EditionPeriodFrise({
       </div>
 
       <span id={hintId} className="sr-only">
-        {summaryA11y}. Fond orange : fenêtre de collecte du sommaire. Traits noirs larges : minuits Beyrouth ;
-        traits moyens : heures 6h ; fins : autres heures. Traits très larges aux extrémités : début et fin de
-        collecte. Point rouge : jour d’édition affiché. Pastilles sous la règle : clic pour changer de jour.
-        Glisser pour parcourir ; après un glissement, les pastilles attirent l’attention. Flèches et clic piste :
-        défilement animé.
+        {summaryA11y}. Grille fine : demi-heures ; traits noirs larges : minuits Beyrouth ; traits moyens : heures
+        multiples de 6h ; traits très larges aux extrémités : début et fin de collecte. Point rouge : jour
+        d’édition affiché. Repères sous la règle : trait orange pour les jours touchant la fenêtre de collecte,
+        trait fin discret hors fenêtre ; le jour courant est plus haut et marqué. Clic pour changer de jour.
+        Glisser pour parcourir ; après un glissement, les autres repères sont mis en avant. Flèches et clic
+        piste : défilement animé.
       </span>
     </div>
   );

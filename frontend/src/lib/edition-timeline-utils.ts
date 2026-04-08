@@ -164,11 +164,10 @@ export function percentAlong(
 }
 
 const HOUR_MS = 3600 * 1000;
-const MAX_FRISE_RULER_TICKS = 280;
 
-export type FriseRulerTickKind = "day" | "major" | "minor";
+/** Repères DOM uniquement : minuit Beyrouth (jour) et heures pleines multiples de 6h. Les demi-heures sont rendues par grille CSS dans la frise. */
+export type FriseRulerTickKind = "day" | "major";
 
-/** Graduation pour la règle : minuit Beyrouth (jour), heures « rondes » 6h, heures de collecte fines. */
 export type FriseRulerTick = {
   ms: number;
   pct: number;
@@ -182,7 +181,6 @@ export function buildFriseRulerTicks(
   if (!Number.isFinite(extStart) || !Number.isFinite(extEnd) || extEnd <= extStart) {
     return [];
   }
-  const spanH = (extEnd - extStart) / HOUR_MS;
   let t = Math.floor(extStart / HOUR_MS) * HOUR_MS;
   if (t < extStart) {
     t += HOUR_MS;
@@ -190,32 +188,17 @@ export function buildFriseRulerTicks(
   const out: FriseRulerTick[] = [];
   while (t <= extEnd + 1) {
     const p = beirutParts(t);
-    let kind: FriseRulerTickKind;
-    if (p.h === 0 && p.min === 0) {
-      kind = "day";
-    } else if (p.h % 6 === 0 && p.min === 0) {
-      kind = "major";
-    } else {
-      kind = "minor";
-    }
-    if (kind === "minor") {
-      if (spanH > 200 && p.h % 2 === 1) {
-        t += HOUR_MS;
-        continue;
-      }
-      if (spanH > 380 && p.h % 4 !== 0) {
-        t += HOUR_MS;
-        continue;
-      }
+    const isDay = p.h === 0 && p.min === 0;
+    const isMajor = p.h % 6 === 0 && p.min === 0;
+    if (!isDay && !isMajor) {
+      t += HOUR_MS;
+      continue;
     }
     out.push({
       ms: t,
       pct: percentAlong(t, extStart, extEnd),
-      kind,
+      kind: isDay ? "day" : "major",
     });
-    if (out.length >= MAX_FRISE_RULER_TICKS) {
-      break;
-    }
     t += HOUR_MS;
   }
   return out;
