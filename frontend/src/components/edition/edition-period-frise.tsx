@@ -35,9 +35,6 @@ const PADDING_MS = 20 * 60 * 1000;
 const SIDE_PAD_RATIO = 0.42;
 const KEY_SCROLL_PX = 88;
 
-/** Orange « période de collecte » (maquette éditoriale). */
-const FRISE_COLLECT_HEX = "#f44f1e";
-
 const TZ_BEIRUT = "Asia/Beirut";
 
 function formatDayNavLabel(iso: string): string {
@@ -59,6 +56,20 @@ function formatDayNavLabel(iso: string): string {
     timeZone: TZ_BEIRUT,
   }).format(utc);
   return `${wd}. ${dateLine}`;
+}
+
+/** Libellé court pour l’axe des jours (sous la règle), quand la liste est longue. */
+function formatDayNavCompact(iso: string): string {
+  const parts = iso.split("-").map(Number);
+  const mo = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const y = parts[0] ?? 1970;
+  const utc = Date.UTC(y, mo - 1, d, 12, 0, 0);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    timeZone: TZ_BEIRUT,
+  }).format(utc);
 }
 
 function tickClass(kind: FriseRulerTick["kind"]): string {
@@ -86,6 +97,7 @@ export type EditionPeriodFriseProps = {
 type DayNavItem = {
   iso: string;
   label: string;
+  labelCompact: string;
   pct: number;
   inCollectWindow: boolean;
 };
@@ -104,8 +116,9 @@ type FriseLayout = {
   dayNavItems: DayNavItem[];
   scrollCenterPct: number;
   activeDayPct: number;
-  friseHalfSteps: number;
+  friseGridSteps: number;
   friseMinorPhasePct: number;
+  friseGridMixPct: number;
 };
 
 export function EditionPeriodFrise({
@@ -159,15 +172,29 @@ export function EditionPeriodFrise({
 
     const rulerTicks = buildFriseRulerTicks(extStart, extEnd);
 
+    const QUARTER_H = 15 * 60 * 1000;
     const HALF_H = 30 * 60 * 1000;
+    const MAX_GRID_STEPS = 840;
+    const rawQuarterSteps = Math.ceil((extEnd - extStart) / QUARTER_H);
     const rawHalfSteps = Math.ceil((extEnd - extStart) / HALF_H);
-    const MAX_FRISE_HALF_STEPS = 480;
-    const useCalendarMinor = rawHalfSteps <= MAX_FRISE_HALF_STEPS;
-    const friseHalfSteps = useCalendarMinor ? Math.max(1, rawHalfSteps) : MAX_FRISE_HALF_STEPS;
-    const firstHalfMs = Math.ceil(extStart / HALF_H) * HALF_H;
-    const friseMinorPhasePct = useCalendarMinor
-      ? percentAlong(firstHalfMs, extStart, extEnd)
-      : 0;
+    let friseGridSteps: number;
+    let friseMinorPhasePct: number;
+    let friseGridMixPct: number;
+    if (rawQuarterSteps <= MAX_GRID_STEPS) {
+      friseGridSteps = Math.max(1, rawQuarterSteps);
+      const firstQuarterMs = Math.ceil(extStart / QUARTER_H) * QUARTER_H;
+      friseMinorPhasePct = percentAlong(firstQuarterMs, extStart, extEnd);
+      friseGridMixPct = 16;
+    } else if (rawHalfSteps <= MAX_GRID_STEPS) {
+      friseGridSteps = Math.max(1, rawHalfSteps);
+      const firstHalfMs = Math.ceil(extStart / HALF_H) * HALF_H;
+      friseMinorPhasePct = percentAlong(firstHalfMs, extStart, extEnd);
+      friseGridMixPct = 20;
+    } else {
+      friseGridSteps = MAX_GRID_STEPS;
+      friseMinorPhasePct = 0;
+      friseGridMixPct = 22;
+    }
 
     let scrollCenterPct = (windowLeftPct + windowRightPct) / 2;
     const { y: py, m: pm, d: pd } = beirutCalendarFromRouteDateIso(publishRouteIso);
@@ -188,6 +215,7 @@ export function EditionPeriodFrise({
         dayNavItems.push({
           iso,
           label: formatDayNavLabel(iso),
+          labelCompact: formatDayNavCompact(iso),
           pct,
           inCollectWindow,
         });
@@ -209,8 +237,9 @@ export function EditionPeriodFrise({
       dayNavItems,
       scrollCenterPct,
       activeDayPct,
-      friseHalfSteps,
+      friseGridSteps,
       friseMinorPhasePct,
+      friseGridMixPct,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso, unifiedDayNav]);
 
@@ -409,13 +438,15 @@ export function EditionPeriodFrise({
     rulerTicks,
     dayNavItems,
     activeDayPct,
-    friseHalfSteps,
+    friseGridSteps,
     friseMinorPhasePct,
+    friseGridMixPct,
   } = layout;
 
   const dotPct = Math.min(100, Math.max(0, activeDayPct));
+  const dayLabelCompact = dayNavItems.length > 13;
   const minorGridStyle = {
-    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent calc(100% / ${friseHalfSteps} - 0.35px), color-mix(in srgb, var(--foreground) 20%, transparent) calc(100% / ${friseHalfSteps} - 0.35px), color-mix(in srgb, var(--foreground) 20%, transparent) calc(100% / ${friseHalfSteps}))`,
+    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent calc(100% / ${friseGridSteps} - 0.28px), color-mix(in srgb, var(--foreground) ${friseGridMixPct}%, transparent) calc(100% / ${friseGridSteps} - 0.28px), color-mix(in srgb, var(--foreground) ${friseGridMixPct}%, transparent) calc(100% / ${friseGridSteps}))`,
     backgroundPosition: `${friseMinorPhasePct}% 0`,
   } as const;
 
@@ -474,129 +505,115 @@ export function EditionPeriodFrise({
             </div>
           </div>
 
-          <div className="relative mx-auto h-[52px] w-full sm:h-14">
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 top-0 z-0"
-              style={minorGridStyle}
-              aria-hidden
-            />
-
-            <div
-              className="pointer-events-none absolute z-[5] h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] shadow-sm ring-2 ring-background sm:h-2.5 sm:w-2.5"
-              style={{ left: `${dotPct}%`, bottom: "52px" }}
-              aria-hidden
-            />
-
-            {rulerTicks.map((tk) => (
+          <div className="relative mx-auto w-full">
+            <div className="relative mx-auto h-[52px] w-full sm:h-14">
               <div
-                key={tk.ms}
-                className={`pointer-events-none absolute z-[1] ${tickClass(tk.kind)}`}
-                style={{ left: `${tk.pct}%` }}
+                className="pointer-events-none absolute inset-x-0 bottom-0 top-0 z-0"
+                style={minorGridStyle}
                 aria-hidden
               />
-            ))}
 
-            <div
-              className="pointer-events-none absolute bottom-0 z-[2] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
-              style={{ left: `${windowLeftPct}%` }}
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute bottom-0 z-[2] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
-              style={{ left: `${windowRightPct}%` }}
-              aria-hidden
-            />
+              <div
+                className="pointer-events-none absolute z-[5] h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] shadow-sm ring-2 ring-background sm:h-2.5 sm:w-2.5 bottom-[52px] sm:bottom-14"
+                style={{ left: `${dotPct}%` }}
+                aria-hidden
+              />
 
-            {dayNavItems.map((item) => {
-              const active = item.iso === publishRouteIso;
-              const p = Math.min(100, Math.max(0, item.pct));
-              const emphasize = dotsEmphasis && !active;
-              const inWin = item.inCollectWindow;
-              /* Repères type rail : trait vertical sur l’axe (pas de gros disques). Zone tactile 36×36. */
-              const hit = [
-                "absolute bottom-0 z-[4] -translate-x-1/2",
-                "flex h-9 w-9 touch-manipulation items-end justify-center",
-                "rounded-sm outline-none transition-transform duration-150 ease-out",
-                "focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                "active:scale-[0.97]",
-              ].join(" ");
-              const mark = [
-                "pointer-events-none block origin-bottom rounded-[1.5px] transition-[height,width,background-color,box-shadow] duration-150 ease-out",
-                !inWin && !active && "mb-px h-[5px] w-px bg-foreground/20 sm:h-1.5 sm:w-px",
-                inWin && !active && "mb-0 h-[11px] w-[2.5px] bg-[#f44f1e] sm:h-3 sm:w-[2.5px]",
-                active &&
-                  inWin &&
-                  "mb-0 h-[15px] w-[2.5px] bg-[#f44f1e] shadow-[0_0_0_1px_rgba(255,255,255,0.95)] sm:h-[17px]",
-                active &&
-                  !inWin &&
-                  "mb-0 h-[15px] w-[2.5px] bg-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.9)] sm:h-[17px]",
-                emphasize && "ring-1 ring-[#f44f1e]/30 ring-offset-1 ring-offset-background",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <Link
-                  key={item.iso}
-                  href={dayHref(item.iso)}
-                  scroll={false}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  title={`Ouvrir ${item.label}`}
-                  className={hit}
-                  style={{ left: `${p}%` }}
-                  aria-current={active ? "true" : undefined}
-                >
-                  <span className={mark} aria-hidden />
-                  <span className="sr-only">Aller au {item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+              {rulerTicks.map((tk) => (
+                <div
+                  key={tk.ms}
+                  className={`pointer-events-none absolute z-[1] ${tickClass(tk.kind)}`}
+                  style={{ left: `${tk.pct}%` }}
+                  aria-hidden
+                />
+              ))}
 
-          <p className="mx-auto mt-8 max-w-lg text-center font-[family-name:var(--font-sans)] text-[11px] italic leading-snug text-muted-foreground sm:mt-9 sm:text-xs">
-            Période couverte par la revue
-          </p>
+              <div
+                className="pointer-events-none absolute bottom-0 z-[2] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
+                style={{ left: `${windowLeftPct}%` }}
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute bottom-0 z-[2] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
+                style={{ left: `${windowRightPct}%` }}
+                aria-hidden
+              />
+            </div>
 
-          {dayNavItems.length > 0 ? (
-            <nav
-              className="mt-3 flex flex-wrap items-center justify-center gap-x-1 gap-y-1.5 border-t border-border/20 pt-3 text-[11px] sm:justify-start sm:text-[12px]"
-              aria-label="Jours voisins"
-            >
-              {dayNavItems.map((item, idx) => {
-                const active = item.iso === publishRouteIso;
-                return (
-                  <span key={item.iso} className="inline-flex items-center gap-x-1">
-                    {idx > 0 ? (
-                      <span className="text-muted-foreground/40" aria-hidden>
-                        ·
-                      </span>
-                    ) : null}
+            {dayNavItems.length > 0 ? (
+              <div
+                role="group"
+                aria-label="Jours alignés sur la frise"
+                className="relative mx-auto min-h-[1.5rem] w-full border-t border-border/25 pt-0.5"
+              >
+                {dayNavItems.map((item) => {
+                  const active = item.iso === publishRouteIso;
+                  const p = Math.min(100, Math.max(0, item.pct));
+                  const emphasize = dotsEmphasis && !active;
+                  const inWin = item.inCollectWindow;
+                  const mark = [
+                    "pointer-events-none block shrink-0 rounded-[1.5px] transition-[height,width,background-color,box-shadow] duration-150 ease-out",
+                    "-mt-[6px] sm:-mt-1.5",
+                    !inWin && !active && "h-[5px] w-px bg-foreground/20 sm:h-1.5 sm:w-px",
+                    inWin && !active && "h-[11px] w-[2.5px] bg-[#f44f1e] sm:h-3 sm:w-[2.5px]",
+                    active &&
+                      inWin &&
+                      "h-[15px] w-[2.5px] bg-[#f44f1e] shadow-[0_0_0_1px_rgba(255,255,255,0.95)] sm:h-[17px]",
+                    active &&
+                      !inWin &&
+                      "h-[15px] w-[2.5px] bg-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.9)] sm:h-[17px]",
+                    emphasize && "ring-1 ring-[#f44f1e]/30 ring-offset-1 ring-offset-background",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+                  const line =
+                    dayLabelCompact && !active
+                      ? "max-w-[2.75rem] truncate text-[9px] sm:text-[10px]"
+                      : "max-w-[min(5.5rem,22vw)] truncate text-[9px] sm:max-w-[6rem] sm:text-[10px]";
+                  const tone = active
+                    ? "font-semibold text-[#f44f1e]"
+                    : inWin
+                      ? "font-medium text-foreground/88"
+                      : "font-normal text-muted-foreground/90";
+                  return (
                     <Link
+                      key={item.iso}
                       href={dayHref(item.iso)}
                       scroll={false}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className={`font-mono tabular-nums no-underline transition-colors ${
-                        active
-                          ? "font-semibold text-[#f44f1e]"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      title={item.label}
+                      className="absolute top-0 left-1/2 z-[4] flex min-w-[2.25rem] -translate-x-1/2 flex-col items-center gap-1 px-1 touch-manipulation outline-none transition-transform duration-150 ease-out active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      style={{ left: `${p}%` }}
+                      aria-current={active ? "true" : undefined}
                     >
-                      {item.label}
+                      <span className={mark} aria-hidden />
+                      <span className="sr-only">Aller au {item.label}</span>
+                      <span
+                        aria-hidden
+                        className={`whitespace-nowrap text-center font-mono tabular-nums leading-none tracking-tight ${line} ${tone}`}
+                      >
+                        {dayLabelCompact ? item.labelCompact : item.label}
+                      </span>
                     </Link>
-                  </span>
-                );
-              })}
-            </nav>
-          ) : null}
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <p className="mx-auto mt-4 max-w-lg text-center font-[family-name:var(--font-sans)] text-[11px] not-italic leading-snug tracking-tight text-muted-foreground sm:mt-5 sm:text-xs">
+              Période couverte par la revue
+            </p>
+          </div>
         </div>
       </div>
 
       <span id={hintId} className="sr-only">
-        {summaryA11y}. Grille fine : demi-heures ; traits noirs larges : minuits Beyrouth ; traits moyens : heures
-        multiples de 6h ; traits très larges aux extrémités : début et fin de collecte. Point rouge : jour
-        d’édition affiché. Repères sous la règle : trait orange pour les jours touchant la fenêtre de collecte,
-        trait fin discret hors fenêtre ; le jour courant est plus haut et marqué. Clic pour changer de jour.
-        Glisser pour parcourir ; après un glissement, les autres repères sont mis en avant. Flèches et clic
-        piste : défilement animé.
+        {summaryA11y}. Grille fine : quarts d’heure lorsque la plage le permet, sinon demi-heures ou grille
+        uniforme ; traits noirs larges : minuits Beyrouth ; traits moyens : heures multiples de 6h ; traits très
+        larges aux extrémités : début et fin de collecte. Point rouge : jour d’édition affiché. Chaque jour
+        affiché : repère vertical et libellé alignés sur la même position horizontale, sous la règle ; orange si
+        le jour intersecte la fenêtre de collecte. Clic pour changer de jour. Glisser pour parcourir ; après un
+        glissement, les autres jours sont mis en avant. Flèches et clic piste : défilement animé.
       </span>
     </div>
   );
