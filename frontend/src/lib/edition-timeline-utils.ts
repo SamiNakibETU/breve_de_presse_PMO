@@ -162,3 +162,61 @@ export function percentAlong(
   if (rangeEnd <= rangeStart) return 0;
   return ((ms - rangeStart) / (rangeEnd - rangeStart)) * 100;
 }
+
+const HOUR_MS = 3600 * 1000;
+const MAX_FRISE_RULER_TICKS = 280;
+
+export type FriseRulerTickKind = "day" | "major" | "minor";
+
+/** Graduation pour la règle : minuit Beyrouth (jour), heures « rondes » 6h, heures de collecte fines. */
+export type FriseRulerTick = {
+  ms: number;
+  pct: number;
+  kind: FriseRulerTickKind;
+};
+
+export function buildFriseRulerTicks(
+  extStart: number,
+  extEnd: number,
+): FriseRulerTick[] {
+  if (!Number.isFinite(extStart) || !Number.isFinite(extEnd) || extEnd <= extStart) {
+    return [];
+  }
+  const spanH = (extEnd - extStart) / HOUR_MS;
+  let t = Math.floor(extStart / HOUR_MS) * HOUR_MS;
+  if (t < extStart) {
+    t += HOUR_MS;
+  }
+  const out: FriseRulerTick[] = [];
+  while (t <= extEnd + 1) {
+    const p = beirutParts(t);
+    let kind: FriseRulerTickKind;
+    if (p.h === 0 && p.min === 0) {
+      kind = "day";
+    } else if (p.h % 6 === 0 && p.min === 0) {
+      kind = "major";
+    } else {
+      kind = "minor";
+    }
+    if (kind === "minor") {
+      if (spanH > 200 && p.h % 2 === 1) {
+        t += HOUR_MS;
+        continue;
+      }
+      if (spanH > 380 && p.h % 4 !== 0) {
+        t += HOUR_MS;
+        continue;
+      }
+    }
+    out.push({
+      ms: t,
+      pct: percentAlong(t, extStart, extEnd),
+      kind,
+    });
+    if (out.length >= MAX_FRISE_RULER_TICKS) {
+      break;
+    }
+    t += HOUR_MS;
+  }
+  return out;
+}

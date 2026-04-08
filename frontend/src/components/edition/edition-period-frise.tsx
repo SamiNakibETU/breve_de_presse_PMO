@@ -9,7 +9,9 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
+import type { KeyboardEvent, PointerEvent } from "react";
 import {
   buildPanoramaDayHref,
   mergeArticlesQuery,
@@ -21,17 +23,19 @@ import {
 } from "@/lib/dates-display-fr";
 import {
   beirutCalendarFromRouteDateIso,
+  buildFriseRulerTicks,
   extendedTimelineBounds,
   findBeirutMidnightUtc,
   percentAlong,
+  type FriseRulerTick,
 } from "@/lib/edition-timeline-utils";
 
 const PADDING_MS = 20 * 60 * 1000;
 const SIDE_PAD_RATIO = 0.42;
 const KEY_SCROLL_PX = 88;
 
-/** Pas des ticks (% de la largeur totale de la piste) — identique gris / accent pour l’alignement. */
-const FRISE_TICK_STEP_PCT = 2.35;
+/** Orange « période de collecte » (maquette éditoriale). */
+const FRISE_COLLECT_HEX = "#f44f1e";
 
 const TZ_BEIRUT = "Asia/Beirut";
 
@@ -56,6 +60,17 @@ function formatDayNavLabel(iso: string): string {
   return `${wd}. ${dateLine}`;
 }
 
+function tickClass(kind: FriseRulerTick["kind"]): string {
+  switch (kind) {
+    case "day":
+      return "bottom-0 h-11 w-[2.5px] -translate-x-1/2 bg-foreground sm:h-12";
+    case "major":
+      return "bottom-0 h-[22px] w-px -translate-x-1/2 bg-foreground/78 sm:h-6";
+    case "minor":
+      return "bottom-0 h-[7px] w-px -translate-x-1/2 bg-foreground/26 sm:h-2";
+  }
+}
+
 export type FriseUnifiedDayNav =
   | { mode: "edition"; dayRadius?: number }
   | { mode: "articles"; dayRadius?: number }
@@ -69,6 +84,8 @@ export type EditionPeriodFriseProps = {
   unifiedDayNav?: FriseUnifiedDayNav | null;
 };
 
+type DayNavItem = { iso: string; label: string; pct: number };
+
 type FriseLayout = {
   windowLeftPct: number;
   windowRightPct: number;
@@ -79,16 +96,12 @@ type FriseLayout = {
   endDate: string;
   endTime: string;
   summaryA11y: string;
-  dayNavItems: { iso: string; label: string }[];
+  rulerTicks: FriseRulerTick[];
+  dayNavItems: DayNavItem[];
   scrollCenterPct: number;
+  activeDayPct: number;
 };
 
-const GREY_TICKS = `repeating-linear-gradient(90deg, color-mix(in srgb, var(--foreground) 10%, transparent) 0, color-mix(in srgb, var(--foreground) 10%, transparent) 1px, transparent 1px, transparent ${FRISE_TICK_STEP_PCT}%)`;
-const ACCENT_TICKS = `repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 72%, transparent) 0, color-mix(in srgb, var(--color-accent) 72%, transparent) 1px, transparent 1px, transparent ${FRISE_TICK_STEP_PCT}%)`;
-
-/**
- * Frise « éditoriale » : règle minimaliste, fenêtre en accent, bornes + fin de période lisibles (réf. maquette OLJ).
- */
 export function EditionPeriodFrise({
   windowStartIso,
   windowEndIso,
@@ -99,6 +112,7 @@ export function EditionPeriodFrise({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hintId = useId();
+  const [dotsEmphasis, setDotsEmphasis] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -106,6 +120,7 @@ export function EditionPeriodFrise({
     startX: number;
     startScroll: number;
     moved: boolean;
+    revealedDots: boolean;
   } | null>(null);
 
   const layout = useMemo((): FriseLayout | null => {
@@ -136,18 +151,27 @@ export function EditionPeriodFrise({
     const endTime = formatFriseBoundaryTimeFr(windowEndIso);
     const summaryA11y = `Période couverte par la revue du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`;
 
+    const rulerTicks = buildFriseRulerTicks(extStart, extEnd);
+
     let scrollCenterPct = (windowLeftPct + windowRightPct) / 2;
-    const dayNavItems: { iso: string; label: string }[] = [];
+    const { y: py, m: pm, d: pd } = beirutCalendarFromRouteDateIso(publishRouteIso);
+    const activeAnchorMs = findBeirutMidnightUtc(py, pm, pd) + 12 * 3600 * 1000;
+    const activeDayPct = percentAlong(activeAnchorMs, extStart, extEnd);
+    scrollCenterPct = activeDayPct;
+
+    const dayNavItems: DayNavItem[] = [];
     if (unifiedDayNav) {
       const radius = unifiedDayNav.dayRadius ?? 9;
       for (let i = -radius; i <= radius; i += 1) {
         const iso = shiftIsoDate(publishRouteIso, i);
-        dayNavItems.push({ iso, label: formatDayNavLabel(iso) });
         const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
         const anchorMs = findBeirutMidnightUtc(y, m, d) + 12 * 3600 * 1000;
-        if (iso === publishRouteIso) {
-          scrollCenterPct = percentAlong(anchorMs, extStart, extEnd);
-        }
+        const pct = percentAlong(anchorMs, extStart, extEnd);
+        dayNavItems.push({
+          iso,
+          label: formatDayNavLabel(iso),
+          pct,
+        });
       }
       dayNavItems.sort((a, b) => a.iso.localeCompare(b.iso, "en-CA"));
     }
@@ -162,8 +186,10 @@ export function EditionPeriodFrise({
       endDate,
       endTime,
       summaryA11y,
+      rulerTicks,
       dayNavItems,
       scrollCenterPct,
+      activeDayPct,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso, unifiedDayNav]);
 
@@ -188,31 +214,39 @@ export function EditionPeriodFrise({
     [unifiedDayNav, pathname, searchParams],
   );
 
-  const centerScroll = useCallback(() => {
-    const sc = scrollRef.current;
-    const inner = innerRef.current;
-    if (!layout || !sc || !inner) {
-      return;
-    }
-    const innerW = inner.scrollWidth;
-    const outerW = sc.clientWidth;
-    if (innerW <= outerW + 1) {
-      sc.scrollLeft = 0;
-      return;
-    }
-    const midPx = (layout.scrollCenterPct / 100) * innerW;
-    sc.scrollLeft = Math.max(0, Math.min(midPx - outerW / 2, innerW - outerW));
-  }, [layout]);
+  const centerScroll = useCallback(
+    (behavior: ScrollBehavior) => {
+      const sc = scrollRef.current;
+      const inner = innerRef.current;
+      if (!layout || !sc || !inner) {
+        return;
+      }
+      const innerW = inner.scrollWidth;
+      const outerW = sc.clientWidth;
+      if (innerW <= outerW + 1) {
+        sc.scrollLeft = 0;
+        return;
+      }
+      const midPx = (layout.scrollCenterPct / 100) * innerW;
+      const target = Math.max(0, Math.min(midPx - outerW / 2, innerW - outerW));
+      if (behavior === "smooth") {
+        sc.scrollTo({ left: target, behavior: "smooth" });
+      } else {
+        sc.scrollLeft = target;
+      }
+    },
+    [layout],
+  );
 
   useLayoutEffect(() => {
-    centerScroll();
+    centerScroll("auto");
   }, [centerScroll]);
 
   useEffect(() => {
     let raf = 0;
     const ro = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => centerScroll());
+      raf = requestAnimationFrame(() => centerScroll("auto"));
     });
     const sc = scrollRef.current;
     if (sc) {
@@ -241,11 +275,11 @@ export function EditionPeriodFrise({
     const target = ratio * innerW - outerW / 2;
     sc.scrollTo({
       left: Math.max(0, Math.min(target, innerW - outerW)),
-      behavior: "auto",
+      behavior: "smooth",
     });
   }, []);
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) {
       return;
     }
@@ -259,10 +293,11 @@ export function EditionPeriodFrise({
       startX: e.clientX,
       startScroll: el.scrollLeft,
       moved: false,
+      revealedDots: false,
     };
   }, []);
 
-  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     const el = scrollRef.current;
     if (!d || e.pointerId !== d.pointerId || !el) {
@@ -275,11 +310,15 @@ export function EditionPeriodFrise({
       }
       d.moved = true;
     }
+    if (d.moved && !d.revealedDots && layout && layout.dayNavItems.length > 0) {
+      d.revealedDots = true;
+      setDotsEmphasis(true);
+    }
     el.scrollLeft = d.startScroll - dx;
-  }, []);
+  }, [layout]);
 
   const onPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: PointerEvent<HTMLDivElement>) => {
       const d = dragRef.current;
       if (!d || e.pointerId !== d.pointerId) {
         return;
@@ -292,6 +331,7 @@ export function EditionPeriodFrise({
         }
       }
       dragRef.current = null;
+      setDotsEmphasis(false);
       try {
         scrollRef.current?.releasePointerCapture(e.pointerId);
       } catch {
@@ -301,17 +341,17 @@ export function EditionPeriodFrise({
     [seekScrollToClientX],
   );
 
-  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
     if (!el) {
       return;
     }
     if (e.key === "ArrowLeft") {
       e.preventDefault();
-      el.scrollBy({ left: -KEY_SCROLL_PX, behavior: "auto" });
+      el.scrollBy({ left: -KEY_SCROLL_PX, behavior: "smooth" });
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
-      el.scrollBy({ left: KEY_SCROLL_PX, behavior: "auto" });
+      el.scrollBy({ left: KEY_SCROLL_PX, behavior: "smooth" });
     }
   }, []);
 
@@ -325,7 +365,7 @@ export function EditionPeriodFrise({
         return;
       }
       e.preventDefault();
-      el.scrollLeft += e.deltaY;
+      el.scrollBy({ left: e.deltaY, behavior: "smooth" });
     };
     el.addEventListener("wheel", onWheelNative, { passive: false });
     return () => el.removeEventListener("wheel", onWheelNative);
@@ -338,16 +378,19 @@ export function EditionPeriodFrise({
   const {
     windowLeftPct,
     windowRightPct,
+    windowWidthPct,
     innerWidthPct,
     startDate,
     startTime,
     endDate,
     endTime,
     summaryA11y,
+    rulerTicks,
     dayNavItems,
+    activeDayPct,
   } = layout;
 
-  const clipRight = Math.max(0, 100 - windowRightPct);
+  const dotPct = Math.min(100, Math.max(0, activeDayPct));
 
   return (
     <div className={`w-full ${className}`.trim()}>
@@ -357,7 +400,8 @@ export function EditionPeriodFrise({
         role="region"
         aria-label={summaryA11y}
         aria-describedby={hintId}
-        className="olj-scrollbar-none relative w-full cursor-grab touch-pan-x overflow-x-auto overflow-y-visible py-1 outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
+        className="olj-scrollbar-none relative w-full cursor-grab touch-pan-x overflow-x-auto overflow-y-visible py-1 outline-none [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
+        style={{ scrollBehavior: "auto" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -394,55 +438,89 @@ export function EditionPeriodFrise({
                 transform: "translateX(calc(-100% + 2px))",
               }}
             >
-              <div className="flex flex-col items-end gap-0.5">
-                <span
-                  className="mb-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]"
-                  aria-hidden
-                />
-                <p className="font-[family-name:var(--font-sans)] text-[11px] font-semibold leading-tight tracking-tight text-foreground sm:text-xs">
-                  {endDate}
-                </p>
-                <p className="font-mono text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
-                  {endTime}
-                </p>
-              </div>
+              <p className="font-[family-name:var(--font-sans)] text-[11px] font-semibold leading-tight tracking-tight text-foreground sm:text-xs">
+                {endDate}
+              </p>
+              <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
+                {endTime}
+              </p>
             </div>
           </div>
 
-          <div className="relative mx-auto h-[18px] w-full max-w-none sm:h-[20px]">
+          <div className="relative mx-auto h-[52px] w-full sm:h-14">
             <div
-              className="pointer-events-none absolute inset-0"
-              style={{ backgroundImage: GREY_TICKS }}
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute inset-0"
+              className="pointer-events-none absolute bottom-0 z-0 rounded-[1px] opacity-90"
               style={{
-                backgroundImage: ACCENT_TICKS,
-                clipPath: `inset(0 ${clipRight}% 0 ${windowLeftPct}%)`,
+                left: `${Math.max(0, windowLeftPct)}%`,
+                width: `${Math.min(100 - Math.max(0, windowLeftPct), windowWidthPct)}%`,
+                height: "48px",
+                backgroundColor: `color-mix(in srgb, ${FRISE_COLLECT_HEX} 16%, transparent)`,
+                boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${FRISE_COLLECT_HEX} 35%, transparent)`,
               }}
               aria-hidden
             />
+
             <div
-              className="pointer-events-none absolute bottom-0 z-[2] h-[18px] w-[2px] -translate-x-1/2 bg-foreground sm:h-5"
+              className="pointer-events-none absolute z-[5] h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] shadow-sm ring-2 ring-background sm:h-2.5 sm:w-2.5"
+              style={{ left: `${dotPct}%`, bottom: "52px" }}
+              aria-hidden
+            />
+
+            {rulerTicks.map((tk) => (
+              <div
+                key={tk.ms}
+                className={`pointer-events-none absolute z-[1] ${tickClass(tk.kind)}`}
+                style={{ left: `${tk.pct}%` }}
+                aria-hidden
+              />
+            ))}
+
+            <div
+              className="pointer-events-none absolute bottom-0 z-[2] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
               style={{ left: `${windowLeftPct}%` }}
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute bottom-0 z-[2] h-[18px] w-[2px] -translate-x-1/2 bg-foreground sm:h-5"
+              className="pointer-events-none absolute bottom-0 z-[2] h-[52px] w-[2.5px] -translate-x-1/2 bg-foreground sm:h-14"
               style={{ left: `${windowRightPct}%` }}
               aria-hidden
             />
+
+            {dayNavItems.map((item) => {
+              const active = item.iso === publishRouteIso;
+              const p = Math.min(100, Math.max(0, item.pct));
+              const emphasize = dotsEmphasis && !active;
+              return (
+                <Link
+                  key={item.iso}
+                  href={dayHref(item.iso)}
+                  scroll={false}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  title={`Ouvrir ${item.label}`}
+                  className={`absolute bottom-0 z-[4] flex h-6 w-6 -translate-x-1/2 translate-y-[55%] items-center justify-center rounded-full border-2 border-[#f44f1e]/55 bg-background transition-transform duration-200 hover:scale-110 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f44f1e]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                    active
+                      ? "scale-110 border-[#f44f1e] bg-[color-mix(in_srgb,#f44f1e_14%,var(--color-background))]"
+                      : emphasize
+                        ? "animate-pulse ring-2 ring-[#f44f1e]/30"
+                        : ""
+                  }`}
+                  style={{ left: `${p}%` }}
+                  aria-current={active ? "true" : undefined}
+                >
+                  <span className="sr-only">Aller au {item.label}</span>
+                </Link>
+              );
+            })}
           </div>
 
-          <p className="mx-auto mt-3 max-w-lg text-center font-[family-name:var(--font-sans)] text-[11px] italic leading-snug text-muted-foreground sm:text-xs">
+          <p className="mx-auto mt-8 max-w-lg text-center font-[family-name:var(--font-sans)] text-[11px] italic leading-snug text-muted-foreground sm:mt-9 sm:text-xs">
             Période couverte par la revue
           </p>
 
           {dayNavItems.length > 0 ? (
             <nav
               className="mt-3 flex flex-wrap items-center justify-center gap-x-1 gap-y-1.5 border-t border-border/20 pt-3 text-[11px] sm:justify-start sm:text-[12px]"
-              aria-label="Autres jours"
+              aria-label="Jours voisins"
             >
               {dayNavItems.map((item, idx) => {
                 const active = item.iso === publishRouteIso;
@@ -459,7 +537,7 @@ export function EditionPeriodFrise({
                       onPointerDown={(e) => e.stopPropagation()}
                       className={`font-mono tabular-nums no-underline transition-colors ${
                         active
-                          ? "font-semibold text-accent"
+                          ? "font-semibold text-[#f44f1e]"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -474,11 +552,11 @@ export function EditionPeriodFrise({
       </div>
 
       <span id={hintId} className="sr-only">
-        {summaryA11y}. Ticks gris : contexte ; ticks colorés : fenêtre du sommaire. Traits noirs : début et fin
-        de cette fenêtre. Point rouge : fin de période. Glisser pour parcourir ; Maj + molette horizontale.
-        {unifiedDayNav
-          ? " Liens : changer de jour d’édition ou de vue."
-          : ""}
+        {summaryA11y}. Fond orange : fenêtre de collecte du sommaire. Traits noirs larges : minuits Beyrouth ;
+        traits moyens : heures 6h ; fins : autres heures. Traits très larges aux extrémités : début et fin de
+        collecte. Point rouge : jour d’édition affiché. Pastilles sous la règle : clic pour changer de jour.
+        Glisser pour parcourir ; après un glissement, les pastilles attirent l’attention. Flèches et clic piste :
+        défilement animé.
       </span>
     </div>
   );
