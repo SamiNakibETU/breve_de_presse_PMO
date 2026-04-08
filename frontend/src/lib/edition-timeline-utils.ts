@@ -202,6 +202,59 @@ export function friseTimeStripTicks(
   return out;
 }
 
+/** Sous-piste : heures seules (les jours sont portés par les puces / bandes). */
+export function friseTimeStripTicksHoursOnly(
+  extStart: number,
+  extEnd: number,
+  stepHours: number,
+): { pct: number; label: string }[] {
+  const raw = hourTicksBetween(extStart, extEnd, stepHours);
+  return raw.map((tick) => ({
+    pct: percentAlong(tick.ms, extStart, extEnd),
+    label: tick.label,
+  }));
+}
+
+export type FriseDayBand = { leftPct: number; widthPct: number };
+
+/**
+ * Bandes jour / nuit (alternance légère) entre minuits Beyrouth visibles sur la plage.
+ */
+export function friseDayBands(
+  extStart: number,
+  extEnd: number,
+  publishRouteIso: string,
+  dayRadius: number,
+): FriseDayBand[] {
+  const midMs: number[] = [];
+  for (let i = -dayRadius; i <= dayRadius; i += 1) {
+    const iso = shiftIsoDate(publishRouteIso, i);
+    const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
+    const ms = findBeirutMidnightUtc(y, m, d);
+    if (ms > extStart + 30_000 && ms < extEnd - 30_000) {
+      midMs.push(ms);
+    }
+  }
+  midMs.sort((a, b) => a - b);
+  const cuts = [extStart, ...midMs, extEnd];
+  const bands: FriseDayBand[] = [];
+  for (let i = 0; i < cuts.length - 1; i += 1) {
+    const a = cuts[i]!;
+    const b = cuts[i + 1]!;
+    if (b <= a + 1) {
+      continue;
+    }
+    const leftPct = percentAlong(a, extStart, extEnd);
+    const rightPct = percentAlong(b, extStart, extEnd);
+    const widthPct = rightPct - leftPct;
+    if (widthPct < 0.02) {
+      continue;
+    }
+    bands.push({ leftPct, widthPct });
+  }
+  return bands;
+}
+
 /** Positions (% de la plage étendue) des minuits Beyrouth pour filets verticaux jour / nuit. */
 export function midnightDividerPcts(
   extStart: number,

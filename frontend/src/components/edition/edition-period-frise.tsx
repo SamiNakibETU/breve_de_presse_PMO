@@ -24,13 +24,12 @@ import {
   beirutCalendarFromRouteDateIso,
   extendedTimelineBounds,
   findBeirutMidnightUtc,
+  friseDayBands,
   friseTimeStripTicks,
+  friseTimeStripTicksHoursOnly,
   midnightDividerPcts,
   percentAlong,
 } from "@/lib/edition-timeline-utils";
-
-/** Densité visuelle des traits mineurs (CSS, pas de centaines de nœuds DOM). */
-const FRISE_RULER_MINOR_COUNT = 36;
 const PADDING_MS = 20 * 60 * 1000;
 /** Marge temporelle de chaque côté (fraction de la plage « cœur ») pour le pan horizontal */
 const SIDE_PAD_RATIO = 0.42;
@@ -108,10 +107,11 @@ type FriseLayout = {
   summaryA11y: string;
   hourStrip: HourTick[];
   midnightPcts: number[];
+  dayBands: { leftPct: number; widthPct: number }[];
   dayMarkers: DayMarker[];
   scrollCenterPct: number;
   showBoundaryLabels: boolean;
-  rulerPeriodPct: number;
+  hourStripIsTimeOnly: boolean;
 };
 
 /**
@@ -171,11 +171,14 @@ export function EditionPeriodFrise({
     if (spanMs < 8 * 3600 * 1000) {
       stepH = 1;
     }
-    let hourStrip = friseTimeStripTicks(extStart, extEnd, stepH);
+    const hourStripFn = unifiedDayNav
+      ? friseTimeStripTicksHoursOnly
+      : friseTimeStripTicks;
+    let hourStrip = hourStripFn(extStart, extEnd, stepH);
     let guard = 0;
     while (hourStrip.length > 12 && guard < 10) {
       stepH *= 2;
-      hourStrip = friseTimeStripTicks(extStart, extEnd, stepH);
+      hourStrip = hourStripFn(extStart, extEnd, stepH);
       guard += 1;
     }
 
@@ -213,6 +216,10 @@ export function EditionPeriodFrise({
       unifiedDayNav != null
         ? midnightDividerPcts(extStart, extEnd, publishRouteIso, navRadius)
         : [];
+    const dayBands =
+      unifiedDayNav != null
+        ? friseDayBands(extStart, extEnd, publishRouteIso, navRadius)
+        : [];
 
     return {
       windowLeftPct,
@@ -226,10 +233,11 @@ export function EditionPeriodFrise({
       summaryA11y,
       hourStrip,
       midnightPcts,
+      dayBands,
       dayMarkers,
       scrollCenterPct,
       showBoundaryLabels: dayMarkers.length === 0,
-      rulerPeriodPct: 100 / FRISE_RULER_MINOR_COUNT,
+      hourStripIsTimeOnly: unifiedDayNav != null,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso, unifiedDayNav]);
 
@@ -411,9 +419,10 @@ export function EditionPeriodFrise({
     summaryA11y,
     hourStrip,
     midnightPcts,
+    dayBands,
     dayMarkers,
     showBoundaryLabels,
-    rulerPeriodPct,
+    hourStripIsTimeOnly,
   } = layout;
 
   return (
@@ -473,60 +482,60 @@ export function EditionPeriodFrise({
           ) : null}
 
           {dayMarkers.length > 0 ? (
-            <div
-              className="relative isolate mb-2 min-h-[2.35rem] w-full antialiased sm:min-h-[2.5rem]"
-              style={{ WebkitFontSmoothing: "antialiased" }}
-            >
-              {dayMarkers.map((dm) => {
-                if (dm.pct < -8 || dm.pct > 108) {
-                  return null;
-                }
-                const active = dm.iso === publishRouteIso;
-                const anchor = markerAnchorStyle(dm.pct);
-                const edgeMuted =
-                  !active && (dm.pct < 9 || dm.pct > 91);
-                return (
-                  <Link
-                    key={dm.iso}
-                    href={dayHref(dm.iso)}
-                    scroll={false}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    aria-label={`Jour du sommaire ${dm.iso}`}
-                    className={`absolute z-[4] flex min-h-[1.85rem] min-w-[2.75rem] max-w-[min(100%,5.25rem)] items-center justify-center rounded-md px-1.5 py-1 text-center no-underline transition-[color,opacity,background-color] duration-150 touch-manipulation sm:min-h-[2rem] sm:min-w-[3rem] ${
-                      active
-                        ? "font-semibold text-foreground underline decoration-[var(--color-accent)] decoration-2 underline-offset-[5px]"
-                        : `text-muted-foreground hover:bg-[color-mix(in_srgb,var(--color-muted)_30%,transparent)] hover:text-foreground ${edgeMuted ? "opacity-[0.58]" : ""}`
-                    }`}
-                    style={{ ...anchor, top: dm.nudgeY }}
-                  >
-                    <span className="whitespace-nowrap text-center font-[family-name:var(--font-sans)] text-[10px] font-medium leading-none tracking-wide sm:text-[11px]">
-                      {dm.chipLine}
-                    </span>
-                  </Link>
-                );
-              })}
+            <div className="mb-2">
+              <div
+                className="relative isolate min-h-[2.1rem] w-full antialiased sm:min-h-[2.25rem]"
+                style={{ WebkitFontSmoothing: "antialiased" }}
+              >
+                {dayMarkers.map((dm) => {
+                  if (dm.pct < -8 || dm.pct > 108) {
+                    return null;
+                  }
+                  const active = dm.iso === publishRouteIso;
+                  const anchor = markerAnchorStyle(dm.pct);
+                  const edgeMuted =
+                    !active && (dm.pct < 9 || dm.pct > 91);
+                  return (
+                    <Link
+                      key={dm.iso}
+                      href={dayHref(dm.iso)}
+                      scroll={false}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      aria-label={`Jour du sommaire ${dm.iso}`}
+                      className={`absolute z-[4] flex min-h-[1.75rem] min-w-[2.6rem] max-w-[min(100%,5rem)] items-center justify-center rounded-md px-1.5 py-0.5 text-center font-mono text-[10px] leading-none no-underline transition-[color,opacity,background-color] duration-150 touch-manipulation sm:text-[11px] ${
+                        active
+                          ? "font-semibold text-foreground [box-shadow:inset_0_-2px_0_0_var(--color-accent)]"
+                          : `text-muted-foreground/95 hover:bg-[color-mix(in_srgb,var(--color-muted)_28%,transparent)] hover:text-foreground ${edgeMuted ? "opacity-[0.55]" : ""}`
+                      }`}
+                      style={{ ...anchor, top: dm.nudgeY }}
+                    >
+                      <span className="whitespace-nowrap">{dm.chipLine}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
 
-          <div className="relative h-5 w-full sm:h-6">
-            {midnightPcts.map((pct, i) => (
+          <div className="relative h-[2.875rem] w-full sm:h-[3.125rem]">
+            {dayBands.map((b, i) => (
               <div
-                key={`midnight-${i}-${pct.toFixed(2)}`}
-                className="pointer-events-none absolute bottom-0 top-0 z-[2] w-px bg-foreground/[0.09]"
-                style={{ left: `${pct}%`, transform: "translateX(-50%)" }}
+                key={`band-${i}-${b.leftPct.toFixed(1)}`}
+                className={`pointer-events-none absolute top-0 z-0 h-[calc(100%-2px)] rounded-sm ${
+                  i % 2 === 0
+                    ? "bg-[color-mix(in_srgb,var(--color-muted)_12%,transparent)]"
+                    : "bg-[color-mix(in_srgb,var(--color-muted)_4%,transparent)]"
+                }`}
+                style={{
+                  left: `${b.leftPct}%`,
+                  width: `${b.widthPct}%`,
+                }}
                 aria-hidden
               />
             ))}
-            <div
-              className="pointer-events-none absolute inset-0 z-0 bg-bottom bg-repeat-x"
-              style={{
-                backgroundImage: `repeating-linear-gradient(90deg, rgba(15,15,15,0.13) 0, rgba(15,15,15,0.13) 1px, transparent 1px, transparent ${rulerPeriodPct}%)`,
-              }}
-              aria-hidden
-            />
 
             <div
-              className="pointer-events-none absolute bottom-0 top-0 z-[1] bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]"
+              className="pointer-events-none absolute top-[3px] z-[1] h-[1.125rem] rounded-[2px] bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--color-accent)_22%,transparent)]"
               style={{
                 left: `${Math.max(0, windowLeftPct)}%`,
                 width: `${Math.min(100 - Math.max(0, windowLeftPct), windowWidthPct)}%`,
@@ -535,36 +544,55 @@ export function EditionPeriodFrise({
             />
 
             <div
-              className="pointer-events-none absolute -top-1 bottom-0 z-[3] w-px bg-foreground/45"
+              className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] h-px bg-border/55"
+              aria-hidden
+            />
+
+            {midnightPcts.map((pct, i) => (
+              <div
+                key={`midnight-${i}-${pct.toFixed(2)}`}
+                className="pointer-events-none absolute bottom-0 z-[2] h-2 w-px -translate-x-1/2 bg-foreground/25"
+                style={{ left: `${pct}%` }}
+                aria-hidden
+              />
+            ))}
+
+            <div
+              className="pointer-events-none absolute bottom-0 z-[3] h-2.5 w-px -translate-x-1/2 bg-foreground/50"
               style={{
                 left: `${windowLeftPct}%`,
-                transform: "translateX(-50%)",
               }}
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute -top-1 bottom-0 z-[3] w-px bg-foreground/45"
+              className="pointer-events-none absolute bottom-0 z-[3] h-2.5 w-px -translate-x-1/2 bg-foreground/50"
               style={{
                 left: `${windowRightPct}%`,
-                transform: "translateX(-50%)",
               }}
               aria-hidden
             />
             <span
-              className="pointer-events-none absolute -top-1.5 left-0 z-[3] h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
+              className="pointer-events-none absolute bottom-[3px] left-0 z-[3] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[var(--color-accent)] ring-2 ring-background"
               style={{ left: `${windowRightPct}%` }}
               aria-hidden
             />
           </div>
 
           <div
-            className="relative mt-1 min-h-[1rem] w-full border-t border-border/15 pt-1"
+            className={`relative mt-2 w-full ${hourStripIsTimeOnly ? "min-h-[2rem]" : "min-h-[1.1rem]"}`}
             aria-hidden
           >
+            {hourStripIsTimeOnly ? (
+              <p className="mb-0.5 text-[8px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                Heure · Beyrouth
+              </p>
+            ) : null}
             {hourStrip.map((h, i) => (
               <span
                 key={`${h.pct}-${i}-${h.label}`}
-                className="pointer-events-none absolute left-0 top-0 max-w-[min(7.5rem,28vw)] -translate-x-1/2 truncate text-left font-mono text-[8px] tabular-nums leading-tight tracking-tight text-muted-foreground/95 sm:max-w-[9rem] sm:text-[9px]"
+                className={`pointer-events-none absolute left-0 max-w-[min(6.5rem,26vw)] -translate-x-1/2 truncate text-left font-mono text-[9px] tabular-nums tracking-tight text-muted-foreground sm:max-w-[7.5rem] sm:text-[10px] ${
+                  hourStripIsTimeOnly ? "top-[1.05rem]" : "top-0"
+                }`}
                 style={{ left: `${h.pct}%` }}
                 title={h.label}
               >
@@ -572,17 +600,19 @@ export function EditionPeriodFrise({
               </span>
             ))}
             <span className="sr-only">
-              Heures Beyrouth ; le jour est indiqué à chaque changement de date civile.
+              {hourStripIsTimeOnly
+                ? "Heures seules, fuseau Beyrouth ; les jours sont au-dessus et les bandes alternées marquent les nuits civiles."
+                : "Graduations horaires Beyrouth avec jour indiqué au changement de date."}
             </span>
           </div>
         </div>
       </div>
 
       <span id={hintId} className="sr-only">
-        {summaryA11y}. Bande rosée : fenêtre du sommaire. Traits verticaux fins : minuit Beyrouth. Sous la
-        piste : heures ; le jour est précisé quand la date change. Glisser pour parcourir le contexte.
+        {summaryA11y}. Ligne horizontale : axe du temps. Rectangle rosé : fenêtre du sommaire. Repères courts
+        vers le haut : minuits Beyrouth. Sous l’axe : heures.
         {unifiedDayNav
-          ? " Liens sous les jours : autre date. Clic sur la piste : recentrer."
+          ? " Jours cliquables au-dessus. Glisser pour parcourir le contexte ; clic sur la piste pour recentrer."
           : " Changer de jour : flèches ou calendrier."}
       </span>
     </div>
