@@ -138,6 +138,9 @@ class Article(Base):
     retention_reason: Mapped[Optional[str]] = mapped_column(String(64))
     scrape_method: Mapped[Optional[str]] = mapped_column(String(32))
     scrape_cascade_attempts: Mapped[Optional[int]] = mapped_column(Integer)
+    image_url: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
+    image_caption: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    embedding_content_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     status: Mapped[str] = mapped_column(
         String(64), nullable=False, default="raw"

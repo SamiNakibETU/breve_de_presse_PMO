@@ -28,7 +28,8 @@ from src.services.article_body_format import (
 from src.services.editorial_scope import should_ingest_scraped_article
 from src.services.hub_collect import fetch_html_and_extract_hub_links
 from src.services.hub_article_extract import extract_hub_article_page
-from src.services.hub_playwright import HubPlaywrightBrowser
+from src.services.hub_opinion_noise import should_reject_opinion_page
+from src.services.hub_playwright import PlaywrightPool
 from src.services.opinion_hub_overrides import merge_hub_override
 from src.services.web_scraper import _detect_language, _url_hash
 
@@ -41,8 +42,8 @@ class OpinionHubScraper:
         self._factory = get_session_factory()
         self._semaphore = asyncio.Semaphore(3)
         self._domain_last_request: dict[str, float] = {}
-        self._pw_browser = HubPlaywrightBrowser()
-        self._pw_lock = asyncio.Lock()
+        self._pw_browser = PlaywrightPool(max_contexts=3)
+        self._pw_lock = asyncio.Lock()  # Utilisé uniquement pour pw.start() (idempotent)
 
     async def scrape_all(self) -> dict:
         async with self._factory() as db:
@@ -217,7 +218,7 @@ class OpinionHubScraper:
                 d = urlparse(article_url).netloc
                 await self._rate_limit(d)
 
-                text, author, title, pub_date, strat = await self._extract_article(article_url)
+                text, author, title, pub_date, strat, image_url = await self._extract_article(article_url)
                 if not is_substantial_article_body(
                     text or "",
                     min_chars=min_chars,
@@ -226,6 +227,9 @@ class OpinionHubScraper:
                     skipped_short += 1
                     continue
                 if not is_acceptable_article_title(title):
+                    skipped_short += 1
+                    continue
+                if should_reject_opinion_page(article_url, title):
                     skipped_short += 1
                     continue
                 if not should_ingest_scraped_article(title or "", text or ""):
@@ -254,6 +258,7 @@ class OpinionHubScraper:
                         word_count=len((text or "").split()),
                         scrape_method=strat_db or None,
                         scrape_cascade_attempts=cascade_n if strat_db else None,
+                        image_url=image_url,
                     )
                 )
                 new_count += 1
@@ -280,17 +285,17 @@ class OpinionHubScraper:
 
     async def _extract_article(
         self, url: str
-    ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[datetime], str]:
+    ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[datetime], str, Optional[str]]:
         try:
-            body, author, title, pub_date, strat = await extract_hub_article_page(
+            body, author, title, pub_date, strat, image_url = await extract_hub_article_page(
                 url,
                 pw=self._pw_browser,
                 pw_lock=self._pw_lock,
             )
-            return body, author, title, pub_date, strat
+            return body, author, title, pub_date, strat, image_url
         except Exception as exc:
             logger.debug("opinion_hub.article_fail", url=url, error=str(exc)[:80])
-            return None, None, None, None, "error"
+            return None, None, None, None, "error", None
 
 
 async def run_opinion_hub_scraping() -> dict:

@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import re
 from typing import Optional, Tuple
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin, urlparse
+
+from src.services.hub_opinion_noise import is_noise_opinion_hub_url
 
 
 def extract_main_text(html: str, url: str) -> Tuple[Optional[str], Optional[str], int]:
@@ -38,6 +40,16 @@ def extract_main_text(html: str, url: str) -> Tuple[Optional[str], Optional[str]
         meta = tf_meta.extract_metadata(html, default_url=url)
         if meta and getattr(meta, "title", None):
             title = meta.title
+        if not text or len(text.split()) < 80:
+            text_recall = trafilatura.extract(
+                html,
+                url=url,
+                include_comments=False,
+                include_tables=True,
+                favor_recall=True,
+            )
+            if text_recall and len(text_recall.split()) > len((text or "").split()):
+                text = text_recall
     except Exception:
         text = None
 
@@ -60,13 +72,21 @@ def _fallback_bs4(html: str, title: Optional[str]) -> Tuple[Optional[str], Optio
 
     for selector in (
         "article",
+        "[itemprop='articleBody']",
         "[role='main']",
         "main",
         "[class*='article-body']",
         "[class*='articleBody']",
+        "[class*='article__body']",
+        "[class*='story-body']",
+        "[class*='post-body']",
+        "[data-module='ArticleBody']",
         "[data-test='articleBody']",
+        "[data-testid='article-body']",
         ".entry-content",
         ".post-content",
+        ".article-content",
+        ".field-body",
     ):
         node = soup.select_one(selector)
         if node:
@@ -110,7 +130,13 @@ def filter_article_urls(hub_url: str, hrefs: list[str], max_urls: int = 12) -> l
         except Exception:
             continue
         p = urlparse(full)
-        if p.netloc != hub_p.netloc:
+        # Assouplir la comparaison netloc : ignorer le préfixe www.
+        def _strip_www(h: str) -> str:
+            return h.lower().removeprefix("www.")
+
+        if _strip_www(p.netloc) != _strip_www(hub_p.netloc):
+            continue
+        if is_noise_opinion_hub_url(full):
             continue
         path = p.path
         low = path.lower()
@@ -158,6 +184,8 @@ def filter_article_urls(hub_url: str, hrefs: list[str], max_urls: int = 12) -> l
         host = hub_p.netloc.lower()
 
         if "haaretz.com" in host:
+            # Inclure aussi ``.premium`` : extraction Playwright / JSON-LD peut récupérer le corps
+            # lorsque le site le sert (sinon la sonde ``is_substantial_article_body`` échouera).
             if "/opinion/" in low and ("ty-article" in low or re.search(r"/opinion/[^/]+/\d{4}-\d{2}-\d{2}/", low)):
                 key = full.split("?")[0]
                 if key not in seen:

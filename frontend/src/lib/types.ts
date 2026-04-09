@@ -68,6 +68,8 @@ export interface Article {
   framing_prescription?: string | null;
   analysis_display_state?: ArticleAnalysisDisplayState | null;
   analysis_display_hint_fr?: string | null;
+  image_url?: string | null;
+  image_caption?: string | null;
 }
 
 export interface ArticleListResponse {

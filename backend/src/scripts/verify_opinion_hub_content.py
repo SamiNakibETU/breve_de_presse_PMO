@@ -32,6 +32,7 @@ from src.services.article_body_format import (
 from src.services.editorial_scope import should_ingest_scraped_article
 from src.services.hub_article_extract import extract_hub_article_page
 from src.services.hub_collect import fetch_html_and_extract_hub_links
+from src.services.hub_opinion_noise import should_reject_opinion_page
 from src.services.hub_playwright import HubPlaywrightBrowser
 from src.services.opinion_hub_overrides import clear_override_cache, merge_hub_override
 
@@ -112,7 +113,7 @@ async def _verify_one_article(
     min_chars = max(st.min_article_length, 180)
     min_words = st.opinion_hub_min_article_words
 
-    body, author, title, _pub, strat = await extract_hub_article_page(
+    body, author, title, _pub, strat, _img = await extract_hub_article_page(
         url,
         pw=pw,
         pw_lock=pw_lock,
@@ -121,7 +122,8 @@ async def _verify_one_article(
     substantial = is_substantial_article_body(text, min_chars=min_chars, min_words=min_words)
     title_ok = is_acceptable_article_title(title)
     editorial_ok = should_ingest_scraped_article(title or "", text)
-    ok = bool(substantial and title_ok and editorial_ok)
+    noise = should_reject_opinion_page(url, title)
+    ok = bool(substantial and title_ok and editorial_ok and not noise)
     reasons: list[str] = []
     if not substantial:
         reasons.append("corps_trop_court")
@@ -129,6 +131,8 @@ async def _verify_one_article(
         reasons.append("titre_inacceptable")
     if not editorial_ok:
         reasons.append("hors_perimetre_editorial")
+    if noise:
+        reasons.append("page_bruit")
 
     pw_flag, pw_marker = _paywall_suspected(text, title)
     if pw_flag and not ok:

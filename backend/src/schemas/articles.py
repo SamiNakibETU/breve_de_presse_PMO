@@ -85,6 +85,8 @@ class ArticleResponse(BaseModel):
         default=None,
         description="Court libellé FR pour tooltip / badge (optionnel).",
     )
+    image_url: Optional[str] = None
+    image_caption: Optional[str] = None
 
 
 class ArticleListResponse(BaseModel):

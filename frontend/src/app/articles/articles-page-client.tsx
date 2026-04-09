@@ -38,7 +38,7 @@ const ARTICLES_ROLLING_DAYS: number = 2;
 const STATUS_OPTIONS: Record<string, { label: string; value: string }> = {
   editorial: {
     label: "Revue",
-    value: "translated,needs_review",
+    value: "translated,formatted,needs_review",
   },
   needs_review: { label: "À relire", value: "needs_review" },
   all: {

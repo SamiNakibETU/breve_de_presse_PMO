@@ -4,6 +4,7 @@ Cohere embedding service for article semantic vectors.
 
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 
@@ -168,31 +169,50 @@ class EmbeddingService:
         if not articles:
             return 0
 
+        def _content_hash(a: Article) -> str:
+            content = f"{a.title_fr or ''}\n{a.summary_fr or ''}".strip()
+            return hashlib.sha256(content.encode()).hexdigest()[:32]
+
+        # Filtrer les articles dont le contenu n'a pas changé (cache hash)
+        to_embed = []
+        skipped_cached = 0
+        for a in articles:
+            h = _content_hash(a)
+            if a.embedding is not None and a.embedding_content_hash == h:
+                skipped_cached += 1
+                continue
+            to_embed.append((a, h))
+
         ed_count = sum(
             1
-            for a in articles
+            for a, _ in to_embed
             if (a.article_type or "").strip().lower() in EDITORIAL_CLUSTER_TYPES
         )
         logger.info(
             "embedding.batch_selected",
-            count=len(articles),
+            count=len(to_embed),
+            skipped_cached=skipped_cached,
             editorial_types_in_batch=ed_count,
-            non_editorial_in_batch=len(articles) - ed_count,
+            non_editorial_in_batch=len(to_embed) - ed_count,
             embed_only_editorial_types=settings.embed_only_editorial_types,
             embed_revue_registry_only=settings.embed_revue_registry_only,
             embedding_batch_limit=lim,
             edition_id=str(edition_id) if edition_id else None,
         )
 
+        if not to_embed:
+            return 0
+
         texts = [
             f"{a.title_fr or ''} {a.summary_fr or ''}".strip()
-            for a in articles
+            for a, _ in to_embed
         ]
         embeddings = await self.embed_texts(texts)
 
-        for article, embedding in zip(articles, embeddings):
+        for (article, h), embedding in zip(to_embed, embeddings):
             article.embedding = embedding
+            article.embedding_content_hash = h
 
         await db.commit()
-        logger.info("embedded_articles", count=len(articles))
-        return len(articles)
+        logger.info("embedded_articles", count=len(to_embed))
+        return len(to_embed)

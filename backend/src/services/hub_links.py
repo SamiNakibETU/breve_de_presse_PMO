@@ -12,9 +12,13 @@ from collections.abc import Callable
 from typing import Iterable
 from urllib.parse import urljoin, urlparse, unquote
 
+import structlog
 from bs4 import BeautifulSoup
 
+from src.services.hub_opinion_noise import is_noise_opinion_hub_url
 from src.services.smart_content import filter_article_urls
+
+logger = structlog.get_logger(__name__)
 
 SKIP_PATH_FRAGMENTS = (
     "/tag/",
@@ -45,6 +49,7 @@ SKIP_PATH_FRAGMENTS = (
     "/wp-json",
     "/cookie",
     "/privacy",
+    "/newadv/",
 )
 
 # Segments typiques d’URL d’article (multilingue)
@@ -149,6 +154,7 @@ def _relaxed_article_candidate(full_url: str, hub_url: str) -> bool:
         "/whatsapp",
         "/cookie",
         "/privacy",
+        "/newadv/",
     )
     for s in hard_skip:
         if s in low:
@@ -318,10 +324,11 @@ def extract_hub_article_links(
         ordered.append(u)
 
     def _finalize_links() -> list[str]:
-        refined = filter_article_urls(hub_url, ordered, max_urls=max_links)
+        sans_bruit = [u for u in ordered if not is_noise_opinion_hub_url(u)]
+        refined = filter_article_urls(hub_url, sans_bruit, max_urls=max_links)
         if refined:
             return refined[:max_links]
-        return ordered
+        return sans_bruit[:max_links]
 
     def _pred_json(full: str, _h: str) -> bool:
         return _accept_standard(full)
@@ -345,8 +352,13 @@ def extract_hub_article_links(
                 add_url(full, _accept_standard)
                 if len(ordered) >= max_links:
                     return _finalize_links()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(
+                "hub_links.link_selector_failed",
+                hub_url=hub_url[:80],
+                selector=link_selector,
+                error=str(exc)[:120],
+            )
 
     for a in soup.find_all("a", href=True):
         href = (a.get("href") or "").strip()

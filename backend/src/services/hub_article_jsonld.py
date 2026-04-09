@@ -66,18 +66,23 @@ def extract_best_article_body_from_jsonld(html: str) -> str:
         for node in _walk_json(data):
             if not isinstance(node, dict):
                 continue
-            ab = node.get("articleBody")
-            if not isinstance(ab, str):
-                continue
-            ab = ab.strip()
-            if len(ab) < 72:
-                continue
             types = _type_names(node)
-            prio = 2 if types & _ARTICLE_TYPES else 1
-            score = prio * 1_000_000 + len(ab)
-            if score > best_score:
-                best_score = score
-                best = ab
+            type_boost = 2 if types & _ARTICLE_TYPES else 1
+            for key, field_weight, min_len in (
+                ("articleBody", 4, 72),
+                ("text", 3, 120),
+                ("description", 1, 520),
+            ):
+                raw_val = node.get(key)
+                if not isinstance(raw_val, str):
+                    continue
+                ab = raw_val.strip()
+                if len(ab) < min_len:
+                    continue
+                score = type_boost * field_weight * 1_000_000 + len(ab)
+                if score > best_score:
+                    best_score = score
+                    best = ab
     if not best:
         return ""
     return format_plain_article_text(best)

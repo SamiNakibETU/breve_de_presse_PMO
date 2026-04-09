@@ -8,6 +8,7 @@ import asyncio
 import random
 import time
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import aiohttp
 import structlog
@@ -73,9 +74,20 @@ BASE_HEADERS = {
     "Upgrade-Insecure-Requests": "1",
 }
 
+# En-têtes « navigation » — certains WAF exigent la présence des Sec-Fetch-* (comportement type Chrome).
+NAV_HEADERS = {
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+}
 
-def _headers() -> dict:
-    return {**BASE_HEADERS, "User-Agent": random.choice(USER_AGENTS)}
+
+def _headers(*, referer: str | None = None) -> dict:
+    h = {**BASE_HEADERS, **NAV_HEADERS, "User-Agent": random.choice(USER_AGENTS)}
+    if referer:
+        h["Referer"] = referer
+    return h
 
 
 async def fetch_html_aiohttp(
@@ -89,10 +101,19 @@ async def fetch_html_aiohttp(
     timeout = aiohttp.ClientTimeout(total=timeout_s, connect=15)
 
     for attempt in range(max_attempts):
-        # Une session par tentative (UA rotatif) — ne pas réutiliser un TCPConnector fermé.
+        # Nouvelle session par tentative pour rotation UA — TCPConnector non partagé.
         t0 = time.perf_counter()
         try:
-            async with aiohttp.ClientSession(headers=_headers()) as http:
+            ref: str | None = None
+            if attempt >= 1:
+                try:
+                    p = urlparse(url)
+                    if p.scheme and p.netloc:
+                        ref = f"{p.scheme}://{p.netloc}/"
+                except Exception:
+                    ref = None
+            hdr = _headers(referer=ref)
+            async with aiohttp.ClientSession(headers=hdr) as http:
                 async with http.get(
                     url,
                     timeout=timeout,
@@ -276,7 +297,12 @@ async def fetch_html_aiohttp(
     return None, last_err
 
 
-def _fetch_html_curl_cffi_sync(url: str, timeout_s: float = 55.0) -> tuple[Optional[str], str, dict[str, Any]]:
+def _fetch_html_curl_cffi_sync(
+    url: str,
+    timeout_s: float = 55.0,
+    *,
+    impersonate: str = "chrome131",
+) -> tuple[Optional[str], str, dict[str, Any]]:
     """TLS/HTTP2 « navigateur » — contourne souvent Cloudflare mieux qu’aiohttp seul."""
     diag: dict[str, Any] = {
         "http_status": 0,
@@ -286,6 +312,7 @@ def _fetch_html_curl_cffi_sync(url: str, timeout_s: float = 55.0) -> tuple[Optio
         "cf_interstitial": False,
         "elapsed_ms": 0,
         "error_code": "",
+        "impersonate": impersonate,
     }
     try:
         from curl_cffi.requests import Session
@@ -293,18 +320,27 @@ def _fetch_html_curl_cffi_sync(url: str, timeout_s: float = 55.0) -> tuple[Optio
         diag["error_code"] = "curl_cffi_not_installed"
         return None, "curl_cffi_not_installed", diag
 
+    try:
+        p = urlparse(url)
+        referer = f"{p.scheme}://{p.netloc}/" if p.scheme and p.netloc else None
+    except Exception:
+        referer = None
     headers = {
         "Accept": BASE_HEADERS["Accept"],
         "Accept-Language": BASE_HEADERS["Accept-Language"],
+        "Accept-Encoding": "gzip, deflate, br",
         "Upgrade-Insecure-Requests": "1",
+        **NAV_HEADERS,
     }
+    if referer:
+        headers["Referer"] = referer
     t0 = time.perf_counter()
     try:
         session = Session()
         resp = session.get(
             url,
             headers={**headers, "User-Agent": random.choice(USER_AGENTS)},
-            impersonate="chrome131",
+            impersonate=impersonate,
             timeout=timeout_s,
             allow_redirects=True,
         )
@@ -449,28 +485,42 @@ async def fetch_html_robust(
     if html:
         hub_html_cache.cache_set(url, html)
         return html, ""
-    html_cf, err_cf, curl_diag = await asyncio.to_thread(
-        _fetch_html_curl_cffi_sync,
-        url,
-        float(st.hub_curl_timeout_seconds),
-    )
-    logger.debug(
-        "hub_fetch.curl_cffi_result",
-        **_log_ex(
-            log_extra,
-            stage="curl_cffi",
-            attempt=1,
-            http_status=curl_diag.get("http_status", 0),
-            content_type=(curl_diag.get("content_type") or "")[:120],
-            html_len=curl_diag.get("html_len", 0),
-            body_bytes=curl_diag.get("body_bytes", 0),
-            cf_interstitial=bool(curl_diag.get("cf_interstitial")),
-            elapsed_ms=curl_diag.get("elapsed_ms", 0),
-            error_code=(curl_diag.get("error_code") or err_cf)[:80],
-            url=url[:160],
-            after_aiohttp=err[:80] if err else "",
-        ),
-    )
+
+    curl_timeout = float(st.hub_curl_timeout_seconds)
+    curl_profiles = ("chrome131", "chrome124", "chrome120", "edge101")
+    html_cf: Optional[str] = None
+    err_cf = ""
+    curl_diag: dict[str, Any] = {}
+    for ci, imp in enumerate(curl_profiles):
+        cand, err_cf, curl_diag = await asyncio.to_thread(
+            _fetch_html_curl_cffi_sync,
+            url,
+            curl_timeout,
+            impersonate=imp,
+        )
+        logger.debug(
+            "hub_fetch.curl_cffi_result",
+            **_log_ex(
+                log_extra,
+                stage="curl_cffi",
+                attempt=ci + 1,
+                http_status=curl_diag.get("http_status", 0),
+                content_type=(curl_diag.get("content_type") or "")[:120],
+                html_len=curl_diag.get("html_len", 0),
+                body_bytes=curl_diag.get("body_bytes", 0),
+                cf_interstitial=bool(curl_diag.get("cf_interstitial")),
+                elapsed_ms=curl_diag.get("elapsed_ms", 0),
+                error_code=(curl_diag.get("error_code") or err_cf)[:80],
+                url=url[:160],
+                after_aiohttp=err[:80] if err else "",
+                impersonate=str(curl_diag.get("impersonate") or imp)[:24],
+            ),
+        )
+        if cand and not is_cloudflare_interstitial_html(cand):
+            html_cf = cand
+            break
+        html_cf = None
+
     if html_cf:
         logger.info(
             "hub_fetch.curl_cffi_ok",

@@ -99,9 +99,14 @@ async def fetch_html_and_extract_hub_links(
     rss_filter = override.get("rss_link_filter")
     if not isinstance(rss_filter, str) or not rss_filter.strip():
         rss_filter = None
-    rss_exclude = override.get("rss_link_exclude")
-    if not isinstance(rss_exclude, str) or not rss_exclude.strip():
-        rss_exclude = None
+    rss_exclude_raw = override.get("rss_link_exclude")
+    rss_exclude_list: list[str] = []
+    if isinstance(rss_exclude_raw, str) and rss_exclude_raw.strip():
+        rss_exclude_list.append(rss_exclude_raw.strip().lower())
+    elif isinstance(rss_exclude_raw, list):
+        for x in rss_exclude_raw:
+            if isinstance(x, str) and x.strip():
+                rss_exclude_list.append(x.strip().lower())
 
     override_key_list = _override_keys(override)
     diag_classes: list[str] = []
@@ -172,13 +177,13 @@ async def fetch_html_and_extract_hub_links(
             log_extra=_fetch_log_extra("rss_feed", rss_url),
         )
         if rb and body_looks_like_rss_or_atom(rb):
+            rss_cap = min(180, max(max_links * 5, max_links))
             rss_links = extract_article_links_from_feed_body(
                 rb,
-                max_links,
+                rss_cap,
                 link_must_contain=rss_filter,
             )
-            if rss_exclude:
-                sub = rss_exclude.strip().lower()
+            for sub in rss_exclude_list:
                 rss_links = [u for u in rss_links if sub not in u.lower()]
             n_before = len(ordered)
             _add_urls(rss_links)

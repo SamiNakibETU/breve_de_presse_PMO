@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID
@@ -252,154 +251,162 @@ async def analytics_summary(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_internal_key),
 ) -> AnalyticsSummaryResponse:
+    from sqlalchemy import cast, Date
+
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    since_iso = since.isoformat()
 
-    ures = await db.execute(
-        select(UsageEvent).where(UsageEvent.created_at >= since)
+    # ---- Usage events : GROUP BY en SQL ----
+    uday_res = await db.execute(
+        select(
+            cast(UsageEvent.created_at, Date).label("day"),
+            func.count().label("cnt"),
+        )
+        .where(UsageEvent.created_at >= since)
+        .group_by(cast(UsageEvent.created_at, Date))
+        .order_by(cast(UsageEvent.created_at, Date))
     )
-    urows = list(ures.scalars().all())
-
-    usage_by_day: dict[str, int] = defaultdict(int)
-    path_counts: dict[str, int] = defaultdict(int)
-    for r in urows:
-        if r.created_at:
-            usage_by_day[r.created_at.date().isoformat()] += 1
-        path_counts[r.path_template] += 1
-
     usage_day_list = [
-        AnalyticsUsageDayRow(day=d, request_count=c)
-        for d, c in sorted(usage_by_day.items(), key=lambda x: x[0])
+        AnalyticsUsageDayRow(day=str(row.day), request_count=int(row.cnt))
+        for row in uday_res.all()
     ]
-    top_paths = sorted(path_counts.items(), key=lambda x: -x[1])[:20]
+
+    upath_res = await db.execute(
+        select(
+            UsageEvent.path_template,
+            func.count().label("cnt"),
+        )
+        .where(UsageEvent.created_at >= since)
+        .group_by(UsageEvent.path_template)
+        .order_by(func.count().desc())
+        .limit(20)
+    )
     usage_path_list = [
-        AnalyticsUsagePathRow(path_template=p, request_count=c) for p, c in top_paths
+        AnalyticsUsagePathRow(path_template=row.path_template, request_count=int(row.cnt))
+        for row in upath_res.all()
     ]
 
-    pres = await db.execute(
-        select(ProviderUsageEvent).where(ProviderUsageEvent.created_at >= since)
+    # ---- Provider usage : GROUP BY en SQL ----
+    pday_res = await db.execute(
+        select(
+            cast(ProviderUsageEvent.created_at, Date).label("day"),
+            func.count().label("call_count"),
+            func.coalesce(func.sum(ProviderUsageEvent.cost_usd_est), 0.0).label("cost_usd"),
+            func.coalesce(func.sum(ProviderUsageEvent.input_units), 0).label("input_units"),
+            func.coalesce(func.sum(ProviderUsageEvent.output_units), 0).label("output_units"),
+        )
+        .where(ProviderUsageEvent.created_at >= since)
+        .group_by(cast(ProviderUsageEvent.created_at, Date))
+        .order_by(cast(ProviderUsageEvent.created_at, Date))
     )
-    prows = list(pres.scalars().all())
-
-    by_day: dict[str, dict[str, float]] = defaultdict(
-        lambda: {
-            "call_count": 0,
-            "cost_usd": 0.0,
-            "input_units": 0,
-            "output_units": 0,
-        }
-    )
-    by_op: dict[tuple[str, str], dict[str, float]] = defaultdict(
-        lambda: {
-            "call_count": 0,
-            "cost_usd": 0.0,
-            "input_units": 0,
-            "output_units": 0,
-        }
-    )
-    by_prov: dict[tuple[str, str], dict[str, float]] = defaultdict(
-        lambda: {
-            "call_count": 0,
-            "cost_usd": 0.0,
-            "input_units": 0,
-            "output_units": 0,
-        }
-    )
-    by_model: dict[tuple[str, str, str], dict[str, float]] = defaultdict(
-        lambda: {
-            "call_count": 0,
-            "cost_usd": 0.0,
-            "input_units": 0,
-            "output_units": 0,
-        }
-    )
-    p_total_cost = 0.0
-    p_in = 0
-    p_out = 0
-    for r in prows:
-        day = r.created_at.date().isoformat() if r.created_at else ""
-        c = float(r.cost_usd_est or 0.0)
-        iu = int(r.input_units or 0)
-        ou = int(r.output_units or 0)
-        p_total_cost += c
-        p_in += iu
-        p_out += ou
-        bd = by_day[day]
-        bd["call_count"] += 1
-        bd["cost_usd"] += c
-        bd["input_units"] += iu
-        bd["output_units"] += ou
-        ko = (r.operation, r.kind)
-        go = by_op[ko]
-        go["call_count"] += 1
-        go["cost_usd"] += c
-        go["input_units"] += iu
-        go["output_units"] += ou
-        kp = (r.provider, r.kind)
-        gp = by_prov[kp]
-        gp["call_count"] += 1
-        gp["cost_usd"] += c
-        gp["input_units"] += iu
-        gp["output_units"] += ou
-        km = (r.provider, r.model, r.kind)
-        gm = by_model[km]
-        gm["call_count"] += 1
-        gm["cost_usd"] += c
-        gm["input_units"] += iu
-        gm["output_units"] += ou
-
     provider_day_list = [
         AnalyticsProviderByDayRow(
-            day=d,
-            call_count=int(v["call_count"]),
-            cost_usd=round(v["cost_usd"], 6),
-            input_units=int(v["input_units"]),
-            output_units=int(v["output_units"]),
+            day=str(row.day),
+            call_count=int(row.call_count),
+            cost_usd=round(float(row.cost_usd), 6),
+            input_units=int(row.input_units),
+            output_units=int(row.output_units),
         )
-        for d, v in sorted(by_day.items(), key=lambda x: x[0])
-    ]
-    provider_op_list = [
-        AnalyticsProviderByOperationRow(
-            operation=k[0],
-            kind=k[1],
-            call_count=int(v["call_count"]),
-            cost_usd=round(v["cost_usd"], 6),
-            input_units=int(v["input_units"]),
-            output_units=int(v["output_units"]),
-        )
-        for k, v in sorted(by_op.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1]))
-    ]
-    provider_prov_list = [
-        AnalyticsProviderByProviderRow(
-            provider=k[0],
-            kind=k[1],
-            call_count=int(v["call_count"]),
-            cost_usd=round(v["cost_usd"], 6),
-            input_units=int(v["input_units"]),
-            output_units=int(v["output_units"]),
-        )
-        for k, v in sorted(by_prov.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1]))
-    ]
-    provider_model_list = [
-        AnalyticsProviderByModelRow(
-            provider=k[0],
-            model=k[1],
-            kind=k[2],
-            call_count=int(v["call_count"]),
-            cost_usd=round(v["cost_usd"], 6),
-            input_units=int(v["input_units"]),
-            output_units=int(v["output_units"]),
-        )
-        for k, v in sorted(
-            by_model.items(), key=lambda x: (-x[1]["cost_usd"], x[0][0], x[0][1], x[0][2])
-        )
+        for row in pday_res.all()
     ]
 
-    recent_sorted = sorted(
-        prows,
-        key=lambda x: x.created_at.timestamp() if x.created_at else 0.0,
-        reverse=True,
-    )[:100]
+    pop_res = await db.execute(
+        select(
+            ProviderUsageEvent.operation,
+            ProviderUsageEvent.kind,
+            func.count().label("call_count"),
+            func.coalesce(func.sum(ProviderUsageEvent.cost_usd_est), 0.0).label("cost_usd"),
+            func.coalesce(func.sum(ProviderUsageEvent.input_units), 0).label("input_units"),
+            func.coalesce(func.sum(ProviderUsageEvent.output_units), 0).label("output_units"),
+        )
+        .where(ProviderUsageEvent.created_at >= since)
+        .group_by(ProviderUsageEvent.operation, ProviderUsageEvent.kind)
+        .order_by(func.sum(ProviderUsageEvent.cost_usd_est).desc())
+    )
+    provider_op_list = [
+        AnalyticsProviderByOperationRow(
+            operation=row.operation,
+            kind=row.kind,
+            call_count=int(row.call_count),
+            cost_usd=round(float(row.cost_usd), 6),
+            input_units=int(row.input_units),
+            output_units=int(row.output_units),
+        )
+        for row in pop_res.all()
+    ]
+
+    pprov_res = await db.execute(
+        select(
+            ProviderUsageEvent.provider,
+            ProviderUsageEvent.kind,
+            func.count().label("call_count"),
+            func.coalesce(func.sum(ProviderUsageEvent.cost_usd_est), 0.0).label("cost_usd"),
+            func.coalesce(func.sum(ProviderUsageEvent.input_units), 0).label("input_units"),
+            func.coalesce(func.sum(ProviderUsageEvent.output_units), 0).label("output_units"),
+        )
+        .where(ProviderUsageEvent.created_at >= since)
+        .group_by(ProviderUsageEvent.provider, ProviderUsageEvent.kind)
+        .order_by(func.sum(ProviderUsageEvent.cost_usd_est).desc())
+    )
+    provider_prov_list = [
+        AnalyticsProviderByProviderRow(
+            provider=row.provider,
+            kind=row.kind,
+            call_count=int(row.call_count),
+            cost_usd=round(float(row.cost_usd), 6),
+            input_units=int(row.input_units),
+            output_units=int(row.output_units),
+        )
+        for row in pprov_res.all()
+    ]
+
+    pmod_res = await db.execute(
+        select(
+            ProviderUsageEvent.provider,
+            ProviderUsageEvent.model,
+            ProviderUsageEvent.kind,
+            func.count().label("call_count"),
+            func.coalesce(func.sum(ProviderUsageEvent.cost_usd_est), 0.0).label("cost_usd"),
+            func.coalesce(func.sum(ProviderUsageEvent.input_units), 0).label("input_units"),
+            func.coalesce(func.sum(ProviderUsageEvent.output_units), 0).label("output_units"),
+        )
+        .where(ProviderUsageEvent.created_at >= since)
+        .group_by(ProviderUsageEvent.provider, ProviderUsageEvent.model, ProviderUsageEvent.kind)
+        .order_by(func.sum(ProviderUsageEvent.cost_usd_est).desc())
+    )
+    provider_model_list = [
+        AnalyticsProviderByModelRow(
+            provider=row.provider,
+            model=row.model,
+            kind=row.kind,
+            call_count=int(row.call_count),
+            cost_usd=round(float(row.cost_usd), 6),
+            input_units=int(row.input_units),
+            output_units=int(row.output_units),
+        )
+        for row in pmod_res.all()
+    ]
+
+    # Totaux agrégés
+    ptot_res = await db.execute(
+        select(
+            func.coalesce(func.sum(ProviderUsageEvent.cost_usd_est), 0.0).label("cost_usd"),
+            func.coalesce(func.sum(ProviderUsageEvent.input_units), 0).label("input_units"),
+            func.coalesce(func.sum(ProviderUsageEvent.output_units), 0).label("output_units"),
+        )
+        .where(ProviderUsageEvent.created_at >= since)
+    )
+    ptot = ptot_res.one()
+    p_total_cost = float(ptot.cost_usd)
+    p_in = int(ptot.input_units)
+    p_out = int(ptot.output_units)
+
+    # Recent rows (100 derniers)
+    recent_res = await db.execute(
+        select(ProviderUsageEvent)
+        .where(ProviderUsageEvent.created_at >= since)
+        .order_by(ProviderUsageEvent.created_at.desc())
+        .limit(100)
+    )
     recent_list = [
         AnalyticsProviderRecentRow(
             id=r.id,
@@ -417,16 +424,19 @@ async def analytics_summary(
             edition_id=r.edition_id,
             edition_topic_id=r.edition_topic_id,
         )
-        for r in recent_sorted
+        for r in recent_res.scalars().all()
     ]
+
+    usage_total = sum(r.request_count for r in usage_day_list)
+    provider_total_calls = sum(r.call_count for r in provider_day_list)
 
     return AnalyticsSummaryResponse(
         period_days=days,
-        since_iso=since_iso,
-        usage_total=len(urows),
+        since_iso=since.isoformat(),
+        usage_total=usage_total,
         usage_by_day=usage_day_list,
         usage_top_paths=usage_path_list,
-        provider_total_calls=len(prows),
+        provider_total_calls=provider_total_calls,
         provider_total_cost_usd=round(p_total_cost, 6),
         provider_total_input_units=p_in,
         provider_total_output_units=p_out,

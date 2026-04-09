@@ -10,7 +10,7 @@ import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 
-const PRIMARY_NAV_REST = [
+const PRIMARY_NAV = [
   { href: "/panorama", label: "Panorama" },
   { href: "/articles", label: "Articles" },
 ] as const;
@@ -116,31 +116,28 @@ export function Masthead() {
           className="flex flex-wrap items-center gap-2 border-t border-border py-3 sm:gap-3"
           aria-label="Navigation principale"
         >
+          {/* Édition — point d'entrée unique pour tout le flux éditorial */}
           <Link
             href={todayEditionHref}
             prefetch
             onMouseEnter={() => prefetchNavData(queryClient)}
             className={cn(
               "olj-nav-item",
-              (pathname === "/" ||
-                (pathname.startsWith("/edition") && !pathname.includes("/compose"))) &&
+              (pathname === "/" || pathname.startsWith("/edition")) &&
                 "olj-nav-item--active",
             )}
           >
-            Édition du jour
+            Édition
           </Link>
-          {PRIMARY_NAV_REST.map(({ href, label }) => {
+          {PRIMARY_NAV.map(({ href, label }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
-
             return (
               <Link
                 key={href}
                 href={href}
                 prefetch
                 onMouseEnter={() => {
-                  if (href === "/panorama") {
-                    prefetchNavData(queryClient);
-                  }
+                  if (href === "/panorama") prefetchNavData(queryClient);
                 }}
                 className={cn(
                   "olj-nav-item",
@@ -151,27 +148,66 @@ export function Masthead() {
               </Link>
             );
           })}
-          <Link
-            href={composeHref}
-            prefetch
-            className={cn(
-              "olj-nav-item",
-              pathname.includes("/compose") && "olj-nav-item--active",
-            )}
-          >
-            Rédaction
-          </Link>
+
+          {/* Régie — icône engrenage, poussée à droite */}
           <Link
             href="/regie"
             prefetch
+            title="Régie"
+            aria-label="Régie"
             className={cn(
-              "olj-nav-item olj-nav-item--subtle sm:ml-auto",
-              pathname.startsWith("/regie") && "olj-nav-item--active",
+              "ml-auto flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              pathname.startsWith("/regie") && "bg-muted text-foreground",
             )}
           >
-            Régie
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
           </Link>
         </nav>
+
+        {/* Sous-nav contextuelle pour le flux éditorial */}
+        {pathname.startsWith("/edition") && (
+          <nav
+            className="flex items-center gap-1 border-t border-border/50 py-1.5 text-[13px]"
+            aria-label="Flux éditorial"
+          >
+            <Link
+              href={editionDateFromPath ? `/edition/${editionDateFromPath}` : todayEditionHref}
+              className={cn(
+                "rounded px-3 py-1 font-medium transition-colors hover:text-foreground",
+                !pathname.includes("/compose")
+                  ? "text-foreground"
+                  : "text-muted-foreground",
+              )}
+            >
+              Sommaire
+            </Link>
+            <span className="text-border">›</span>
+            <Link
+              href={composeHref}
+              className={cn(
+                "rounded px-3 py-1 font-medium transition-colors hover:text-foreground",
+                pathname.includes("/compose")
+                  ? "text-foreground"
+                  : "text-muted-foreground",
+              )}
+            >
+              Composition
+            </Link>
+          </nav>
+        )}
       </div>
     </header>
   );

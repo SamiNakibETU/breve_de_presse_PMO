@@ -98,6 +98,17 @@ def is_acceptable_article_title(title: str | None, *, min_len: int = 6) -> bool:
     if len(t) < min_len:
         return False
     low = t.lower()
-    if low in ("untitled", "sans titre", "no title", "404", "error"):
+    if low in (
+        "untitled",
+        "sans titre",
+        "no title",
+        "404",
+        "error",
+        "back button",
+        "forward",
+        "access denied",
+    ):
+        return False
+    if low.startswith("404 ") or low.startswith("not found"):
         return False
     return True

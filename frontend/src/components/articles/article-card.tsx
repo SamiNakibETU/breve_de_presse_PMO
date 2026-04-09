@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
 import { articleTypeLabelFr } from "@/lib/article-labels-fr";
@@ -94,32 +95,46 @@ export function ArticleCard({
 
         <div className="min-w-0 flex-1">
           {variant === "grid" ? (
-            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-              {flag || cc ? (
-                <span className="inline-flex items-center rounded border border-border-light bg-surface px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
-                  {flag ? <span className="mr-1">{flag}</span> : null}
-                  {cc || "—"}
+            <>
+              {article.image_url && (
+                <div className="relative mb-2 h-28 w-full overflow-hidden rounded-sm bg-muted/30">
+                  <Image
+                    src={article.image_url}
+                    alt={article.image_caption || article.title_fr || ""}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 320px"
+                    unoptimized
+                  />
+                </div>
+              )}
+              <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {flag || cc ? (
+                  <span className="inline-flex items-center rounded border border-border-light bg-surface px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                    {flag ? <span className="mr-1">{flag}</span> : null}
+                    {cc || "—"}
+                  </span>
+                ) : null}
+                <span className="text-[11px] font-semibold text-foreground">
+                  {article.media_name}
                 </span>
-              ) : null}
-              <span className="text-[11px] font-semibold text-foreground">
-                {article.media_name}
-              </span>
-              {article.country?.trim() ? (
-                <span className="text-[11px] text-muted-foreground">
-                  {article.country.trim()}
-                </span>
-              ) : null}
-              {typeLbl ? (
-                <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
-                  {typeLbl}
-                </span>
-              ) : null}
-              {variant === "grid" && article.is_flagship ? (
-                <span className="rounded-sm bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
-                  Référence
-                </span>
-              ) : null}
-            </div>
+                {article.country?.trim() ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    {article.country.trim()}
+                  </span>
+                ) : null}
+                {typeLbl ? (
+                  <span className="rounded-sm bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground-body">
+                    {typeLbl}
+                  </span>
+                ) : null}
+                {article.is_flagship ? (
+                  <span className="rounded-sm bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                    Référence
+                  </span>
+                ) : null}
+              </div>
+            </>
           ) : null}
           <div className="flex items-start gap-3">
             <div className="flex-1">
@@ -248,6 +263,18 @@ export function ArticleCard({
 
           {expanded && (
             <div className="mt-3 space-y-2">
+              {variant === "list" && article.image_url && (
+                <div className="relative h-36 w-full overflow-hidden rounded-sm bg-muted/30 sm:h-44">
+                  <Image
+                    src={article.image_url}
+                    alt={article.image_caption || article.title_fr || ""}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 640px"
+                    unoptimized
+                  />
+                </div>
+              )}
               {article.thesis_summary_fr && (
                 <p className="font-[family-name:var(--font-serif)] text-[14px] italic text-foreground">
                   {article.thesis_summary_fr}

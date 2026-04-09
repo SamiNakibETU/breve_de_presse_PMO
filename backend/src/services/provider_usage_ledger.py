@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any, Optional
 
@@ -68,29 +69,36 @@ async def append_provider_usage_commit(
     meta_json: dict[str, Any] | None = None,
 ) -> None:
     """Session dédiée + commit (traduction parallèle, gate ingestion, topic_detector, etc.)."""
-    try:
-        factory = get_session_factory()
-        async with factory() as db:
-            await append_provider_usage(
-                db,
-                kind=kind,
-                provider=provider,
-                model=model,
-                operation=operation,
-                status=status,
-                input_units=input_units,
-                output_units=output_units,
-                cost_usd_est=cost_usd_est,
-                duration_ms=duration_ms,
-                edition_id=edition_id,
-                article_id=article_id,
-                edition_topic_id=edition_topic_id,
-                meta_json=meta_json,
-            )
-            await db.commit()
-    except Exception as exc:
-        logger.warning(
-            "provider_usage_ledger.commit_failed",
-            operation=operation,
-            error=str(exc)[:200],
-        )
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            factory = get_session_factory()
+            async with factory() as db:
+                await append_provider_usage(
+                    db,
+                    kind=kind,
+                    provider=provider,
+                    model=model,
+                    operation=operation,
+                    status=status,
+                    input_units=input_units,
+                    output_units=output_units,
+                    cost_usd_est=cost_usd_est,
+                    duration_ms=duration_ms,
+                    edition_id=edition_id,
+                    article_id=article_id,
+                    edition_topic_id=edition_topic_id,
+                    meta_json=meta_json,
+                )
+                await db.commit()
+            return
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 2:
+                await asyncio.sleep(0.5 * (2**attempt))
+    logger.warning(
+        "provider_usage_ledger.commit_failed",
+        operation=operation,
+        error=str(last_exc)[:200],
+        attempts=3,
+    )

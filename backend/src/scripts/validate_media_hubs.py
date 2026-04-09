@@ -88,7 +88,7 @@ async def _probe_article(
     min_chars = max(st.min_article_length, 180)
     min_words = st.opinion_hub_min_article_words
 
-    body, author, title, _pub, strat = await extract_hub_article_page(
+    body, author, title, _pub, strat, _img = await extract_hub_article_page(
         url,
         pw=pw,
         pw_lock=pw_lock,

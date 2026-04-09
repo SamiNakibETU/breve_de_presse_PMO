@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useMemo, useEffect, useRef, startTransition } from "react";
+import { useCallback, useMemo, useEffect, useRef, startTransition, useState } from "react";
 import { EditionDateRailNew } from "@/components/edition/edition-date-rail-new";
 import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
@@ -181,11 +181,15 @@ function EditionSommaireSkeleton() {
   );
 }
 
+/** Seuil 13h UTC = environ 16h Beyrouth = avant le refresh du soir */
+const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 13;
+
 export default function EditionSommairePage() {
   const params = useParams();
   const date = typeof params.date === "string" ? params.date : "";
   const qc = useQueryClient();
   const pipeline = usePipelineRunnerOptional();
+  const [showAfternoonRefresh, setShowAfternoonRefresh] = useState(true);
 
   const statsQ = useQuery({
     queryKey: ["stats"] as const,
@@ -229,14 +233,31 @@ export default function EditionSommairePage() {
       q.state.data?.pipeline_running === true ? 4_000 : false,
   });
 
+  /** Heure seuil pour l'édition courante : minuit + 13h UTC = 13h00 UTC ce jour-là */
+  const afternoonThreshold = useMemo(() => {
+    if (!date) return null;
+    const d = new Date(`${date}T${String(AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR).padStart(2, "0")}:00:00Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [date]);
+
   const topics = useMemo(() => {
     const list = topicsQ.data ?? [];
-    return [...list].sort((a, b) => {
+    const sorted = [...list].sort((a, b) => {
       const ra = a.user_rank ?? a.rank ?? 999;
       const rb = b.user_rank ?? b.rank ?? 999;
       return ra - rb;
     });
-  }, [topicsQ.data]);
+    if (showAfternoonRefresh || !afternoonThreshold) return sorted;
+    // Filtrer les previews d'articles arrivés après le seuil
+    return sorted.map((t) => ({
+      ...t,
+      article_previews: (t.article_previews ?? []).filter((p) => {
+        if (!p.collected_at) return true;
+        const ct = new Date(p.collected_at);
+        return ct <= afternoonThreshold;
+      }),
+    }));
+  }, [topicsQ.data, showAfternoonRefresh, afternoonThreshold]);
   const hasTopicFeed = detectionStatus === "done" && topics.length > 0;
 
   const clustersFallbackQ = useQuery({
@@ -560,9 +581,49 @@ export default function EditionSommairePage() {
 
   const labelsFr = coverageQ.data?.labels_fr ?? null;
 
+  const composeHref = date ? `/edition/${date}/compose` : "#";
+
   return (
     <div className="space-y-10">
       <header className="mx-auto max-w-4xl border-b border-border pb-5">
+        {/* Onglets internes du flux éditorial */}
+        <div className="mb-5 flex items-center gap-1 border-b border-border/50 text-[13px]">
+          <span className="border-b-2 border-accent px-3 py-2 font-semibold text-foreground">
+            Sommaire
+          </span>
+          <Link
+            href={composeHref}
+            className="px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Composition
+          </Link>
+          <span className="ml-auto flex items-center gap-1.5 pb-1 text-[11px]">
+            <label
+              htmlFor="toggle-refresh"
+              className="cursor-pointer select-none font-medium text-muted-foreground"
+            >
+              {showAfternoonRefresh ? "Avec actualisation 16h" : "Sans actualisation 16h"}
+            </label>
+            <button
+              id="toggle-refresh"
+              role="switch"
+              aria-checked={showAfternoonRefresh}
+              onClick={() => setShowAfternoonRefresh((v) => !v)}
+              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                showAfternoonRefresh
+                  ? "border-accent bg-accent"
+                  : "border-border bg-muted"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${
+                  showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"
+                } mt-[1px]`}
+              />
+            </button>
+          </span>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="olj-rubric">Édition</p>
           {pipeline ? (

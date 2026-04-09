@@ -71,3 +71,19 @@ async def test_embed_query_returns_vector():
         mock_client.embed.assert_called_once()
         call_kw = mock_client.embed.call_args[1]
         assert call_kw.get("input_type") == "search_query"
+
+
+def test_embedding_content_hash_is_deterministic():
+    """Le hash de contenu doit être identique pour le même contenu."""
+    import hashlib
+
+    def _hash(title: str, summary: str) -> str:
+        content = f"{title}\n{summary}".strip()
+        return hashlib.sha256(content.encode()).hexdigest()[:32]
+
+    h1 = _hash("Iran nuclear deal", "Summary about Iran")
+    h2 = _hash("Iran nuclear deal", "Summary about Iran")
+    h3 = _hash("Different title", "Summary about Iran")
+    assert h1 == h2
+    assert h1 != h3
+    assert len(h1) == 32

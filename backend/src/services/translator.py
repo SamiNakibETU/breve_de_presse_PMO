@@ -535,6 +535,7 @@ class TranslationPipeline:
             batch_limit=limit,
         )
 
+        min_rel = settings.translation_min_relevance_deterministic
         skipped = 0
         to_process = []
         for a in articles:
@@ -542,9 +543,21 @@ class TranslationPipeline:
             if len(content.split()) < 30 and len((a.title_original or "").split()) < 5:
                 skipped += 1
                 continue
+            if (
+                min_rel is not None
+                and a.relevance_score_deterministic is not None
+                and float(a.relevance_score_deterministic) < min_rel
+            ):
+                skipped += 1
+                continue
             to_process.append(a)
 
-        logger.info("translation.start", article_count=len(to_process), skipped=skipped)
+        logger.info(
+            "translation.start",
+            article_count=len(to_process),
+            skipped=skipped,
+            min_relevance_filter=min_rel,
+        )
         self._translate_article_ticks = 0
         stats: dict = {
             "processed": 0,

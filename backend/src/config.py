@@ -61,6 +61,22 @@ class Settings(BaseSettings):
         le=59,
         description="Minute locale Paris du passage pipeline",
     )
+    pipeline_paris_afternoon_hour: int = Field(
+        default=16,
+        ge=0,
+        le=23,
+        description="Heure locale Paris du refresh léger 16h (mar.–ven.)",
+    )
+    pipeline_paris_afternoon_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="Minute locale Paris du refresh léger 16h",
+    )
+    afternoon_refresh_enabled: bool = Field(
+        default=True,
+        description="Activer le refresh léger 16h : re-collecte + soft-assign clusters nouveaux articles",
+    )
     weekend_collect_enabled: bool = Field(
         default=True,
         description="Si true : samedi et dimanche à l’heure Paris du pipeline, collecte seule "
@@ -134,7 +150,7 @@ class Settings(BaseSettings):
         description="Budget asyncio traduction seule ; 0 = pas de limite propre.",
     )
     pipeline_step_timeout_post_s: int = Field(
-        default=0,
+        default=600,
         ge=0,
         le=28800,
         description="Budget asyncio « post » (relevance → fin, hors collecte/traduction) ; 0 = illimité.",
@@ -165,10 +181,22 @@ class Settings(BaseSettings):
         description="Nombre max d’URLs article à tester pour atteindre l’objectif ci-dessus",
     )
     opinion_hub_min_article_words: int = Field(
-        default=45,
+        default=150,
         ge=25,
-        le=150,
+        le=500,
         description="Nombre minimum de mots pour accepter un corps d’article (hubs)",
+    )
+    jina_ai_api_key: str | None = Field(
+        default=None,
+        description="Cle API Jina AI Reader (r.jina.ai) - fallback geo-bloque",
+    )
+    jina_ai_fallback_enabled: bool = Field(
+        default=True,
+        description="Jina AI fallback pour sources jina_ai_primary=true dans overrides",
+    )
+    nodriver_fallback_enabled: bool = Field(
+        default=True,
+        description="nodriver fallback Cloudflare apres curl_cffi",
     )
     hub_http_timeout_seconds: float = Field(
         default=55.0,
@@ -249,6 +277,12 @@ class Settings(BaseSettings):
         ge=1,
         le=2000,
         description="Plafond d’articles traduits par passage (après filtre fraîcheur) : coût / durée, pas définition du périmètre",
+    )
+    translation_min_relevance_deterministic: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Seuil relevance_score_deterministic minimal pour traduire (optionnel). None = pas de filtre. Ex: 0.05 evite de traduire des articles clairement hors-perimetre.",
     )
     summary_min_words: int = Field(default=150)
     summary_max_words: int = Field(default=200)

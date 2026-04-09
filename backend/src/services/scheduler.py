@@ -28,6 +28,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from src.config import get_settings
 from src.database import get_session_factory
 from src.services.collector import run_collection
+from src.services.metrics import record_pipeline_run, record_pipeline_step
 from src.services.dedup_surface import JACCARD_THRESHOLD, NUM_PERM
 from src.services.pipeline_debug_log import (
     compact_payload,
@@ -300,6 +301,7 @@ async def run_daily_pipeline(
                 step=st.step,
                 trigger=trigger,
             )
+            record_pipeline_run(trigger=trigger, outcome="error")
             return {
                 "error": "pipeline_step_timeout",
                 "step": st.step,
@@ -311,6 +313,7 @@ async def run_daily_pipeline(
                 timeout_s=pipeline_timeout_s,
                 trigger=trigger,
             )
+            record_pipeline_run(trigger=trigger, outcome="error")
             try:
                 from src.services.alerts import post_pipeline_timeout_alert
 
@@ -558,9 +561,6 @@ async def _daily_pipeline_body(
             )
             pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
 
-        p("topic_detection", "Détection des développements (LLM)…")
-        topic_detection_task = asyncio.create_task(run_topic_detection_job_once())
-
         cohere_key = settings.cohere_api_key
         if not cohere_key:
             logger.error(
@@ -684,8 +684,10 @@ async def _daily_pipeline_body(
                 p("embedding", f"Erreur embeddings / clusters : {str(e)[:80]}")
                 pipeline_result["embedding"] = {"error": str(e)}
 
+        # Détection sujets après embedding/clustering (dépendance causale)
+        p("topic_detection", "Détection des développements (LLM)…")
         try:
-            topic_result = await topic_detection_task
+            topic_result = await run_topic_detection_job_once()
             if topic_result.get("detection_status") == "failed":
                 logger.warning(
                     "pipeline.topic_detection_retry",
@@ -723,7 +725,13 @@ async def _daily_pipeline_body(
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     pipeline_result["elapsed_seconds"] = elapsed
     p("done", "Pipeline terminé")
-    logger.info("pipeline.complete", elapsed_seconds=elapsed)
+    logger.info("pipeline.complete", elapsed_seconds=elapsed, step_timings=step_timings)
+
+    # Métriques Prometheus par étape
+    for step_key, duration in step_timings.items():
+        step_label = step_key.removesuffix("_s")
+        record_pipeline_step(step_label, duration_seconds=duration)
+    record_pipeline_run(trigger=pipeline_trigger, outcome="ok")
 
     await log_pipeline_step(
         await resolve_current_edition_id(),
@@ -847,6 +855,90 @@ async def selected_fulltext_translation_tick() -> None:
         )
 
 
+async def run_afternoon_refresh(*, trigger: str = "cron_afternoon") -> dict:
+    """
+    Refresh léger 16h Paris (mar.–ven.) :
+    1. Re-collecte (même fenêtre d'édition élargie)
+    2. Traduction des nouveaux articles uniquement
+    3. Soft-assign aux clusters existants (sans re-HDBSCAN)
+    4. Mise à jour métriques sources
+
+    N'acquiert PAS le verrou pipeline principal (léger, non exclusif).
+    """
+    logger.info("afternoon_refresh.start", trigger=trigger)
+    result: dict = {"trigger": trigger}
+    eid = await resolve_current_edition_id()
+
+    # 1. Re-collecte
+    try:
+        stats = await run_collection()
+        result["collection"] = stats
+        await log_pipeline_step(eid, "afternoon_collect", compact_payload({"stats": stats}))
+    except Exception as exc:
+        logger.warning("afternoon_refresh.collect_failed", error=str(exc)[:200])
+        result["collection"] = {"error": str(exc)[:200]}
+
+    # 2. Traduction nouveaux articles
+    try:
+        from src.services.translator import run_translation_pipeline
+
+        t_stats = await run_translation_pipeline()
+        result["translation"] = t_stats
+        await log_pipeline_step(eid, "afternoon_translate", compact_payload(t_stats))
+    except Exception as exc:
+        logger.warning("afternoon_refresh.translate_failed", error=str(exc)[:200])
+        result["translation"] = {"error": str(exc)[:200]}
+
+    # 3. Scoring pertinence nouveaux articles
+    try:
+        from src.services.edition_schedule import resolve_edition_id_for_timestamp
+        from src.services.relevance_scorer import run_relevance_scoring_pipeline
+
+        factory = get_session_factory()
+        async with factory() as db:
+            eid_rel = await resolve_edition_id_for_timestamp(db, datetime.now(timezone.utc))
+            rel_stats = await run_relevance_scoring_pipeline(db, edition_id=eid_rel)
+            await db.commit()
+        result["relevance_scoring"] = rel_stats
+    except Exception as exc:
+        logger.warning("afternoon_refresh.relevance_failed", error=str(exc)[:200])
+        result["relevance_scoring"] = {"error": str(exc)[:200]}
+
+    # 4. Soft-assign aux clusters existants (sans re-HDBSCAN)
+    cohere_key = settings.cohere_api_key
+    if cohere_key:
+        try:
+            from src.services.edition_schedule import resolve_edition_id_for_timestamp
+            from src.services.embedding_service import EmbeddingService
+
+            factory = get_session_factory()
+            async with factory() as db:
+                eid_emb = await resolve_edition_id_for_timestamp(db, datetime.now(timezone.utc))
+                svc = EmbeddingService()
+                embedded = await svc.embed_pending_articles(db)
+                result["embedding"] = {"embedded": embedded}
+                # Soft-assign via ClusteringService.soft_assign_new_articles si disponible
+                try:
+                    from src.services.clustering_service import ClusteringService
+
+                    cs = ClusteringService()
+                    if hasattr(cs, "soft_assign_new_articles"):
+                        assigned = await cs.soft_assign_new_articles(db, edition_id=eid_emb)
+                        result["soft_assign"] = {"assigned": assigned}
+                except Exception as sa_exc:
+                    logger.debug("afternoon_refresh.soft_assign_unavailable", error=str(sa_exc)[:80])
+                await db.commit()
+        except Exception as exc:
+            logger.warning("afternoon_refresh.embed_failed", error=str(exc)[:200])
+            result["embedding"] = {"error": str(exc)[:200]}
+    else:
+        result["embedding"] = {"skipped": "no_cohere_key"}
+
+    logger.info("afternoon_refresh.done", trigger=trigger, result_keys=list(result.keys()))
+    await log_pipeline_step(eid, "afternoon_refresh_summary", compact_payload(result))
+    return result
+
+
 def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     h = settings.pipeline_paris_morning_hour
@@ -889,6 +981,28 @@ def create_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=_misfire,
         coalesce=True,
     )
+
+    if settings.afternoon_refresh_enabled:
+        ah = settings.pipeline_paris_afternoon_hour
+        am = settings.pipeline_paris_afternoon_minute
+
+        async def _cron_afternoon_refresh() -> None:
+            await run_afternoon_refresh(trigger="cron_afternoon")
+
+        scheduler.add_job(
+            _cron_afternoon_refresh,
+            trigger=CronTrigger(
+                day_of_week="tue-fri",
+                hour=ah,
+                minute=am,
+                timezone=tz_paris,
+            ),
+            id="afternoon_refresh_weekday",
+            name=f"Refresh léger 16h (mar.–ven. {ah:02d}:{am:02d} Paris)",
+            replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
+        )
 
     if settings.weekend_collect_enabled:
 

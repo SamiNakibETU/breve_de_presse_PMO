@@ -72,7 +72,7 @@ async def test_scrape_all_media_report() -> None:
             body: str | None = None
             body_ok = False
             if links:
-                body, _a, _t, _d, _s = await extract_hub_article_page(links[0])
+                body, _a, _t, _d, _s, _img = await extract_hub_article_page(links[0])
                 body_ok = bool(body and len((body or "").split()) >= 80)
             report.append(
                 {

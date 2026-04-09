@@ -195,6 +195,8 @@ def _to_response(
         scrape_cascade_attempts=getattr(art, "scrape_cascade_attempts", None),
         analysis_display_state=ad_state,
         analysis_display_hint_fr=ad_hint,
+        image_url=getattr(art, "image_url", None),
+        image_caption=getattr(art, "image_caption", None),
     )
 
 
@@ -350,14 +352,7 @@ async def list_articles(
         .where(and_(*conds))
     )
 
-    count_base = (
-        select(func.count(Article.id))
-        .select_from(Article)
-        .join(MediaSource, Article.media_source_id == MediaSource.id)
-        .where(and_(*conds))
-    )
-    total = (await db.execute(count_base)).scalar() or 0
-
+    # Une seule requête GROUP BY pour total + répartition pays
     cc_stmt = (
         select(MediaSource.country_code, func.count(Article.id))
         .select_from(Article)
@@ -366,12 +361,15 @@ async def list_articles(
         .group_by(MediaSource.country_code)
     )
     cc_rows = (await db.execute(cc_stmt)).all()
+    total = 0
     merged_cc: dict[str, int] = defaultdict(int)
     for raw_cc, cnt in cc_rows:
+        n = int(cnt or 0)
+        total += n
         if raw_cc is None:
             continue
         cc = normalize_country_code(str(raw_cc))
-        merged_cc[cc] += int(cnt or 0)
+        merged_cc[cc] += n
     counts_by_country = dict(
         sorted(merged_cc.items(), key=lambda x: (-x[1], x[0]))
     )
