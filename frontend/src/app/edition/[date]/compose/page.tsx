@@ -77,6 +77,7 @@ export default function ComposePage() {
     queryKey: ["edition", date] as const,
     queryFn: (): Promise<Edition> => api.editionByDate(date),
     enabled: Boolean(date),
+    staleTime: 5 * 60_000,
   });
   const editionId = editionQ.data?.id;
 
@@ -85,17 +86,20 @@ export default function ComposePage() {
     queryFn: () =>
       api.editionTopics(editionId!, { includeArticlePreviews: true, maxArticlePreviewsPerTopic: 200 }),
     enabled: Boolean(editionId),
+    staleTime: 5 * 60_000,
   });
 
   const selectionsQ = useQuery({
     queryKey: ["editionSelections", editionId] as const,
     queryFn: () => api.editionSelections(editionId!),
     enabled: Boolean(editionId),
+    staleTime: 15_000,
   });
 
   const coverageQ = useQuery({
     queryKey: ["coverageTargets"] as const,
     queryFn: () => api.coverageTargets(),
+    staleTime: 5 * 60_000,
   });
 
   // ---- Sync instructions from edition ----

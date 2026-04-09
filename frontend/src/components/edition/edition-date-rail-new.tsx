@@ -135,6 +135,8 @@ export function EditionDateRailNew({
             windowStartIso={editionWindow.start}
             windowEndIso={editionWindow.end}
             publishRouteIso={currentIso}
+            hideHeader
+            hideFooterText
             unifiedDayNav={null}
           />
           <p className="mt-2.5 text-center text-[10px] italic text-muted-foreground/42">

@@ -174,6 +174,8 @@ export type FriseHourTick = {
   isMidnightBeirut: boolean;
   /** L’intervalle [ms, ms + 1h) intersecte la fenêtre de collecte du sommaire. */
   inCollectWindow: boolean;
+  /** Heure civile Beyrouth 0-23. */
+  beirutHour: number;
 };
 
 function hourIntervalOverlapsWindow(t: number, windowStartMs: number, windowEndMs: number): boolean {
@@ -210,6 +212,7 @@ export function buildFriseHourTicks(
       pct: percentAlong(t, extStart, extEnd),
       isMidnightBeirut,
       inCollectWindow: hourIntervalOverlapsWindow(t, windowStartMs, windowEndMs),
+      beirutHour: p.h,
     });
     n += 1;
     t += HOUR_MS;

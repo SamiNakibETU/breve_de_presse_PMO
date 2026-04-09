@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
 import { articleTypeLabelFr } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -40,7 +40,7 @@ function oljThemesLine(
   return parts.length ? parts.join(" · ") : null;
 }
 
-export function ArticleCard({
+export const ArticleCard = memo(function ArticleCard({
   article,
   selected,
   onToggle,
@@ -104,7 +104,6 @@ export function ArticleCard({
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, 320px"
-                    unoptimized
                   />
                 </div>
               )}
@@ -271,7 +270,6 @@ export function ArticleCard({
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, 640px"
-                    unoptimized
                   />
                 </div>
               )}
@@ -343,4 +341,4 @@ export function ArticleCard({
       </div>
     </article>
   );
-}
+});

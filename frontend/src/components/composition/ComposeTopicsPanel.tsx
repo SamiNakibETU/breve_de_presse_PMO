@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { EditionTopic } from "@/lib/types";
+import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
 import { ReadinessIndicator, type ReadinessLevel } from "./ReadinessIndicator";
 import { TopicGeneratedProse } from "./TopicGeneratedProse";
 

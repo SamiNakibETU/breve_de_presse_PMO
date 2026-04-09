@@ -110,6 +110,8 @@ export type EditionPeriodFriseProps = {
   publishRouteIso: string;
   className?: string;
   unifiedDayNav?: FriseUnifiedDayNav | null;
+  hideHeader?: boolean;
+  hideFooterText?: boolean;
 };
 
 type DayNavItem = {
@@ -142,6 +144,8 @@ export function EditionPeriodFrise({
   publishRouteIso,
   className = "",
   unifiedDayNav = null,
+  hideHeader = false,
+  hideFooterText = false,
 }: EditionPeriodFriseProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -421,7 +425,6 @@ export function EditionPeriodFrise({
   const {
     windowLeftPct,
     windowRightPct,
-    windowWidthPct,
     innerWidthPct,
     startDate,
     startTime,
@@ -460,6 +463,7 @@ export function EditionPeriodFrise({
             minWidth: "100%",
           }}
         >
+          {!hideHeader && (
           <div className="relative mb-2 min-h-[3.25rem] w-full sm:min-h-[3.5rem]">
             <div
               className="absolute top-0 max-w-[min(48%,12rem)]"
@@ -496,6 +500,7 @@ export function EditionPeriodFrise({
               </p>
             </div>
           </div>
+          )}
 
           <div className="relative mx-auto w-full">
             <div className="relative mx-auto h-[52px] w-full sm:h-14">
@@ -524,6 +529,21 @@ export function EditionPeriodFrise({
                 style={{ left: `${dotPct}%` }}
                 aria-hidden
               />
+            </div>
+
+            {/* Hour labels at 6h intervals */}
+            <div className="relative h-4 w-full" aria-hidden>
+              {hourTicksDraw
+                .filter((tk) => tk.beirutHour % 6 === 0)
+                .map((tk) => (
+                  <span
+                    key={`lbl-${tk.ms}`}
+                    className="pointer-events-none absolute top-0 -translate-x-1/2 font-mono text-[8px] tabular-nums text-muted-foreground/60 sm:text-[9px]"
+                    style={{ left: `${tk.pct}%` }}
+                  >
+                    {tk.beirutHour}h
+                  </span>
+                ))}
             </div>
 
             {dayNavItems.length > 0 ? (
@@ -605,9 +625,11 @@ export function EditionPeriodFrise({
               </div>
             ) : null}
 
+            {!hideFooterText && (
             <p className="mx-auto mt-4 max-w-lg px-4 text-center font-[family-name:var(--font-sans)] text-[11px] not-italic leading-snug tracking-tight text-muted-foreground sm:mt-5 sm:text-xs">
               Période couverte par la revue
             </p>
+            )}
           </div>
         </div>
       </div>
