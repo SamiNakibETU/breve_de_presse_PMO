@@ -81,7 +81,7 @@ export function EditionDateRailNew({
   const calDays = buildCalendarDays(currentIso);
 
   return (
-    <div className={`w-full overflow-hidden ${className}`.trim()}>
+    <div className={`w-full ${className}`.trim()}>
       {/* Titre animé */}
       <h1
         className={`font-[family-name:var(--font-serif)] text-[1.5rem] font-normal leading-snug tracking-tight text-foreground sm:text-[1.875rem] ${fadeClass}`}
@@ -136,12 +136,8 @@ export function EditionDateRailNew({
             windowEndIso={editionWindow.end}
             publishRouteIso={currentIso}
             hideHeader
-            hideFooterText
-            unifiedDayNav={null}
+            unifiedDayNav={{ mode: "edition", dayRadius: 4 }}
           />
-          <p className="mt-2.5 text-center text-[10px] italic text-muted-foreground/42">
-            Période couverte par la revue
-          </p>
         </div>
       ) : null}
 
