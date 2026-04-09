@@ -9,9 +9,8 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
-import type { KeyboardEvent, PointerEvent } from "react";
+import type { KeyboardEvent } from "react";
 import {
   buildPanoramaDayHref,
   mergeArticlesQuery,
@@ -31,65 +30,59 @@ import {
   type FriseHourTick,
 } from "@/lib/edition-timeline-utils";
 
+// ─── Layout constants ───────────────────────────────────────────────
 const PADDING_MS = 20 * 60 * 1000;
 const SIDE_PAD_RATIO = 0.42;
-const KEY_SCROLL_PX = 88;
+const KEY_SCROLL_PX = 96;
 const TZ_BEIRUT = "Asia/Beirut";
 
-// Space above rule for the needle dot — scrollRef gets this paddingTop,
-// so the dot at top: -DOT_TOP_OFFSET stays within scrollRef bounds.
-const DOT_DIAMETER = 10; // px
-const DOT_TOP_OFFSET = DOT_DIAMETER + 4; // px above rule top edge
-const SCROLL_PAD_TOP = DOT_TOP_OFFSET + 4; // px — scrollRef paddingTop
+// Rule area: 48px. Border/midnight/needle span full height.
+const RULE_H = 48;
 
-// Rule visual constants
-const RULE_H = 56; // px total height of the tick rule
+// paddingTop creates space above the rule for the needle dot without
+// overflow clipping (overflow-x:auto forces overflow-y:auto per CSS spec).
+const DOT_R = 5; // radius of needle circle
+const SCROLL_PAD_TOP = DOT_R * 2 + 6; // 16px — safely contains the dot
 
-function formatDayNavLabel(iso: string): string {
-  const parts = iso.split("-").map(Number);
-  const y = parts[0] ?? 1970;
-  const mo = parts[1] ?? 1;
-  const d = parts[2] ?? 1;
-  const utc = Date.UTC(y, mo - 1, d, 12, 0, 0);
-  const wd = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: TZ_BEIRUT })
+// ─── Helpers ────────────────────────────────────────────────────────
+function dayLabelFr(iso: string, compact = false): string {
+  const [y, mo, d] = iso.split("-").map(Number);
+  const utc = Date.UTC(y ?? 1970, (mo ?? 1) - 1, d ?? 1, 12, 0, 0);
+  if (compact) {
+    const wd = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "short",
+      timeZone: TZ_BEIRUT,
+    })
+      .format(utc)
+      .replace(/\.$/, "")
+      .slice(0, 3);
+    const day = new Intl.DateTimeFormat("fr-FR", {
+      day: "numeric",
+      timeZone: TZ_BEIRUT,
+    }).format(utc);
+    return `${wd}. ${day}`;
+  }
+  const wd = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    timeZone: TZ_BEIRUT,
+  })
     .format(utc)
     .replace(/\.$/, "")
     .toLowerCase();
-  const dateLine = new Intl.DateTimeFormat("fr-FR", {
+  const dm = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
     timeZone: TZ_BEIRUT,
   }).format(utc);
-  return `${wd}. ${dateLine}`;
+  return `${wd}. ${dm}`;
 }
 
-function formatDayNavCompact(iso: string): string {
-  const parts = iso.split("-").map(Number);
-  const mo = parts[1] ?? 1;
-  const d = parts[2] ?? 1;
-  const y = parts[0] ?? 1970;
-  const utc = Date.UTC(y, mo - 1, d, 12, 0, 0);
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    timeZone: TZ_BEIRUT,
-  }).format(utc);
+// Keep only 6-hour-interval ticks (0h / 6h / 12h / 18h) — removes noise
+function filter6hTicks(ticks: FriseHourTick[]): FriseHourTick[] {
+  return ticks.filter((tk) => tk.beirutHour % 6 === 0);
 }
 
-// Filter ticks too close to window border markers (avoid visual overlap)
-const PCT_NEAR_EDGE = 1.0;
-function filterHourTicksNearWindowEdges(
-  ticks: FriseHourTick[],
-  windowLeftPct: number,
-  windowRightPct: number,
-): FriseHourTick[] {
-  return ticks.filter(
-    (tk) =>
-      Math.abs(tk.pct - windowLeftPct) > PCT_NEAR_EDGE &&
-      Math.abs(tk.pct - windowRightPct) > PCT_NEAR_EDGE,
-  );
-}
-
+// ─── Types ──────────────────────────────────────────────────────────
 export type FriseUnifiedDayNav =
   | { mode: "edition"; dayRadius?: number }
   | { mode: "articles"; dayRadius?: number }
@@ -104,15 +97,16 @@ export type EditionPeriodFriseProps = {
   hideHeader?: boolean;
 };
 
-type DayNavItem = {
+type DayMark = {
   iso: string;
   label: string;
-  labelCompact: string;
+  labelShort: string;
   pct: number;
+  isActive: boolean;
   inCollectWindow: boolean;
 };
 
-type FriseLayout = {
+type Layout = {
   windowLeftPct: number;
   windowRightPct: number;
   innerWidthPct: number;
@@ -121,12 +115,12 @@ type FriseLayout = {
   endDate: string;
   endTime: string;
   summaryA11y: string;
-  hourTicksDraw: FriseHourTick[];
-  dayNavItems: DayNavItem[];
-  scrollCenterPct: number;
+  ticks6h: FriseHourTick[];
+  dayMarks: DayMark[];
   activeDayPct: number;
 };
 
+// ─── Component ──────────────────────────────────────────────────────
 export function EditionPeriodFrise({
   windowStartIso,
   windowEndIso,
@@ -138,18 +132,11 @@ export function EditionPeriodFrise({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hintId = useId();
-  const [dotsEmphasis, setDotsEmphasis] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startScroll: number;
-    moved: boolean;
-    revealedDots: boolean;
-  } | null>(null);
 
-  const layout = useMemo((): FriseLayout | null => {
+  // ── Layout (memoised) ──
+  const layout = useMemo((): Layout | null => {
     const ws = Date.parse(windowStartIso);
     const we = Date.parse(windowEndIso);
     if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= ws) return null;
@@ -166,43 +153,46 @@ export function EditionPeriodFrise({
 
     const windowLeftPct = percentAlong(ws, extStart, extEnd);
     const windowRightPctRaw = percentAlong(we, extStart, extEnd);
-    const windowWidthPct = Math.max(windowRightPctRaw - windowLeftPct, 0.35);
-    const windowRightPct = windowLeftPct + windowWidthPct;
+    const windowRightPct = Math.max(
+      windowLeftPct + 0.35,
+      windowRightPctRaw,
+    );
     const innerWidthPct = ((extEnd - extStart) / coreSpan) * 100;
 
     const startDate = formatFriseEdgeDayFr(windowStartIso);
     const startTime = formatFriseBoundaryTimeFr(windowStartIso);
     const endDate = formatFriseEdgeDayFr(windowEndIso);
     const endTime = formatFriseBoundaryTimeFr(windowEndIso);
-    const summaryA11y = `Période couverte par la revue du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`;
+    const summaryA11y = `Période couverte par la revue : du ${startDate} ${startTime} au ${endDate} ${endTime}, heure de Beyrouth`;
 
-    const hourTicks = buildFriseHourTicks(extStart, extEnd, ws, we);
-    const hourTicksDraw = filterHourTicksNearWindowEdges(hourTicks, windowLeftPct, windowRightPct);
+    const allTicks = buildFriseHourTicks(extStart, extEnd, ws, we);
+    const ticks6h = filter6hTicks(allTicks);
 
+    // Active day anchor = noon Beirut of the publishRoute day
     const { y: py, m: pm, d: pd } = beirutCalendarFromRouteDateIso(publishRouteIso);
     const activeAnchorMs = findBeirutMidnightUtc(py, pm, pd) + 12 * 3600 * 1000;
     const activeDayPct = percentAlong(activeAnchorMs, extStart, extEnd);
-    const scrollCenterPct = activeDayPct;
 
-    const dayNavItems: DayNavItem[] = [];
+    // Day marks — one per day in the navigation radius (at midnight)
+    const dayMarks: DayMark[] = [];
     if (unifiedDayNav) {
       const radius = unifiedDayNav.dayRadius ?? 9;
-      for (let i = -radius; i <= radius; i += 1) {
+      for (let i = -radius; i <= radius; i++) {
         const iso = shiftIsoDate(publishRouteIso, i);
         const { y, m, d } = beirutCalendarFromRouteDateIso(iso);
-        const anchorMs = findBeirutMidnightUtc(y, m, d) + 12 * 3600 * 1000;
-        const pct = percentAlong(anchorMs, extStart, extEnd);
+        const midnightMs = findBeirutMidnightUtc(y, m, d);
+        const pct = percentAlong(midnightMs, extStart, extEnd);
         const { startMs: dayStart, endMs: dayEnd } = beirutDayBoundsFromRouteDate(iso);
-        const inCollectWindow = dayEnd > ws && dayStart < we;
-        dayNavItems.push({
+        dayMarks.push({
           iso,
-          label: formatDayNavLabel(iso),
-          labelCompact: formatDayNavCompact(iso),
+          label: dayLabelFr(iso, false),
+          labelShort: dayLabelFr(iso, true),
           pct,
-          inCollectWindow,
+          isActive: iso === publishRouteIso,
+          inCollectWindow: dayEnd > ws && dayStart < we,
         });
       }
-      dayNavItems.sort((a, b) => a.iso.localeCompare(b.iso, "en-CA"));
+      dayMarks.sort((a, b) => a.iso.localeCompare(b.iso, "en-CA"));
     }
 
     return {
@@ -214,24 +204,30 @@ export function EditionPeriodFrise({
       endDate,
       endTime,
       summaryA11y,
-      hourTicksDraw,
-      dayNavItems,
-      scrollCenterPct,
+      ticks6h,
+      dayMarks,
       activeDayPct,
     };
   }, [windowStartIso, windowEndIso, publishRouteIso, unifiedDayNav]);
 
+  // ── Day href ──
   const dayHref = useCallback(
     (iso: string) => {
       if (!unifiedDayNav) return "#";
       if (unifiedDayNav.mode === "edition") return `/edition/${iso}`;
-      if (unifiedDayNav.mode === "panorama") return buildPanoramaDayHref(pathname, searchParams, iso);
-      const qs = mergeArticlesQuery(searchParams, { date: iso, date_from: null, date_to: null });
+      if (unifiedDayNav.mode === "panorama")
+        return buildPanoramaDayHref(pathname, searchParams, iso);
+      const qs = mergeArticlesQuery(searchParams, {
+        date: iso,
+        date_from: null,
+        date_to: null,
+      });
       return qs ? `${pathname}?${qs}` : pathname;
     },
     [unifiedDayNav, pathname, searchParams],
   );
 
+  // ── Centre the scroll on the active day ──
   const centerScroll = useCallback(
     (behavior: ScrollBehavior) => {
       const sc = scrollRef.current;
@@ -240,7 +236,7 @@ export function EditionPeriodFrise({
       const innerW = inner.scrollWidth;
       const outerW = sc.clientWidth;
       if (innerW <= outerW + 1) { sc.scrollLeft = 0; return; }
-      const midPx = (layout.scrollCenterPct / 100) * innerW;
+      const midPx = (layout.activeDayPct / 100) * innerW;
       const target = Math.max(0, Math.min(midPx - outerW / 2, innerW - outerW));
       if (behavior === "smooth") {
         sc.scrollTo({ left: target, behavior: "smooth" });
@@ -264,86 +260,74 @@ export function EditionPeriodFrise({
     return () => { cancelAnimationFrame(raf); ro.disconnect(); };
   }, [centerScroll]);
 
-  const seekScrollToClientX = useCallback((clientX: number) => {
-    const sc = scrollRef.current;
-    const inner = innerRef.current;
-    if (!sc || !inner) return;
-    const rect = inner.getBoundingClientRect();
-    const x = clientX - rect.left;
-    if (x < 0 || x > rect.width) return;
-    const innerW = inner.scrollWidth;
-    const outerW = sc.clientWidth;
-    const ratio = rect.width > 0 ? x / rect.width : 0;
-    sc.scrollTo({
-      left: Math.max(0, Math.min(ratio * innerW - outerW / 2, innerW - outerW)),
-      behavior: "smooth",
-    });
-  }, []);
-
-  const onPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
+  // ── NATIVE pointer drag — zero React state during scroll ──
+  // This bypasses React's synthetic event system entirely,
+  // eliminating re-renders and synthetic event overhead during drag.
+  useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.setPointerCapture(e.pointerId);
-    dragRef.current = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startScroll: el.scrollLeft,
-      moved: false,
-      revealedDots: false,
+
+    let activeId = -1;
+    let startX = 0;
+    let startScroll = 0;
+    let hasMoved = false;
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("a")) return; // let links handle their own clicks
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      activeId = e.pointerId;
+      startX = e.clientX;
+      startScroll = el.scrollLeft;
+      hasMoved = false;
+      el.style.cursor = "grabbing";
     };
-  }, []);
 
-  const onPointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    const el = scrollRef.current;
-    if (!d || e.pointerId !== d.pointerId || !el) return;
-    const dx = e.clientX - d.startX;
-    if (!d.moved) {
-      if (Math.abs(dx) <= 8) return;
-      d.moved = true;
-    }
-    if (d.moved && !d.revealedDots && layout && layout.dayNavItems.length > 0) {
-      d.revealedDots = true;
-      setDotsEmphasis(true);
-    }
-    el.scrollLeft = d.startScroll - dx;
-  }, [layout]);
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerId !== activeId) return;
+      const dx = e.clientX - startX;
+      if (!hasMoved && Math.abs(dx) < 4) return;
+      hasMoved = true;
+      el.scrollLeft = startScroll - dx;
+    };
 
-  const onPointerUp = useCallback(
-    (e: PointerEvent<HTMLDivElement>) => {
-      const d = dragRef.current;
-      if (!d || e.pointerId !== d.pointerId) return;
-      const dx = e.clientX - d.startX;
-      if (!d.moved && Math.abs(dx) <= 8) {
-        const t = (e.target as HTMLElement | null)?.closest("a[href]");
-        if (!t) seekScrollToClientX(e.clientX);
-      }
-      dragRef.current = null;
-      setDotsEmphasis(false);
-      try { scrollRef.current?.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-    },
-    [seekScrollToClientX],
-  );
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== activeId) return;
+      activeId = -1;
+      el.style.cursor = "";
+      try { el.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    };
 
+    const onWheel = (e: WheelEvent) => {
+      if (!e.shiftKey) return;
+      e.preventDefault();
+      el.scrollBy({ left: e.deltaY * 2, behavior: "auto" });
+    };
+
+    el.addEventListener("pointerdown", onDown, { passive: false });
+    el.addEventListener("pointermove", onMove, { passive: true });
+    el.addEventListener("pointerup", onUp, { passive: true });
+    el.addEventListener("pointercancel", onUp, { passive: true });
+    el.addEventListener("wheel", onWheel, { passive: false });
+
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, []); // stable — pure DOM manipulation, no React deps
+
+  // ── Arrow key scrolling ──
   const onKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
     if (!el) return;
     if (e.key === "ArrowLeft") { e.preventDefault(); el.scrollBy({ left: -KEY_SCROLL_PX, behavior: "smooth" }); }
     else if (e.key === "ArrowRight") { e.preventDefault(); el.scrollBy({ left: KEY_SCROLL_PX, behavior: "smooth" }); }
   }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !layout) return;
-    const onWheelNative = (e: WheelEvent) => {
-      if (!e.shiftKey) return;
-      e.preventDefault();
-      el.scrollBy({ left: e.deltaY, behavior: "smooth" });
-    };
-    el.addEventListener("wheel", onWheelNative, { passive: false });
-    return () => el.removeEventListener("wheel", onWheelNative);
-  }, [layout]);
 
   if (!layout) return null;
 
@@ -356,81 +340,28 @@ export function EditionPeriodFrise({
     endDate,
     endTime,
     summaryA11y,
-    hourTicksDraw,
-    dayNavItems,
+    ticks6h,
+    dayMarks,
     activeDayPct,
   } = layout;
 
-  const dotPct = Math.min(100, Math.max(0, activeDayPct));
-  const dayLabelCompact = dayNavItems.length > 13;
-
-  // Inline tick styles — guaranteed to render regardless of Tailwind purge
-  const tickStyle = (tk: FriseHourTick): React.CSSProperties => {
-    if (tk.isMidnightBeirut) {
-      return {
-        position: "absolute",
-        bottom: 0,
-        left: `${tk.pct}%`,
-        transform: "translateX(-50%)",
-        width: "2px",
-        height: `${RULE_H}px`,
-        borderRadius: "1px",
-        background: "var(--color-foreground)",
-        zIndex: 3,
-      };
-    }
-    if (tk.inCollectWindow) {
-      return {
-        position: "absolute",
-        bottom: 0,
-        left: `${tk.pct}%`,
-        transform: "translateX(-50%)",
-        width: "1.5px",
-        height: `${Math.round(RULE_H / 2)}px`,
-        borderRadius: "0.75px",
-        background: "#f44f1e",
-        zIndex: 2,
-      };
-    }
-    return {
-      position: "absolute",
-      bottom: 0,
-      left: `${tk.pct}%`,
-      transform: "translateX(-50%)",
-      width: "1px",
-      height: "10px",
-      borderRadius: "0.5px",
-      background: "color-mix(in srgb, var(--color-foreground) 20%, transparent)",
-      zIndex: 1,
-    };
-  };
-
-  // Hour label color by context
-  const hourLabelColor = (tk: FriseHourTick): string => {
-    if (tk.inCollectWindow) return "#f44f1e";
-    if (tk.isMidnightBeirut) return "var(--color-foreground)";
-    return "color-mix(in srgb, var(--color-muted-foreground) 55%, transparent)";
-  };
+  const needlePct = Math.min(100, Math.max(0, activeDayPct));
 
   return (
     <div className={`w-full ${className}`.trim()}>
-      {/*
-        scrollRef: overflow-x:auto forces overflow-y:auto (CSS spec constraint).
-        We use paddingTop so the dot (top: -DOT_TOP_OFFSET from rule) sits at
-        (paddingTop - DOT_TOP_OFFSET) px from scrollRef top → within bounds, never clipped.
-      */}
       <div
         ref={scrollRef}
         tabIndex={0}
         role="region"
         aria-label={summaryA11y}
         aria-describedby={hintId}
-        className="olj-scrollbar-none relative w-full cursor-grab touch-pan-x overflow-x-auto outline-none [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
-        style={{ scrollBehavior: "auto", paddingTop: `${SCROLL_PAD_TOP}px` }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        className="olj-scrollbar-none w-full cursor-grab overflow-x-auto outline-none [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        style={{
+          scrollBehavior: "auto",
+          paddingTop: `${SCROLL_PAD_TOP}px`,
+          // GPU layer hint — prevents repaints during scroll
+          willChange: "scroll-position",
+        }}
         onKeyDown={onKeyDown}
       >
         <div
@@ -438,263 +369,277 @@ export function EditionPeriodFrise({
           className="relative select-none"
           style={{ width: `${innerWidthPct}%`, minWidth: "100%" }}
         >
-          {/* ── START / END labels — scroll with content ── */}
+          {/* ── START / END labels (scroll with rule when hideHeader=false) ── */}
           {!hideHeader && (
-            <div
-              className="relative mb-3 w-full"
-              style={{ height: "3.5rem" }}
-            >
+            <div className="relative mb-2" style={{ height: "3.25rem" }}>
+              {/* Début */}
               <div
-                className="absolute top-0 max-w-[min(48%,13rem)]"
-                style={{ left: `${windowLeftPct}%`, transform: "translateX(-2px)" }}
+                className="absolute top-0"
+                style={{
+                  left: `${windowLeftPct}%`,
+                  transform: "translateX(-2px)",
+                  maxWidth: "min(48%, 12rem)",
+                }}
               >
-                <p className="font-mono text-[8.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-                  Début collecte
+                <p
+                  className="font-mono uppercase text-muted-foreground/60"
+                  style={{ fontSize: "8px", letterSpacing: "0.13em" }}
+                >
+                  Début
                 </p>
-                <p className="mt-1 text-[11px] font-normal leading-tight tracking-tight text-foreground sm:text-[12px]">
+                <p className="mt-0.5 text-[11px] font-normal leading-tight tracking-tight text-foreground">
                   {startDate}
                 </p>
-                <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
+                <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
                   {startTime}
                 </p>
               </div>
+              {/* Fin */}
               <div
-                className="absolute top-0 max-w-[min(48%,13rem)] text-right"
-                style={{ left: `${windowRightPct}%`, transform: "translateX(calc(-100% + 2px))" }}
+                className="absolute top-0 text-right"
+                style={{
+                  left: `${windowRightPct}%`,
+                  transform: "translateX(calc(-100% + 2px))",
+                  maxWidth: "min(48%, 12rem)",
+                }}
               >
-                <p className="font-mono text-[8.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-                  Fin collecte
+                <p
+                  className="font-mono uppercase text-muted-foreground/60"
+                  style={{ fontSize: "8px", letterSpacing: "0.13em" }}
+                >
+                  Fin
                 </p>
-                <p className="mt-1 text-[11px] font-semibold leading-tight tracking-tight text-foreground sm:text-[12px]">
+                <p className="mt-0.5 text-[11px] font-semibold leading-tight tracking-tight text-foreground">
                   {endDate}
                 </p>
-                <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
+                <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
                   {endTime}
                 </p>
               </div>
             </div>
           )}
 
-          {/* ── RULE — ticks · window borders · needle ── */}
+          {/* ─────────────── RULE ─────────────── */}
           <div
             className="relative w-full"
             style={{ height: `${RULE_H}px` }}
           >
-            {/* Hour ticks — inline styles, guaranteed heights */}
-            {hourTicksDraw.map((tk) => (
+            {/* Collect window — amber background band (top stripe) */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: 0,
+                left: `${windowLeftPct}%`,
+                width: `${Math.max(0, windowRightPct - windowLeftPct)}%`,
+                height: "3px",
+                background: "var(--color-accent)",
+                opacity: 0.28,
+                borderRadius: "1.5px",
+              }}
+            />
+
+            {/* 6h-interval tick marks — minimal, purposeful */}
+            {ticks6h.map((tk) => {
+              const isMidnight = tk.isMidnightBeirut;
+              return (
+                <div
+                  key={tk.ms}
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: `${tk.pct}%`,
+                    transform: "translateX(-50%)",
+                    width: isMidnight ? "1.5px" : "1px",
+                    height: isMidnight ? `${RULE_H}px` : "12px",
+                    borderRadius: "0.75px",
+                    background: isMidnight
+                      ? "var(--color-foreground)"
+                      : "color-mix(in srgb, var(--color-foreground) 18%, transparent)",
+                  }}
+                />
+              );
+            })}
+
+            {/* Window borders — clean black pillars */}
+            {[windowLeftPct, windowRightPct].map((pct, i) => (
               <div
-                key={tk.ms}
+                key={i}
                 aria-hidden
-                style={tickStyle(tk)}
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: `${pct}%`,
+                  transform: "translateX(-50%)",
+                  width: "2px",
+                  height: `${RULE_H}px`,
+                  borderRadius: "1px",
+                  background: "var(--color-foreground)",
+                  zIndex: 4,
+                }}
               />
             ))}
 
-            {/* Window left border — thick, black, subtle orange halo */}
+            {/* Needle — vertical accent line */}
             <div
               aria-hidden
               style={{
                 position: "absolute",
                 bottom: 0,
-                left: `${windowLeftPct}%`,
-                transform: "translateX(-50%)",
-                width: "2px",
-                height: `${RULE_H}px`,
-                background: "var(--color-foreground)",
-                boxShadow: "0 0 0 2px rgba(244,79,30,0.10)",
-                zIndex: 5,
-                borderRadius: "1px",
-              }}
-            />
-
-            {/* Window right border */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: `${windowRightPct}%`,
-                transform: "translateX(-50%)",
-                width: "2px",
-                height: `${RULE_H}px`,
-                background: "var(--color-foreground)",
-                boxShadow: "0 0 0 2px rgba(244,79,30,0.10)",
-                zIndex: 5,
-                borderRadius: "1px",
-              }}
-            />
-
-            {/* Active day needle — vertical accent line, full rule height */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: `${dotPct}%`,
+                left: `${needlePct}%`,
                 transform: "translateX(-50%)",
                 width: "1px",
                 height: `${RULE_H}px`,
                 background: "var(--color-accent)",
-                boxShadow: "0 0 5px rgba(221,59,49,0.35)",
+                boxShadow: "0 0 6px rgba(221,59,49,0.3)",
                 zIndex: 6,
               }}
             />
 
-            {/* Active day needle — dot, positioned above rule via negative top.
-                top: -DOT_TOP_OFFSET places it at (SCROLL_PAD_TOP - DOT_TOP_OFFSET) = 4px
-                from scrollRef content top — safely within bounds. */}
+            {/* Needle — dot (sits above the rule, within SCROLL_PAD_TOP space) */}
             <div
               aria-hidden
               style={{
                 position: "absolute",
-                top: `-${DOT_TOP_OFFSET}px`,
-                left: `${dotPct}%`,
+                top: `${-(DOT_R * 2 + 2)}px`,
+                left: `${needlePct}%`,
                 transform: "translateX(-50%)",
-                width: `${DOT_DIAMETER}px`,
-                height: `${DOT_DIAMETER}px`,
+                width: `${DOT_R * 2}px`,
+                height: `${DOT_R * 2}px`,
                 borderRadius: "50%",
                 background: "var(--color-accent)",
-                boxShadow: `0 0 0 2.5px rgba(255,255,255,0.95), 0 2px 10px rgba(221,59,49,0.45)`,
-                zIndex: 8,
+                boxShadow: `0 0 0 2.5px rgba(255,255,255,0.95), 0 2px 8px rgba(221,59,49,0.4)`,
+                zIndex: 7,
               }}
             />
           </div>
 
-          {/* ── HOUR LABELS — 0h / 6h / 12h / 18h, colored by context ── */}
+          {/* ── HOUR LABELS — only at 0h / 6h / 12h / 18h ── */}
           <div
             aria-hidden
             className="relative w-full"
-            style={{ height: "18px", marginTop: "3px" }}
+            style={{ height: "14px", marginTop: "4px" }}
           >
-            {hourTicksDraw
-              .filter((tk) => tk.beirutHour % 6 === 0)
-              .map((tk) => (
-                <span
-                  key={`lbl-${tk.ms}`}
-                  className="pointer-events-none absolute top-0 select-none font-mono tabular-nums leading-none"
-                  style={{
-                    left: `${tk.pct}%`,
-                    transform: "translateX(-50%)",
-                    fontSize: "8.5px",
-                    color: hourLabelColor(tk),
-                    fontWeight: tk.isMidnightBeirut ? 600 : 400,
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {tk.beirutHour}h
-                </span>
-              ))}
+            {ticks6h.map((tk) => (
+              <span
+                key={`lbl-${tk.ms}`}
+                className="pointer-events-none absolute top-0 select-none font-mono tabular-nums leading-none"
+                style={{
+                  left: `${tk.pct}%`,
+                  transform: "translateX(-50%)",
+                  fontSize: "8px",
+                  letterSpacing: "0.04em",
+                  color: tk.isMidnightBeirut
+                    ? "color-mix(in srgb, var(--color-foreground) 70%, transparent)"
+                    : "color-mix(in srgb, var(--color-muted-foreground) 50%, transparent)",
+                  fontWeight: tk.isMidnightBeirut ? 500 : 400,
+                }}
+              >
+                {tk.beirutHour}h
+              </span>
+            ))}
           </div>
 
-          {/* ── DAY NAV ZONE — markers scroll with the rule ── */}
-          {dayNavItems.length > 0 && (
+          {/* ── DAY NAVIGATION — marks at day midnight, links ── */}
+          {dayMarks.length > 0 && (
             <div
               role="group"
-              aria-label="Navigation par jour d'édition"
+              aria-label="Navigation par jour"
               className="relative w-full"
               style={{
-                marginTop: "10px",
+                marginTop: "12px",
+                minHeight: "44px",
+                borderTop:
+                  "1px solid color-mix(in srgb, var(--color-border) 30%, transparent)",
                 paddingTop: "10px",
-                minHeight: "52px",
-                borderTop: "1px solid color-mix(in srgb, var(--color-border) 35%, transparent)",
               }}
             >
-              {(() => {
-                let prevPct = -1e9;
-                let crowdRun = 0;
-                return dayNavItems.map((item, idx) => {
-                  const active = item.iso === publishRouteIso;
-                  const p = Math.min(100, Math.max(0, item.pct));
-                  const gap = idx === 0 ? 100 : Math.abs(p - prevPct);
-                  prevPct = p;
-                  const crowded = gap < 4.75;
-                  if (crowded) crowdRun += 1;
-                  else crowdRun = 0;
-                  const nudge = crowded && crowdRun > 0 ? (crowdRun % 2 === 0 ? 15 : 0) : 0;
-                  const emphasize = dotsEmphasis && !active;
-                  const inWin = item.inCollectWindow;
+              {dayMarks.map((dm, idx) => {
+                const p = Math.min(100, Math.max(0, dm.pct));
+                // Stagger alternating labels when crowded
+                const prev = dayMarks[idx - 1];
+                const gap = prev ? Math.abs(p - Math.min(100, Math.max(0, prev.pct))) : 100;
+                const crowded = gap < 5;
+                const nudge = crowded && idx % 2 === 1 ? 14 : 0;
 
-                  const markerH = active ? 18 : inWin ? 13 : 7;
-                  const markerW = active ? 2 : inWin ? 1.5 : 1;
-                  const markerBg = active
-                    ? inWin ? "#f44f1e" : "var(--color-foreground)"
-                    : inWin ? "#f44f1e" : "color-mix(in srgb, var(--color-foreground) 25%, transparent)";
-                  const markerShadow = active
-                    ? "0 0 0 1.5px rgba(255,255,255,0.9)"
-                    : emphasize ? "0 0 0 1px rgba(244,79,30,0.35)" : "none";
-
-                  const labelColor = active
-                    ? "#f44f1e"
-                    : inWin
-                    ? "color-mix(in srgb, var(--color-foreground) 82%, transparent)"
-                    : "color-mix(in srgb, var(--color-muted-foreground) 75%, transparent)";
-
-                  return (
-                    <Link
-                      key={item.iso}
-                      href={dayHref(item.iso)}
-                      scroll={false}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      aria-label={`Aller à l'édition du ${item.label}`}
-                      aria-current={active ? "page" : undefined}
-                      className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1.5 px-1.5 touch-manipulation outline-none transition-transform duration-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      style={{ left: `${p}%`, zIndex: active ? 45 : 10 + idx }}
+                return (
+                  <Link
+                    key={dm.iso}
+                    href={dayHref(dm.iso)}
+                    scroll={false}
+                    aria-label={`Édition du ${dm.label}`}
+                    aria-current={dm.isActive ? "page" : undefined}
+                    className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1 touch-manipulation outline-none transition-opacity duration-150 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    style={{
+                      left: `${p}%`,
+                      zIndex: dm.isActive ? 40 : 10,
+                      opacity: dm.isActive ? 1 : dm.inCollectWindow ? 0.85 : 0.45,
+                    }}
+                  >
+                    {/* Tick above the separator line */}
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "block",
+                        width: dm.isActive ? "2px" : "1px",
+                        height: dm.isActive ? "16px" : dm.inCollectWindow ? "10px" : "6px",
+                        marginTop: `${-(dm.isActive ? 16 : dm.inCollectWindow ? 10 : 6) - 10}px`,
+                        borderRadius: "1px",
+                        background: dm.isActive
+                          ? "var(--color-accent)"
+                          : dm.inCollectWindow
+                          ? "var(--color-foreground)"
+                          : "color-mix(in srgb, var(--color-foreground) 35%, transparent)",
+                        boxShadow: dm.isActive
+                          ? "0 0 0 1.5px rgba(255,255,255,0.9)"
+                          : "none",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span className="sr-only">
+                      Aller à l&rsquo;édition du {dm.label}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="whitespace-nowrap font-mono tabular-nums leading-none"
+                      style={{
+                        fontSize: dm.isActive ? "9.5px" : "8.5px",
+                        fontWeight: dm.isActive ? 600 : 400,
+                        color: dm.isActive
+                          ? "var(--color-accent)"
+                          : "inherit",
+                        marginTop: nudge > 0 ? `${nudge}px` : undefined,
+                        letterSpacing: "0.02em",
+                      }}
                     >
-                      {/* Tick marker above border — via negative margin pulling it up */}
-                      <span
-                        aria-hidden
-                        style={{
-                          display: "block",
-                          width: `${markerW}px`,
-                          height: `${markerH}px`,
-                          marginTop: `-${markerH + 10}px`,
-                          borderRadius: "1px",
-                          background: markerBg,
-                          boxShadow: markerShadow,
-                          transition: "height 150ms ease-out, box-shadow 150ms ease-out",
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span className="sr-only">Aller à l&rsquo;édition du {item.label}</span>
-                      <span
-                        aria-hidden
-                        className="whitespace-nowrap text-center font-mono tabular-nums leading-none tracking-tight"
-                        style={{
-                          fontSize: dayLabelCompact && !active ? "8px" : "9px",
-                          fontWeight: active ? 600 : 400,
-                          color: labelColor,
-                          marginTop: nudge > 0 ? `${nudge}px` : undefined,
-                          maxWidth: dayLabelCompact && !active ? "2.75rem" : "5.75rem",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {dayLabelCompact && !active ? item.labelCompact : item.label}
-                      </span>
-                    </Link>
-                  );
-                });
-              })()}
+                      {dm.isActive ? dm.label : dm.labelShort}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           )}
 
-          {/* ── FOOTER label — scrolls with content ── */}
+          {/* ── Footer ── */}
           <p
-            className="mt-4 pb-2 text-center font-mono tabular-nums not-italic"
+            className="mt-3 pb-1 text-center font-mono not-italic"
             style={{
-              fontSize: "8px",
-              letterSpacing: "0.12em",
-              color: "color-mix(in srgb, var(--color-muted-foreground) 38%, transparent)",
+              fontSize: "7.5px",
+              letterSpacing: "0.14em",
+              color:
+                "color-mix(in srgb, var(--color-muted-foreground) 32%, transparent)",
             }}
           >
-            PÉRIODE · BEYROUTH
+            FENÊTRE · BEYROUTH
           </p>
         </div>
       </div>
 
       <span id={hintId} className="sr-only">
-        {summaryA11y}. Règle : trait pleine hauteur aux minuits Beyrouth, orange pour les heures
-        de collecte, gris ailleurs. Deux traits noirs aux bornes de la fenêtre. Aiguille rouge :
-        jour d&rsquo;édition actif. Glisser ou flèches pour naviguer. Cliquer un jour pour y accéder.
+        {summaryA11y}. La règle montre la fenêtre de collecte en orange.
+        Ticks noirs aux minuits, gris aux 6h/12h/18h. Glisser pour
+        explorer. Cliquer un jour pour y accéder.
       </span>
     </div>
   );

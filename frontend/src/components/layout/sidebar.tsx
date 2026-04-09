@@ -177,37 +177,7 @@ export function Masthead() {
           </Link>
         </nav>
 
-        {/* Sous-nav contextuelle pour le flux éditorial */}
-        {pathname.startsWith("/edition") && (
-          <nav
-            className="flex items-center gap-1 border-t border-border/50 py-1.5 text-[13px]"
-            aria-label="Flux éditorial"
-          >
-            <Link
-              href={editionDateFromPath ? `/edition/${editionDateFromPath}` : todayEditionHref}
-              className={cn(
-                "rounded px-3 py-1 font-medium transition-colors hover:text-foreground",
-                !pathname.includes("/compose")
-                  ? "text-foreground"
-                  : "text-muted-foreground",
-              )}
-            >
-              Sommaire
-            </Link>
-            <span className="text-border">›</span>
-            <Link
-              href={composeHref}
-              className={cn(
-                "rounded px-3 py-1 font-medium transition-colors hover:text-foreground",
-                pathname.includes("/compose")
-                  ? "text-foreground"
-                  : "text-muted-foreground",
-              )}
-            >
-              Composition
-            </Link>
-          </nav>
-        )}
+        {/* La nav Sommaire/Composition est gérée par la page elle-même */}
       </div>
     </header>
   );
