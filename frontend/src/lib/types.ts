@@ -381,6 +381,7 @@ export interface TopicArticlePreview {
   has_full_translation_fr?: boolean;
   analysis_display_state?: ArticleAnalysisDisplayState | null;
   analysis_display_hint_fr?: string | null;
+  collected_at?: string | null;
 }
 
 /** GET /api/editions/{id}/selections */

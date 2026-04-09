@@ -1,18 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
+import type { EditionTopic } from "@/lib/types";
 import { ReadinessIndicator, type ReadinessLevel } from "./ReadinessIndicator";
 import { TopicGeneratedProse } from "./TopicGeneratedProse";
-
-function previewLine(p: TopicArticlePreview): string {
-  const t = (p.title_fr || p.title_original || "").trim();
-  const th = (p.thesis_summary_fr || "").trim();
-  if (th) {
-    return th.length > 220 ? `${th.slice(0, 220)}…` : th;
-  }
-  return t || "—";
-}
 
 function topicReadiness(ordered: TopicArticlePreview[]): ReadinessLevel {
   if (ordered.length === 0) return "empty";

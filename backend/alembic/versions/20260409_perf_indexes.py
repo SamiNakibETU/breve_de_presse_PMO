@@ -11,7 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 
 revision: str = "m20260409_perf_indexes"
-down_revision: Union[str, None] = "m20260401_planv2"
+down_revision: Union[str, None] = "m20260406_country_label"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

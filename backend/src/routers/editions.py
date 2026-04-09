@@ -1,7 +1,7 @@
 """API — éditions et sujets (fenêtre Beyrouth)."""
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
@@ -101,6 +101,7 @@ class TopicArticlePreviewOut(BaseModel):
     analysis_bullets_fr: Optional[list[str]] = None
     summary_fr: Optional[str] = None
     has_full_translation_fr: bool = False
+    collected_at: Optional[datetime] = None
 
 
 class EditionTopicOut(BaseModel):
@@ -535,6 +536,7 @@ async def list_edition_topics(
                     analysis_bullets_fr=getattr(a, "analysis_bullets_fr", None),
                     summary_fr=_summary_preview_snippet(a),
                     has_full_translation_fr=_has_full_translation_fr(a),
+                    collected_at=a.collected_at,
                 )
                 for _do, _rnk, a, ms in prev_slice
             ]
