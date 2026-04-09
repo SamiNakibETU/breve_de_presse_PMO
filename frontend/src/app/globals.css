@@ -392,3 +392,83 @@ input[type="checkbox"] {
   opacity: 0.2;
   cursor: not-allowed;
 }
+
+/* Laboratoire frise — micro-transitions sobres (pas de flou / scale agressif) */
+@keyframes olj-frise-readout-soft {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.olj-frise-readout-soft {
+  animation: olj-frise-readout-soft 0.16s ease-out both;
+}
+
+@keyframes olj-frise-title-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.olj-frise-title-fade {
+  animation: olj-frise-title-fade 0.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .olj-frise-readout-soft,
+  .olj-frise-title-fade {
+    animation: none;
+  }
+}
+
+/* Laboratoire frise — curseurs range lisibles (spécimen Articles / carte période) */
+.olj-lab-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.olj-lab-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.olj-lab-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  border: 2px solid var(--color-background);
+  background: var(--color-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.olj-lab-range::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.olj-lab-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: 2px solid var(--color-background);
+  background: var(--color-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.olj-lab-range:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  outline-offset: 3px;
+}
+.olj-lab-range--overlay::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.olj-lab-range--overlay::-moz-range-track {
+  background: transparent;
+}

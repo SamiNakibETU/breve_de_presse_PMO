@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useEffect, useRef, startTransition } from "react";
-import { EditionDateRail } from "@/components/edition/edition-date-rail";
+import { EditionDateRailNew } from "@/components/edition/edition-date-rail-new";
 import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
 import { TopicSection } from "@/components/edition/TopicSection";
@@ -596,9 +596,8 @@ export default function EditionSommairePage() {
               className="w-full text-[11px]"
               aria-label="Naviguer entre les jours"
             >
-              <EditionDateRail
+              <EditionDateRailNew
                 currentIso={date}
-                unifiedHeader
                 editionWindow={
                   edition?.window_start && edition?.window_end
                     ? { start: edition.window_start, end: edition.window_end }
