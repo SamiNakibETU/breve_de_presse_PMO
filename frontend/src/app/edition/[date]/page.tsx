@@ -654,7 +654,7 @@ export default function EditionSommairePage() {
         <div className="mt-3 w-full">
           {date ? (
             <nav
-              className="w-full text-[11px]"
+              className="w-full"
               aria-label="Naviguer entre les jours"
             >
               <EditionDateRailNew
@@ -844,9 +844,9 @@ export default function EditionSommairePage() {
           )}
 
           {!fullyEmpty && (
-            <div className="mt-6 space-y-14">
+            <div className="mx-auto mt-6 max-w-4xl space-y-14">
               <div
-                className="max-w-4xl rounded-xl border border-border/50 bg-muted/10 p-4 sm:p-5"
+                className="rounded-xl border border-border/50 bg-muted/10 p-4 sm:p-5"
                 aria-label="Rôles des deux zones du sommaire"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">

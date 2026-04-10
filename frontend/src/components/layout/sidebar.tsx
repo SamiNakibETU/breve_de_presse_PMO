@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
 import { api } from "@/lib/api";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
@@ -38,13 +37,6 @@ export function Masthead() {
   const pipeline = usePipelineRunnerOptional();
   const running = pipeline?.running ?? null;
   const todayEditionHref = `/edition/${todayBeirutIsoDate()}`;
-  const editionDateFromPath = useMemo(() => {
-    const m = pathname.match(/^\/edition\/(\d{4}-\d{2}-\d{2})(?:\/|$)/);
-    return m?.[1] ?? null;
-  }, [pathname]);
-  const composeHref = editionDateFromPath
-    ? `/edition/${editionDateFromPath}/compose`
-    : `${todayEditionHref}/compose`;
 
   useQuery({
     queryKey: ["stats"] as const,
