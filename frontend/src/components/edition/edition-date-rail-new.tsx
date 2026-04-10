@@ -8,22 +8,30 @@ import { shiftIsoDate } from "@/lib/beirut-date";
 import { formatEditionCalendarTitleFr } from "@/lib/dates-display-fr";
 
 const TZ = "Asia/Beirut";
+const SWIPE_THRESHOLD = 50;
 
-function daySegment(iso: string): { wd: string; d: string } {
-  const [y, mo, dd] = iso.split("-").map(Number);
-  const utc = Date.UTC(y!, (mo! - 1), dd!, 12);
+function daySegment(iso: string): { wd: string; d: string; mo: string } {
+  const [y, m, dd] = iso.split("-").map(Number);
+  const utc = Date.UTC(y!, (m! - 1), dd!, 12);
   const wd = new Intl.DateTimeFormat("fr-FR", {
     weekday: "short",
     timeZone: TZ,
   })
     .format(utc)
     .replace(/\.$/, "")
-    .toLowerCase();
+    .toUpperCase();
   const d = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     timeZone: TZ,
   }).format(utc);
-  return { wd, d };
+  const mo = new Intl.DateTimeFormat("fr-FR", {
+    month: "short",
+    timeZone: TZ,
+  })
+    .format(utc)
+    .replace(/\.$/, "")
+    .toUpperCase();
+  return { wd, d, mo };
 }
 
 export type EditionDateRailNewProps = {
@@ -51,22 +59,22 @@ export function EditionDateRailNew({
     const t = setTimeout(() => {
       setDispIso(currentIso);
       setVis(true);
-    }, 160);
+    }, 180);
     return () => clearTimeout(t);
   }, [currentIso]);
 
-  const fade = `transition-[opacity,transform] duration-[160ms] ease-out ${
-    vis ? "translate-y-0 opacity-100" : "-translate-y-0.5 opacity-0"
-  }`;
+  const fadeClass = vis
+    ? "translate-y-0 opacity-100"
+    : "-translate-y-1 opacity-0";
 
   const title = formatEditionCalendarTitleFr(dispIso);
 
-  /* ── Calendar days: 6 days, centred on current ── */
-  const calDays = Array.from({ length: 6 }, (_, i) =>
-    shiftIsoDate(currentIso, i - 2),
+  /* ── Calendar days: 7 days, centred on current ── */
+  const calDays = Array.from({ length: 7 }, (_, i) =>
+    shiftIsoDate(currentIso, i - 3),
   );
 
-  /* ── Swipe gesture (native events, zero React state) ── */
+  /* ── Swipe gesture (native events, zero React re-renders) ── */
   const gestureRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = gestureRef.current;
@@ -98,10 +106,11 @@ export function EditionDateRailNew({
           pid = -1;
           return;
         }
-        if (Math.abs(dx) < 8) return;
+        if (Math.abs(dx) < 10) return;
         moved = true;
       }
-      el.style.transform = `translateX(${dx * 0.18}px)`;
+      const clamped = Math.max(-120, Math.min(120, dx * 0.25));
+      el.style.transform = `translateX(${clamped}px)`;
       el.style.transition = "none";
     };
 
@@ -109,9 +118,9 @@ export function EditionDateRailNew({
       if (e.pointerId !== pid) return;
       const dx = e.clientX - sx;
       el.style.transform = "";
-      el.style.transition = "transform 280ms cubic-bezier(.22,.9,.36,1)";
+      el.style.transition = "transform 320ms cubic-bezier(.22,.9,.36,1)";
       pid = -1;
-      if (moved && Math.abs(dx) > 45) {
+      if (moved && Math.abs(dx) > SWIPE_THRESHOLD) {
         router.push(
           `/edition/${shiftIsoDate(currentIso, dx > 0 ? -1 : 1)}`,
         );
@@ -139,13 +148,16 @@ export function EditionDateRailNew({
     <div className={`w-full ${className}`.trim()}>
       {/* Title — animated fade */}
       <h1
-        className={`font-[family-name:var(--font-serif)] text-[1.4rem] font-normal leading-snug tracking-tight text-foreground sm:text-[1.75rem] ${fade}`}
+        className={`font-[family-name:var(--font-serif)] text-[1.35rem] font-normal leading-snug tracking-tight text-foreground transition-[opacity,transform] duration-[180ms] ease-out sm:text-[1.65rem] ${fadeClass}`}
       >
         {title}
       </h1>
 
       {/* Frise bar (with swipe area) */}
-      <div ref={gestureRef} className="mt-4 touch-pan-y">
+      <div
+        ref={gestureRef}
+        className="mt-4 touch-pan-y will-change-transform"
+      >
         {editionWindow?.start && editionWindow?.end ? (
           <EditionPeriodFrise
             windowStartIso={editionWindow.start}
@@ -156,17 +168,17 @@ export function EditionDateRailNew({
       </div>
 
       {/* Calendar rail ── ‹ [days] › */}
-      <div className="mt-4 flex items-center gap-1">
+      <div className="mt-4 flex items-center gap-0.5">
         <Link
           href={`/edition/${shiftIsoDate(currentIso, -1)}`}
           scroll={false}
           aria-label="Jour précédent"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-lg font-thin text-muted-foreground/50 transition-colors duration-150 hover:bg-muted/40 hover:text-foreground"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full text-sm text-muted-foreground/40 transition-colors duration-150 hover:bg-muted/30 hover:text-foreground"
         >
           ‹
         </Link>
 
-        <div className="flex min-w-0 flex-1 items-center rounded-lg bg-muted/25 p-0.5">
+        <div className="flex min-w-0 flex-1 items-center gap-px rounded-lg bg-muted/15 p-px">
           {calDays.map((iso) => {
             const on = iso === currentIso;
             const { wd, d } = daySegment(iso);
@@ -178,21 +190,26 @@ export function EditionDateRailNew({
                 aria-current={on ? "page" : undefined}
                 className={`flex flex-1 flex-col items-center justify-center rounded-md px-0.5 py-1.5 no-underline transition-all duration-200 ${
                   on
-                    ? "bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,.06)]"
-                    : "text-muted-foreground/55 hover:text-muted-foreground"
+                    ? "bg-background text-foreground shadow-[0_1px_3px_rgba(0,0,0,.06)]"
+                    : "text-muted-foreground/45 hover:text-muted-foreground/70"
                 }`}
               >
                 <span
-                  className={`text-[6.5px] uppercase leading-none tracking-[0.1em] ${
-                    on ? "opacity-50" : "opacity-40"
-                  }`}
+                  className="leading-none tracking-[0.1em]"
+                  style={{
+                    fontSize: "6px",
+                    fontWeight: on ? 600 : 400,
+                    opacity: on ? 0.5 : 0.4,
+                  }}
                 >
                   {wd}
                 </span>
                 <span
-                  className={`mt-0.5 text-[11px] tabular-nums leading-none ${
-                    on ? "font-semibold" : "font-normal"
-                  }`}
+                  className="mt-0.5 tabular-nums leading-none"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: on ? 700 : 400,
+                  }}
                 >
                   {d}
                 </span>
@@ -205,7 +222,7 @@ export function EditionDateRailNew({
           href={`/edition/${shiftIsoDate(currentIso, 1)}`}
           scroll={false}
           aria-label="Jour suivant"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-lg font-thin text-muted-foreground/50 transition-colors duration-150 hover:bg-muted/40 hover:text-foreground"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full text-sm text-muted-foreground/40 transition-colors duration-150 hover:bg-muted/30 hover:text-foreground"
         >
           ›
         </Link>

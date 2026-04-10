@@ -48,6 +48,17 @@ logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 
+def _sanitize_pg_text(v: Any) -> Any:
+    """Strip null bytes that PostgreSQL rejects in UTF-8 text columns."""
+    if isinstance(v, str):
+        return v.replace("\x00", "")
+    if isinstance(v, list):
+        return [_sanitize_pg_text(i) for i in v]
+    if isinstance(v, dict):
+        return {k: _sanitize_pg_text(val) for k, val in v.items()}
+    return v
+
+
 def _base_system_prompt() -> str:
     return load_prompt_bundle("translate_article_v2").system_prompt
 
@@ -803,6 +814,7 @@ class TranslationPipeline:
         en_summary_only: bool,
         run_cod: bool,
     ) -> Optional[Literal["translated", "needs_review", "low_quality"]]:
+        data = _sanitize_pg_text(data)
         topics_day = load_topics_of_day()
         expl = explain_editorial_relevance(
             country_code=source.country_code if source else "XX",
