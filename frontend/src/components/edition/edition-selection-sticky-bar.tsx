@@ -48,7 +48,8 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
     queryKey: ["editionSelections", editionId] as const,
     queryFn: () => api.editionSelections(editionId!),
     enabled: Boolean(editionId),
-    staleTime: 15_000,
+    staleTime: 3_000,
+    refetchInterval: 8_000,
   });
 
   const topicsQ = useQuery({

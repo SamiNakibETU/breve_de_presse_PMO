@@ -367,13 +367,13 @@ export default function EditionSommairePage() {
         void api
           .editionTopicSelection(editionId, topicId, ids)
           .then(() => {
-            /* état local via Zustand ; évite refetch lourd à chaque toggle */
+            qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
           })
           .catch(() => {
-            /* erreur réseau : l’état local reste ; prochain refetch corrige */
+            
           });
         patchTimers.current.delete(topicId);
-      }, 320);
+      }, 200);
       patchTimers.current.set(topicId, t);
     },
     [editionId],
@@ -420,10 +420,10 @@ export default function EditionSommairePage() {
             /* idem sélections sujets */
           })
           .catch(() => {
-            /* erreur réseau : l’état local reste ; prochain refetch corrige */
+            
           });
         extraPatchTimer.current = null;
-      }, 400);
+      }, 200);
     },
     [editionId],
   );

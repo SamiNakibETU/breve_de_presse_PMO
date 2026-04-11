@@ -179,7 +179,7 @@ function ArticleReadModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-6"
+      className="fixed inset-0 z-[80] flex items-end justify-center motion-safe:animate-in motion-safe:fade-in-0 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="article-read-title"
@@ -190,7 +190,7 @@ function ArticleReadModal({
         aria-label="Fermer"
         onClick={onClose}
       />
-      <div className="relative flex max-h-[min(92vh,48rem)] w-full max-w-2xl flex-col rounded-t-lg border border-border bg-background shadow-lg sm:rounded-lg">
+      <div className="relative flex max-h-[min(92vh,48rem)] w-full max-w-2xl flex-col rounded-t-lg border border-border bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom-4 sm:rounded-lg sm:motion-safe:slide-in-from-bottom-0 sm:motion-safe:zoom-in-95">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
           <p className="olj-rubric">Lecture article</p>
           <button

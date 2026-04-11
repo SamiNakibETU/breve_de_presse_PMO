@@ -526,8 +526,8 @@ class Settings(BaseSettings):
         description="Pipeline post-traduction : analyse experte (bullets, thèse, faits) via LLM",
     )
     article_analysis_model: str = Field(
-        default="meta-llama/llama-4-scout-17b-16e-instruct",
-        description="Modèle Anthropic pour article_analysis (Haiku 4.5 recommandé, alias API)",
+        default="openai/gpt-oss-120b",
+        description="Modèle pour article_analysis. Groq: openai/gpt-oss-120b (strict JSON, MMLU 90%). Anthropic: claude-*",
     )
     article_analysis_batch_limit: int = Field(
         default=500,

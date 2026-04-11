@@ -1,602 +1,454 @@
 "use client";
 
 /**
- * EditionPeriodFrise — timeline multi-jours scrollable (snap par jour).
- * Affiche 7 jours (J-3 … J+3) avec :
- *  - ticks horaires hiérarchiques (minuit > 6h > 3h > 1h)
- *  - bande de collecte (fenêtre édition, rouge OLJ) + bande d'actualisation (16h Paris ≈ 18h Beirut, ambre)
- *  - indicateur LIVE (ligne + dot) quand la vue inclut l'instant présent
- *  - snap au jour le plus proche au relâchement
- *  - navigation vers la date cliquée
- *  - icône calendrier popover
+ * EditionPeriodFrise — Figma-faithful timeline + date selector.
+ *
+ * Layout (desktop):
+ *   ┌──────────────────┐ ┌──────────────────────────────────┐
+ *   │  Edition Info     │ │  Timeline (3 days, ticks, Live)  │
+ *   └──────────────────┘ └──────────────────────────────────┘
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │  ◄  Dim 31 mars │ Lun 1er avril │ ■ Mar 2 │ …    ►   │
+ *   └─────────────────────────────────────────────────────────┘
  */
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
-import {
-  buildPanoramaDayHref,
-  mergeArticlesQuery,
-} from "@/lib/articles-url-query";
 import { shiftIsoDate } from "@/lib/beirut-date";
 import { api } from "@/lib/api";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import type { Edition } from "@/lib/types";
+import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
 const TZ = "Asia/Beirut";
-const H = 3_600_000;
-const DAY_RADIUS = 3; // days before + after
-const TOTAL_DAYS = DAY_RADIUS * 2 + 1; // 7
-const DAYS_VISIBLE = 3; // columns visible at once
+const DAY_PX = 180;
+const VISIBLE_DAYS = 3;
+const SELECTOR_RANGE = 3;
+const TICK_AREA_H = 48;
+const TICK_MIDNIGHT_H = 56;
 
-function todayIso(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+/* ─── helpers ─── */
+
+function isoRange(center: string, range: number): string[] {
+  const days: string[] = [];
+  for (let i = -range; i <= range; i++) days.push(shiftIsoDate(center, i));
+  return days;
 }
 
-/* ── Types ── */
-export type FriseUnifiedDayNav =
-  | { mode: "edition"; dayRadius?: number }
-  | { mode: "articles"; dayRadius?: number }
-  | { mode: "panorama"; dayRadius?: number };
-
-export type EditionPeriodFriseProps = {
-  /** Date courante au format YYYY-MM-DD (route param). */
-  publishRouteIso: string;
-  /** Mode de navigation lors d'un clic sur un jour. */
-  unifiedDayNav?: FriseUnifiedDayNav | null;
-  /** Compat : si fourni, utilisé comme fallback pour la fenêtre de l'édition centrale. */
-  windowStartIso?: string;
-  windowEndIso?: string;
-  className?: string;
-  compact?: boolean;
-};
-
-/* ── Tick geometry ── */
-type TickKind = "midnight" | "major" | "minor" | "mini";
-type Tick = { pctInDay: number; h: number; kind: TickKind };
-
-function tickKind(h: number): TickKind {
-  if (h === 0) return "midnight";
-  if (h % 6 === 0) return "major";
-  if (h % 3 === 0) return "minor";
-  return "mini";
+function fmtEditionTitle(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const day = d.getDate();
+  const month = d.toLocaleDateString("fr-FR", { month: "long" });
+  return `Édition du ${day} ${month.charAt(0).toUpperCase() + month.slice(1)}`;
 }
 
-const TICK_H: Record<TickKind, number> = { midnight: 28, major: 16, minor: 9, mini: 3 };
-const TICK_W: Record<TickKind, number> = { midnight: 1.5, major: 1, minor: 0.75, mini: 0.5 };
-function tickOpacity(k: TickKind): number {
-  if (k === "midnight") return 0.72;
-  if (k === "major") return 0.32;
-  if (k === "minor") return 0.14;
-  return 0.06;
+function fmtShortDay(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const wd = d.toLocaleDateString("fr-FR", { weekday: "short" });
+  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()}`;
 }
 
-/* ── Day ticks (24h, midnight→midnight Beirut) ── */
-function dayTicks(): Tick[] {
-  const ticks: Tick[] = [];
-  for (let h = 0; h < 24; h++) {
-    ticks.push({ pctInDay: (h / 24) * 100, h, kind: tickKind(h) });
-  }
-  return ticks;
+function fmtFullDay(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const wd = d.toLocaleDateString("fr-FR", { weekday: "long" });
+  const day = d.getDate();
+  const month = d.toLocaleDateString("fr-FR", { month: "long" });
+  const dayStr = day === 1 ? "1er" : String(day);
+  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${dayStr} ${month}`;
 }
-const DAY_TICKS = dayTicks();
 
-/* ── Edition window → zones within a day ── */
-type Band = { startPct: number; widthPct: number; color: string; label: string };
+function beirutNow(): Date {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: TZ }),
+  );
+}
 
-/**
- * Calculates colored bands for a day column [dayStartMs, dayStartMs+24h).
- * `ws` / `we` = edition window (UTC ms). `afternoonMs` = start of actualisation within the day.
- */
-function bandsForDay(dayStartMs: number, ws: number | null, we: number | null): Band[] {
-  if (ws == null || we == null || we <= ws) return [];
-  const dayEndMs = dayStartMs + 24 * H;
-  const bands: Band[] = [];
+function parseToLocal(isoStr: string): Date {
+  return new Date(
+    new Date(isoStr).toLocaleString("en-US", { timeZone: TZ }),
+  );
+}
 
-  // Collecte band: intersection of [ws, we) with [dayStart, dayEnd)
-  const cStart = Math.max(ws, dayStartMs);
-  const cEnd = Math.min(we, dayEndMs);
-  if (cEnd > cStart) {
-    bands.push({
-      startPct: ((cStart - dayStartMs) / (24 * H)) * 100,
-      widthPct: ((cEnd - cStart) / (24 * H)) * 100,
-      color: "var(--color-accent)",
-      label: "Collecte",
+/* ─── sub-components ─── */
+
+interface InfoCardProps {
+  currentIso: string;
+  windowStart?: string;
+  windowEnd?: string;
+}
+
+function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
+  const ws = windowStart ? parseToLocal(windowStart) : null;
+  const we = windowEnd ? parseToLocal(windowEnd) : null;
+
+  const startDay = ws
+    ? `${ws.toLocaleDateString("fr-FR", { weekday: "short" })} ${ws.getDate()}`
+    : "—";
+  const endDay = we
+    ? `${we.toLocaleDateString("fr-FR", { weekday: "short" })} ${we.getDate()}`
+    : "—";
+  const startTime = ws ? `${ws.getHours()}h:${String(ws.getMinutes()).padStart(2, "0")}` : "—";
+  const endTime = we ? `${we.getHours()}h:${String(we.getMinutes()).padStart(2, "0")}` : "—";
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl bg-white px-6 py-5 shadow-[0_0_16px_6px_rgba(0,0,0,0.07)]">
+      <p className="text-center text-lg font-normal tracking-tight text-foreground">
+        {fmtEditionTitle(currentIso)}
+      </p>
+      <p className="mt-1 text-center text-[11px] text-muted-foreground">
+        Les articles disponibles ont été publiés entre :
+      </p>
+
+      {/* hatched bar */}
+      <div className="relative mt-3 flex w-full max-w-[220px] items-center">
+        <div className="absolute left-0 h-2.5 w-0.5 bg-accent" />
+        <div
+          className="mx-0.5 h-2 flex-1"
+          style={{
+            background:
+              "repeating-linear-gradient(-45deg, transparent, transparent 2.5px, rgba(221,59,49,0.18) 2.5px, rgba(221,59,49,0.18) 5px)",
+          }}
+        />
+        <div className="absolute right-0 h-2.5 w-0.5 bg-accent" />
+      </div>
+
+      {/* day labels */}
+      <div className="mt-1.5 flex w-full max-w-[220px] justify-between text-[11px] text-foreground">
+        <span>{startDay}</span>
+        <span>{endDay}</span>
+      </div>
+
+      {/* dots + times */}
+      <div className="mt-0.5 flex w-full max-w-[220px] justify-between">
+        <div className="flex flex-col items-start">
+          <span className="mb-0.5 inline-block size-1.5 rounded-full bg-accent" />
+          <span className="text-xl font-extralight tracking-tight text-foreground">
+            {startTime}
+          </span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="mb-0.5 inline-block size-1.5 rounded-full bg-accent" />
+          <span className="text-xl font-extralight tracking-tight text-foreground">
+            {endTime}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── timeline card ─── */
+
+interface TimelineCardProps {
+  currentIso: string;
+  editions: Map<string, Edition | null>;
+  windowStart?: string;
+  windowEnd?: string;
+}
+
+function FriseTimelineCard({
+  currentIso,
+  editions,
+  windowStart,
+  windowEnd,
+}: TimelineCardProps) {
+  const [now, setNow] = useState(beirutNow);
+  useEffect(() => {
+    const id = setInterval(() => setNow(beirutNow()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const timelineDays = useMemo(() => {
+    const d = new Date(currentIso + "T12:00:00");
+    return [-1, 0, 1].map((offset) => {
+      const nd = new Date(d);
+      nd.setDate(nd.getDate() + offset);
+      return nd.toISOString().slice(0, 10);
     });
-  }
+  }, [currentIso]);
 
-  // Actualisation: approximately 16h Paris → 18h Beirut (UTC+3 in summer) = we - 2h
-  // We approximate: last 25% of the collection window within this day
-  if (we > dayStartMs && ws < dayEndMs && we > ws) {
-    const windowDur = we - ws;
-    const actuStart = Math.max(ws + windowDur * 0.6, dayStartMs);
-    const actuEnd = Math.min(we, dayEndMs);
-    if (actuEnd > actuStart) {
-      bands.push({
-        startPct: ((actuStart - dayStartMs) / (24 * H)) * 100,
-        widthPct: ((actuEnd - actuStart) / (24 * H)) * 100,
-        color: "#f59e0b",
-        label: "Actualisation",
-      });
-    }
-  }
-
-  return bands;
-}
-
-/* ── Midnight ms for a YYYY-MM-DD in Beirut ── */
-function beirutMidnightMs(iso: string): number {
-  // Find the UTC ms where Beyrouth is midnight on that date
-  const [y, m, d] = iso.split("-").map(Number);
-  const guess = Date.UTC(y!, (m! - 1), d!);
-  // Binary-ish: try 0h–4h UTC window
-  for (let offset = -2 * H; offset <= 6 * H; offset += 60_000) {
-    const t = guess + offset;
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hour12: false,
-    }).formatToParts(new Date(t));
-    const h = parseInt(parts.find(p => p.type === "hour")?.value ?? "1", 10);
-    const min = parseInt(parts.find(p => p.type === "minute")?.value ?? "1", 10);
-    const dv = parts.find(p => p.type === "day")?.value;
-    const dayMatch = dv === String(d!).padStart(2, "0");
-    if (h === 0 && min === 0 && dayMatch) return t;
-  }
-  return guess; // fallback
-}
-
-/* ── Day label ── */
-const WD_FMT = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: TZ });
-const DY_FMT = new Intl.DateTimeFormat("fr-FR", { day: "numeric", timeZone: TZ });
-function dayLabel(iso: string): { wd: string; day: string } {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, (m! - 1), d!, 12));
-  return {
-    wd: WD_FMT.format(dt).replace(/\.$/, "").toUpperCase(),
-    day: DY_FMT.format(dt),
-  };
-}
-
-/* ── Component ── */
-
-export function EditionPeriodFrise({
-  publishRouteIso,
-  unifiedDayNav = null,
-  windowStartIso,
-  windowEndIso,
-  className = "",
-}: EditionPeriodFriseProps) {
-  const pathname = usePathname();
-  const sp = useSearchParams();
-  const aid = useId();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  /* ── Build the list of 7 iso dates ── */
-  const isos = useMemo(
-    () => Array.from({ length: TOTAL_DAYS }, (_, i) => shiftIsoDate(publishRouteIso, i - DAY_RADIUS)),
-    [publishRouteIso],
+  const todayIso = now.toISOString().slice(0, 10);
+  const isLive = timelineDays.includes(
+    new Date(now.toLocaleString("en-US", { timeZone: TZ }))
+      .toISOString()
+      .slice(0, 10),
   );
 
-  /* ── Fetch editions for all 7 days in parallel ── */
-  const editionResults = useQueries({
-    queries: isos.map((iso) => ({
-      queryKey: ["edition", iso] as const,
-      queryFn: (): Promise<Edition> => api.editionByDate(iso),
-      staleTime: 5 * 60 * 1000,
+  const totalW = DAY_PX * VISIBLE_DAYS;
+
+  const ws = windowStart ? parseToLocal(windowStart) : null;
+  const we = windowEnd ? parseToLocal(windowEnd) : null;
+
+  function timeToX(d: Date): number {
+    const iso = d.toISOString().slice(0, 10);
+    const dayIdx = timelineDays.indexOf(iso);
+    if (dayIdx < 0) {
+      if (d < new Date(timelineDays[0] + "T00:00:00")) return 0;
+      return totalW;
+    }
+    const hours = d.getHours() + d.getMinutes() / 60;
+    return dayIdx * DAY_PX + (hours / 24) * DAY_PX;
+  }
+
+  const hatchX1 = ws ? Math.max(0, timeToX(ws)) : 0;
+  const hatchX2 = we ? Math.min(totalW, timeToX(we)) : 0;
+  const hatchW = Math.max(0, hatchX2 - hatchX1);
+
+  const nowX = timeToX(now);
+  const showNow = isLive && nowX >= 0 && nowX <= totalW;
+
+  return (
+    <div className="relative flex min-w-0 flex-[1.5] flex-col rounded-3xl bg-white px-5 pb-4 pt-5 shadow-[0_0_16px_6px_rgba(0,0,0,0.07)]">
+      {/* timeline area */}
+      <div className="relative w-full select-none overflow-hidden" style={{ height: TICK_MIDNIGHT_H + 32 }}>
+        {/* hatched collection window */}
+        {hatchW > 0 && (
+          <div
+            className="absolute top-1 transition-all duration-300"
+            style={{
+              left: hatchX1,
+              width: hatchW,
+              height: TICK_AREA_H,
+              background:
+                "repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(221,59,49,0.13) 3px, rgba(221,59,49,0.13) 6px)",
+            }}
+          />
+        )}
+
+        {/* ticks */}
+        {timelineDays.map((dayIso, dayIdx) =>
+          Array.from({ length: 24 }, (_, h) => {
+            const x = dayIdx * DAY_PX + (h / 24) * DAY_PX;
+            const isMidnight = h === 0;
+            const is8h = h === 8;
+            const is12h = h === 12 || h === 6 || h === 18;
+
+            const height = isMidnight ? TICK_MIDNIGHT_H : TICK_AREA_H;
+            const color = isMidnight
+              ? "#191919"
+              : is8h
+                ? "var(--color-accent)"
+                : is12h
+                  ? "#817c7c"
+                  : "#e7e3e3";
+            const top = isMidnight ? 0 : 4;
+
+            return (
+              <div
+                key={`${dayIso}-${h}`}
+                className="absolute transition-colors duration-200"
+                style={{
+                  left: x,
+                  top,
+                  width: 1.5,
+                  height,
+                  backgroundColor: color,
+                }}
+              />
+            );
+          }),
+        )}
+
+        {/* hour labels */}
+        {timelineDays.map((dayIso, dayIdx) =>
+          [0, 8].map((h) => {
+            const x = dayIdx * DAY_PX + (h / 24) * DAY_PX;
+            const is8 = h === 8;
+            return (
+              <span
+                key={`label-${dayIso}-${h}`}
+                className="absolute -translate-x-1/2 text-[10px]"
+                style={{
+                  left: x + 1,
+                  top: -13,
+                  color: is8 ? "var(--color-accent)" : "#191919",
+                }}
+              >
+                {h}h
+              </span>
+            );
+          }),
+        )}
+
+        {/* 8h dots */}
+        {timelineDays.map((dayIso, dayIdx) => {
+          const x = dayIdx * DAY_PX + (8 / 24) * DAY_PX;
+          return (
+            <span
+              key={`dot-${dayIso}`}
+              className="absolute size-1 rounded-full bg-accent"
+              style={{ left: x, top: 0 }}
+            />
+          );
+        })}
+
+        {/* Live indicator */}
+        {showNow && (
+          <>
+            <div
+              className="absolute top-0 w-[1.5px] bg-[#ee231c]"
+              style={{ left: nowX, height: TICK_MIDNIGHT_H + 16 }}
+            />
+            <span
+              className="absolute text-[10px] font-medium text-[#ee231c] motion-safe:animate-pulse"
+              style={{ left: nowX + 4, top: -13 }}
+            >
+              Live
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* day labels */}
+      <div className="relative mt-1 flex" style={{ width: totalW }}>
+        {timelineDays.map((dayIso, i) => (
+          <div
+            key={dayIso}
+            className="text-center text-[11px] text-foreground"
+            style={{ width: DAY_PX }}
+          >
+            {fmtShortDay(dayIso)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── day selector ─── */
+
+interface DaySelectorProps {
+  currentIso: string;
+  days: string[];
+  onSelect: (iso: string) => void;
+}
+
+function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector("[data-active='true']") as HTMLElement;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    }
+  }, [currentIso]);
+
+  const scrollBy = useCallback((dir: number) => {
+    scrollRef.current?.scrollBy({ left: dir * 160, behavior: "smooth" });
+  }, []);
+
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => scrollBy(-1)}
+        className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60"
+        aria-label="Jours précédents"
+      >
+        <ChevronLeft className="size-4" />
+      </button>
+
+      <div
+        ref={scrollRef}
+        className="olj-scrollbar-none flex flex-1 gap-1.5 overflow-x-auto scroll-smooth rounded-md bg-muted/20 p-1.5"
+      >
+        {days.map((iso) => {
+          const isActive = iso === currentIso;
+          return (
+            <button
+              key={iso}
+              data-active={isActive}
+              onClick={() => onSelect(iso)}
+              className={`shrink-0 rounded-md px-3.5 py-2 text-[12px] transition-all duration-150 ${
+                isActive
+                  ? "bg-white font-medium text-foreground shadow-[0_4px_3px_0_rgba(0,0,0,0.06)]"
+                  : "text-foreground/70 hover:bg-white/50 hover:text-foreground active:scale-[0.97]"
+              }`}
+            >
+              {fmtFullDay(iso)}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => scrollBy(1)}
+        className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60"
+        aria-label="Jours suivants"
+      >
+        <ChevronRight className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+/* ─── main export ─── */
+
+interface EditionPeriodFriseProps {
+  currentIso: string;
+  editionWindow?: { start: string; end: string };
+  unifiedDayNav: (isoDate: string) => void;
+}
+
+export const EditionPeriodFrise = function EditionPeriodFrise({
+  currentIso,
+  editionWindow,
+  unifiedDayNav,
+}: EditionPeriodFriseProps) {
+  const calDays = useMemo(() => isoRange(currentIso, SELECTOR_RANGE), [currentIso]);
+
+  const editionQueries = useQueries({
+    queries: calDays.map((iso) => ({
+      queryKey: ["editionByDate", iso],
+      queryFn: () => api.getEditionByDate(iso),
+      staleTime: 120_000,
       retry: 1,
     })),
   });
 
-  /* ── Build edition windows map ── */
-  const editionWindows = useMemo(() => {
-    const m = new Map<string, { ws: number; we: number }>();
-    isos.forEach((iso, i) => {
-      const data = editionResults[i]?.data;
-      if (data?.window_start && data?.window_end) {
-        const ws = Date.parse(data.window_start);
-        const we = Date.parse(data.window_end);
-        if (Number.isFinite(ws) && Number.isFinite(we)) {
-          m.set(iso, { ws, we });
-        }
-      }
+  const editions = useMemo(() => {
+    const m = new Map<string, Edition | null>();
+    calDays.forEach((iso, i) => {
+      const q = editionQueries[i];
+      m.set(iso, q?.data ?? null);
     });
-    // Fallback for center day from props
-    if (!m.has(publishRouteIso) && windowStartIso && windowEndIso) {
-      const ws = Date.parse(windowStartIso);
-      const we = Date.parse(windowEndIso);
-      if (Number.isFinite(ws) && Number.isFinite(we)) {
-        m.set(publishRouteIso, { ws, we });
-      }
-    }
     return m;
-  }, [editionResults, isos, publishRouteIso, windowStartIso, windowEndIso]);
-
-  /* ── Now indicator: update every 30s ── */
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  /* ── Scroll to center active day on mount + when publishRouteIso changes ── */
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    // Each day column = 1/DAYS_VISIBLE of container width
-    const colW = el.clientWidth / DAYS_VISIBLE;
-    // Active day is at index DAY_RADIUS (center). To center it → scroll to (DAY_RADIUS - 1) * colW
-    const targetScroll = (DAY_RADIUS - 1) * colW;
-    el.scrollTo({ left: targetScroll, behavior: "instant" });
-  }, [publishRouteIso]);
-
-  /* ── Href builder per mode ── */
-  const dayHref = useCallback(
-    (iso: string) => {
-      const mode = unifiedDayNav?.mode ?? "edition";
-      if (mode === "edition") return `/edition/${iso}`;
-      if (mode === "panorama") return buildPanoramaDayHref(pathname, sp, iso);
-      const qs = mergeArticlesQuery(sp, { date: iso, date_from: null, date_to: null });
-      return qs ? `${pathname}?${qs}` : pathname;
-    },
-    [unifiedDayNav, pathname, sp],
-  );
-
-  /* ── Calendar onDateSelect ── */
-  const calendarSelect = useCallback(
-    (iso: string) => {
-      const mode = unifiedDayNav?.mode ?? "edition";
-      if (mode === "edition") window.location.href = `/edition/${iso}`;
-      else if (mode === "panorama") window.location.href = buildPanoramaDayHref(pathname, sp, iso);
-      else {
-        const qs = mergeArticlesQuery(sp, { date: iso, date_from: null, date_to: null });
-        window.location.href = qs ? `${pathname}?${qs}` : pathname;
-      }
-    },
-    [unifiedDayNav, pathname, sp],
-  );
+  }, [calDays, editionQueries]);
 
   return (
-    <div className={`relative w-full ${className}`.trim()} role="region" aria-describedby={aid}>
-      {/* ── Top row: calendar icon ── */}
-      <div className="mb-1.5 flex items-center justify-end">
-        <EditionCalendarPopover
-          currentIso={publishRouteIso}
-          compact
-          onDateSelect={calendarSelect}
+    <nav className="w-full space-y-3" aria-label="Navigation temporelle de l'édition">
+      {/* top row: info + timeline */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <FriseInfoCard
+          currentIso={currentIso}
+          windowStart={editionWindow?.start}
+          windowEnd={editionWindow?.end}
+        />
+        <FriseTimelineCard
+          currentIso={currentIso}
+          editions={editions}
+          windowStart={editionWindow?.start}
+          windowEnd={editionWindow?.end}
         />
       </div>
 
-      {/* ── Scrollable timeline ── */}
-      <div
-        ref={scrollRef}
-        className="olj-scrollbar-none w-full overflow-x-auto"
-        style={{ scrollSnapType: "x mandatory", scrollBehavior: "auto" }}
-        role="list"
-        aria-label="Timeline des éditions"
-      >
-        <div
-          className="flex"
-          style={{ width: `${(TOTAL_DAYS / DAYS_VISIBLE) * 100}%` }}
-        >
-          {isos.map((iso, idx) => {
-            const isActive = iso === publishRouteIso;
-            const isToday = iso === todayIso();
-            const win = editionWindows.get(iso) ?? null;
-            const dayMidnight = beirutMidnightMs(iso);
-            const bands = win ? bandsForDay(dayMidnight, win.ws, win.we) : [];
+      {/* day selector */}
+      <FriseDaySelector
+        currentIso={currentIso}
+        days={calDays}
+        onSelect={unifiedDayNav}
+      />
 
-            // Now indicator within this day column
-            const nowPctInDay = (() => {
-              if (!isToday) return null;
-              const pct = ((nowMs - dayMidnight) / (24 * H)) * 100;
-              if (pct < 0 || pct > 100) return null;
-              return pct;
-            })();
-
-            const { wd, day: dayNum } = dayLabel(iso);
-
-            return (
-              <div
-                key={iso}
-                role="listitem"
-                style={{
-                  width: `${100 / TOTAL_DAYS}%`,
-                  minWidth: `${100 / TOTAL_DAYS}%`,
-                  scrollSnapAlign: "start",
-                }}
-              >
-                <Link
-                  href={dayHref(iso)}
-                  scroll={false}
-                  aria-current={isActive ? "page" : undefined}
-                  aria-label={`Édition du ${iso}${isToday ? " (aujourd'hui)" : ""}`}
-                  className="group block w-full"
-                  prefetch={Math.abs(idx - DAY_RADIUS) <= 1}
-                >
-                  {/* Day column: tick bar */}
-                  <div
-                    className="relative mx-px"
-                    style={{
-                      height: "48px",
-                      background: isActive
-                        ? "color-mix(in srgb, var(--color-accent) 4%, transparent)"
-                        : "transparent",
-                      borderRadius: "4px",
-                      transition: "background 200ms ease",
-                    }}
-                  >
-                    {/* Base track line */}
-                    <div
-                      aria-hidden
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        right: 0,
-                        top: "50%",
-                        height: "1px",
-                        transform: "translateY(-50%)",
-                        background: isActive
-                          ? "color-mix(in srgb, var(--color-foreground) 14%, transparent)"
-                          : "color-mix(in srgb, var(--color-foreground) 7%, transparent)",
-                      }}
-                    />
-
-                    {/* Edition window + actualisation bands */}
-                    {bands.map((b) => (
-                      <div
-                        key={b.label}
-                        aria-hidden
-                        style={{
-                          position: "absolute",
-                          left: `${b.startPct}%`,
-                          width: `${b.widthPct}%`,
-                          top: "30%",
-                          height: "40%",
-                          background: b.color,
-                          opacity: 0.11,
-                          borderRadius: "2px",
-                        }}
-                      />
-                    ))}
-
-                    {/* Hour ticks */}
-                    {DAY_TICKS.map((tk) => {
-                      const h = TICK_H[tk.kind];
-                      const w = TICK_W[tk.kind];
-                      const op = tickOpacity(tk.kind);
-                      return (
-                        <div
-                          key={tk.h}
-                          aria-hidden
-                          style={{
-                            position: "absolute",
-                            left: `${tk.pctInDay}%`,
-                            top: "50%",
-                            transform: "translate(-50%, -50%)",
-                            width: `${w}px`,
-                            height: `${h}px`,
-                            background: isActive
-                              ? `color-mix(in srgb, var(--color-foreground) ${Math.round(op * 160)}%, transparent)`
-                              : `color-mix(in srgb, var(--color-foreground) ${Math.round(op * 100)}%, transparent)`,
-                            borderRadius: "1px",
-                          }}
-                        />
-                      );
-                    })}
-
-                    {/* Hour labels: only show 0h, 6h, 12h, 18h */}
-                    {DAY_TICKS.filter(tk => tk.kind === "midnight" || tk.kind === "major").map((tk) => (
-                      <span
-                        key={`lbl-${tk.h}`}
-                        aria-hidden
-                        style={{
-                          position: "absolute",
-                          left: `${tk.pctInDay}%`,
-                          top: "4px",
-                          transform: "translateX(-50%)",
-                          fontSize: "6px",
-                          fontFamily: "var(--font-mono, monospace)",
-                          fontWeight: tk.kind === "midnight" ? 600 : 400,
-                          color: isActive
-                            ? `color-mix(in srgb, var(--color-foreground) ${tk.kind === "midnight" ? 45 : 25}%, transparent)`
-                            : `color-mix(in srgb, var(--color-muted-foreground) ${tk.kind === "midnight" ? 35 : 20}%, transparent)`,
-                          letterSpacing: "0.02em",
-                          userSelect: "none",
-                          pointerEvents: "none",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {tk.h}h
-                      </span>
-                    ))}
-
-                    {/* LIVE: now indicator */}
-                    {nowPctInDay != null && (
-                      <div
-                        aria-label="Maintenant"
-                        style={{
-                          position: "absolute",
-                          left: `${nowPctInDay}%`,
-                          top: 0,
-                          bottom: 0,
-                          width: 0,
-                          zIndex: 4,
-                          pointerEvents: "none",
-                        }}
-                      >
-                        {/* Vertical line */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: "-0.75px",
-                            top: "4px",
-                            bottom: "4px",
-                            width: "1.5px",
-                            background: "var(--color-accent)",
-                            opacity: 0.9,
-                            borderRadius: "1px",
-                          }}
-                        />
-                        {/* Dot */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: "-5px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            width: "10px",
-                            height: "10px",
-                            borderRadius: "50%",
-                            background: "var(--color-accent)",
-                            boxShadow: "0 0 0 2.5px rgba(255,255,255,.95), 0 0 10px rgba(221,59,49,.3)",
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Day label below bar */}
-                  <div
-                    className="flex flex-col items-center pt-1.5"
-                    style={{ gap: "1px" }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "6.5px",
-                        fontWeight: isActive ? 700 : 400,
-                        letterSpacing: "0.1em",
-                        color: isActive
-                          ? "var(--color-accent)"
-                          : "color-mix(in srgb, var(--color-muted-foreground) 55%, transparent)",
-                        transition: "color 200ms ease",
-                        lineHeight: 1,
-                        userSelect: "none",
-                      }}
-                    >
-                      {wd}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: isActive ? "14px" : "12px",
-                        fontWeight: isActive ? 700 : 400,
-                        color: isActive
-                          ? "var(--color-foreground)"
-                          : "color-mix(in srgb, var(--color-muted-foreground) 60%, transparent)",
-                        tabularNums: "true",
-                        lineHeight: 1,
-                        transition: "font-size 160ms ease, color 200ms ease",
-                        userSelect: "none",
-                      } as React.CSSProperties}
-                    >
-                      {dayNum}
-                    </span>
-                    {/* LIVE label for today */}
-                    {isToday && (
-                      <span
-                        style={{
-                          fontSize: "5.5px",
-                          fontWeight: 700,
-                          letterSpacing: "0.18em",
-                          color: isActive
-                            ? "var(--color-accent)"
-                            : "color-mix(in srgb, var(--color-accent) 50%, transparent)",
-                          lineHeight: 1,
-                          userSelect: "none",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        live
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              </div>
-            );
-          })}
-        </div>
+      {/* calendar popover */}
+      <div className="flex items-center justify-center">
+        <EditionCalendarPopover currentIso={currentIso} onSelect={unifiedDayNav}>
+          <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground">
+            <Calendar className="size-3.5" />
+            <span>Calendrier</span>
+          </button>
+        </EditionCalendarPopover>
       </div>
-
-      {/* ── Legend strip ── */}
-      <div
-        className="mt-2 flex items-center gap-3"
-        aria-hidden
-        style={{ paddingLeft: "2px" }}
-      >
-        <span className="flex items-center gap-1">
-          <span
-            style={{
-              display: "inline-block",
-              width: "14px",
-              height: "3px",
-              borderRadius: "2px",
-              background: "var(--color-accent)",
-              opacity: 0.5,
-            }}
-          />
-          <span
-            style={{
-              fontSize: "8px",
-              fontWeight: 500,
-              letterSpacing: "0.08em",
-              color: "color-mix(in srgb, var(--color-muted-foreground) 70%, transparent)",
-              textTransform: "uppercase",
-            }}
-          >
-            Collecte
-          </span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span
-            style={{
-              display: "inline-block",
-              width: "14px",
-              height: "3px",
-              borderRadius: "2px",
-              background: "#f59e0b",
-              opacity: 0.5,
-            }}
-          />
-          <span
-            style={{
-              fontSize: "8px",
-              fontWeight: 500,
-              letterSpacing: "0.08em",
-              color: "color-mix(in srgb, var(--color-muted-foreground) 70%, transparent)",
-              textTransform: "uppercase",
-            }}
-          >
-            Actualisation
-          </span>
-        </span>
-        <span className="ml-auto flex items-center gap-1">
-          <span
-            style={{
-              display: "inline-block",
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              background: "var(--color-accent)",
-              boxShadow: "0 0 0 2px rgba(255,255,255,.9)",
-            }}
-          />
-          <span
-            style={{
-              fontSize: "8px",
-              fontWeight: 500,
-              letterSpacing: "0.08em",
-              color: "color-mix(in srgb, var(--color-accent) 80%, transparent)",
-              textTransform: "uppercase",
-            }}
-          >
-            Live
-          </span>
-        </span>
-      </div>
-
-      <span id={aid} className="sr-only">
-        Timeline édition, {TOTAL_DAYS} jours autour de {publishRouteIso}
-      </span>
-    </div>
+    </nav>
   );
-}
+};

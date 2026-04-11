@@ -555,18 +555,36 @@ class LLMRouter:
         if not mdl:
             mdl = s.groq_generation_model if prov == Provider.GROQ else s.cerebras_translation_model
 
-        schema_text = _json.dumps(json_schema, ensure_ascii=False, indent=2)
-        augmented_system = (
-            f"{system}\n\n"
-            f"Tu DOIS répondre avec un objet JSON valide conforme exactement au schéma suivant :\n"
-            f"```json\n{schema_text}\n```\n"
-            f"Réponds UNIQUEMENT avec le JSON, sans texte avant ni après."
-        )
+        supports_strict = mdl.startswith("openai/gpt-oss")
 
-        raw = await self._call(
-            prov, mdl, augmented_system, user,
-            max_tokens, json_object_mode=True, temperature=temperature,
-        )
+        if supports_strict:
+            schema_obj = dict(json_schema)
+            if schema_obj.get("type") != "object":
+                schema_obj = {"type": "object", "properties": schema_obj, "required": []}
+            resp_fmt = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "structured_output",
+                    "strict": True,
+                    "schema": schema_obj,
+                },
+            }
+            raw = await self._call(
+                prov, mdl, system, user,
+                max_tokens, response_format=resp_fmt, temperature=temperature,
+            )
+        else:
+            schema_text = _json.dumps(json_schema, ensure_ascii=False, indent=2)
+            augmented_system = (
+                f"{system}\n\n"
+                f"Tu DOIS répondre avec un objet JSON valide conforme exactement au schéma suivant :\n"
+                f"```json\n{schema_text}\n```\n"
+                f"Réponds UNIQUEMENT avec le JSON, sans texte avant ni après."
+            )
+            raw = await self._call(
+                prov, mdl, augmented_system, user,
+                max_tokens, json_object_mode=True, temperature=temperature,
+            )
 
         raw = raw.strip()
         if raw.startswith("```"):
@@ -586,6 +604,7 @@ class LLMRouter:
         *,
         json_object_mode: bool = False,
         temperature: float | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> str:
         client = self._clients[provider]
 
@@ -630,7 +649,9 @@ class LLMRouter:
                     {"role": "user", "content": prompt},
                 ],
             }
-            if json_object_mode:
+            if response_format:
+                kwargs["response_format"] = response_format
+            elif json_object_mode:
                 kwargs["response_format"] = {"type": "json_object"}
             try:
                 response = await client.chat.completions.create(**kwargs)
