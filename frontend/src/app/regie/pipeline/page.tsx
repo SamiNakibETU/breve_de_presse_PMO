@@ -108,7 +108,7 @@ export default function RegiePipelinePage() {
           <h2 className="olj-rubric olj-rule mb-4">Plafonds batch (coûts)</h2>
           <ul className="grid gap-1.5 text-[12px] text-foreground-body sm:grid-cols-2">
             <li>
-              Analyse experte :{" "}
+              Analyse :{" "}
               <span className="font-mono">
                 {status.batch_limits.article_analysis_batch_limit}
               </span>{" "}

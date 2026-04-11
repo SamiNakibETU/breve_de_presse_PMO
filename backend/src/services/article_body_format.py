@@ -7,12 +7,32 @@ from __future__ import annotations
 import re
 
 
-# Lignes typiquement hors-corps (menus, réseaux sociaux)
+# Lignes typiquement hors-corps (menus, réseaux sociaux, boutons partage)
 _LINE_NOISE = re.compile(
     r"^(share|tweet|follow|subscribe|sign up|read more|related articles|"
-    r"more stories|advertisement|publicité|تابعونا|شارك|اقرأ أيضا)\s*\.?\s*$",
+    r"more stories|advertisement|publicité|تابعونا|شارك|اقرأ أيضا|"
+    r"partager|copier le lien|envoyer par e-?mail|imprimer|commenter|"
+    r"réagir|ajouter aux favoris|sauvegarder|newsletter|"
+    r"à lire aussi|lire aussi|sur le même sujet|"
+    r"s'abonner|se connecter|créer un compte)\s*\.?\s*$",
     re.IGNORECASE,
 )
+
+# Sous-chaînes intra-paragraphe (boutons sociaux mélangés au début du corps)
+_INLINE_NOISE_PATTERNS = [
+    re.compile(
+        r"Partager\s*(LinkedIn|Facebook|Twitter|X|Flipboard|WhatsApp|Telegram|E-?mail)?"
+        r"[\s,]*" * 3 + r"Copier le lien",
+        re.IGNORECASE,
+    ),
+    re.compile(r"Taille du texte\s*", re.IGNORECASE),
+    re.compile(r"La suite de l'article\s+[A-Z]{3,}", re.IGNORECASE),
+    re.compile(
+        r"(Share|Tweet|Pin)\s+(Share|Tweet|Pin)\s+(Share|Tweet|Pin)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"^\s*\d+\s*(min|minutes?)\s*(de lecture|read)\s*$", re.IGNORECASE),
+]
 
 
 def format_plain_article_text(raw: str | None) -> str:
@@ -41,6 +61,9 @@ def format_plain_article_text(raw: str | None) -> str:
         if not filtered:
             continue
         merged = " ".join(filtered)
+        for pat in _INLINE_NOISE_PATTERNS:
+            merged = pat.sub("", merged)
+        merged = merged.strip()
         if len(merged) >= 2:
             paragraphs.append(merged)
 

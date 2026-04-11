@@ -164,6 +164,12 @@ def html_to_article_body_sync(html: str) -> str:
         r"Subscribe to .*$",
         r"Share this article.*$",
         r"تابعونا.*$",
+        r"^Partager\s*(LinkedIn|Facebook|Twitter|X|Flipboard|WhatsApp)?.*$",
+        r"^Copier le lien.*$",
+        r"^Taille du texte.*$",
+        r"^La suite de l'article\s+[A-Z].*$",
+        r"^(Share|Tweet|Pin)\s+(Share|Tweet|Pin).*$",
+        r"^\s*\d+\s*min(utes?)?\s*(de lecture|read)?\s*$",
     ):
         text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.MULTILINE)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()

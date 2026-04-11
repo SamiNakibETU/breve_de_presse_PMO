@@ -58,7 +58,7 @@ def _parse_html_to_article(
     text, title_mt, words = extract_main_text(html, url)
     if not text:
         return None
-    body = format_plain_article_text(text[:12000])
+    body = format_plain_article_text(text[:50000])
     if not is_substantial_article_body(body, min_chars=min_chars, min_words=min_words):
         return None
     author = _extract_author_from_html(html)

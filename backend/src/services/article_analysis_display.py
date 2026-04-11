@@ -1,5 +1,5 @@
 """
-État d’affichage de l’analyse experte (dérivé des champs article, sans requête extra).
+État d’affichage de l’analyse (dérivé des champs article, sans requête extra).
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def compute_article_analysis_display(art: Article) -> tuple[AnalysisDisplayState
     if band == "out_of_scope":
         return (
             "skipped_out_of_scope",
-            "Hors périmètre éditorial — pas d’analyse experte.",
+            "Hors périmètre éditorial — pas d’analyse.",
         )
     if not (art.summary_fr or "").strip():
         return (
@@ -47,5 +47,5 @@ def compute_article_analysis_display(art: Article) -> tuple[AnalysisDisplayState
         )
     return (
         "pending",
-        "Analyse experte en attente (prochain passage pipeline ou relance régie).",
+        "Analyse en attente (prochain passage pipeline ou relance régie).",
     )

@@ -338,7 +338,7 @@ function ArticleReadModal({
                       ? "border-border-light bg-muted/25 text-muted-foreground"
                       : "border-accent/20 bg-accent/5 text-foreground-body",
                   )}
-                  title="Analyse experte"
+                  title="Analyse"
                 >
                   {a.analysis_display_hint_fr}
                 </p>
@@ -403,7 +403,7 @@ function ArticleReadModal({
                   !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) &&
                   !a.thesis_summary_fr?.trim() ? (
                     <p className="text-[13px] leading-relaxed text-muted-foreground">
-                      L’analyse experte (faits, thèse, idées majeures) sera disponible après le
+                      L’analyse (faits, thèse, idées majeures) sera disponible après le
                       prochain passage pipeline ou une relance depuis la régie. En attendant,
                       consultez l’onglet{" "}
                       <strong className="font-medium text-foreground">Synthèse</strong>.

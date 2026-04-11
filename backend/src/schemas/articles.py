@@ -79,7 +79,7 @@ class ArticleResponse(BaseModel):
     scrape_cascade_attempts: Optional[int] = None
     analysis_display_state: Optional[ArticleAnalysisDisplayState] = Field(
         default=None,
-        description="État dérivé pour badges analyse experte (UI).",
+        description="État dérivé pour badges analyse (UI).",
     )
     analysis_display_hint_fr: Optional[str] = Field(
         default=None,

@@ -520,6 +520,62 @@ class LLMRouter:
             json_object_mode=False,
         )
 
+    async def generate_structured_json(
+        self,
+        system: str,
+        user: str,
+        json_schema: dict[str, Any],
+        *,
+        provider: Provider | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.2,
+    ) -> dict[str, Any]:
+        """
+        Structured JSON output via Groq/Cerebras json_object mode or Anthropic tool_use.
+        Provider-agnostic: works with any configured provider.
+        """
+        import json as _json
+
+        s = get_settings()
+        prov = provider or (Provider.GROQ if self._has(Provider.GROQ) else
+                            Provider.CEREBRAS if self._has(Provider.CEREBRAS) else
+                            Provider.ANTHROPIC)
+        mdl = (model or "").strip()
+
+        if prov == Provider.ANTHROPIC:
+            return await self.generate_anthropic_tool_json(
+                system, user, json_schema,
+                tool_name="article_analysis",
+                max_tokens=max_tokens,
+                temperature=temperature,
+                model=mdl or s.anthropic_translation_model,
+            )
+
+        if not mdl:
+            mdl = s.groq_generation_model if prov == Provider.GROQ else s.cerebras_translation_model
+
+        schema_text = _json.dumps(json_schema, ensure_ascii=False, indent=2)
+        augmented_system = (
+            f"{system}\n\n"
+            f"Tu DOIS répondre avec un objet JSON valide conforme exactement au schéma suivant :\n"
+            f"```json\n{schema_text}\n```\n"
+            f"Réponds UNIQUEMENT avec le JSON, sans texte avant ni après."
+        )
+
+        raw = await self._call(
+            prov, mdl, augmented_system, user,
+            max_tokens, json_object_mode=True, temperature=temperature,
+        )
+
+        raw = raw.strip()
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            lines = [l for l in lines if not l.strip().startswith("```")]
+            raw = "\n".join(lines)
+
+        return _json.loads(raw)
+
     async def _call(
         self,
         provider: Provider,

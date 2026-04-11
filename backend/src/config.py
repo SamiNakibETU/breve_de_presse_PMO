@@ -526,13 +526,13 @@ class Settings(BaseSettings):
         description="Pipeline post-traduction : analyse experte (bullets, thèse, faits) via LLM",
     )
     article_analysis_model: str = Field(
-        default="claude-haiku-4-5",
+        default="meta-llama/llama-4-scout-17b-16e-instruct",
         description="Modèle Anthropic pour article_analysis (Haiku 4.5 recommandé, alias API)",
     )
     article_analysis_batch_limit: int = Field(
-        default=120,
+        default=500,
         ge=1,
-        le=500,
+        le=2000,
         description="Plafond d’articles à analyser par run pipeline",
     )
     article_analysis_max_tokens: int = Field(

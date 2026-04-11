@@ -116,21 +116,31 @@ async def analyze_article(
     )
 
     from src.services.cost_estimate import estimate_llm_usage
-    from src.services.llm_router import get_llm_router
+    from src.services.llm_router import Provider, get_llm_router
     from src.services.provider_usage_ledger import append_provider_usage
 
     router = get_llm_router()
-    model = (s.article_analysis_model or "").strip() or s.anthropic_translation_model
+    model_cfg = (s.article_analysis_model or "").strip()
+    is_groq = model_cfg.startswith("llama") or model_cfg.startswith("meta-llama") or model_cfg.startswith("qwen") or model_cfg.startswith("gemma") or model_cfg.startswith("mixtral") or "/" in model_cfg
+    is_anthropic = model_cfg.startswith("claude") or not model_cfg
+
+    if is_anthropic:
+        provider = Provider.ANTHROPIC
+        model = model_cfg or s.anthropic_translation_model
+    else:
+        provider = Provider.GROQ
+        model = model_cfg
+
     t0 = time.perf_counter()
     try:
-        data = await router.generate_anthropic_tool_json(
+        data = await router.generate_structured_json(
             bundle.system_prompt,
             user,
             schema,
-            tool_name="article_analysis",
+            provider=provider,
+            model=model,
             max_tokens=s.article_analysis_max_tokens,
             temperature=0.1,
-            model=model,
         )
         out_text = json.dumps(data, ensure_ascii=False)
     except Exception as exc:
@@ -139,7 +149,7 @@ async def analyze_article(
 
     dur_ms = int((time.perf_counter() - t0) * 1000)
     inp_t, out_t, cst = estimate_llm_usage(
-        provider="anthropic",
+        provider=provider.value,
         model=model,
         input_text=bundle.system_prompt + user,
         output_text=out_text,
@@ -147,7 +157,7 @@ async def analyze_article(
     await append_provider_usage(
         db,
         kind="llm_completion",
-        provider="anthropic",
+        provider=provider.value,
         model=model,
         operation="article_analysis",
         status="ok",
