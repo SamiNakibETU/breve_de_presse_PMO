@@ -371,10 +371,18 @@ export function ArticlesPageClient() {
                       </p>
                     ) : null}
                     <EditionPeriodFrise
-                      publishRouteIso={editionFriseIso}
-                      windowStartIso={editionFriseQ.data.window_start}
-                      windowEndIso={editionFriseQ.data.window_end}
-                      unifiedDayNav={{ mode: "articles" }}
+                      currentIso={editionFriseIso}
+                      editionWindow={{
+                        start: editionFriseQ.data.window_start,
+                        end: editionFriseQ.data.window_end,
+                      }}
+                      unifiedDayNav={(iso) =>
+                        patchSearch({
+                          date: iso,
+                          date_from: null,
+                          date_to: null,
+                        })
+                      }
                     />
                   </div>
                 ) : editionFriseQ.isPending ? (

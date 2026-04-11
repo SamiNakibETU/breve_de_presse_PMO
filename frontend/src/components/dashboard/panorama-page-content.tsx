@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { buildPanoramaDayHref } from "@/lib/articles-url-query";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import { formatIsoCalendarDayLongFr } from "@/lib/dates-display-fr";
 import type { ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
@@ -49,6 +50,8 @@ const CHIP_ON =
   "border-[color-mix(in_srgb,var(--color-accent)_48%,transparent)] bg-[color-mix(in_srgb,var(--color-accent)_11%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)]";
 
 export function PanoramaPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [emergingOnly, setEmergingOnly] = useState(false);
@@ -163,10 +166,18 @@ export function PanoramaPageContent() {
                 </p>
               ) : null}
               <EditionPeriodFrise
-                publishRouteIso={editionDate}
-                windowStartIso={editionToday.window_start ?? undefined}
-                windowEndIso={editionToday.window_end ?? undefined}
-                unifiedDayNav={{ mode: "panorama" }}
+                currentIso={editionDate}
+                editionWindow={
+                  editionToday.window_start && editionToday.window_end
+                    ? {
+                        start: editionToday.window_start,
+                        end: editionToday.window_end,
+                      }
+                    : undefined
+                }
+                unifiedDayNav={(iso) =>
+                  router.push(buildPanoramaDayHref(pathname, searchParams, iso))
+                }
               />
             </div>
           ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (

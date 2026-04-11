@@ -13,12 +13,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
 import { shiftIsoDate } from "@/lib/beirut-date";
-import { api } from "@/lib/api";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
-import type { Edition } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const TZ = "Asia/Beirut";
 const DAY_PX = 180;
@@ -141,14 +138,12 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
 
 interface TimelineCardProps {
   currentIso: string;
-  editions: Map<string, Edition | null>;
   windowStart?: string;
   windowEnd?: string;
 }
 
 function FriseTimelineCard({
   currentIso,
-  editions,
   windowStart,
   windowEnd,
 }: TimelineCardProps) {
@@ -167,7 +162,6 @@ function FriseTimelineCard({
     });
   }, [currentIso]);
 
-  const todayIso = now.toISOString().slice(0, 10);
   const isLive = timelineDays.includes(
     new Date(now.toLocaleString("en-US", { timeZone: TZ }))
       .toISOString()
@@ -301,7 +295,7 @@ function FriseTimelineCard({
 
       {/* day labels */}
       <div className="relative mt-1 flex" style={{ width: totalW }}>
-        {timelineDays.map((dayIso, i) => (
+        {timelineDays.map((dayIso) => (
           <div
             key={dayIso}
             className="text-center text-[11px] text-foreground"
@@ -398,24 +392,6 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
 }: EditionPeriodFriseProps) {
   const calDays = useMemo(() => isoRange(currentIso, SELECTOR_RANGE), [currentIso]);
 
-  const editionQueries = useQueries({
-    queries: calDays.map((iso) => ({
-      queryKey: ["editionByDate", iso],
-      queryFn: () => api.getEditionByDate(iso),
-      staleTime: 120_000,
-      retry: 1,
-    })),
-  });
-
-  const editions = useMemo(() => {
-    const m = new Map<string, Edition | null>();
-    calDays.forEach((iso, i) => {
-      const q = editionQueries[i];
-      m.set(iso, q?.data ?? null);
-    });
-    return m;
-  }, [calDays, editionQueries]);
-
   return (
     <nav className="w-full space-y-3" aria-label="Navigation temporelle de l'édition">
       {/* top row: info + timeline */}
@@ -427,7 +403,6 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
         />
         <FriseTimelineCard
           currentIso={currentIso}
-          editions={editions}
           windowStart={editionWindow?.start}
           windowEnd={editionWindow?.end}
         />
@@ -442,12 +417,11 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
 
       {/* calendar popover */}
       <div className="flex items-center justify-center">
-        <EditionCalendarPopover currentIso={currentIso} onSelect={unifiedDayNav}>
-          <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground">
-            <Calendar className="size-3.5" />
-            <span>Calendrier</span>
-          </button>
-        </EditionCalendarPopover>
+        <EditionCalendarPopover
+          currentIso={currentIso}
+          triggerLabel="Calendrier"
+          onDateSelect={unifiedDayNav}
+        />
       </div>
     </nav>
   );

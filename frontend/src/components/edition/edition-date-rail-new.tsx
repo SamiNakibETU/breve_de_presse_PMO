@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useRouter } from "next/navigation";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
 import { formatEditionCalendarTitleFr } from "@/lib/dates-display-fr";
 
@@ -15,6 +16,7 @@ export function EditionDateRailNew({
   editionWindow,
   className = "",
 }: EditionDateRailNewProps): ReactElement {
+  const router = useRouter();
   /* ── Animated title on day change ── */
   const [vis, setVis] = useState(true);
   const [dispIso, setDispIso] = useState(currentIso);
@@ -47,10 +49,13 @@ export function EditionDateRailNew({
       {/* Multi-day scrollable frise */}
       <div className="mt-4">
         <EditionPeriodFrise
-          publishRouteIso={currentIso}
-          windowStartIso={editionWindow?.start}
-          windowEndIso={editionWindow?.end}
-          unifiedDayNav={{ mode: "edition" }}
+          currentIso={currentIso}
+          editionWindow={
+            editionWindow?.start && editionWindow?.end
+              ? { start: editionWindow.start, end: editionWindow.end }
+              : undefined
+          }
+          unifiedDayNav={(iso) => router.push(`/edition/${iso}`)}
         />
       </div>
     </div>

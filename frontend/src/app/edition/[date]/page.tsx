@@ -376,7 +376,7 @@ export default function EditionSommairePage() {
       }, 200);
       patchTimers.current.set(topicId, t);
     },
-    [editionId],
+    [editionId, qc],
   );
 
   const onTopicArticleToggle = useCallback(
