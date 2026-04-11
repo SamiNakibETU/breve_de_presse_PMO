@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import { formatIsoCalendarDayLongFr } from "@/lib/dates-display-fr";
@@ -49,7 +49,6 @@ const CHIP_ON =
   "border-[color-mix(in_srgb,var(--color-accent)_48%,transparent)] bg-[color-mix(in_srgb,var(--color-accent)_11%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)]";
 
 export function PanoramaPageContent() {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [emergingOnly, setEmergingOnly] = useState(false);

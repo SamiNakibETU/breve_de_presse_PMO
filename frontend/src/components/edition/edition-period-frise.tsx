@@ -30,12 +30,6 @@ const DAY_RADIUS = 3; // days before + after
 const TOTAL_DAYS = DAY_RADIUS * 2 + 1; // 7
 const DAYS_VISIBLE = 3; // columns visible at once
 
-/* ── Beyrouth hour from ms timestamp ── */
-const BHF = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false });
-function bh(ms: number): number {
-  return parseInt(BHF.format(ms), 10) % 24;
-}
-
 function todayIso(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 }
@@ -71,7 +65,6 @@ function tickKind(h: number): TickKind {
 
 const TICK_H: Record<TickKind, number> = { midnight: 28, major: 16, minor: 9, mini: 3 };
 const TICK_W: Record<TickKind, number> = { midnight: 1.5, major: 1, minor: 0.75, mini: 0.5 };
-const TICK_OP: Record<TickKind, number> = { midnight: 0.72, major: 0.32, minor: 0.14, minor2: 0.06 } as Record<TickKind, number>;
 function tickOpacity(k: TickKind): number {
   if (k === "midnight") return 0.72;
   if (k === "major") return 0.32;

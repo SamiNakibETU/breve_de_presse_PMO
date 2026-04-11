@@ -1,7 +1,6 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
 import { mergeArticlesQuery } from "@/lib/articles-url-query";
+import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
 import { api } from "@/lib/api";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
@@ -163,18 +163,6 @@ export function ArticlesPageClient() {
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [router, pathname, searchParams],
-  );
-
-  const articlesDayHref = useCallback(
-    (iso: string) => {
-      const qs = mergeArticlesQuery(searchParams, {
-        date: iso,
-        date_from: null,
-        date_to: null,
-      });
-      return qs ? `${pathname}?${qs}` : pathname;
-    },
-    [pathname, searchParams],
   );
 
   const sortNav = useMemo(() => {
