@@ -1,3 +1,4 @@
+from datetime import date
 from enum import Enum
 from typing import Optional
 from uuid import UUID
@@ -145,6 +146,13 @@ class PipelineTaskStartRequest(BaseModel):
     edition_id: UUID | None = Field(
         default=None,
         description="Édition cible pour les étapes unitaires ; omis = édition courante (serveur).",
+    )
+    publish_date: date | None = Field(
+        default=None,
+        description=(
+            "Date calendaire YYYY-MM-DD : résout automatiquement edition_id si celui-ci est omis. "
+            "Permet de cibler une édition passée sans connaître son UUID."
+        ),
     )
     analysis_force: bool = Field(
         default=True,

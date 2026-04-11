@@ -24,11 +24,11 @@ export const UI_SURFACE_RAIL_PAD = "px-3 py-3 sm:px-4 sm:py-3.5";
 export const UI_FRISE_CONTROL_ROW =
   "flex w-full flex-wrap items-center justify-center gap-1.5 sm:gap-2";
 
-/** Texte d’aide au-dessus de la rangée date / frise (même ton sur les trois vues) */
+/** Texte d'aide au-dessus de la rangée date / frise (même ton sur les trois vues) */
 export const UI_FRISE_META_TEXT =
   "text-[11px] leading-relaxed text-muted-foreground";
 
-/** Conteneur du paragraphe d’aide + lien secondaire (ex. « Aujourd’hui ») */
+/** Conteneur du paragraphe d'aide + lien secondaire (ex. « Aujourd'hui ») */
 export const UI_FRISE_INTRO_HEADER =
   "mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4";
 
@@ -39,8 +39,11 @@ export const UI_FRISE_CORPUS_STRIP =
 /**
  * Carte unique « date + frise » (Édition, Panorama, Articles) : même volume, centrage, ombre légère.
  */
-export const UI_SURFACE_FRise_INSET =
+export const UI_SURFACE_FRISE_INSET =
   "mx-auto w-full max-w-4xl rounded-2xl border border-border/45 bg-[linear-gradient(165deg,color-mix(in_srgb,var(--color-muted)_16%,var(--color-background))_0%,var(--color-background)_52%)] px-4 py-4 shadow-[0_2px_14px_rgba(15,15,15,0.045)] sm:px-5 sm:py-[1.15rem]";
+
+/** Alias corrigé (ancienne casse conservée pour compatibilité). */
+export const UI_SURFACE_FRise_INSET = UI_SURFACE_FRISE_INSET;
 
 /** Panneaux liste (Pays, Langues) */
 export const UI_SURFACE_PANEL =

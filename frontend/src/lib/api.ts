@@ -309,6 +309,8 @@ export const api = {
     chain_steps?: PipelineTaskKind[] | null;
     translate_limit?: number | null;
     edition_id?: string | null;
+    /** Date calendaire YYYY-MM-DD ; résout edition_id automatiquement si edition_id absent. */
+    publish_date?: string | null;
     analysis_force?: boolean;
   }) => {
     const payload: Record<string, unknown> = { kind: body.kind };
@@ -320,6 +322,9 @@ export const api = {
     }
     if (body.edition_id != null && body.edition_id !== "") {
       payload.edition_id = body.edition_id;
+    }
+    if (body.publish_date != null && body.publish_date !== "" && !body.edition_id) {
+      payload.publish_date = body.publish_date;
     }
     if (body.analysis_force === false) {
       payload.analysis_force = false;

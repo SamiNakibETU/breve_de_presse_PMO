@@ -2,17 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
+import { usePathname, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { buildPanoramaDayHref } from "@/lib/articles-url-query";
-import { shiftIsoDate, todayBeirutIsoDate } from "@/lib/beirut-date";
-import {
-  formatEditionDayHeadingFr,
-  formatIsoCalendarDayLongFr,
-} from "@/lib/dates-display-fr";
+import { todayBeirutIsoDate } from "@/lib/beirut-date";
+import { formatIsoCalendarDayLongFr } from "@/lib/dates-display-fr";
 import type { ClusterListResponse, Stats, TopicCluster } from "@/lib/types";
 import { ClusterList } from "@/components/clusters/cluster-list";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
@@ -21,11 +15,8 @@ import { StatsDistributionPanels } from "@/components/dashboard/stats-distributi
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import {
-  UI_FRISE_CONTROL_ROW,
-  UI_FRISE_CORPUS_STRIP,
   UI_FRISE_INTRO_HEADER,
   UI_SURFACE_FRise_INSET,
-  UI_SURFACE_FRISE_SEPARATOR,
   UI_SURFACE_HERO,
   UI_SURFACE_SKELETON_INSET,
 } from "@/lib/ui-surface-classes";
@@ -59,7 +50,6 @@ const CHIP_ON =
 
 export function PanoramaPageContent() {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [emergingOnly, setEmergingOnly] = useState(false);
@@ -164,66 +154,21 @@ export function PanoramaPageContent() {
                   </Link>
                 </div>
               ) : null}
-              <div className={`mb-4 ${UI_FRISE_CONTROL_ROW}`}>
-                <Link
-                  href={buildPanoramaDayHref(
-                    pathname,
-                    searchParams,
-                    shiftIsoDate(editionDate, -1),
-                  )}
-                  scroll={false}
-                  className="olj-date-rail__chevron shrink-0"
-                  aria-label={`Jour précédent : ${formatEditionDayHeadingFr(shiftIsoDate(editionDate, -1))}`}
-                >
-                  <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                </Link>
-                <EditionCalendarPopover
-                  currentIso={editionDate}
-                  triggerLabel="Calendrier"
-                  onDateSelect={(iso) => {
-                    router.replace(
-                      buildPanoramaDayHref(pathname, searchParams, iso),
-                      { scroll: false },
-                    );
-                  }}
-                />
-                <Link
-                  href={buildPanoramaDayHref(
-                    pathname,
-                    searchParams,
-                    shiftIsoDate(editionDate, 1),
-                  )}
-                  scroll={false}
-                  className="olj-date-rail__chevron shrink-0"
-                  aria-label={`Jour suivant : ${formatEditionDayHeadingFr(shiftIsoDate(editionDate, 1))}`}
-                >
-                  <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                </Link>
-              </div>
-              <div className={UI_SURFACE_FRISE_SEPARATOR}>
-                <div className={UI_FRISE_CORPUS_STRIP}>
-                  <p className="text-[11px] text-muted-foreground">
-                    {editionToday.corpus_article_count != null ? (
-                      <>
-                        Sommaire ·{" "}
-                        <span className="font-semibold tabular-nums text-foreground">
-                          {editionToday.corpus_article_count}
-                        </span>{" "}
-                        article
-                        {editionToday.corpus_article_count !== 1 ? "s" : ""}
-                      </>
-                    ) : (
-                      <>Sommaire</>
-                    )}
-                  </p>
-                </div>
-                <EditionPeriodFrise
-                  windowStartIso={editionToday.window_start!}
-                  windowEndIso={editionToday.window_end!}
-                  publishRouteIso={editionDate}
-                  unifiedDayNav={{ mode: "panorama", dayRadius: 9 }}
-                />
-              </div>
+              {editionToday.corpus_article_count != null ? (
+                <p className="mb-2 text-[11px] text-muted-foreground">
+                  Sommaire ·{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {editionToday.corpus_article_count}
+                  </span>{" "}
+                  article{editionToday.corpus_article_count !== 1 ? "s" : ""}
+                </p>
+              ) : null}
+              <EditionPeriodFrise
+                publishRouteIso={editionDate}
+                windowStartIso={editionToday.window_start ?? undefined}
+                windowEndIso={editionToday.window_end ?? undefined}
+                unifiedDayNav={{ mode: "panorama" }}
+              />
             </div>
           ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (
             <div

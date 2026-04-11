@@ -305,7 +305,7 @@ export default function ComposePage() {
 
   // ---- Render ----
   return (
-    <div className="space-y-10">
+    <div className="mx-auto max-w-4xl space-y-10">
       <ComposeHeader
         date={date}
         titleFr={editionTitleLine(date)}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -12,20 +11,15 @@ import {
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
 import { mergeArticlesQuery } from "@/lib/articles-url-query";
-import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
 import { api } from "@/lib/api";
-import { shiftIsoDate, todayBeirutIsoDate } from "@/lib/beirut-date";
+import { todayBeirutIsoDate } from "@/lib/beirut-date";
 import {
   formatArticlesExplorationPeriodHint,
-  formatEditionDayHeadingFr,
   formatIsoCalendarDayLongFr,
 } from "@/lib/dates-display-fr";
 import {
-  UI_FRISE_CONTROL_ROW,
-  UI_FRISE_CORPUS_STRIP,
   UI_SURFACE_FRise_INSET,
-  UI_SURFACE_FRISE_SEPARATOR,
 } from "@/lib/ui-surface-classes";
 import { reviewPagePath } from "@/lib/review-url";
 import type { Article } from "@/lib/types";
@@ -376,70 +370,30 @@ export function ArticlesPageClient() {
                   </button>
                 </div>
               ) : null}
-              {!rangeActive ? (
-                <div className={UI_FRISE_CONTROL_ROW}>
-                  <Link
-                    href={articlesDayHref(shiftIsoDate(editionFriseIso!, -1))}
-                    scroll={false}
-                    className="olj-date-rail__chevron shrink-0"
-                    aria-label={`Jour précédent : ${formatEditionDayHeadingFr(shiftIsoDate(editionFriseIso!, -1))}`}
-                  >
-                    <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                  </Link>
-                  <EditionCalendarPopover
-                    currentIso={editionFriseIso!}
-                    triggerLabel="Calendrier"
-                    onDateSelect={(iso) =>
-                      patchSearch({
-                        date: iso,
-                        date_from: null,
-                        date_to: null,
-                      })
-                    }
-                  />
-                  <Link
-                    href={articlesDayHref(shiftIsoDate(editionFriseIso!, 1))}
-                    scroll={false}
-                    className="olj-date-rail__chevron shrink-0"
-                    aria-label={`Jour suivant : ${formatEditionDayHeadingFr(shiftIsoDate(editionFriseIso!, 1))}`}
-                  >
-                    <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                  </Link>
-                </div>
-              ) : null}
-              {editionFriseIso ? (
-                articlesFriseWindowOk && editionFriseQ.data ? (
-                  <div className={UI_SURFACE_FRISE_SEPARATOR}>
-                    <div className={UI_FRISE_CORPUS_STRIP}>
-                      <p className="text-[11px] text-muted-foreground">
-                        {editionFriseQ.data.corpus_article_count != null ? (
-                          <>
-                            Sommaire ·{" "}
-                            <span className="font-semibold tabular-nums text-foreground">
-                              {editionFriseQ.data.corpus_article_count}
-                            </span>{" "}
-                            article
-                            {editionFriseQ.data.corpus_article_count !== 1 ? "s" : ""}
-                          </>
-                        ) : (
-                          <>Sommaire</>
-                        )}
+              {editionFriseIso && !rangeActive ? (
+                editionFriseQ.data ? (
+                  <div>
+                    {editionFriseQ.data.corpus_article_count != null ? (
+                      <p className="mb-2 text-[11px] text-muted-foreground">
+                        Sommaire ·{" "}
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {editionFriseQ.data.corpus_article_count}
+                        </span>{" "}
+                        article{editionFriseQ.data.corpus_article_count !== 1 ? "s" : ""}
                       </p>
-                    </div>
+                    ) : null}
                     <EditionPeriodFrise
+                      publishRouteIso={editionFriseIso}
                       windowStartIso={editionFriseQ.data.window_start}
                       windowEndIso={editionFriseQ.data.window_end}
-                      publishRouteIso={editionFriseIso}
-                      unifiedDayNav={{ mode: "articles", dayRadius: 9 }}
+                      unifiedDayNav={{ mode: "articles" }}
                     />
                   </div>
                 ) : editionFriseQ.isPending ? (
-                  <div className={UI_SURFACE_FRISE_SEPARATOR}>
-                    <div
-                      className="h-20 animate-pulse rounded-md bg-[color-mix(in_srgb,var(--color-muted)_22%,transparent)]"
-                      aria-hidden
-                    />
-                  </div>
+                  <div
+                    className="h-20 animate-pulse rounded-md bg-[color-mix(in_srgb,var(--color-muted)_22%,transparent)]"
+                    aria-hidden
+                  />
                 ) : null
               ) : null}
               <div

@@ -441,7 +441,8 @@ async def _daily_pipeline_body(
         "step_timings": step_timings,
     }
 
-    async def _post_phases() -> None:
+    # ── Phase post-1 : scoring, analyse, déduplication surface, santé sources ──
+    async def _post_analysis_phases() -> None:
         rel_last_error: str | None = None
         for rel_attempt in range(3):
             try:
@@ -561,6 +562,8 @@ async def _daily_pipeline_body(
             )
             pipeline_result["translation_health_metrics"] = {"error": str(e)[:200]}
 
+    # ── Phase post-2 : embedding, clustering, libellés, détection sujets ──
+    async def _post_embedding_phases() -> None:
         cohere_key = settings.cohere_api_key
         if not cohere_key:
             logger.error(
@@ -715,11 +718,18 @@ async def _daily_pipeline_body(
             logger.warning("pipeline.topic_detection_failed", error=str(e)[:200])
             pipeline_result["topic_detection"] = {"error": str(e)[:200]}
 
+    half_budget = settings.pipeline_step_timeout_post_s // 2 or settings.pipeline_step_timeout_post_s
     await _run_step_budget(
-        "post",
+        "post_analysis",
         pipeline_trigger,
-        settings.pipeline_step_timeout_post_s,
-        _post_phases,
+        half_budget,
+        _post_analysis_phases,
+    )
+    await _run_step_budget(
+        "post_embedding",
+        pipeline_trigger,
+        half_budget,
+        _post_embedding_phases,
     )
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()

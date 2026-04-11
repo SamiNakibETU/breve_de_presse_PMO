@@ -135,7 +135,20 @@ async def start_pipeline_task(
     `resume_pipeline`, et les étapes unitaires (`relevance_scoring`, `article_analysis`, …).
     Avec `chain_steps` : une chaîne ordonnée (tâche unique `pipeline_chain`).
     """
+    # Résolution publish_date → edition_id (si edition_id non fourni mais publish_date présent)
     edition_id_str = str(body.edition_id) if body.edition_id else None
+    if edition_id_str is None and body.publish_date is not None:
+        from src.database import get_session_factory
+        from src.services.edition_schedule import find_edition_for_calendar_date
+        factory = get_session_factory()
+        async with factory() as db:
+            edition = await find_edition_for_calendar_date(db, body.publish_date)
+        if edition is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Aucune édition trouvée pour la date {body.publish_date}.",
+            )
+        edition_id_str = str(edition.id)
 
     if body.chain_steps:
         steps = [s.value for s in body.chain_steps]

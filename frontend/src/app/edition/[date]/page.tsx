@@ -760,13 +760,38 @@ export default function EditionSommairePage() {
               <button
                 type="button"
                 className="olj-link-action text-[12px] disabled:opacity-45"
-                disabled={detectMutation.isPending}
+                disabled={detectMutation.isPending || pipeline?.running !== null}
                 onClick={() => detectMutation.mutate()}
               >
                 {detectMutation.isPending
                   ? "Analyse en cours…"
                   : "Identifier les sujets"}
               </button>
+              {pipeline && (
+                <button
+                  type="button"
+                  className="olj-link-action text-[12px] text-muted-foreground disabled:opacity-45"
+                  disabled={pipeline.running !== null || detectMutation.isPending}
+                  title="Relance les étapes post-traduction : scoring → embedding → clusters → sujets (pour une édition avec articles traduits mais sans sujets)."
+                  onClick={() =>
+                    pipeline.startSequentialChain(
+                      [
+                        "relevance_scoring",
+                        "embedding_only",
+                        "clustering_only",
+                        "cluster_labelling",
+                        "topic_detection",
+                      ],
+                      "Relance analyse complète",
+                      { editionId },
+                    )
+                  }
+                >
+                  {pipeline.running?.key === "sequentialChain"
+                    ? "Analyse en cours…"
+                    : "Relancer l'analyse complète"}
+                </button>
+              )}
             </div>
           )}
         {editionId && pipeline ? (
@@ -792,7 +817,7 @@ export default function EditionSommairePage() {
 
       {err && (
         <p
-          className="olj-alert-destructive px-3 py-2"
+          className="mx-auto max-w-4xl olj-alert-destructive px-3 py-2"
           role="alert"
           aria-live="polite"
         >
@@ -805,7 +830,7 @@ export default function EditionSommairePage() {
       {!loading && (
         <>
           {fullyEmpty && (
-            <div className="mt-6 rounded-lg border border-border bg-surface-warm/40 px-5 py-8 sm:px-8">
+            <div className="mx-auto mt-6 max-w-4xl rounded-lg border border-border bg-surface-warm/40 px-5 py-8 sm:px-8">
               <h2 className="font-[family-name:var(--font-serif)] text-[18px] font-semibold text-foreground">
                 Aucun article collecté pour cette date
               </h2>
