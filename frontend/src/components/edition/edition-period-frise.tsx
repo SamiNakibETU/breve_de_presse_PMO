@@ -244,7 +244,6 @@ function FriseTimelineCard({
             const x = dayIdx * DAY_PX + (h / 24) * DAY_PX;
             const isMajor = h % 6 === 0;
             const isSecondary = h % 3 === 0 && !isMajor;
-            const isMinor = !isMajor && !isSecondary;
 
             const tickH = isMajor
               ? TICK_H_MAJOR
@@ -340,7 +339,7 @@ function FriseTimelineCard({
         className="relative mt-1 flex"
         style={{ width: totalW }}
       >
-        {timelineDays.map((dayIso, i) => {
+        {timelineDays.map((dayIso) => {
           const isCurrent = dayIso === currentIso;
           return (
             <div

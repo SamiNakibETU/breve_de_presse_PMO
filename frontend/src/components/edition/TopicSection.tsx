@@ -22,14 +22,12 @@
  */
 
 import { ChevronDown, FileText } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useArticleReader } from "@/contexts/article-reader";
 import {
   FLAGSHIP_BADGE_LABEL,
   articleTypeLabelFr,
-  formatArticleMetaLine,
 } from "@/lib/article-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { countryCodesFromPreviews } from "@/lib/topic-country-codes";
@@ -323,11 +321,7 @@ export function TopicSection({
   const displayRank = topic.user_rank ?? topic.rank;
   const topicTitle = topic.title_final ?? topic.title_proposed;
 
-  /* Image hero depuis le premier aperçu avec image */
-  const heroPreview = previews.find((p) => {
-    // TopicArticlePreview n'expose pas image_url directement — on vérifie via l'API
-    return false; // Les previews n'ont pas image_url — on l'ommet ici
-  });
+  /* Image hero non disponible via TopicArticlePreview — champ image_url absent */
 
   /* Puces analyse du premier article analysé */
   const withBullets = previews.find(
@@ -524,7 +518,7 @@ export function TopicSection({
         <div className="min-w-0 lg:pl-4">
           {groups.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              Aucun aperçu d'article pour ce sujet.
+              Aucun aperçu d&apos;article pour ce sujet.
             </p>
           ) : (
             <div className="space-y-6">

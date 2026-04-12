@@ -283,7 +283,7 @@ function ArticleReadModal({
                 {/* Titre original si différent */}
                 {a.title_fr && a.title_original && a.title_fr !== a.title_original && (
                   <p className="text-[11px] text-muted-foreground">
-                    Titre d'origine : {decodeHtmlEntities(a.title_original)}
+                    Titre d&apos;origine : {decodeHtmlEntities(a.title_original)}
                   </p>
                 )}
 
@@ -388,7 +388,7 @@ function ArticleReadModal({
               {/* Message si pas d'analyse */}
               {!hasAnalysis && !a.thesis_summary_fr?.trim() && (
                 <p className="text-[13px] text-muted-foreground italic">
-                  L'analyse structurée sera disponible après le prochain passage pipeline.
+                  L&apos;analyse structurée sera disponible après le prochain passage pipeline.
                 </p>
               )}
 
@@ -474,7 +474,7 @@ function ArticleReadModal({
 
               {!hasBodyFr && !summaryOnly && hasOriginalBody && (
                 <section className="space-y-2">
-                  <SectionLabel>Texte source (langue d'origine)</SectionLabel>
+                  <SectionLabel>Texte source (langue d&apos;origine)</SectionLabel>
                   <div className="rounded-md border border-border-light bg-muted/20 px-4 py-3 font-[family-name:var(--font-serif)] text-[13px] leading-[1.75] text-foreground-body">
                     {bodyParagraphs(a.content_original!.trim()).map((para, i) => (
                       <p key={i} className="mb-3 last:mb-0">

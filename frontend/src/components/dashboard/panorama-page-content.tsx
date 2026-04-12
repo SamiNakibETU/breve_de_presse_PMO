@@ -128,7 +128,7 @@ export function PanoramaPageContent() {
                   href="/panorama"
                   className="rounded-full border border-border/50 bg-background px-2.5 py-1 text-[11px] font-medium text-accent transition-colors hover:bg-muted/40"
                 >
-                  Aujourd'hui
+                  Aujourd&apos;hui
                 </Link>
               </div>
             ) : null}
