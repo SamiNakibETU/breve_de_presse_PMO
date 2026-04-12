@@ -49,18 +49,35 @@ def default_window_utc(publish_date: date) -> tuple[datetime, datetime]:
     """Retourne (window_start, window_end) en UTC pour la date de parution cible.
 
     Fenêtres en heure de Paris (Europe/Paris) :
-    - Lundi (grosse édition) : vendredi 18:00 → lundi 09:00 Paris.
-    - Mardi–dimanche        : J-1 08:00 → J 09:00 Paris.
+    - Lundi (grosse édition week-end) : vendredi 18:00 → lundi 09:00 Paris.
+    - Mardi–dimanche                  : J-1 08:00 → J 09:00 Paris.
+      (Samedi = ven 08h → sam 09h ; Dimanche = sam 08h → dim 09h)
+
+    Pour le lundi « seul » (dim 09h → lun 09h), utiliser
+    ``monday_single_day_window_utc`` ou créer une édition custom.
     """
     wd = publish_date.weekday()
-    if wd == 0:  # lundi — grosse édition week-end
+    if wd == 0:  # lundi — grosse édition week-end (ven 18h → lun 9h Paris)
         friday = publish_date - timedelta(days=3)
         start_local = datetime.combine(friday, time(18, 0), tzinfo=PARIS)
         end_local = datetime.combine(publish_date, time(9, 0), tzinfo=PARIS)
-    else:  # mar–dim — édition normale
+    else:  # mar–dim — édition normale J-1 08h → J 09h Paris
         prev = publish_date - timedelta(days=1)
         start_local = datetime.combine(prev, time(8, 0), tzinfo=PARIS)
         end_local = datetime.combine(publish_date, time(9, 0), tzinfo=PARIS)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+
+
+def monday_single_day_window_utc(publish_date: date) -> tuple[datetime, datetime]:
+    """Fenêtre « lundi seul » : dimanche 09:00 → lundi 09:00 Paris.
+
+    Alternative à la grosse édition week-end pour les lundis où l'on veut
+    uniquement les articles du dimanche. Utilisé via l'API /editions/custom
+    ou directement dans les scripts de patch.
+    """
+    sunday = publish_date - timedelta(days=1)
+    start_local = datetime.combine(sunday, time(9, 0), tzinfo=PARIS)
+    end_local = datetime.combine(publish_date, time(9, 0), tzinfo=PARIS)
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 

@@ -598,6 +598,52 @@ class Settings(BaseSettings):
         description="Articles EN : métadonnées + résumé FR uniquement ; corps inchangé (content_original)",
     )
 
+    # ── Ingestion continue (collecte + traduction toutes les N heures) ──
+    continuous_ingest_enabled: bool = Field(
+        default=True,
+        description=(
+            "Active l'ingestion continue (collecte + traduction) toutes les N heures. "
+            "Réduit drastiquement la durée du pipeline 9h en pré-traduisant les articles de la nuit."
+        ),
+    )
+    continuous_ingest_interval_hours: int = Field(
+        default=2,
+        ge=1,
+        le=12,
+        description="Intervalle entre deux runs d'ingestion continue (heures).",
+    )
+    continuous_ingest_translate_limit: int = Field(
+        default=80,
+        ge=10,
+        le=500,
+        description="Plafond d'articles traduits par run d'ingestion continue.",
+    )
+    continuous_ingest_paris_start_hour: int = Field(
+        default=18,
+        ge=0,
+        le=23,
+        description="Heure Paris (incluse) à partir de laquelle l'ingestion continue démarre.",
+    )
+    continuous_ingest_paris_end_hour: int = Field(
+        default=9,
+        ge=0,
+        le=23,
+        description=(
+            "Heure Paris (exclusive) à laquelle l'ingestion continue s'arrête. "
+            "Si end < start : la fenêtre traverse minuit (ex. 18h → 9h)."
+        ),
+    )
+
+    # ── Pipeline week-end complet ──
+    weekend_full_pipeline_enabled: bool = Field(
+        default=True,
+        description=(
+            "Si True : le pipeline complet (translate + analyse + clustering + topics) "
+            "tourne aussi le samedi et le dimanche à l'heure Paris du matin. "
+            "Permet d'avoir des éditions samedi et dimanche avec sujets détectés."
+        ),
+    )
+
     @property
     def async_database_url(self) -> str:
         url = self.database_url

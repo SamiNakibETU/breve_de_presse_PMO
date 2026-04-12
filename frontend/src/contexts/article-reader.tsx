@@ -425,7 +425,7 @@ function ArticlePane({
                   }
                 }}
               >
-                {copiedSynth ? "Copie\u0301" : "Copier la synthe\u0300se"}
+                {copiedSynth ? "Copié" : "Copier la synthèse"}
               </button>
               {a.url && (
                 <a
@@ -466,7 +466,7 @@ function ArticlePane({
 
           {(a.author_thesis_explicit_fr?.trim() || a.thesis_summary_fr?.trim()) && (
             <section className="space-y-2">
-              <SectionLabel>The\u0300se</SectionLabel>
+              <SectionLabel>Thèse</SectionLabel>
               <p className="font-[family-name:var(--font-serif)] text-[15px] italic leading-relaxed text-foreground-body">
                 {(a.author_thesis_explicit_fr?.trim() || a.thesis_summary_fr?.trim())}
               </p>
@@ -475,7 +475,7 @@ function ArticlePane({
 
           {hasBullets && (
             <section className="space-y-2.5">
-              <SectionLabel>Points cle\u0301s</SectionLabel>
+              <SectionLabel>Points clés</SectionLabel>
               <ol className="space-y-2.5">
                 {a.analysis_bullets_fr!.map((b, i) => {
                   const line = normalizeBulletLine(b);
@@ -507,13 +507,13 @@ function ArticlePane({
 
           {!hasAnalysis && !a.thesis_summary_fr?.trim() && (
             <p className="text-[13px] italic text-muted-foreground">
-              L&apos;analyse structure\u0301e sera disponible apre\u0300s le prochain passage pipeline.
+              L&apos;analyse structurée sera disponible après le prochain passage pipeline.
             </p>
           )}
 
           {a.summary_fr?.trim() && (
             <section className="space-y-2">
-              <SectionLabel>Re\u0301sume\u0301</SectionLabel>
+              <SectionLabel>Résumé</SectionLabel>
               <div className="space-y-3 rounded-md border border-border-light bg-surface-warm/20 px-4 py-3.5 font-[family-name:var(--font-serif)] text-[14px] leading-[1.8] text-foreground-body">
                 {bodyParagraphs(a.summary_fr.trim()).map((para, i) => (
                   <p
@@ -549,7 +549,7 @@ function ArticlePane({
 
           {hasBodyFr && (
             <section className="space-y-2">
-              <SectionLabel>Traduction inte\u0301grale</SectionLabel>
+              <SectionLabel>Traduction intégrale</SectionLabel>
               <div className="space-y-4 rounded-md border border-border-light bg-surface-warm/20 px-4 py-4 font-[family-name:var(--font-serif)] text-[14px] leading-[1.85] text-foreground-body">
                 {editorialBodySections(
                   sanitizeTranslatedBodyForDisplay(a.content_translated_fr!.trim()),
@@ -584,7 +584,7 @@ function ArticlePane({
 
           {summaryOnly && !hasBodyFr && (
             <p className="text-[12px] text-muted-foreground">
-              Corps traduit non persiste\u0301 (re\u0301sume\u0301 seulement). Voir la source originale.
+              Corps traduit non persisté (résumé seulement). Voir la source originale.
             </p>
           )}
 
@@ -605,7 +605,7 @@ function ArticlePane({
 
           <footer className="space-y-1 text-[11px] text-muted-foreground">
             {a.analysis_tone && (
-              <p><span className="font-medium text-foreground-body">Tonalite\u0301 : </span>{a.analysis_tone}</p>
+              <p><span className="font-medium text-foreground-body">Tonalité : </span>{a.analysis_tone}</p>
             )}
             {a.fact_opinion_quality && (
               <p><span className="font-medium text-foreground-body">Fait / opinion : </span>{a.fact_opinion_quality}</p>
@@ -620,7 +620,7 @@ function ArticlePane({
               <p><span className="font-medium text-foreground-body">Proposition : </span>{a.framing_prescription}</p>
             )}
             {a.editorial_angle?.trim() && (
-              <p><span className="font-medium text-foreground-body">Angle e\u0301ditorial : </span>{a.editorial_angle.trim()}</p>
+              <p><span className="font-medium text-foreground-body">Angle éditorial : </span>{a.editorial_angle.trim()}</p>
             )}
           </footer>
         </article>

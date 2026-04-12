@@ -895,6 +895,84 @@ async def article_analysis_fill_tick() -> None:
         logger.warning("scheduler.analysis_fill_failed", error=str(exc)[:200])
 
 
+async def run_continuous_ingest(*, trigger: str = "cron_continuous") -> dict:
+    """
+    Ingestion continue (toutes les N heures, fenêtre nocturne Paris) :
+    1. Collecte RSS / scrapers (sans verrou pipeline principal)
+    2. Traduction plafonnée (CONTINUOUS_INGEST_TRANSLATE_LIMIT articles)
+    3. Scoring pertinence pour l'édition cible
+
+    Objectif : pré-traduire les articles publiés la nuit pour que le pipeline 9h
+    passe directement aux étapes d'analyse/clustering.
+
+    Logs sous "continuous_collect" / "continuous_translate" (pas "collect" / "translate")
+    pour ne PAS déclencher le mécanisme resume du pipeline principal.
+    """
+    s = get_settings()
+
+    # Garde-fou : ne pas s'exécuter si un pipeline complet tient le verrou
+    if _pipeline_lock.locked():
+        logger.info("continuous_ingest.skipped_pipeline_running", trigger=trigger)
+        return {"skipped": True, "reason": "pipeline_lock_held"}
+
+    # Garde-fou fenêtre horaire (en heure de Paris)
+    now_paris = datetime.now(_PARIS_TZ)
+    ph = now_paris.hour
+    start_h = s.continuous_ingest_paris_start_hour
+    end_h = s.continuous_ingest_paris_end_hour
+    if start_h <= end_h:
+        # Fenêtre intra-journée (rare)
+        in_window = start_h <= ph < end_h
+    else:
+        # Fenêtre nocturne traversant minuit (ex. 18h → 9h)
+        in_window = ph >= start_h or ph < end_h
+    if not in_window:
+        logger.debug("continuous_ingest.outside_window", trigger=trigger, paris_hour=ph)
+        return {"skipped": True, "reason": "outside_window", "paris_hour": ph}
+
+    logger.info("continuous_ingest.start", trigger=trigger, paris_hour=ph)
+    result: dict = {"trigger": trigger}
+    eid = await resolve_current_edition_id()
+
+    # 1. Collecte
+    try:
+        stats = await run_collection()
+        result["collection"] = stats
+        await log_pipeline_step(eid, "continuous_collect", compact_payload({"stats": stats, "trigger": trigger}))
+    except Exception as exc:
+        logger.warning("continuous_ingest.collect_failed", error=str(exc)[:200])
+        result["collection"] = {"error": str(exc)[:200]}
+
+    # 2. Traduction plafonnée
+    try:
+        lim = s.continuous_ingest_translate_limit
+        t_stats = await run_translation_pipeline(limit=lim)
+        result["translation"] = t_stats
+        await log_pipeline_step(eid, "continuous_translate", compact_payload({**t_stats, "limit": lim}))
+    except Exception as exc:
+        logger.warning("continuous_ingest.translate_failed", error=str(exc)[:200])
+        result["translation"] = {"error": str(exc)[:200]}
+
+    # 3. Pertinence pour les nouveaux articles
+    try:
+        from src.services.edition_schedule import resolve_edition_id_for_timestamp
+        from src.services.relevance_scorer import run_relevance_scoring_pipeline
+
+        factory = get_session_factory()
+        async with factory() as db:
+            eid_rel = await resolve_edition_id_for_timestamp(db, datetime.now(timezone.utc))
+            rel_stats = await run_relevance_scoring_pipeline(db, edition_id=eid_rel)
+            await db.commit()
+        result["relevance_scoring"] = rel_stats
+    except Exception as exc:
+        logger.warning("continuous_ingest.relevance_failed", error=str(exc)[:200])
+        result["relevance_scoring"] = {"error": str(exc)[:200]}
+
+    logger.info("continuous_ingest.done", trigger=trigger, result_keys=list(result.keys()))
+    await log_pipeline_step(eid, "continuous_ingest_summary", compact_payload(result))
+    return result
+
+
 async def run_afternoon_refresh(*, trigger: str = "cron_afternoon") -> dict:
     """
     Refresh léger 16h Paris (mar.–ven.) :
@@ -989,20 +1067,45 @@ def create_scheduler() -> AsyncIOScheduler:
         await run_daily_pipeline(trigger="cron_daily")
 
     _misfire = 3600
+
+    # Pipeline complet : lun.–ven. toujours ; sam.–dim. si weekend_full_pipeline_enabled
+    pipeline_dow = "mon-sun" if settings.weekend_full_pipeline_enabled else "mon-fri"
     scheduler.add_job(
         _cron_daily_pipeline,
         trigger=CronTrigger(
-            day_of_week="mon-sun",
+            day_of_week=pipeline_dow,
             hour=h,
             minute=m,
             timezone=tz_paris,
         ),
         id="daily_pipeline",
-        name=f"Pipeline quotidien ({h:02d}:{m:02d} Paris, lun–dim)",
+        name=f"Pipeline quotidien ({h:02d}:{m:02d} Paris, {pipeline_dow})",
         replace_existing=True,
         misfire_grace_time=_misfire,
         coalesce=True,
     )
+
+    # ── Ingestion continue (collecte + traduction, fenêtre nocturne) ──
+    if settings.continuous_ingest_enabled:
+        ingest_interval_h = settings.continuous_ingest_interval_hours
+
+        async def _cron_continuous_ingest() -> None:
+            await run_continuous_ingest(trigger="cron_continuous")
+
+        scheduler.add_job(
+            _cron_continuous_ingest,
+            trigger=IntervalTrigger(hours=ingest_interval_h),
+            id="continuous_ingest",
+            name=(
+                f"Ingestion continue (collecte + traduction, "
+                f"toutes les {ingest_interval_h}h, "
+                f"fenêtre {settings.continuous_ingest_paris_start_hour:02d}h–"
+                f"{settings.continuous_ingest_paris_end_hour:02d}h Paris)"
+            ),
+            replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
+        )
 
     if settings.afternoon_refresh_enabled:
         ah = settings.pipeline_paris_afternoon_hour
@@ -1113,9 +1216,12 @@ def create_scheduler() -> AsyncIOScheduler:
 
     logger.info(
         "scheduler.configured",
-        paris_morning=f"{h:02d}:{m:02d} Europe/Paris (lun. + mar.–ven.)",
-        weekend_collect=settings.weekend_collect_enabled,
-        edition_cron="00:00 Asia/Beirut",
+        paris_morning=f"{h:02d}:{m:02d} Europe/Paris ({pipeline_dow})",
+        weekend_full_pipeline=settings.weekend_full_pipeline_enabled,
+        continuous_ingest_enabled=settings.continuous_ingest_enabled,
+        continuous_ingest_interval_hours=settings.continuous_ingest_interval_hours,
+        continuous_ingest_window=f"{settings.continuous_ingest_paris_start_hour:02d}h–{settings.continuous_ingest_paris_end_hour:02d}h Paris",
+        edition_cron="00:00 Europe/Paris",
         completion_retry_minutes=settings.pipeline_completion_retry_minutes,
         stall_check_minutes=settings.pipeline_stall_check_interval_minutes,
         selected_fulltext_interval_minutes=settings.selected_fulltext_job_interval_minutes,
