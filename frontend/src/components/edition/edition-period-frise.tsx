@@ -520,7 +520,7 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
   }, []);
 
   return (
-    <div className="flex flex-1 items-center gap-1.5">
+    <div className="flex min-w-0 flex-1 items-center gap-1.5">
       <button
         onClick={goLeft}
         disabled={currentIdx <= 0}
@@ -534,7 +534,7 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
 
       <div
         ref={railRef}
-        className="olj-scrollbar-none flex-1 overflow-x-auto rounded-[10px] p-1"
+        className="olj-scrollbar-none min-w-0 flex-1 overflow-x-auto rounded-[10px] p-1"
         style={{ background: "rgba(231,227,227,0.22)", height: 44, cursor: "grab", touchAction: "pan-x" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -597,8 +597,8 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
   const calDays = useMemo(() => isoRange(currentIso, SELECTOR_RANGE), [currentIso]);
 
   return (
-    <nav className="w-full space-y-3" aria-label="Navigation temporelle de l'édition">
-      <div className="flex flex-col items-stretch gap-3 sm:flex-row">
+    <nav className="w-full min-w-0 max-w-full space-y-3" aria-label="Navigation temporelle de l'édition">
+      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row">
         <FriseInfoCard
           currentIso={currentIso}
           windowStart={editionWindow?.start}
@@ -610,13 +610,14 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
           windowEnd={editionWindow?.end}
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 w-full max-w-full items-center gap-2">
         <FriseDaySelector
           currentIso={currentIso}
           days={calDays}
           onSelect={unifiedDayNav}
         />
         <EditionCalendarPopover
+          className="shrink-0"
           currentIso={currentIso}
           compact
           onDateSelect={unifiedDayNav}
