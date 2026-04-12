@@ -48,8 +48,8 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
     queryKey: ["editionSelections", editionId] as const,
     queryFn: () => api.editionSelections(editionId!),
     enabled: Boolean(editionId),
-    staleTime: 3_000,
-    refetchInterval: 8_000,
+    staleTime: 30_000,
+    /* Pas de polling — le store Zustand gère l'état UI instantané */
   });
 
   const topicsQ = useQuery({
@@ -210,8 +210,8 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
-      <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background px-5 py-3 shadow-[0_-6px_24px_rgba(27,26,26,0.06)] sm:px-6">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 motion-safe:animate-in motion-safe:slide-in-from-bottom-2 motion-safe:fade-in-0 motion-safe:[animation-duration:200ms]">
+      <div className="pointer-events-auto mx-auto max-w-[80rem] border-t border-border bg-background/95 backdrop-blur-sm px-5 py-3 shadow-high sm:px-6">
         <CoverageGaps
           selectedCountryCodes={selectedCountryCodes}
           targets={coverageQ.data ?? null}

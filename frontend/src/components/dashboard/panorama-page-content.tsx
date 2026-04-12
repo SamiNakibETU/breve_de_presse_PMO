@@ -15,12 +15,6 @@ import { StatsCards } from "@/components/dashboard/stats-cards";
 import { StatsDistributionPanels } from "@/components/dashboard/stats-distribution-panels";
 import { COUNTRY_LABELS_FR } from "@/lib/country-labels-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
-import {
-  UI_FRISE_INTRO_HEADER,
-  UI_SURFACE_FRise_INSET,
-  UI_SURFACE_HERO,
-  UI_SURFACE_SKELETON_INSET,
-} from "@/lib/ui-surface-classes";
 
 function filterClusters(
   list: TopicCluster[],
@@ -28,26 +22,22 @@ function filterClusters(
   emergingOnly: boolean,
 ): TopicCluster[] {
   let out = list;
-  if (emergingOnly) {
-    out = out.filter((c) => c.is_emerging === true);
-  }
+  if (emergingOnly) out = out.filter((c) => c.is_emerging === true);
   if (countryCodes.length > 0) {
-    out = out.filter((c) =>
-      countryCodes.some((code) => c.countries.includes(code)),
-    );
+    out = out.filter((c) => countryCodes.some((code) => c.countries.includes(code)));
   }
   return out;
 }
 
 /**
  * Vue Panorama : inventaire, répartitions, clusters — sans bloc pipeline Régie.
+ * Design : hero épuré, chips minimalistes avec inversion active.
  */
 const CHIP_BASE =
-  "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-[11px] font-medium leading-tight transition-[color,background-color,border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--color-accent)_50%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98]";
+  "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-[11px] font-medium leading-tight transition-colors [transition-duration:var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 active:scale-[0.97]";
 const CHIP_OFF =
-  "border-border/55 bg-[color-mix(in_srgb,var(--color-muted)_18%,transparent)] text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground";
-const CHIP_ON =
-  "border-[color-mix(in_srgb,var(--color-accent)_48%,transparent)] bg-[color-mix(in_srgb,var(--color-accent)_11%,transparent)] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)]";
+  "border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground";
+const CHIP_ON = "border-foreground bg-foreground text-background";
 
 export function PanoramaPageContent() {
   const router = useRouter();
@@ -67,10 +57,7 @@ export function PanoramaPageContent() {
 
   const [statsQ, clustersQ] = useQueries({
     queries: [
-      {
-        queryKey: ["stats"] as const,
-        queryFn: (): Promise<Stats> => api.stats(),
-      },
+      { queryKey: ["stats"] as const, queryFn: (): Promise<Stats> => api.stats() },
       {
         queryKey: ["clusters"] as const,
         queryFn: (): Promise<ClusterListResponse> => api.clusters(),
@@ -87,9 +74,7 @@ export function PanoramaPageContent() {
 
   const countryOptions = useMemo(() => {
     const s = new Set<string>();
-    for (const c of clusterRows) {
-      for (const co of c.countries) s.add(co);
-    }
+    for (const c of clusterRows) for (const co of c.countries) s.add(co);
     return [...s].sort((a, b) => a.localeCompare(b, "fr"));
   }, [clusterRows]);
 
@@ -103,90 +88,77 @@ export function PanoramaPageContent() {
 
   const editionToday = editionTodayQ.data;
   const editionWindowOk =
-    editionToday?.window_start &&
-    editionToday?.window_end &&
-    editionTodayQ.isSuccess;
+    editionToday?.window_start && editionToday?.window_end && editionTodayQ.isSuccess;
 
   return (
-    <div className="space-y-10">
-      <header className="space-y-6">
-        <div className={`${UI_SURFACE_HERO} p-5 sm:p-6`}>
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <div className="min-w-0 text-center sm:text-left">
-              <p className="olj-rubric">Vue régionale</p>
-              <h1 className="mt-1 font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight sm:text-[32px]">
-                Panorama
-              </h1>
-              <p className="mt-2 text-[13px] capitalize text-muted-foreground">
-                {dateStr} · {subjectCount} regroupement
-                {subjectCount !== 1 ? "s" : ""}
-                {countryFilter.length > 0 || emergingOnly ? " (filtrés)" : ""}
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2.5 sm:shrink-0 sm:justify-end">
-              <Link
-                href={`/edition/${editionDate}`}
-                className="olj-btn-primary px-4 py-2 text-[13px]"
-              >
-                Édition du jour
-              </Link>
-              <Link
-                href="/regie/pipeline"
-                className="olj-btn-secondary px-4 py-2 text-[13px]"
-              >
-                Collecte et traitement
-              </Link>
-              <Link
-                href="/articles"
-                className="olj-btn-secondary px-4 py-2 text-[13px]"
-              >
-                Articles
-              </Link>
-            </div>
+    <div className="space-y-8">
+      {/* ── HERO ÉPURÉ ─────────────────────────────────────────── */}
+      <header className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="min-w-0">
+            <p className="olj-rubric mb-1">Vue régionale</p>
+            <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight text-foreground sm:text-[32px]">
+              Panorama
+            </h1>
+            <p className="mt-1.5 text-[13px] capitalize text-muted-foreground">
+              {dateStr} · {subjectCount} regroupement
+              {subjectCount !== 1 ? "s" : ""}
+              {countryFilter.length > 0 || emergingOnly ? " · filtrés" : ""}
+            </p>
           </div>
-          {editionWindowOk ? (
-            <div className={`mt-5 text-left ${UI_SURFACE_FRise_INSET}`}>
-              {urlPanoramaDate ? (
-                <div className={`${UI_FRISE_INTRO_HEADER} justify-end`}>
-                  <Link
-                    href="/panorama"
-                    className="shrink-0 rounded-full border border-border/50 bg-background px-2.5 py-1 text-center text-[11px] font-medium text-accent transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-accent)_6%,transparent)]"
-                  >
-                    Aujourd’hui
-                  </Link>
-                </div>
-              ) : null}
-              {editionToday.corpus_article_count != null ? (
-                <p className="mb-2 text-[11px] text-muted-foreground">
-                  Sommaire ·{" "}
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {editionToday.corpus_article_count}
-                  </span>{" "}
-                  article{editionToday.corpus_article_count !== 1 ? "s" : ""}
-                </p>
-              ) : null}
-              <EditionPeriodFrise
-                currentIso={editionDate}
-                editionWindow={
-                  editionToday.window_start && editionToday.window_end
-                    ? {
-                        start: editionToday.window_start,
-                        end: editionToday.window_end,
-                      }
-                    : undefined
-                }
-                unifiedDayNav={(iso) =>
-                  router.push(buildPanoramaDayHref(pathname, searchParams, iso))
-                }
-              />
-            </div>
-          ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (
-            <div
-              className={`mt-5 h-24 w-full max-w-4xl animate-pulse ${UI_SURFACE_SKELETON_INSET}`}
-              aria-hidden
-            />
-          ) : null}
+          <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
+            <Link href={`/edition/${editionDate}`} className="olj-btn-primary px-3.5 py-1.5 text-[12px]">
+              Édition du jour
+            </Link>
+            <Link href="/articles" className="olj-btn-secondary px-3.5 py-1.5 text-[12px]">
+              Articles
+            </Link>
+            <Link href="/regie/pipeline" className="olj-btn-secondary px-3.5 py-1.5 text-[12px]">
+              Pipeline
+            </Link>
+          </div>
         </div>
+
+        {/* Frise */}
+        {editionWindowOk ? (
+          <div className="rounded-2xl border border-border/40 bg-background p-4 shadow-low sm:p-5">
+            {urlPanoramaDate ? (
+              <div className="mb-3 flex justify-end">
+                <Link
+                  href="/panorama"
+                  className="rounded-full border border-border/50 bg-background px-2.5 py-1 text-[11px] font-medium text-accent transition-colors hover:bg-muted/40"
+                >
+                  Aujourd'hui
+                </Link>
+              </div>
+            ) : null}
+            {editionToday.corpus_article_count != null ? (
+              <p className="mb-3 text-[11px] text-muted-foreground">
+                Sommaire ·{" "}
+                <span className="font-semibold tabular-nums text-foreground">
+                  {editionToday.corpus_article_count}
+                </span>{" "}
+                article{editionToday.corpus_article_count !== 1 ? "s" : ""}
+              </p>
+            ) : null}
+            <EditionPeriodFrise
+              currentIso={editionDate}
+              editionWindow={
+                editionToday.window_start && editionToday.window_end
+                  ? { start: editionToday.window_start, end: editionToday.window_end }
+                  : undefined
+              }
+              unifiedDayNav={(iso) =>
+                router.push(buildPanoramaDayHref(pathname, searchParams, iso))
+              }
+            />
+          </div>
+        ) : editionTodayQ.isError ? null : editionTodayQ.isPending ? (
+          <div
+            className="h-20 w-full animate-pulse rounded-2xl border border-border/30 bg-muted/20"
+            aria-hidden
+          />
+        ) : null}
       </header>
 
       {error ? (
@@ -208,9 +180,11 @@ export function PanoramaPageContent() {
 
       <section>
         <h2 className="olj-rubric olj-rule">Regroupements</h2>
+
+        {/* Filtres pays — chips minimalistes */}
         {!clustersOnlyLoading && clusterRows.length > 0 ? (
-          <div className="mb-5 flex flex-col gap-3 border-b border-border-light pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
-            <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto pb-0.5 olj-scrollbar-none sm:flex-1 sm:flex-wrap sm:overflow-visible">
+          <div className="mb-5 flex flex-col gap-2.5 border-b border-border-light pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2.5">
+            <div className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto pb-1 olj-scrollbar-none sm:flex-1 sm:flex-wrap sm:overflow-visible">
               {countryOptions.map((code) => {
                 const on = countryFilter.includes(code);
                 const flag = REGION_FLAG_EMOJI[code];
@@ -227,7 +201,7 @@ export function PanoramaPageContent() {
                     className={`${CHIP_BASE} ${on ? CHIP_ON : CHIP_OFF}`}
                   >
                     {flag ? (
-                      <span className="shrink-0 text-[1rem] leading-none" aria-hidden>
+                      <span className="shrink-0 text-[15px] leading-none" aria-hidden>
                         {flag}
                       </span>
                     ) : null}
@@ -236,7 +210,7 @@ export function PanoramaPageContent() {
                 );
               })}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 sm:justify-end">
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setEmergingOnly((v) => !v)}
@@ -251,7 +225,7 @@ export function PanoramaPageContent() {
                     setCountryFilter([]);
                     setEmergingOnly(false);
                   }}
-                  className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+                  className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
                 >
                   Tout afficher
                 </button>
@@ -259,9 +233,8 @@ export function PanoramaPageContent() {
             </div>
           </div>
         ) : null}
-        {!clustersOnlyLoading &&
-        clusterRows.length > 0 &&
-        filteredClusters.length === 0 ? (
+
+        {!clustersOnlyLoading && clusterRows.length > 0 && filteredClusters.length === 0 ? (
           <p className="py-10 text-[13px] text-muted-foreground">
             Aucun regroupement ne correspond à ces filtres.
           </p>

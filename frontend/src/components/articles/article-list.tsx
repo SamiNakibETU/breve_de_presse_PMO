@@ -42,12 +42,26 @@ export function ArticleList({
 
   if (loading) {
     return (
-      <div className="border-t border-border">
-        {Array.from({ length: 5 }).map((_, i) => (
+      <div className="grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="h-20 animate-pulse border-b border-border-light bg-muted/40"
-          />
+            className="rounded-xl border border-border bg-card p-4 sm:p-5"
+            style={{ animationDelay: `${i * 60}ms` }}
+          >
+            {/* Skeleton image */}
+            <div className="mb-3 h-32 w-full animate-pulse rounded-lg bg-muted/50" />
+            {/* Skeleton type label */}
+            <div className="mb-2 h-2.5 w-20 animate-pulse rounded bg-muted/60" />
+            {/* Skeleton title */}
+            <div className="mb-1.5 h-4 w-full animate-pulse rounded bg-muted/50" />
+            <div className="mb-3 h-4 w-3/4 animate-pulse rounded bg-muted/40" />
+            {/* Skeleton thesis */}
+            <div className="mb-1 h-3 w-full animate-pulse rounded bg-muted/30" />
+            <div className="h-3 w-5/6 animate-pulse rounded bg-muted/30" />
+            {/* Skeleton meta */}
+            <div className="mt-3 h-2.5 w-2/3 animate-pulse rounded bg-muted/25" />
+          </div>
         ))}
       </div>
     );
@@ -62,18 +76,14 @@ export function ArticleList({
   }
 
   const cardWrap = (a: Article) => (
-    <div
+    <ArticleCard
       key={a.id}
-      className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5"
-    >
-      <ArticleCard
-        article={a}
-        selected={selected.has(a.id)}
-        onToggle={onToggle}
-        variant="grid"
-        topicLabelsFr={topicLabelsFr}
-      />
-    </div>
+      article={a}
+      selected={selected.has(a.id)}
+      onToggle={onToggle}
+      variant="grid"
+      topicLabelsFr={topicLabelsFr}
+    />
   );
 
   if (!groupByOljTheme) {

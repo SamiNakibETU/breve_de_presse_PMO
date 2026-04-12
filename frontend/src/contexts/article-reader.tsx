@@ -1,5 +1,24 @@
 "use client";
 
+/**
+ * ArticleReader — Lecteur modal avec flux éditorial continu.
+ *
+ * Design : Ryo Lu — flux unique scrollable, pas d'onglets.
+ * Les journalistes ne veulent pas cliquer pour trouver l'information.
+ *
+ * Ordre du contenu :
+ *   Header (media · pays · date)
+ *   Titre (serif semibold)
+ *   ── séparateur ──
+ *   THÈSE           → italic serif
+ *   POINTS CLÉS     → puces avec filet accent
+ *   CONTEXTE FACTUEL→ factual_context_fr
+ *   RÉSUMÉ          → paragraphes avec lettrine
+ *   CITATIONS       → italic serif fond muted
+ *   ── séparateur ──
+ *   Métadonnées techniques (tonalité, cadrage, angle)
+ */
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -32,6 +51,7 @@ import {
   editorialBodySections,
   sanitizeTranslatedBodyForDisplay,
 } from "@/lib/editorial-body";
+import { SectionLabel } from "@/components/ui/editorial-primitives";
 import { cn } from "@/lib/utils";
 
 const ARTICLE_QUERY_STALE_MS = 60_000;
@@ -44,16 +64,12 @@ type ArticleReaderContextValue = {
   prefetchArticle: (articleId: string) => void;
 };
 
-const ArticleReaderContext = createContext<ArticleReaderContextValue | null>(
-  null,
-);
+const ArticleReaderContext = createContext<ArticleReaderContextValue | null>(null);
 
 export function ArticleReaderProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [articleId, setArticleId] = useState<string | null>(null);
-  const openArticle = useCallback((id: string) => {
-    setArticleId(id);
-  }, []);
+  const openArticle = useCallback((id: string) => setArticleId(id), []);
   const close = useCallback(() => setArticleId(null), []);
 
   const prefetchArticle = useCallback(
@@ -78,7 +94,6 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Actions lecteur article ; no-op si hors provider. */
 export function useArticleReader(): ArticleReaderContextValue {
   const ctx = useContext(ArticleReaderContext);
   return {
@@ -86,8 +101,6 @@ export function useArticleReader(): ArticleReaderContextValue {
     prefetchArticle: ctx?.prefetchArticle ?? (() => {}),
   };
 }
-
-type ReaderTab = "analysis" | "synthesis" | "body" | "source";
 
 function buildSynthesisPlainText(a: Article): string {
   const parts: string[] = [];
@@ -115,8 +128,8 @@ function ArticleReadModal({
   articleId: string;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<ReaderTab>("synthesis");
   const [copiedSynth, setCopiedSynth] = useState(false);
+
   const q = useQuery({
     queryKey: articleDetailQueryKey(articleId),
     queryFn: () => api.articleById(articleId),
@@ -130,52 +143,31 @@ function ArticleReadModal({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
+      if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   const a: Article | undefined = q.data;
-
-  useEffect(() => {
-    if (!a) {
-      return;
-    }
-    const hasAnalysis =
-      (a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) ||
-      Boolean(a.author_thesis_explicit_fr?.trim()) ||
-      Boolean(a.factual_context_fr?.trim());
-    setTab(hasAnalysis ? "analysis" : "synthesis");
-  }, [a]);
-
   const title = a
-    ? decodeHtmlEntities(
-        (a.title_fr?.trim() || a.title_original || "Article").trim(),
-      )
+    ? decodeHtmlEntities((a.title_fr?.trim() || a.title_original || "Article").trim())
     : "Article";
-  const titleOriginalDisplay = a
-    ? decodeHtmlEntities(a.title_original || "")
-    : "";
   const typeFr = articleTypeLabelFr(a?.article_type);
   const langFr = sourceLanguageLabelFr(a?.source_language);
   const hasBodyFr = Boolean(a?.content_translated_fr?.trim());
-  const summaryOnly =
-    Boolean(a?.en_translation_summary_only) && !hasBodyFr;
+  const summaryOnly = Boolean(a?.en_translation_summary_only) && !hasBodyFr;
   const hasOriginalBody = Boolean(a?.content_original?.trim());
-  const hasAnalysisTab =
-    Boolean(a?.analysis_bullets_fr?.length) ||
-    Boolean(a?.author_thesis_explicit_fr?.trim()) ||
-    Boolean(a?.factual_context_fr?.trim());
   const cc = (a?.country_code ?? "").trim().toUpperCase();
   const flag = cc ? REGION_FLAG_EMOJI[cc] : null;
   const authorLine = a ? formatAuthorDisplay(a.author) : null;
   const relevanceLbl =
-    a != null
-      ? relevanceBandLabelFr(a.relevance_band, a.editorial_relevance)
-      : null;
+    a != null ? relevanceBandLabelFr(a.relevance_band, a.editorial_relevance) : null;
+
+  const hasBullets = Boolean(a?.analysis_bullets_fr?.length);
+  const hasThesis = Boolean(a?.author_thesis_explicit_fr?.trim());
+  const hasContext = Boolean(a?.factual_context_fr?.trim());
+  const hasAnalysis = hasBullets || hasThesis || hasContext;
 
   return (
     <div
@@ -184,150 +176,154 @@ function ArticleReadModal({
       aria-modal="true"
       aria-labelledby="article-read-title"
     >
+      {/* Overlay */}
       <button
         type="button"
         className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
         aria-label="Fermer"
         onClick={onClose}
       />
-      <div className="relative flex max-h-[min(92vh,48rem)] w-full max-w-2xl flex-col rounded-t-lg border border-border bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom-4 sm:rounded-lg sm:motion-safe:slide-in-from-bottom-0 sm:motion-safe:zoom-in-95">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-          <p className="olj-rubric">Lecture article</p>
-          <button
-            type="button"
-            className="olj-btn-secondary shrink-0 px-2 py-1 text-[11px]"
-            onClick={onClose}
-          >
-            Fermer
-          </button>
+
+      {/* Panel */}
+      <div className="relative flex max-h-[min(92vh,52rem)] w-full max-w-2xl flex-col rounded-t-2xl border border-border bg-background shadow-high motion-safe:animate-in motion-safe:slide-in-from-bottom-4 sm:rounded-2xl sm:motion-safe:slide-in-from-bottom-0 sm:motion-safe:zoom-in-95">
+        {/* En-tête fixe du panel */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+          {typeFr ? (
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {typeFr}
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Lecture
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            {a?.url && (
+              <a
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="olj-btn-secondary px-2.5 py-1 text-[11px]"
+              >
+                Source ↗
+              </a>
+            )}
+            <button
+              type="button"
+              className="olj-btn-secondary px-2.5 py-1 text-[11px]"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+
+        {/* Corps scrollable */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
           {q.isPending ? (
             <div className="space-y-3" role="status" aria-label="Chargement">
-              <div className="h-6 w-3/4 animate-pulse rounded bg-muted/60" />
+              <div className="h-5 w-1/3 animate-pulse rounded bg-muted/60" />
+              <div className="h-7 w-3/4 animate-pulse rounded bg-muted/50" />
               <div className="h-4 w-full animate-pulse rounded bg-muted/40" />
               <div className="h-4 w-5/6 animate-pulse rounded bg-muted/40" />
-              <div className="h-32 w-full animate-pulse rounded bg-muted/30" />
+              <div className="h-24 w-full animate-pulse rounded bg-muted/30" />
             </div>
           ) : q.isError ? (
             <p className="olj-alert-destructive px-3 py-2" role="alert">
               {q.error instanceof Error
                 ? q.error.message
-                : "Impossible de charger l’article."}
+                : "Impossible de charger l'article."}
             </p>
           ) : a ? (
-            <article className="space-y-4 text-[13px] leading-relaxed text-foreground-body">
-              <header className="space-y-2 border-b border-border-light pb-4">
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
-                  {flag ? (
-                    <span className="text-[1.1rem] leading-none" aria-hidden>
+            <article className="space-y-5">
+              {/* ── HEADER ──────────────────────────────────────── */}
+              <header className="space-y-2">
+                {/* Méta ligne : flag · pays · media · date */}
+                <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
+                  {flag && (
+                    <span className="text-[16px] leading-none" aria-hidden>
                       {flag}
                     </span>
-                  ) : null}
-                  <span>{a.country?.trim() || cc || "—"}</span>
-                  <span>·</span>
-                  <span className="font-medium text-foreground">{a.media_name}</span>
-                  {typeFr ? (
+                  )}
+                  {(a.country?.trim() || cc) && (
+                    <span>{a.country?.trim() || cc}</span>
+                  )}
+                  <span className="text-border" aria-hidden>·</span>
+                  <span className="font-semibold text-foreground">{a.media_name}</span>
+                  {authorLine && (
                     <>
-                      <span>·</span>
-                      <span className="rounded-sm bg-muted/40 px-1.5 py-0.5 text-[11px] font-medium text-foreground">
-                        {typeFr}
-                      </span>
+                      <span className="text-border" aria-hidden>·</span>
+                      <span className="font-medium text-foreground-body">{authorLine}</span>
                     </>
-                  ) : null}
-                  {a.published_at ? (
+                  )}
+                  {a.published_at && (
                     <>
-                      <span>·</span>
-                      <time
-                        dateTime={a.published_at}
-                        className="tabular-nums text-[11px]"
-                      >
+                      <span className="text-border" aria-hidden>·</span>
+                      <time dateTime={a.published_at} className="tabular-nums">
                         {formatPublishedAtFr(a.published_at, "short")}
                       </time>
                     </>
-                  ) : null}
+                  )}
+                  {langFr && (
+                    <>
+                      <span className="text-border" aria-hidden>·</span>
+                      <span>{langFr}</span>
+                    </>
+                  )}
                 </p>
+
+                {/* Titre */}
                 <h2
                   id="article-read-title"
-                  className="font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug text-foreground"
+                  className="font-[family-name:var(--font-serif)] text-[20px] font-semibold leading-snug text-foreground"
                 >
                   {title}
                 </h2>
-                {a.title_fr &&
-                a.title_original &&
-                a.title_fr !== a.title_original ? (
-                  <p className="text-[12px] text-muted-foreground">
-                    Titre d’origine : {titleOriginalDisplay}
+
+                {/* Titre original si différent */}
+                {a.title_fr && a.title_original && a.title_fr !== a.title_original && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Titre d'origine : {decodeHtmlEntities(a.title_original)}
                   </p>
-                ) : null}
-                <p className="flex flex-wrap gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
-                  {authorLine ? (
-                    <span className="font-medium text-foreground">{authorLine}</span>
-                  ) : null}
-                  {langFr ? (
-                    <span>
-                      {authorLine ? " · " : null}
-                      {langFr}
+                )}
+
+                {/* Pertinence + actions */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {relevanceLbl && (
+                    <span className="inline-flex rounded border border-border bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-foreground-body">
+                      Pertinence : {relevanceLbl}
                     </span>
-                  ) : null}
-                </p>
-                {a.url ? (
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="olj-link-action inline-block text-[12px]"
+                  )}
+                  <button
+                    type="button"
+                    className="olj-btn-secondary px-2.5 py-1 text-[11px] disabled:opacity-40"
+                    disabled={!buildSynthesisPlainText(a).trim()}
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(buildSynthesisPlainText(a));
+                        setCopiedSynth(true);
+                        window.setTimeout(() => setCopiedSynth(false), 2000);
+                      } catch {
+                        setCopiedSynth(false);
+                      }
+                    }}
                   >
-                    Ouvrir la source originale ↗
-                  </a>
-                ) : null}
+                    {copiedSynth ? "Copié" : "Copier la synthèse"}
+                  </button>
+                  <Link
+                    href={`/articles/${articleId}`}
+                    className="olj-btn-secondary px-2.5 py-1 text-[11px]"
+                    onClick={onClose}
+                  >
+                    Pleine page
+                  </Link>
+                </div>
               </header>
 
-              <div
-                className="flex flex-wrap gap-1 border-b border-border-light pb-3"
-                role="tablist"
-                aria-label="Mode de lecture"
-              >
-                {(
-                  [
-                    ["analysis", "Analyse"],
-                    ["synthesis", "Synthèse"],
-                    ["body", "Corps"],
-                    ["source", "Source"],
-                  ] as const
-                ).map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === k}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-semibold tracking-wide transition-colors sm:px-3",
-                      tab === k
-                        ? "bg-accent/12 text-accent"
-                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                    )}
-                    onClick={() => setTab(k)}
-                  >
-                    {label}
-                    {k === "analysis" && hasAnalysisTab ? (
-                      <span
-                        className="inline-block size-1.5 shrink-0 rounded-full bg-accent"
-                        title="Analyse structurée disponible"
-                        aria-hidden
-                      />
-                    ) : null}
-                    {k === "body" && hasBodyFr ? (
-                      <span
-                        className="inline-block size-1.5 shrink-0 rounded-full bg-accent"
-                        title="Corps traduit disponible"
-                        aria-hidden
-                      />
-                    ) : null}
-                  </button>
-                ))}
-              </div>
+              {/* ── SÉPARATEUR ──────────────────────────────────── */}
+              <hr className="border-t border-border" />
 
+              {/* Avertissement état analyse */}
               {a.analysis_display_hint_fr &&
               a.analysis_display_state &&
               a.analysis_display_state !== "complete" ? (
@@ -338,286 +334,181 @@ function ArticleReadModal({
                       ? "border-border-light bg-muted/25 text-muted-foreground"
                       : "border-accent/20 bg-accent/5 text-foreground-body",
                   )}
-                  title="Analyse"
                 >
                   {a.analysis_display_hint_fr}
                 </p>
               ) : null}
 
-              <div className="flex flex-wrap gap-2 border-b border-border-light pb-3">
-                <Link
-                  href={`/articles/${articleId}`}
-                  className="olj-btn-secondary inline-flex px-3 py-1.5 text-[11px]"
-                  onClick={onClose}
-                >
-                  Ouvrir en pleine page
-                </Link>
-              </div>
-
-              {tab === "analysis" ? (
-                <section className="space-y-4">
-                  {a.factual_context_fr?.trim() ? (
-                    <section>
-                      <p className="olj-rubric mb-2">Contexte factuel</p>
-                      <p className="text-[13px] leading-relaxed text-foreground-body">
-                        {a.factual_context_fr.trim()}
-                      </p>
-                    </section>
-                  ) : null}
-                  {a.author_thesis_explicit_fr?.trim() ? (
-                    <section>
-                      <p className="olj-rubric mb-2">Thèse (attribution)</p>
-                      <p className="font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
-                        {a.author_thesis_explicit_fr.trim()}
-                      </p>
-                    </section>
-                  ) : null}
-                  {a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0 ? (
-                    <section>
-                      <p className="olj-rubric mb-2">Idées majeures</p>
-                      <ol className="list-decimal space-y-3 pl-5 text-[13px] text-foreground-body marker:font-semibold marker:text-accent">
-                        {a.analysis_bullets_fr.map((b, i) => {
-                          const line = normalizeBulletLine(b);
-                          if (!line) {
-                            return null;
-                          }
-                          return (
-                            <li key={i} className="whitespace-pre-wrap pl-1">
-                              {line}
-                            </li>
-                          );
-                        })}
-                      </ol>
-                    </section>
-                  ) : null}
-                  {a.analysis_tone || a.fact_opinion_quality ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      {a.analysis_tone ? `Tonalité : ${a.analysis_tone}. ` : null}
-                      {a.fact_opinion_quality
-                        ? `Séparation fait / opinion : ${a.fact_opinion_quality}.`
-                        : null}
-                    </p>
-                  ) : null}
-                  {!a.factual_context_fr?.trim() &&
-                  !a.author_thesis_explicit_fr?.trim() &&
-                  !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) &&
-                  !a.thesis_summary_fr?.trim() ? (
-                    <p className="text-[13px] leading-relaxed text-muted-foreground">
-                      L’analyse (faits, thèse, idées majeures) sera disponible après le
-                      prochain passage pipeline ou une relance depuis la régie. En attendant,
-                      consultez l’onglet{" "}
-                      <strong className="font-medium text-foreground">Synthèse</strong>.
-                    </p>
-                  ) : null}
-                  {!a.factual_context_fr?.trim() &&
-                  !a.author_thesis_explicit_fr?.trim() &&
-                  !(a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0) &&
-                  a.thesis_summary_fr?.trim() ? (
-                    <p className="text-[13px] leading-relaxed text-muted-foreground">
-                      Pas encore d’analyse structurée : la thèse et le résumé sont dans l’onglet{" "}
-                      <strong className="font-medium text-foreground">Synthèse</strong>.
-                    </p>
-                  ) : null}
+              {/* ── THÈSE ────────────────────────────────────────── */}
+              {(a.author_thesis_explicit_fr?.trim() || a.thesis_summary_fr?.trim()) && (
+                <section className="space-y-2">
+                  <SectionLabel>Thèse</SectionLabel>
+                  <p className="font-[family-name:var(--font-serif)] text-[15px] italic leading-relaxed text-foreground-body">
+                    {(a.author_thesis_explicit_fr?.trim() || a.thesis_summary_fr?.trim())}
+                  </p>
                 </section>
-              ) : tab === "synthesis" ? (
-                <>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    {relevanceLbl ? (
-                      <span className="inline-flex rounded-md border border-border bg-muted/20 px-2 py-1 text-[10px] font-medium text-foreground-body">
-                        Pertinence : {relevanceLbl}
-                      </span>
-                    ) : (
-                      <span />
-                    )}
-                    <button
-                      type="button"
-                      className="olj-btn-secondary px-2 py-1 text-[11px] disabled:opacity-40"
-                      disabled={!a || !buildSynthesisPlainText(a).trim()}
-                      onClick={async () => {
-                        if (!a) return;
-                        try {
-                          await navigator.clipboard.writeText(
-                            buildSynthesisPlainText(a),
-                          );
-                          setCopiedSynth(true);
-                          window.setTimeout(() => setCopiedSynth(false), 2000);
-                        } catch {
-                          setCopiedSynth(false);
-                        }
-                      }}
-                    >
-                      {copiedSynth ? "Copié" : "Copier la synthèse"}
-                    </button>
-                  </div>
-                  {a.thesis_summary_fr?.trim() ? (
-                    <section>
-                      <p className="olj-rubric mb-2">Thèse</p>
-                      <p className="font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
-                        {a.thesis_summary_fr.trim()}
-                      </p>
-                    </section>
-                  ) : null}
+              )}
 
-                  {a.summary_fr?.trim() ? (
-                    <section>
-                      <p className="olj-rubric mb-2">Résumé</p>
-                      <div className="space-y-3 font-[family-name:var(--font-serif)] text-[14px] leading-[1.75] text-foreground-body">
-                        {bodyParagraphs(a.summary_fr.trim()).map((para, i) => (
-                          <p key={i}>{para}</p>
-                        ))}
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {!a.thesis_summary_fr?.trim() && !a.summary_fr?.trim() ? (
-                    <p className="text-muted-foreground">
-                      Pas de synthèse disponible pour cet article. Voyez l’onglet{" "}
-                      <strong className="font-medium text-foreground">Corps</strong>{" "}
-                      ou <strong className="font-medium text-foreground">Source</strong>.
-                    </p>
-                  ) : null}
-
-                  {a.key_quotes_fr && a.key_quotes_fr.length > 0 ? (
-                    <section>
-                      <p className="olj-rubric mb-2">Citations</p>
-                      <ul className="space-y-2 rounded-md bg-muted/15 p-3">
-                        {a.key_quotes_fr.map((quote, i) => (
+              {/* ── POINTS CLÉS ───────────────────────────────────── */}
+              {hasBullets && (
+                <section className="space-y-2">
+                  <SectionLabel>Points clés</SectionLabel>
+                  <div className="border-l-2 border-accent bg-muted/20 py-3 pl-4 pr-3 rounded-r-md">
+                    <ol className="space-y-2">
+                      {a.analysis_bullets_fr!.map((b, i) => {
+                        const line = normalizeBulletLine(b);
+                        if (!line) return null;
+                        return (
                           <li
                             key={i}
-                            className="font-[family-name:var(--font-serif)] text-[13px] italic text-foreground-subtle whitespace-pre-wrap"
+                            className="flex gap-2.5 text-[13px] leading-snug text-foreground-body"
                           >
-                            «&nbsp;{formatQuoteForDisplay(quote)}&nbsp;»
+                            <span className="mt-px shrink-0 text-[11px] font-bold tabular-nums text-accent">
+                              {i + 1}.
+                            </span>
+                            <span>{line}</span>
                           </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ) : null}
+                        );
+                      })}
+                    </ol>
+                  </div>
+                </section>
+              )}
 
-                  {(a.framing_actor ||
-                    a.framing_tone ||
-                    a.framing_prescription) && (
-                    <section className="border-t border-border-light pt-4 text-[12px] text-foreground-body">
-                      <p className="olj-rubric mb-2">Cadrage éditorial</p>
-                      {a.framing_actor ? (
-                        <p>
-                          <span className="text-muted-foreground">Angle : </span>
-                          {a.framing_actor}
-                        </p>
-                      ) : null}
-                      {a.framing_tone ? (
-                        <p>
-                          <span className="text-muted-foreground">Registre : </span>
-                          {a.framing_tone}
-                        </p>
-                      ) : null}
-                      {a.framing_prescription ? (
-                        <p>
-                          <span className="text-muted-foreground">Proposition : </span>
-                          {a.framing_prescription}
-                        </p>
-                      ) : null}
-                    </section>
-                  )}
-
-                  {a.editorial_angle?.trim() ? (
-                    <p className="border-t border-border-light pt-4 text-[12px] text-foreground-subtle">
-                      {a.editorial_angle.trim()}
-                    </p>
-                  ) : null}
-                </>
-              ) : tab === "body" ? (
+              {/* ── CONTEXTE FACTUEL ──────────────────────────────── */}
+              {hasContext && (
                 <section className="space-y-2">
-                  <p className="olj-rubric mb-1">Traduction intégrale</p>
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    Corps traduit (distinct de la synthèse éditoriale).
+                  <SectionLabel>Contexte factuel</SectionLabel>
+                  <p className="text-[13px] leading-relaxed text-foreground-body">
+                    {a.factual_context_fr!.trim()}
                   </p>
-                  {hasBodyFr ? (
-                    <div className="rounded-md border border-border-light bg-surface-warm/20 p-4 font-[family-name:var(--font-serif)] text-[15px] leading-[1.85] text-foreground-body">
-                      {editorialBodySections(
-                        sanitizeTranslatedBodyForDisplay(a.content_translated_fr!.trim()),
-                      ).map(
-                        (sec, si) => (
-                          <div
-                            key={si}
-                            className={
-                              si > 0
-                                ? "mt-8 border-t border-border-light pt-8"
-                                : ""
-                            }
-                          >
-                            {sec.heading ? (
-                              <p className="mb-4 font-[family-name:var(--font-serif)] text-[15px] font-semibold text-foreground">
-                                {sec.heading}
-                              </p>
-                            ) : null}
-                            {sec.paragraphs.map((para, i) => (
-                              <p
-                                key={i}
-                                className={
-                                  i === 0 && si === 0
-                                    ? "mb-5 last:mb-0 [&:first-letter]:float-left [&:first-letter]:mr-2 [&:first-letter]:font-[family-name:var(--font-serif)] [&:first-letter]:text-[3.25rem] [&:first-letter]:leading-[0.85] [&:first-letter]:text-accent"
-                                    : "mb-5 last:mb-0"
-                                }
-                              >
-                                {para}
-                              </p>
-                            ))}
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  ) : summaryOnly ? (
-                    <p className="text-[13px] text-muted-foreground">
-                      Pour cet article, la chaîne n’a pas persisté le corps
-                      traduit (résumé seulement). Utilisez l’onglet{" "}
-                      <strong className="font-medium text-foreground">
-                        Synthèse
-                      </strong>{" "}
-                      ou la <strong className="font-medium text-foreground">Source</strong>.
-                    </p>
-                  ) : hasOriginalBody ? (
-                    <>
-                      <p className="text-[13px] leading-relaxed text-muted-foreground">
-                        Le corps traduit complet sera disponible après la prochaine traduction
-                        avec persistance du français. Texte source tel qu’ingéré (langue d’origine)
-                        :
+                </section>
+              )}
+
+              {/* Message si pas d'analyse */}
+              {!hasAnalysis && !a.thesis_summary_fr?.trim() && (
+                <p className="text-[13px] text-muted-foreground italic">
+                  L'analyse structurée sera disponible après le prochain passage pipeline.
+                </p>
+              )}
+
+              {/* ── RÉSUMÉ ───────────────────────────────────────── */}
+              {a.summary_fr?.trim() && (
+                <section className="space-y-2">
+                  <SectionLabel>Résumé</SectionLabel>
+                  <div className="space-y-3 rounded-md border border-border-light bg-surface-warm/20 px-4 py-3.5 font-[family-name:var(--font-serif)] text-[14px] leading-[1.8] text-foreground-body">
+                    {bodyParagraphs(a.summary_fr.trim()).map((para, i) => (
+                      <p
+                        key={i}
+                        className={
+                          i === 0
+                            ? "[&:first-letter]:float-left [&:first-letter]:mr-2 [&:first-letter]:font-[family-name:var(--font-serif)] [&:first-letter]:text-[3rem] [&:first-letter]:leading-[0.85] [&:first-letter]:text-accent"
+                            : ""
+                        }
+                      >
+                        {para}
                       </p>
-                      <div className="rounded-md border border-border-light bg-muted/20 p-4 font-[family-name:var(--font-serif)] text-[14px] leading-[1.75] text-foreground-body">
-                        {bodyParagraphs(a.content_original!.trim()).map((para, i) => (
-                          <p key={i} className="mb-3 last:mb-0">
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ── CITATIONS ────────────────────────────────────── */}
+              {a.key_quotes_fr && a.key_quotes_fr.length > 0 && (
+                <section className="space-y-2">
+                  <SectionLabel>Citations</SectionLabel>
+                  <ul className="space-y-2.5 rounded-md border border-border-light bg-muted/10 px-4 py-3">
+                    {a.key_quotes_fr.map((quote, i) => (
+                      <li
+                        key={i}
+                        className="font-[family-name:var(--font-serif)] text-[13px] italic leading-relaxed text-foreground-subtle"
+                      >
+                        «&nbsp;{formatQuoteForDisplay(quote)}&nbsp;»
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* ── CORPS TRADUIT (si disponible) ─────────────────── */}
+              {hasBodyFr && (
+                <section className="space-y-2">
+                  <SectionLabel>Traduction intégrale</SectionLabel>
+                  <div className="rounded-md border border-border-light bg-surface-warm/20 px-4 py-4 font-[family-name:var(--font-serif)] text-[14px] leading-[1.85] text-foreground-body">
+                    {editorialBodySections(
+                      sanitizeTranslatedBodyForDisplay(a.content_translated_fr!.trim()),
+                    ).map((sec, si) => (
+                      <div
+                        key={si}
+                        className={si > 0 ? "mt-6 border-t border-border-light pt-6" : ""}
+                      >
+                        {sec.heading ? (
+                          <p className="mb-3 font-semibold text-foreground">
+                            {sec.heading}
+                          </p>
+                        ) : null}
+                        {sec.paragraphs.map((para, i) => (
+                          <p
+                            key={i}
+                            className={cn(
+                              "mb-4 last:mb-0",
+                              i === 0 && si === 0
+                                ? "[&:first-letter]:float-left [&:first-letter]:mr-2 [&:first-letter]:text-[3.25rem] [&:first-letter]:leading-[0.85] [&:first-letter]:text-accent"
+                                : "",
+                            )}
+                          >
                             {para}
                           </p>
                         ))}
                       </div>
-                    </>
-                  ) : (
-                    <p className="text-[13px] text-muted-foreground">
-                      Aucun corps disponible en base pour cet article. Ouvrez la source ou
-                      vérifiez la collecte.
-                    </p>
-                  )}
-                </section>
-              ) : (
-                <section className="space-y-3 text-[13px] leading-relaxed text-foreground-body">
-                  <p className="olj-rubric">Source originale</p>
-                  {a.url ? (
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="olj-link-action inline-block break-all"
-                    >
-                      {a.url}
-                    </a>
-                  ) : (
-                    <p className="text-muted-foreground">URL non renseignée.</p>
-                  )}
-                  <p className="text-[12px] text-muted-foreground">
-                    <span className="font-medium text-foreground">Titre d’origine : </span>
-                    {titleOriginalDisplay}
-                  </p>
+                    ))}
+                  </div>
                 </section>
               )}
+
+              {summaryOnly && !hasBodyFr && (
+                <p className="text-[12px] text-muted-foreground">
+                  Corps traduit non persisté (résumé seulement). Voir la source originale.
+                </p>
+              )}
+
+              {!hasBodyFr && !summaryOnly && hasOriginalBody && (
+                <section className="space-y-2">
+                  <SectionLabel>Texte source (langue d'origine)</SectionLabel>
+                  <div className="rounded-md border border-border-light bg-muted/20 px-4 py-3 font-[family-name:var(--font-serif)] text-[13px] leading-[1.75] text-foreground-body">
+                    {bodyParagraphs(a.content_original!.trim()).map((para, i) => (
+                      <p key={i} className="mb-3 last:mb-0">
+                        {para}
+                      </p>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ── SÉPARATEUR ──────────────────────────────────── */}
+              <hr className="border-t border-border" />
+
+              {/* ── MÉTADONNÉES TECHNIQUES ───────────────────────── */}
+              <footer className="space-y-1 text-[11px] text-muted-foreground">
+                {a.analysis_tone && (
+                  <p><span className="font-medium text-foreground-body">Tonalité : </span>{a.analysis_tone}</p>
+                )}
+                {a.fact_opinion_quality && (
+                  <p><span className="font-medium text-foreground-body">Fait / opinion : </span>{a.fact_opinion_quality}</p>
+                )}
+                {a.framing_actor && (
+                  <p><span className="font-medium text-foreground-body">Angle : </span>{a.framing_actor}</p>
+                )}
+                {a.framing_tone && (
+                  <p><span className="font-medium text-foreground-body">Registre : </span>{a.framing_tone}</p>
+                )}
+                {a.framing_prescription && (
+                  <p><span className="font-medium text-foreground-body">Proposition : </span>{a.framing_prescription}</p>
+                )}
+                {a.editorial_angle?.trim() && (
+                  <p><span className="font-medium text-foreground-body">Angle éditorial : </span>{a.editorial_angle.trim()}</p>
+                )}
+              </footer>
             </article>
           ) : null}
         </div>

@@ -1,5 +1,26 @@
 "use client";
 
+/**
+ * ClusterCard — Carte dossier thématique, style magazine éditorial.
+ *
+ * Structure (Ryo Lu / Dieter Rams) :
+ *   ┌─────────────────────────────────────────────────────┐
+ *   │  NOUVEAU SUJET (badge si is_emerging)               │
+ *   │                                                     │
+ *   │  Tensions croissantes au Moyen-Orient               │ ← serif semibold
+ *   │  12 articles · 5 pays · 78 %                        │ ← footnote muted
+ *   │                                                     │
+ *   │  "La diplomatie américaine se heurte à..."          │ ← italic serif body
+ *   │                                         — Guardian  │ ← attribution
+ *   │                                                     │
+ *   │  "Face à cette pression, le Liban..."               │ ← italic serif caption
+ *   │                                         — An-Nahar  │
+ *   │                                                     │
+ *   │  🇱🇧 🇺🇸 🇫🇷 🇮🇱 🇮🇷                               │ ← drapeaux seuls
+ *   │                          Ouvrir le dossier →        │
+ *   └─────────────────────────────────────────────────────┘
+ */
+
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -7,37 +28,10 @@ import { countryLabelFr } from "@/lib/country-labels-fr";
 import { displayClusterTitle } from "@/lib/cluster-display";
 import { formatDateTimeBeirutFr } from "@/lib/dates-display-fr";
 import type { ThesisPreviewItem, TopicCluster } from "@/lib/types";
-import { ClusterCountryStrip } from "./cluster-country-strip";
+import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 
-const MAX_COUNTRIES_TEXT = 8;
-const MAX_SECOND_VOICE = 200;
+const MAX_SECOND_VOICE = 220;
 const MAX_THIRD_VOICE = 180;
-
-const VOICE_HINTS: readonly [string, string, string] = [
-  "Voix 1 — entrée la plus récente",
-  "Voix 2 — contrepoint ou angle voisin",
-  "Voix 3 — prolongation ou écho régional",
-];
-
-const ARTICLE_TYPE_FR: Record<string, string> = {
-  opinion: "Opinion",
-  editorial: "Éditorial",
-  tribune: "Tribune",
-  analysis: "Analyse",
-  news: "Actualité",
-  interview: "Entretien",
-  reportage: "Reportage",
-};
-
-const LANG_FR: Record<string, string> = {
-  ar: "Arabe",
-  en: "Anglais",
-  fr: "Français",
-  he: "Hébreu",
-  fa: "Persan",
-  tr: "Turc",
-  ku: "Kurde",
-};
 
 function normalizePreview(
   raw: string | ThesisPreviewItem,
@@ -75,99 +69,27 @@ function formatFreshness(iso: string | null): string | null {
   }
 }
 
-function countriesShortLine(codes: string[]): string {
-  if (codes.length === 0) return "";
-  const head = codes.slice(0, MAX_COUNTRIES_TEXT).map((c) => countryLabelFr(c));
-  const rest = codes.length - head.length;
-  return rest > 0 ? `${head.join(" · ")} · +${rest}` : head.join(" · ");
-}
-
-function typeLabel(code: string | null | undefined): string | null {
-  if (!code?.trim()) return null;
-  return ARTICLE_TYPE_FR[code.trim().toLowerCase()] ?? code;
-}
-
-function langLabel(code: string | null | undefined): string | null {
-  if (!code?.trim()) return null;
-  return LANG_FR[code.trim().toLowerCase()] ?? code.toUpperCase();
-}
-
-/** Source : auteur, média, pays, format, langue d’origine. */
-function PreviewAttribution({ p }: { p: ThesisPreviewItem & { thesis: string } }) {
-  const bits: string[] = [];
-  if (p.author?.trim()) bits.push(p.author.trim());
-  if (p.media_name?.trim()) bits.push(p.media_name.trim());
-  if (p.country?.trim()) bits.push(p.country.trim());
-  const t = typeLabel(p.article_type ?? undefined);
-  if (t) bits.push(t);
-  const l = langLabel(p.source_language ?? undefined);
-  if (l) bits.push(l);
-  if (bits.length === 0) return null;
-  return (
-    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{bits.join(" · ")}</p>
-  );
-}
-
-function truncateThesis(text: string, maxLen: number): string {
+function truncate(text: string, maxLen: number): string {
   const t = text.trim();
   if (t.length <= maxLen) return t;
   return `${t.slice(0, maxLen).trim()}…`;
 }
 
-function VoiceSnippetRow({
-  clusterId,
-  voiceIndex,
-  preview,
-  mode,
+/** Attribution discrète : tiret cadratin + media */
+function Attribution({
+  p,
 }: {
-  clusterId: string;
-  voiceIndex: 1 | 2 | 3;
-  preview: ThesisPreviewItem & { thesis: string };
-  mode: "lead" | "quote";
+  p: ThesisPreviewItem & { thesis: string };
 }) {
-  const hint = VOICE_HINTS[voiceIndex - 1];
-  const body =
-    mode === "lead"
-      ? preview.thesis
-      : truncateThesis(
-          preview.thesis,
-          voiceIndex === 2 ? MAX_SECOND_VOICE : MAX_THIRD_VOICE,
-        );
-
+  const bits: string[] = [];
+  if (p.author?.trim()) bits.push(p.author.trim());
+  if (p.media_name?.trim()) bits.push(p.media_name.trim());
+  if (p.country?.trim()) bits.push(p.country.trim());
+  if (bits.length === 0) return null;
   return (
-    <div
-      className="grid grid-cols-1 gap-2 border-b border-border/80 px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(0,7rem)_minmax(0,1fr)] sm:items-start sm:gap-3 sm:px-3.5"
-      role="group"
-      aria-labelledby={`cluster-${clusterId}-v${voiceIndex}-lbl`}
-    >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span
-          id={`cluster-${clusterId}-v${voiceIndex}-lbl`}
-          className="inline-flex w-fit rounded-full border border-accent/40 bg-accent/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent"
-        >
-          Voix {voiceIndex}
-        </span>
-        <span className="text-[10px] leading-snug text-muted-foreground">{hint}</span>
-      </div>
-      <div className="min-w-0">
-        {mode === "lead" ? (
-          <p
-            className="text-[14px] leading-relaxed text-foreground-body line-clamp-4"
-            title={preview.thesis}
-          >
-            {body}
-          </p>
-        ) : (
-          <p
-            className="font-[family-name:var(--font-serif)] text-[13px] italic leading-relaxed text-foreground-subtle"
-            title={preview.thesis}
-          >
-            «&nbsp;{body}&nbsp;»
-          </p>
-        )}
-        <PreviewAttribution p={preview} />
-      </div>
-    </div>
+    <p className="mt-1 text-[11px] text-muted-foreground">
+      — {bits.join(", ")}
+    </p>
   );
 }
 
@@ -180,46 +102,20 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
   const second = rawPreviews[1] ? normalizePreview(rawPreviews[1]) : null;
   const third = rawPreviews[2] ? normalizePreview(rawPreviews[2]) : null;
 
-  const voiceRows: { idx: 1 | 2 | 3; p: ThesisPreviewItem & { thesis: string }; mode: "lead" | "quote" }[] =
-    [];
-  if (first?.thesis.trim()) {
-    voiceRows.push({ idx: 1, p: first, mode: "lead" });
-  }
-  if (second?.thesis.trim()) {
-    voiceRows.push({ idx: 2, p: second, mode: "quote" });
-  }
-  if (third?.thesis.trim()) {
-    voiceRows.push({ idx: 3, p: third, mode: "quote" });
-  }
-
-  const freshness = formatFreshness(cluster.latest_article_at);
-  const countriesText = countriesShortLine(cluster.countries);
   const pertinencePct =
     cluster.avg_relevance > 0 ? Math.round(cluster.avg_relevance * 100) : null;
+  const freshness = formatFreshness(cluster.latest_article_at);
 
-  const statsSentence = (
-    <>
-      <span className="text-muted-foreground">Articles</span>{" "}
-      <span className="font-medium tabular-nums text-foreground">{cluster.article_count}</span>
-      <span className="mx-1.5 text-border" aria-hidden>
-        ·
-      </span>
-      <span className="text-muted-foreground">Pays</span>{" "}
-      <span className="font-medium tabular-nums text-foreground">{cluster.country_count}</span>
-      <span className="mx-1.5 text-border" aria-hidden>
-        ·
-      </span>
-      <span className="text-muted-foreground">Pertinence</span>{" "}
-      <span className="font-medium tabular-nums text-foreground">
-        {pertinencePct !== null ? `${pertinencePct} %` : "non renseigné"}
-      </span>
-      <span className="mx-1.5 text-border" aria-hidden>
-        ·
-      </span>
-      <span className="text-muted-foreground">Mise à jour</span>{" "}
-      <span className="font-medium text-foreground">{freshness ?? "non renseigné"}</span>
-    </>
-  );
+  /* Drapeaux pays : emoji seuls, tooltip pays complet */
+  const flags = cluster.countries
+    .slice(0, 8)
+    .map((code) => {
+      const upper = code.toUpperCase();
+      const emoji = REGION_FLAG_EMOJI[upper];
+      const name = countryLabelFr(upper);
+      return emoji ? { emoji, name } : null;
+    })
+    .filter(Boolean) as { emoji: string; name: string }[];
 
   return (
     <Link
@@ -233,60 +129,107 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
         });
       }}
     >
-      <article className="flex h-full flex-col rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:border-info/40 hover:shadow-md sm:p-6">
+      <article
+        className={[
+          "flex h-full flex-col rounded-xl border bg-card p-5",
+          "transition-all [transition-duration:var(--duration-normal)] [transition-timing-function:var(--ease-out-expo)]",
+          "hover:border-accent/20 hover:shadow-mid hover:-translate-y-px",
+          "sm:p-6",
+        ].join(" ")}
+      >
+        {/* Badge "Nouveau sujet" */}
         {cluster.is_emerging ? (
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+          <span className="mb-3 inline-flex w-fit rounded-sm bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-foreground">
             Nouveau sujet
-          </p>
+          </span>
         ) : null}
 
-        <header className="border-b border-border-light pb-4">
-          <h2 className="font-[family-name:var(--font-serif)] text-[1.2rem] font-semibold leading-[1.35] text-foreground sm:text-[1.28rem]">
-            {displayClusterTitle(cluster.label)}
-          </h2>
-        </header>
+        {/* TITRE */}
+        <h2 className="font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug tracking-tight text-foreground sm:text-[19px]">
+          {displayClusterTitle(cluster.label)}
+        </h2>
 
-        <p className="mt-4 text-[12px] leading-relaxed text-foreground-body">{statsSentence}</p>
+        {/* STATS inline */}
+        <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
+          {cluster.article_count} article{cluster.article_count !== 1 ? "s" : ""}
+          {" · "}
+          {cluster.country_count} pays
+          {pertinencePct !== null && ` · ${pertinencePct} %`}
+          {freshness && ` · ${freshness}`}
+        </p>
 
-        <div className="mt-5 flex min-h-0 flex-1 flex-col">
-          {voiceRows.length > 0 ? (
-            <section
-              className="overflow-hidden rounded-lg border border-border bg-surface-warm/25"
-              aria-label="Trois voix maximum : aperçus des thèses"
-            >
-              {voiceRows.map(({ idx, p, mode }) => (
-                <VoiceSnippetRow
-                  key={idx}
-                  clusterId={cluster.id}
-                  voiceIndex={idx}
-                  preview={p}
-                  mode={mode}
-                />
-              ))}
-            </section>
-          ) : (
-            <section className="rounded-lg border border-border border-dashed bg-muted/20 px-3 py-4">
-              <p className="text-[13px] italic text-muted-foreground">
-                Aucun aperçu de thèse pour ce dossier. Ouvrez-le pour lire les articles complets.
+        {/* VOIX ÉDITORIALES */}
+        <div className="mt-4 flex min-h-0 flex-1 flex-col space-y-4">
+          {/* Voix 1 : corps plein, en body */}
+          {first?.thesis.trim() ? (
+            <div>
+              <p
+                className="font-[family-name:var(--font-serif)] text-[14px] leading-relaxed text-foreground-body line-clamp-4 italic"
+                title={first.thesis}
+              >
+                {first.thesis}
               </p>
-            </section>
-          )}
+              <Attribution p={first} />
+            </div>
+          ) : null}
+
+          {/* Voix 2 : en citation plus petite */}
+          {second?.thesis.trim() ? (
+            <div>
+              <p
+                className="font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-subtle line-clamp-3"
+                title={second.thesis}
+              >
+                «&nbsp;{truncate(second.thesis, MAX_SECOND_VOICE)}&nbsp;»
+              </p>
+              <Attribution p={second} />
+            </div>
+          ) : null}
+
+          {/* Voix 3 : encore plus discrète */}
+          {third?.thesis.trim() ? (
+            <div>
+              <p
+                className="font-[family-name:var(--font-serif)] text-[11px] italic leading-relaxed text-muted-foreground line-clamp-2"
+                title={third.thesis}
+              >
+                «&nbsp;{truncate(third.thesis, MAX_THIRD_VOICE)}&nbsp;»
+              </p>
+              <Attribution p={third} />
+            </div>
+          ) : null}
+
+          {!first && !second && !third ? (
+            <p className="text-[13px] italic text-muted-foreground">
+              Ouvrez le dossier pour lire les articles.
+            </p>
+          ) : null}
         </div>
 
-        <footer className="mt-6 space-y-3 border-t border-border-light pt-4">
-          <div>
-            <ClusterCountryStrip
-              countries={cluster.countries}
-              maxDots={12}
-              labelForCode={countryLabelFr}
-            />
-            {countriesText ? (
-              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-                {countriesText}
-              </p>
-            ) : null}
-          </div>
-          <p className="text-[11px] font-medium text-foreground underline decoration-border underline-offset-[3px] group-hover:decoration-foreground">
+        {/* PIED : drapeaux + lien */}
+        <footer className="mt-5 border-t border-border-light pt-4">
+          {/* Drapeaux — emoji seuls avec tooltip */}
+          {flags.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Pays couverts">
+              {flags.map(({ emoji, name }) => (
+                <span
+                  key={name}
+                  className="text-[18px] leading-none"
+                  title={name}
+                  aria-label={name}
+                >
+                  {emoji}
+                </span>
+              ))}
+              {cluster.countries.length > 8 && (
+                <span className="text-[11px] text-muted-foreground self-center">
+                  +{cluster.countries.length - 8}
+                </span>
+              )}
+            </div>
+          )}
+
+          <p className="text-[12px] font-semibold text-foreground underline decoration-border underline-offset-[3px] group-hover:decoration-foreground group-hover:text-accent transition-colors [transition-duration:var(--duration-fast)]">
             Ouvrir le dossier →
           </p>
         </footer>

@@ -55,6 +55,27 @@
   --color-primary-hover: #323030;
   --color-accent-tint: #fff5f4;
 
+  /* ── Typographie — 8 paliers sémantiques ─────────────────── */
+  --text-display:  2rem;
+  --text-title:    1.5rem;
+  --text-heading:  1.1875rem;
+  --text-subhead:  1rem;
+  --text-body:     0.875rem;
+  --text-caption:  0.8125rem;
+  --text-footnote: 0.75rem;
+  --text-micro:    0.6875rem;
+
+  /* ── Élévation — 3 niveaux ───────────────────────────────── */
+  --shadow-low:  0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03);
+  --shadow-mid:  0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-high: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+
+  /* ── Transitions systemiques ─────────────────────────────── */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;
+  --duration-slow:   350ms;
+
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-poynter);
   --font-narrow: var(--font-poynter);
@@ -471,4 +492,63 @@ input[type="checkbox"] {
 }
 .olj-lab-range--overlay::-moz-range-track {
   background: transparent;
+}
+
+/* ── Primitives éditoriales partagées ─────────────────────── */
+
+/* Label de section : uppercase discret, structurant */
+.olj-section-label {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+/* Filet éditorial fort (sous titre de sujet) */
+.olj-rule-strong {
+  border-bottom: 2px solid var(--color-foreground);
+  padding-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
+}
+
+/* Encadré analyse : bordure accent gauche, fond léger */
+.olj-analysis-block {
+  border-left: 2px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
+  padding: 0.75rem 1rem;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+/* Thèse : serif italique — invariant cross-composants */
+.olj-thesis {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--color-foreground-body);
+}
+
+/* Transition de base (ease-out exponentiel, 200ms) */
+.olj-transition {
+  transition-timing-function: var(--ease-out-expo);
+  transition-duration: var(--duration-normal);
+}
+
+/* Card interactive : survol avec ombre + légère élévation */
+.olj-card-interactive {
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+}
+.olj-card-interactive:hover {
+  box-shadow: var(--shadow-mid);
+  transform: translateY(-1px);
+}
+
+/* Sélection article : ring accent + fond teinté */
+.olj-selected {
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--color-accent-tint) 60%, transparent);
 }
