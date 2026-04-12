@@ -1,21 +1,15 @@
 "use client";
 
 /**
- * EditionPeriodFrise — Timeline interactive fidèle au Figma OLJ.
+ * EditionPeriodFrise — Timeline interactive Figma OLJ.
  *
- * Layout (3 blocs) :
- * ┌─────────────────────┐  ┌────────────────────────────────────────┐
- * │  Carte Info          │  │  Timeline 3 jours (ticks hiérarchiques)│
- * │  "Édition du 3 Avr" │  │  Zone collecte hachurée · Live rouge   │
- * │  8h:00 ··· 18h:00   │  │  Glissable (drag + touch)             │
- * └─────────────────────┘  └────────────────────────────────────────┘
- * ┌──────────────────────────────────────────────────────────────────┐
- * │  ◄  Dimanche 31 mars  │  Lundi 1er avril  │  ■ Mardi 2 avril  ►│
- * └──────────────────────────────────────────────────────────────────┘
+ * Architecture :
+ *   [Info card]  +  [Timeline 3 jours glissable]
+ *   [     Sélecteur de jours ◄ · · · ► ]
  *
- * Chaque flèche navigue d'un jour (discret).
- * Le rail de jours est glissable (pointer events + touch).
- * La timeline affiche un tooltip heure au survol.
+ * Timezone : Europe/Paris (fenêtres d'édition définies en heure de Paris).
+ * Hachure  : SVG pattern 24° `#FF4E08` — fidèle au SVG Figma fourni.
+ * Ticks    : minuit #191919 60px | 6/12/18h #817c7c 50px | autres #e7e3e3 38px.
  */
 
 import {
@@ -27,31 +21,96 @@ import {
 } from "react";
 import { shiftIsoDate } from "@/lib/beirut-date";
 
-const TZ = "Asia/Beirut";
-const DAY_PX = 220;          // largeur d'un jour dans la timeline
-const VISIBLE_DAYS = 3;      // J-1, J, J+1
-const SELECTOR_RANGE = 4;    // ±4 jours dans le sélecteur
+const TZ = "Europe/Paris";
+const DAY_PX = 260;       // px par jour dans la timeline
+const VISIBLE_DAYS = 3;   // J-1, J, J+1
+const SELECTOR_RANGE = 4; // ±4 jours dans le sélecteur
 
-/* ── Niveaux de ticks (Figma) ──────────────────────────────────────
- * Majeur    0h        : #191919, 60px
- * Semi-maj  6h/12/18  : #817c7c, 50px
- * Secondaire 3h/9/15/21 : #e7e3e3, 50px
- * Mineur    autres heures : #e7e3e3, 38px
- * 8h        : #ff4e08, 50px + point orange au-dessus
- */
-const TICK_MAJOR_H = 60;
-const TICK_SEMI_H = 50;
-const TICK_MINOR_H = 38;
-const TICK_8H_H = 50;
-const TIMELINE_TOTAL_H = 72; // zone ticks + labels
+/* ── Géométrie des ticks ──────────────────────────────────────────── */
+const TICK_MAJOR_H = 60;   // minuit
+const TICK_SEMI_H  = 50;   // 6/12/18h
+const TICK_MINOR_H = 38;   // autres heures
+const TICK_BOTTOM  = 78;   // Y où tous les ticks se terminent
+const LABEL_Y      = 4;    // Y des labels d'heure
+const DAY_LABEL_Y  = 84;   // Y des noms de jours
+const INNER_H      = 114;  // hauteur totale du canvas scrollable
 
-const COL_DARK = "#191919";
-const COL_SEMI = "#817c7c";
-const COL_LIGHT = "#e7e3e3";
+/* ── Couleurs ─────────────────────────────────────────────────────── */
+const COL_DARK   = "#191919";
+const COL_SEMI   = "#817c7c";
+const COL_LIGHT  = "#e7e3e3";
 const COL_ORANGE = "#ff4e08";
-const COL_LIVE = "#ee231c";
+const COL_LIVE   = "#ee231c";
 
-/* ── Helpers ───────────────────────────────────────────────────── */
+/* ── Helpers timezone Paris ───────────────────────────────────────── */
+
+/** Décompose un instant UTC ISO en date/heure locale Paris. */
+function parisParts(isoStr: string): { date: string; h: number; min: number } {
+  const d = new Date(isoStr);
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).map(p => [p.type, p.value]));
+  const rawH = parseInt(parts.hour, 10);
+  return {
+    date:  `${parts.year}-${parts.month}-${parts.day}`,
+    h:     rawH === 24 ? 0 : rawH,
+    min:   parseInt(parts.minute, 10),
+  };
+}
+
+/**
+ * Position X (px) d'un instant UTC dans la timeline.
+ * Retourne une valeur négative si l'instant précède le premier jour visible.
+ */
+function timeToX(isoStr: string, firstDayIso: string): number {
+  const { date, h, min } = parisParts(isoStr);
+  // Différence en jours de calendrier (arithmétique pure sur dates locales)
+  const firstMs = new Date(firstDayIso).getTime();
+  const thisMs  = new Date(date).getTime();
+  const daysDiff = (thisMs - firstMs) / 86_400_000;
+  return (daysDiff + (h + min / 60) / 24) * DAY_PX;
+}
+
+/* ── Formatage affichage ──────────────────────────────────────────── */
+
+function fmtEditionTitle(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const day   = d.getDate();
+  const month = d.toLocaleDateString("fr-FR", { month: "long" });
+  return `Édition du ${day} ${month.charAt(0).toUpperCase() + month.slice(1)}`;
+}
+
+function fmtFullDayName(iso: string): string {
+  const d   = new Date(iso + "T12:00:00");
+  const wd  = d.toLocaleDateString("fr-FR", { weekday: "long" });
+  const day = d.getDate();
+  const mo  = d.toLocaleDateString("fr-FR", { month: "long" });
+  const ds  = day === 1 ? "1er" : String(day);
+  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${ds} ${mo}`;
+}
+
+function fmtDayShortTimeline(iso: string): string {
+  const d   = new Date(iso + "T12:00:00");
+  const wd  = d.toLocaleDateString("fr-FR", { weekday: "long" });
+  const day = d.getDate();
+  const ds  = day === 1 ? "1er" : String(day);
+  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${ds}`;
+}
+
+/** "18h" ou "8h30" en heure de Paris, sans ":00" superflu. */
+function fmtParisTime(isoStr: string): string {
+  const { h, min } = parisParts(isoStr);
+  return min === 0 ? `${h}h` : `${h}h${String(min).padStart(2, "0")}`;
+}
+
+function fmtParisDateShort(isoStr: string): string {
+  const { date } = parisParts(isoStr);
+  const d = new Date(date + "T12:00:00");
+  return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
+}
 
 function isoRange(center: string, range: number): string[] {
   const days: string[] = [];
@@ -59,101 +118,54 @@ function isoRange(center: string, range: number): string[] {
   return days;
 }
 
-function fmtEditionTitle(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  const day = d.getDate();
-  const month = d.toLocaleDateString("fr-FR", { month: "long" });
-  return `Édition du ${day} ${month.charAt(0).toUpperCase() + month.slice(1)}`;
-}
-
-/** "Dimanche 31 mars" — nom complet pour le sélecteur */
-function fmtFullDayName(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  const wd = d.toLocaleDateString("fr-FR", { weekday: "long" });
-  const day = d.getDate();
-  const month = d.toLocaleDateString("fr-FR", { month: "long" });
-  const dayStr = day === 1 ? "1er" : String(day);
-  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${dayStr} ${month}`;
-}
-
-/** "Lundi 1" — court pour la timeline */
-function fmtDayShortTimeline(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  const wd = d.toLocaleDateString("fr-FR", { weekday: "long" });
-  const day = d.getDate();
-  const dayStr = day === 1 ? "1er" : String(day);
-  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${dayStr}`;
-}
-
-function fmtTime(d: Date): string {
-  const h = d.getHours();
-  const m = d.getMinutes();
-  return m === 0 ? `${h}h:00` : `${h}h${String(m).padStart(2, "0")}`;
-}
-
-function fmtTimeHour(h: number): string {
-  return `${h}h`;
-}
-
-function beirutNow(): Date {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
-}
-
-function parseToLocal(isoStr: string): Date {
-  return new Date(new Date(isoStr).toLocaleString("en-US", { timeZone: TZ }));
-}
-
-/* ── Carte Info (gauche) ────────────────────────────────────────── */
+/* ── FriseInfoCard ────────────────────────────────────────────────── */
 
 interface InfoCardProps {
-  currentIso: string;
+  currentIso:   string;
   windowStart?: string;
-  windowEnd?: string;
+  windowEnd?:   string;
 }
 
 function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
-  const ws = windowStart ? parseToLocal(windowStart) : null;
-  const we = windowEnd ? parseToLocal(windowEnd) : null;
-
-  const startDayLabel = ws
-    ? ws.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })
-    : "—";
-  const endDayLabel = we
-    ? we.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })
-    : "—";
-  const startTime = ws ? fmtTime(ws) : "—";
-  const endTime = we ? fmtTime(we) : "—";
+  const startDayLabel = windowStart ? fmtParisDateShort(windowStart) : "—";
+  const endDayLabel   = windowEnd   ? fmtParisDateShort(windowEnd)   : "—";
+  const startTime     = windowStart ? fmtParisTime(windowStart)       : "—";
+  const endTime       = windowEnd   ? fmtParisTime(windowEnd)         : "—";
 
   return (
     <div
-      className="flex min-w-[220px] max-w-[280px] flex-col items-center justify-center rounded-[24px] bg-white px-5 py-5"
+      className="flex min-w-[200px] max-w-[260px] flex-col items-center justify-center rounded-[24px] bg-white px-5 py-5"
       style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)" }}
     >
       {/* Titre édition */}
       <p
         className="text-center text-[22px] leading-tight tracking-tight text-[#191919]"
-        style={{ fontFamily: "inherit", fontWeight: 400 }}
+        style={{ fontWeight: 400 }}
       >
         {fmtEditionTitle(currentIso)}
       </p>
 
       {/* Sous-titre */}
-      <p className="mt-1.5 text-center text-[12px] font-light text-[#191919]/60">
-        Les articles disponibles ont été publiés entre :
+      <p className="mt-1.5 text-center text-[11px] font-light text-[#191919]/55">
+        Articles publiés entre :
       </p>
 
-      {/* Barre hachurée collecte */}
+      {/* Barre hachurée SVG Figma */}
       <div className="relative mt-4 flex w-full max-w-[180px] items-center">
-        {/* Marqueur gauche */}
         <div className="h-3 w-0.5 shrink-0" style={{ background: COL_ORANGE }} />
-        {/* Segment hachuré */}
-        <div
-          className="h-[10px] flex-1"
-          style={{
-            background: `repeating-linear-gradient(-45deg, transparent, transparent 3px, ${COL_ORANGE}55 3px, ${COL_ORANGE}55 6px)`,
-          }}
-        />
-        {/* Marqueur droit */}
+        <svg className="h-[10px] flex-1" preserveAspectRatio="none">
+          <defs>
+            <pattern
+              id="info-hatch"
+              width="4" height="4"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(24)"
+            >
+              <line x1="1" y1="0" x2="1" y2="4" stroke={COL_ORANGE} strokeWidth="1.2" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#info-hatch)" opacity="0.7" />
+        </svg>
         <div className="h-3 w-0.5 shrink-0" style={{ background: COL_ORANGE }} />
       </div>
 
@@ -163,13 +175,10 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
         <span className="text-[12px] text-[#191919]">{endDayLabel}</span>
       </div>
 
-      {/* Points orange */}
+      {/* Points orange + heures */}
       <div className="mt-2 flex w-full max-w-[180px] justify-between">
         <div className="flex flex-col items-start gap-1">
-          <span
-            className="inline-block size-2 rounded-full"
-            style={{ background: COL_ORANGE }}
-          />
+          <span className="inline-block size-2 rounded-full" style={{ background: COL_ORANGE }} />
           <span
             className="text-[22px] leading-none tracking-tight text-[#191919]"
             style={{ fontWeight: 100 }}
@@ -178,10 +187,7 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
           </span>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span
-            className="inline-block size-2 rounded-full"
-            style={{ background: COL_ORANGE }}
-          />
+          <span className="inline-block size-2 rounded-full" style={{ background: COL_ORANGE }} />
           <span
             className="text-[22px] leading-none tracking-tight text-[#191919]"
             style={{ fontWeight: 100 }}
@@ -194,99 +200,89 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
   );
 }
 
-/* ── Timeline Card (droite) — draggable ────────────────────────── */
+/* ── FriseTimelineCard ────────────────────────────────────────────── */
 
 interface TimelineCardProps {
-  currentIso: string;
+  currentIso:   string;
   windowStart?: string;
-  windowEnd?: string;
+  windowEnd?:   string;
 }
 
 function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardProps) {
-  const [now, setNow] = useState(beirutNow);
-  const [hoverHour, setHoverHour] = useState<{ h: number; x: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef      = useRef<{ startX: number; scrollLeft: number } | null>(null);
+  const [nowIso, setNowIso]         = useState(() => new Date().toISOString());
+  const [hoverH, setHoverH]         = useState<{ h: number; x: number } | null>(null);
 
-  /* LIVE clock */
+  /* Horloge Live */
   useEffect(() => {
-    const id = setInterval(() => setNow(beirutNow()), 30_000);
+    const id = setInterval(() => setNowIso(new Date().toISOString()), 30_000);
     return () => clearInterval(id);
   }, []);
 
-  /* Drag-to-scroll */
-  const dragState = useRef<{ startX: number; scrollLeft: number } | null>(null);
+  /* Jours visibles : J-1, J, J+1 */
+  const timelineDays = useMemo(
+    () => [-1, 0, 1].map(offset => shiftIsoDate(currentIso, offset)),
+    [currentIso],
+  );
 
+  const totalW       = DAY_PX * VISIBLE_DAYS;
+  const firstDayIso  = timelineDays[0];
+
+  /* Zone de collecte hachurée */
+  const rawX1   = windowStart ? timeToX(windowStart, firstDayIso) : -1;
+  const rawX2   = windowEnd   ? timeToX(windowEnd,   firstDayIso) : -1;
+  const clampX1 = rawX1 >= 0 ? Math.max(0, rawX1) : -1;
+  const clampX2 = rawX2 >= 0 ? Math.min(totalW, rawX2) : -1;
+  const collecteX1 = clampX1;
+  const collecteW  = clampX1 >= 0 && clampX2 >= 0 ? Math.max(0, clampX2 - clampX1) : 0;
+
+  /* Indicateur Live */
+  const nowX    = timeToX(nowIso, firstDayIso);
+  const showLive = nowX >= 0 && nowX <= totalW;
+
+  /* Auto-scroll : centrer la fenêtre de collecte au montage */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || collecteX1 < 0 || collecteW <= 0) return;
+    const mid = collecteX1 + collecteW / 2;
+    el.scrollLeft = Math.max(0, mid - el.clientWidth / 2);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowStart, windowEnd]);
+
+  /* Drag-to-scroll */
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const el = containerRef.current;
     if (!el) return;
-    dragState.current = { startX: e.clientX, scrollLeft: el.scrollLeft };
+    dragRef.current = { startX: e.clientX, scrollLeft: el.scrollLeft };
     el.setPointerCapture(e.pointerId);
     el.style.cursor = "grabbing";
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState.current || !containerRef.current) return;
-    const dx = e.clientX - dragState.current.startX;
-    containerRef.current.scrollLeft = dragState.current.scrollLeft - dx;
+    if (!dragRef.current || !containerRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    containerRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
   }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
-    dragState.current = null;
+    dragRef.current = null;
     containerRef.current.releasePointerCapture(e.pointerId);
     containerRef.current.style.cursor = "grab";
   }, []);
 
-  /* 3 jours : J-1, J, J+1 */
-  const timelineDays = useMemo(() => {
-    const d = new Date(currentIso + "T12:00:00");
-    return [-1, 0, 1].map((offset) => {
-      const nd = new Date(d);
-      nd.setDate(nd.getDate() + offset);
-      return nd.toISOString().slice(0, 10);
-    });
-  }, [currentIso]);
-
-  const totalW = DAY_PX * VISIBLE_DAYS;
-
-  const ws = windowStart ? parseToLocal(windowStart) : null;
-  const we = windowEnd ? parseToLocal(windowEnd) : null;
-
-  function timeToX(d: Date): number {
-    const dayIso = d.toISOString().slice(0, 10);
-    const dayIdx = timelineDays.indexOf(dayIso);
-    if (dayIdx < 0) {
-      if (d < new Date(timelineDays[0] + "T00:00:00")) return 0;
-      return totalW;
-    }
-    const hours = d.getHours() + d.getMinutes() / 60;
-    return dayIdx * DAY_PX + (hours / 24) * DAY_PX;
-  }
-
-  /* Fenêtre collecte */
-  const collecteX1 = ws ? Math.max(0, timeToX(ws)) : -1;
-  const collecteX2 = we ? Math.min(totalW, timeToX(we)) : -1;
-  const collecteW = collecteX1 >= 0 && collecteX2 >= 0 ? Math.max(0, collecteX2 - collecteX1) : 0;
-
-  /* Indicateur LIVE */
-  const nowDayIso = (() => {
-    const d = new Date(now);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
-  const isLive = timelineDays.includes(nowDayIso);
-  const nowX = isLive ? timeToX(now) : -1;
-  const showNow = isLive && nowX >= 0 && nowX <= totalW;
-
-  /* Hover heure */
-  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+  /* Tooltip hover */
+  const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x    = e.clientX - rect.left + el.scrollLeft;
     const dayIdx = Math.floor(x / DAY_PX);
-    if (dayIdx < 0 || dayIdx >= VISIBLE_DAYS) { setHoverHour(null); return; }
-    const fracInDay = (x - dayIdx * DAY_PX) / DAY_PX;
-    const h = Math.floor(fracInDay * 24);
-    setHoverHour({ h, x });
-  }
+    if (dayIdx < 0 || dayIdx >= VISIBLE_DAYS) { setHoverH(null); return; }
+    const frac = (x - dayIdx * DAY_PX) / DAY_PX;
+    setHoverH({ h: Math.floor(frac * 24), x });
+  }, []);
 
   return (
     <div
@@ -295,137 +291,130 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
     >
       <div
         ref={containerRef}
-        className="olj-scrollbar-none overflow-x-auto"
+        className="olj-scrollbar-none h-full overflow-x-auto"
         style={{ cursor: "grab", touchAction: "pan-x" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onMouseMove={onMouseMove}
-        onMouseLeave={() => setHoverHour(null)}
+        onMouseLeave={() => setHoverH(null)}
       >
-        <div
-          className="relative select-none"
-          style={{ width: totalW, height: TIMELINE_TOTAL_H + 32 }}
-        >
-          {/* Zone collecte hachurée */}
-          {collecteW > 0 && (
-            <div
-              className="absolute"
-              style={{
-                left: collecteX1,
-                top: 18,
-                width: collecteW,
-                height: TICK_SEMI_H,
-                background: `repeating-linear-gradient(-45deg, transparent, transparent 3px, ${COL_ORANGE}33 3px, ${COL_ORANGE}33 6px)`,
-              }}
-            />
-          )}
+        <div className="relative select-none" style={{ width: totalW, height: INNER_H }}>
 
-          {/* Ticks par jour */}
+          {/* ── Hachure SVG Figma ──────────────────────────────────── */}
+          <svg
+            className="pointer-events-none absolute inset-0"
+            style={{ width: totalW, height: INNER_H }}
+          >
+            <defs>
+              <pattern
+                id="tl-hatch"
+                width="4" height="4"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(24)"
+              >
+                <line x1="1" y1="0" x2="1" y2="4" stroke={COL_ORANGE} strokeWidth="1.2" />
+              </pattern>
+            </defs>
+            {collecteW > 0 && (
+              <rect
+                x={collecteX1}
+                y={TICK_BOTTOM - TICK_SEMI_H}
+                width={collecteW}
+                height={TICK_SEMI_H}
+                fill="url(#tl-hatch)"
+                opacity="0.65"
+              />
+            )}
+          </svg>
+
+          {/* ── Ticks ──────────────────────────────────────────────── */}
           {timelineDays.map((dayIso, dayIdx) =>
             Array.from({ length: 24 }, (_, h) => {
               const x = dayIdx * DAY_PX + (h / 24) * DAY_PX;
               const isMidnight = h === 0;
-              const isSemiMajor = h === 6 || h === 12 || h === 18;
-              const is8h = h === 8;
-              const isSecondary = h === 3 || h === 9 || h === 15 || h === 21;
-
-              let tickH: number;
-              let color: string;
-              let width: number;
-
+              const isSemi     = h === 6 || h === 12 || h === 18;
+              let tickH: number; let color: string; let w: number;
               if (isMidnight) {
-                tickH = TICK_MAJOR_H; color = COL_DARK; width = 2;
-              } else if (is8h) {
-                tickH = TICK_8H_H; color = COL_ORANGE; width = 2;
-              } else if (isSemiMajor) {
-                tickH = TICK_SEMI_H; color = COL_SEMI; width = 2;
-              } else if (isSecondary) {
-                tickH = TICK_SEMI_H; color = COL_LIGHT; width = 1;
+                tickH = TICK_MAJOR_H; color = COL_DARK; w = 2;
+              } else if (isSemi) {
+                tickH = TICK_SEMI_H;  color = COL_SEMI; w = 1.5;
               } else {
-                tickH = TICK_MINOR_H; color = COL_LIGHT; width = 1;
+                tickH = TICK_MINOR_H; color = COL_LIGHT; w = 1;
               }
-
-              const top = TICK_MAJOR_H - tickH + 18;
-
               return (
                 <div
                   key={`${dayIso}-${h}`}
                   className="absolute"
-                  style={{ left: x, top, width, height: tickH, backgroundColor: color }}
+                  style={{
+                    left:            x,
+                    top:             TICK_BOTTOM - tickH,
+                    width:           w,
+                    height:          tickH,
+                    backgroundColor: color,
+                  }}
                 />
               );
             }),
           )}
 
-          {/* Labels heures : 0h, 8h (accent), 12h, 18h */}
+          {/* ── Labels heures : 0, 6, 12, 18 ──────────────────────── */}
           {timelineDays.map((dayIso, dayIdx) =>
-            [0, 8, 12, 18].map((h) => {
+            [0, 6, 12, 18].map(h => {
               const x = dayIdx * DAY_PX + (h / 24) * DAY_PX;
-              const isOrange = h === 8;
+              // Le "0h" du premier jour s'aligne à gauche; les autres sont centrés
+              const translate = dayIdx === 0 && h === 0 ? "none" : "translateX(-50%)";
               return (
                 <span
                   key={`lbl-${dayIso}-${h}`}
-                  className="pointer-events-none absolute -translate-x-1/2 text-[10px] tabular-nums"
+                  className="pointer-events-none absolute text-[10px] tabular-nums"
                   style={{
-                    left: x,
-                    top: 4,
-                    color: isOrange ? COL_ORANGE : "#888",
-                    fontWeight: isOrange ? 600 : 400,
+                    left:      x,
+                    top:       LABEL_Y,
+                    transform: translate,
+                    color:     COL_SEMI,
                   }}
                 >
-                  {fmtTimeHour(h)}
+                  {h}h
                 </span>
               );
             }),
           )}
 
-          {/* Points 8h orange */}
-          {timelineDays.map((dayIso, dayIdx) => {
-            const x = dayIdx * DAY_PX + (8 / 24) * DAY_PX;
-            return (
-              <span
-                key={`dot8-${dayIso}`}
-                className="absolute inline-block size-[4px] rounded-full"
-                style={{ left: x - 2, top: 14, background: COL_ORANGE }}
-              />
-            );
-          })}
-
-          {/* Indicateur LIVE */}
-          {showNow && (
+          {/* ── Live ───────────────────────────────────────────────── */}
+          {showLive && (
             <>
               <div
                 className="absolute"
                 style={{
-                  left: nowX,
-                  top: 0,
-                  width: 2,
-                  height: 100,
+                  left:       nowX,
+                  top:        LABEL_Y + 12,
+                  width:      2,
+                  height:     TICK_BOTTOM - LABEL_Y - 12,
                   background: COL_LIVE,
                 }}
               />
               <span
-                className="absolute text-[12px] font-light text-[#191919]"
-                style={{ left: nowX + 5, top: 4 }}
+                className="absolute text-[10px] font-semibold"
+                style={{ left: nowX + 5, top: LABEL_Y + 12, color: COL_LIVE }}
               >
                 Live
               </span>
             </>
           )}
 
-          {/* Tooltip heure au survol */}
-          {hoverHour && (
+          {/* ── Tooltip survol ─────────────────────────────────────── */}
+          {hoverH && (
             <div
               className="pointer-events-none absolute z-10 rounded bg-[#191919] px-1.5 py-0.5 text-[10px] text-white"
-              style={{ left: hoverHour.x + 6, top: TICK_MAJOR_H - 10 }}
+              style={{ left: hoverH.x + 8, top: TICK_BOTTOM - 30 }}
             >
-              {fmtTimeHour(hoverHour.h)}
+              {hoverH.h}h
             </div>
           )}
 
-          {/* Labels jours (bas) */}
+          {/* ── Noms de jours ──────────────────────────────────────── */}
           {timelineDays.map((dayIso, dayIdx) => {
             const isCurrent = dayIso === currentIso;
             return (
@@ -433,10 +422,10 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
                 key={`day-${dayIso}`}
                 className="absolute text-center text-[12px]"
                 style={{
-                  left: dayIdx * DAY_PX,
-                  top: TICK_MAJOR_H + 20,
-                  width: DAY_PX,
-                  color: isCurrent ? COL_DARK : "#888",
+                  left:       dayIdx * DAY_PX,
+                  top:        DAY_LABEL_Y,
+                  width:      DAY_PX,
+                  color:      isCurrent ? COL_DARK : "#888",
                   fontWeight: isCurrent ? 600 : 400,
                 }}
               >
@@ -444,38 +433,35 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
               </div>
             );
           })}
+
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Sélecteur de jours — draggable ────────────────────────────── */
+/* ── FriseDaySelector ─────────────────────────────────────────────── */
 
 interface DaySelectorProps {
   currentIso: string;
-  days: string[];
-  onSelect: (iso: string) => void;
+  days:       string[];
+  onSelect:   (iso: string) => void;
 }
 
 function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
-  const railRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ startX: number; scrollLeft: number; moved: boolean } | null>(null);
+  const railRef  = useRef<HTMLDivElement>(null);
+  const dragRef  = useRef<{ startX: number; scrollLeft: number; moved: boolean } | null>(null);
+  const currentIdx = days.indexOf(currentIso);
 
-  /* Centrer le jour actif */
+  /* Centrer le jour actif à chaque changement */
   useEffect(() => {
     const el = railRef.current;
     if (!el) return;
     const active = el.querySelector("[data-active='true']") as HTMLElement | null;
-    if (active) {
-      active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-    }
+    if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   }, [currentIso]);
 
-  /* Navigation discrète par jour */
-  const currentIdx = days.indexOf(currentIso);
-
-  const goLeft = useCallback(() => {
+  const goLeft  = useCallback(() => {
     if (currentIdx > 0) onSelect(days[currentIdx - 1]);
   }, [currentIdx, days, onSelect]);
 
@@ -483,72 +469,49 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
     if (currentIdx < days.length - 1) onSelect(days[currentIdx + 1]);
   }, [currentIdx, days, onSelect]);
 
-  /* Drag-to-scroll */
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const el = railRef.current;
     if (!el) return;
-    dragState.current = { startX: e.clientX, scrollLeft: el.scrollLeft, moved: false };
+    dragRef.current = { startX: e.clientX, scrollLeft: el.scrollLeft, moved: false };
     el.setPointerCapture(e.pointerId);
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState.current || !railRef.current) return;
-    const dx = e.clientX - dragState.current.startX;
-    if (Math.abs(dx) > 4) dragState.current.moved = true;
-    railRef.current.scrollLeft = dragState.current.scrollLeft - dx;
+    if (!dragRef.current || !railRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    if (Math.abs(dx) > 4) dragRef.current.moved = true;
+    railRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
   }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!railRef.current) return;
     railRef.current.releasePointerCapture(e.pointerId);
-    dragState.current = null;
+    dragRef.current = null;
   }, []);
 
-  /* Click sur un jour — seulement si pas de drag */
   function handleDayClick(iso: string, e: React.MouseEvent) {
-    if (dragState.current?.moved) { e.preventDefault(); return; }
+    if (dragRef.current?.moved) { e.preventDefault(); return; }
     onSelect(iso);
   }
 
-  /* Flèche SVG triangulaire */
-  const ArrowLeft = () => (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-      <path d="M7 1L3 5L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-  const ArrowRight = () => (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-      <path d="M3 1L7 5L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-
   return (
     <div className="flex items-center gap-1.5">
-      {/* Flèche gauche */}
       <button
         onClick={goLeft}
         disabled={currentIdx <= 0}
-        className="flex shrink-0 items-center justify-center rounded-[5px] text-[#191919]/60 transition-colors hover:text-[#191919] disabled:opacity-30"
-        style={{
-          width: 32,
-          height: 38,
-          background: "rgba(231,227,227,0.33)",
-        }}
         aria-label="Jour précédent"
+        className="flex h-[38px] w-8 shrink-0 items-center justify-center rounded-[5px] text-[#191919]/60 transition-colors hover:text-[#191919] disabled:opacity-30"
+        style={{ background: "rgba(231,227,227,0.33)" }}
       >
-        <ArrowLeft />
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M7 1L3 5L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
-      {/* Rail de jours glissable */}
       <div
         ref={railRef}
         className="olj-scrollbar-none flex-1 overflow-x-auto rounded-[5px] p-1.5"
-        style={{
-          background: "rgba(231,227,227,0.33)",
-          height: 50,
-          cursor: "grab",
-          touchAction: "pan-x",
-        }}
+        style={{ background: "rgba(231,227,227,0.33)", height: 50, cursor: "grab", touchAction: "pan-x" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -564,11 +527,11 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
                 onClick={(e) => handleDayClick(iso, e)}
                 className="shrink-0 whitespace-nowrap rounded-[5px] px-3 text-[12px] transition-all duration-100"
                 style={{
-                  height: 38,
-                  minWidth: 147,
+                  height:     38,
+                  minWidth:   147,
                   background: isActive ? "white" : "rgba(231,227,227,0.16)",
-                  boxShadow: isActive ? "0 4px 2.5px 0 rgba(0,0,0,0.06)" : "none",
-                  color: isActive ? COL_DARK : "#888",
+                  boxShadow:  isActive ? "0 4px 2.5px 0 rgba(0,0,0,0.06)" : "none",
+                  color:      isActive ? COL_DARK : "#888",
                   fontWeight: isActive ? 500 : 400,
                 }}
               >
@@ -579,30 +542,27 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
         </div>
       </div>
 
-      {/* Flèche droite */}
       <button
         onClick={goRight}
         disabled={currentIdx >= days.length - 1}
-        className="flex shrink-0 items-center justify-center rounded-[5px] text-[#191919]/60 transition-colors hover:text-[#191919] disabled:opacity-30"
-        style={{
-          width: 32,
-          height: 38,
-          background: "rgba(231,227,227,0.33)",
-        }}
         aria-label="Jour suivant"
+        className="flex h-[38px] w-8 shrink-0 items-center justify-center rounded-[5px] text-[#191919]/60 transition-colors hover:text-[#191919] disabled:opacity-30"
+        style={{ background: "rgba(231,227,227,0.33)" }}
       >
-        <ArrowRight />
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 1L7 5L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
     </div>
   );
 }
 
-/* ── Export principal ───────────────────────────────────────────── */
+/* ── Export principal ─────────────────────────────────────────────── */
 
 interface EditionPeriodFriseProps {
-  currentIso: string;
-  editionWindow?: { start: string; end: string };
-  unifiedDayNav: (isoDate: string) => void;
+  currentIso:      string;
+  editionWindow?:  { start: string; end: string };
+  unifiedDayNav:   (isoDate: string) => void;
 }
 
 export const EditionPeriodFrise = function EditionPeriodFrise({
@@ -614,7 +574,6 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
 
   return (
     <nav className="w-full space-y-3" aria-label="Navigation temporelle de l'édition">
-      {/* Cartes info + timeline */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
         <FriseInfoCard
           currentIso={currentIso}
@@ -627,8 +586,6 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
           windowEnd={editionWindow?.end}
         />
       </div>
-
-      {/* Sélecteur de jours */}
       <FriseDaySelector
         currentIso={currentIso}
         days={calDays}

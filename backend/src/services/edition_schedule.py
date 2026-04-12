@@ -155,7 +155,7 @@ async def find_edition_for_calendar_date(
 
 
 async def bootstrap_editions_for_two_weeks() -> None:
-    """Crée les éditions des ~2 prochaines semaines (jours ouvrés) si absentes — pour rattachement collecte."""
+    """Crée les éditions des ~2 prochaines semaines (tous les jours) si absentes — pour rattachement collecte."""
     from datetime import timedelta
 
     from src.database import get_session_factory
@@ -165,8 +165,7 @@ async def bootstrap_editions_for_two_weeks() -> None:
     async with factory() as db:
         d = today
         for _ in range(14):
-            if d.weekday() < 5:
-                await ensure_edition_for_publish_date(db, d, status="COLLECTING")
+            await ensure_edition_for_publish_date(db, d, status="COLLECTING")
             d += timedelta(days=1)
         await db.commit()
 
