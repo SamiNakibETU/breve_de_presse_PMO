@@ -34,11 +34,35 @@ export function sanitizeTranslatedBodyForDisplay(raw: string): string {
   return t.trim();
 }
 
+/**
+ * Découpe un texte en paragraphes pour affichage.
+ * Gère les cas où le texte brut n'a pas de sauts de ligne doubles :
+ * - coupe sur \n\n (cas standard)
+ * - si un seul bloc > 600 chars, coupe aux phrases (. suivi d'espace + majuscule)
+ */
 export function bodyParagraphs(text: string): string[] {
-  return text
+  const raw = text
     .split(/\n{2,}/)
-    .map((p) => p.trim())
+    .map((p) => p.replace(/\n/g, " ").trim())
     .filter(Boolean);
+  if (raw.length > 1) return raw;
+  if (raw.length === 0) return [];
+  const single = raw[0];
+  if (single.length <= 600) return [single];
+
+  const chunks: string[] = [];
+  let buf = "";
+  const sentences = single.split(/(?<=\.)\s+(?=[A-ZÀ-ÖØ-Ý«""])/);
+  for (const s of sentences) {
+    if (buf.length + s.length > 500 && buf.length > 80) {
+      chunks.push(buf.trim());
+      buf = s;
+    } else {
+      buf += (buf ? " " : "") + s;
+    }
+  }
+  if (buf.trim()) chunks.push(buf.trim());
+  return chunks.length > 0 ? chunks : [single];
 }
 
 export function editorialBodySections(

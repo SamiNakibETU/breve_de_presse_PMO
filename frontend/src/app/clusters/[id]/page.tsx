@@ -28,8 +28,9 @@ function ClusterArticleItem({
   const hasBullets = a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0;
 
   return (
-    <li className="flex gap-3">
-      {/* Checkbox custom carré */}
+    <li
+      className="group flex gap-3 rounded-lg border border-border/60 bg-card px-4 py-3.5 transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:border-border hover:shadow-low hover:-translate-y-px"
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -49,17 +50,17 @@ function ClusterArticleItem({
       </button>
 
       <div className="min-w-0 flex-1">
-        {/* Thèse — complète, sans line-clamp */}
+        {/* Thèse */}
         {a.thesis_summary_fr && (
-          <p className="mb-1 font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
+          <p className="mb-1.5 font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground-body">
             {a.thesis_summary_fr}
           </p>
         )}
 
-        {/* Titre — bouton → reader modal (lien Source reste pour l'URL externe) */}
+        {/* Titre — reader modal */}
         <button
           type="button"
-          className="text-left font-[family-name:var(--font-serif)] text-[14px] font-medium text-foreground transition-colors hover:text-accent [transition-duration:var(--duration-fast)]"
+          className="text-left font-[family-name:var(--font-serif)] text-[14px] font-semibold leading-snug text-foreground transition-colors hover:text-accent [transition-duration:var(--duration-fast)]"
           onMouseEnter={() => prefetchArticle(a.id)}
           onClick={() => openArticle(a.id)}
         >
@@ -67,34 +68,40 @@ function ClusterArticleItem({
         </button>
 
         {/* Méta */}
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          {a.source_name ?? ""}
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground-body">{a.source_name ?? ""}</span>
           {a.published_at ? ` · ${formatPublishedAtFr(a.published_at, "short")}` : ""}
-          {a.article_type ? ` · ${a.article_type}` : ""}
+          {a.article_type && (
+            <span className="ml-1 inline-flex rounded border border-border/60 bg-muted/20 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {a.article_type}
+            </span>
+          )}
         </p>
 
-        {/* Bullets d'analyse — 3 premiers toujours visibles, reste accessible via Lire */}
+        {/* Bullets d'analyse */}
         {hasBullets && (
-          <ul className="mt-2 space-y-1.5">
+          <ol className="mt-2.5 space-y-1.5">
             {a.analysis_bullets_fr!.slice(0, 3).map((b, i) => (
-              <li key={i} className="flex gap-1.5 text-[12px] leading-snug text-foreground-body">
-                <span className="mt-px shrink-0 font-bold text-accent">{i + 1}.</span>
-                <span>{b}</span>
+              <li key={i} className="flex gap-2 text-[12px] leading-snug text-foreground-body">
+                <span className="mt-[1px] flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-full bg-accent/8 text-[9px] font-semibold tabular-nums text-accent">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1">{b}</span>
               </li>
             ))}
             {a.analysis_bullets_fr!.length > 3 && (
-              <li className="text-[11px] text-muted-foreground">
-                +{a.analysis_bullets_fr!.length - 3} points — voir dans le lecteur
+              <li className="pl-[24px] text-[11px] text-muted-foreground">
+                +{a.analysis_bullets_fr!.length - 3} points
               </li>
             )}
-          </ul>
+          </ol>
         )}
 
         {/* Actions */}
-        <div className="mt-2.5 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-3">
           <button
             type="button"
-            className="olj-btn-secondary px-2.5 py-1 text-[10px]"
+            className="olj-btn-secondary px-3 py-1 text-[11px]"
             onMouseEnter={() => prefetchArticle(a.id)}
             onClick={() => openArticle(a.id)}
           >
@@ -105,7 +112,7 @@ function ClusterArticleItem({
               href={a.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="olj-link-action text-[10px]"
+              className="olj-link-action text-[11px]"
             >
               Source ↗
             </a>
@@ -272,16 +279,16 @@ export default function ClusterDetailPage() {
           const heading = articles[0]?.country?.trim() || countryLabelFr(code);
           return (
             <section key={code}>
-              {/* Header pays — barre accent à gauche */}
-              <div className="mb-4 flex items-center gap-3 border-l-2 border-accent pl-3">
-                <h2 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-foreground">
+              <div className="mb-3 flex items-center gap-2.5">
+                <span className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                <h2 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-foreground">
                   {heading}
                 </h2>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-[11px] tabular-nums text-muted-foreground">
                   {articles.length} texte{articles.length > 1 ? "s" : ""}
                 </span>
               </div>
-              <ul className="space-y-5">
+              <ul className="space-y-3">
                 {articles.map((a) => (
                   <ClusterArticleItem
                     key={a.id}

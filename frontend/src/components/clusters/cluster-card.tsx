@@ -131,39 +131,42 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
     >
       <article
         className={[
-          "flex h-full flex-col rounded-lg border bg-card p-5",
+          "flex h-full flex-col rounded-xl border bg-card p-5",
           "transition-all [transition-duration:var(--duration-normal)] [transition-timing-function:var(--ease-out-expo)]",
-          "hover:border-accent/20 hover:shadow-mid hover:-translate-y-px",
+          "hover:border-accent/25 hover:shadow-mid hover:-translate-y-px",
           "sm:p-6",
         ].join(" ")}
       >
-        {/* Badge "Nouveau sujet" */}
-        {cluster.is_emerging ? (
-          <span className="mb-3 inline-flex w-fit rounded-sm bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-foreground">
-            Nouveau sujet
+        {/* Méta en haut : badge + stats */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {cluster.is_emerging ? (
+            <span className="inline-flex rounded bg-accent px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-accent-foreground">
+              Nouveau
+            </span>
+          ) : null}
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {cluster.article_count} article{cluster.article_count !== 1 ? "s" : ""}
+            {" · "}
+            {cluster.country_count} pays
           </span>
-        ) : null}
+          {freshness && (
+            <span className="text-[10px] tabular-nums text-muted-foreground/70">
+              · {freshness}
+            </span>
+          )}
+        </div>
 
         {/* TITRE */}
-        <h2 className="font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug tracking-tight text-foreground sm:text-[19px]">
+        <h2 className="font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug tracking-tight text-foreground group-hover:text-accent transition-colors [transition-duration:var(--duration-fast)] sm:text-[19px]">
           {displayClusterTitle(cluster.label)}
         </h2>
 
-        {/* STATS inline */}
-        <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
-          {cluster.article_count} article{cluster.article_count !== 1 ? "s" : ""}
-          {" · "}
-          {cluster.country_count} pays
-          {freshness && ` · ${freshness}`}
-        </p>
-
         {/* VOIX ÉDITORIALES */}
-        <div className="mt-4 flex min-h-0 flex-1 flex-col space-y-4">
-          {/* Voix 1 : corps plein, en body */}
+        <div className="mt-3.5 flex min-h-0 flex-1 flex-col space-y-3">
           {first?.thesis.trim() ? (
-            <div>
+            <div className="rounded-lg bg-surface-warm/30 px-3.5 py-2.5">
               <p
-                className="font-[family-name:var(--font-serif)] text-[14px] leading-relaxed text-foreground-body line-clamp-5 italic"
+                className="font-[family-name:var(--font-serif)] text-[13px] leading-relaxed text-foreground-body line-clamp-4 italic"
                 title={first.thesis}
               >
                 {first.thesis}
@@ -172,11 +175,10 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
             </div>
           ) : null}
 
-          {/* Voix 2 : en citation plus petite */}
           {second?.thesis.trim() ? (
-            <div>
+            <div className="px-1">
               <p
-                className="font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-subtle line-clamp-4"
+                className="font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-subtle line-clamp-3"
                 title={second.thesis}
               >
                 «&nbsp;{truncate(second.thesis, MAX_SECOND_VOICE)}&nbsp;»
@@ -185,9 +187,8 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
             </div>
           ) : null}
 
-          {/* Voix 3 : encore plus discrète */}
           {third?.thesis.trim() ? (
-            <div>
+            <div className="px-1">
               <p
                 className="font-[family-name:var(--font-serif)] text-[11px] italic leading-relaxed text-muted-foreground line-clamp-2"
                 title={third.thesis}
@@ -199,36 +200,35 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
           ) : null}
 
           {!first && !second && !third ? (
-            <p className="text-[13px] italic text-muted-foreground">
+            <p className="text-[12px] italic text-muted-foreground">
               Ouvrez le dossier pour lire les articles.
             </p>
           ) : null}
         </div>
 
-        {/* PIED : drapeaux + lien */}
-        <footer className="mt-5 border-t border-border-light pt-4">
-          {/* Drapeaux — emoji seuls avec tooltip */}
+        {/* PIED : drapeaux + pays tags + lien */}
+        <footer className="mt-4 border-t border-border-light pt-3.5">
           {flags.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Pays couverts">
+            <div className="mb-3 flex flex-wrap items-center gap-1" aria-label="Pays couverts">
               {flags.map(({ emoji, name }) => (
                 <span
                   key={name}
-                  className="text-[18px] leading-none"
+                  className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/15 px-1.5 py-0.5 text-[11px]"
                   title={name}
-                  aria-label={name}
                 >
-                  {emoji}
+                  <span className="text-[13px] leading-none">{emoji}</span>
+                  <span className="text-[9px] font-medium uppercase tracking-wide text-foreground-body">{name.length <= 12 ? name : name.slice(0, 2).toUpperCase()}</span>
                 </span>
               ))}
               {cluster.countries.length > 8 && (
-                <span className="text-[11px] text-muted-foreground self-center">
+                <span className="text-[10px] text-muted-foreground">
                   +{cluster.countries.length - 8}
                 </span>
               )}
             </div>
           )}
 
-          <p className="text-[12px] font-semibold text-foreground underline decoration-border underline-offset-[3px] group-hover:decoration-foreground group-hover:text-accent transition-colors [transition-duration:var(--duration-fast)]">
+          <p className="text-[12px] font-semibold text-foreground group-hover:text-accent transition-colors [transition-duration:var(--duration-fast)]">
             Ouvrir le dossier →
           </p>
         </footer>

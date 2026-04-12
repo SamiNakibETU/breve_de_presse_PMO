@@ -164,29 +164,23 @@ export function AnalysisBullets({
   const rest = bullets.length - shown.length;
 
   return (
-    <div
-      className={cn(
-        "border-l-2 border-accent bg-[color-mix(in_srgb,var(--color-muted)_28%,transparent)] py-2.5 pl-3.5 pr-3",
-        "rounded-r-md",
-        className,
-      )}
-    >
-      <ul className="space-y-1.5">
+    <div className={cn("space-y-2.5", className)}>
+      <ol className="space-y-2">
         {shown.map((b, i) => (
-          <li key={i} className="flex gap-2 text-[13px] leading-snug text-foreground-body">
+          <li key={i} className="flex gap-2.5 text-[13px] leading-[1.55] text-foreground-body">
             <span
-              className="mt-px shrink-0 text-[11px] font-bold tabular-nums text-accent"
+              className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-accent/8 text-[10px] font-semibold tabular-nums text-accent"
               aria-hidden
             >
-              {i + 1}.
+              {i + 1}
             </span>
-            <span>{b}</span>
+            <span className="min-w-0 flex-1">{b}</span>
           </li>
         ))}
-      </ul>
+      </ol>
       {rest > 0 ? (
-        <p className="mt-1.5 text-[11px] text-muted-foreground">
-          + {rest} idée{rest > 1 ? "s" : ""}
+        <p className="pl-[30px] text-[11px] text-muted-foreground">
+          + {rest} point{rest > 1 ? "s" : ""} supplémentaire{rest > 1 ? "s" : ""}
         </p>
       ) : null}
     </div>

@@ -603,4 +603,33 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  createCustomEdition: (body: {
+    publish_date: string;
+    window_start: string;
+    window_end: string;
+    label?: string;
+  }) =>
+    request<Edition>("/api/editions/custom", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  runCustomEditionPipeline: (
+    editionId: string,
+    body?: {
+      run_analysis?: boolean;
+      run_topic_detection?: boolean;
+      analysis_force?: boolean;
+    },
+  ) =>
+    request<{
+      edition_id: string;
+      analysis?: unknown;
+      topics_created?: number;
+      detection_status?: string;
+    }>(`/api/editions/${editionId}/run-custom-pipeline`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
 };

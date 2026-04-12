@@ -512,12 +512,9 @@ input[type="checkbox"] {
   margin-bottom: 0.625rem;
 }
 
-/* Encadré analyse : bordure accent gauche, fond léger */
+/* Encadré analyse : numéros accent, pas de bordure latérale (Dieter Rams) */
 .olj-analysis-block {
-  border-left: 2px solid var(--color-accent);
-  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
-  padding: 0.75rem 1rem;
-  border-radius: 0 0.375rem 0.375rem 0;
+  padding: 0;
 }
 
 /* Thèse : serif italique — invariant cross-composants */

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useEffect, useRef, startTransition, useState } from "react";
+import { CustomPeriodSelector } from "@/components/edition/custom-period-selector";
 import { EditionDateRailNew } from "@/components/edition/edition-date-rail-new";
 import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
@@ -644,40 +645,34 @@ export default function EditionSommairePage() {
           >
             Composition
           </Link>
-          <span className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 pb-1">
-            {/* Toggle lundi : édition week-end vs lundi seul */}
+          <div className="ml-auto flex flex-wrap items-center gap-3 pb-1">
             {isMonday && (
-              <span className="flex items-center gap-1.5 text-[11px]">
-                <label htmlFor="toggle-monday" className="cursor-pointer select-none font-medium text-muted-foreground">
-                  {mondayFullWeekend ? "Édition week-end" : "Lundi seul"}
-                </label>
-                <button
-                  id="toggle-monday"
-                  role="switch"
-                  aria-checked={mondayFullWeekend}
-                  onClick={() => setMondayFullWeekend((v) => !v)}
-                  className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${mondayFullWeekend ? "border-accent bg-accent" : "border-border bg-muted"}`}
+              <button
+                type="button"
+                onClick={() => setMondayFullWeekend((v) => !v)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${mondayFullWeekend ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
+              >
+                <span
+                  className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${mondayFullWeekend ? "border-accent bg-accent" : "border-border bg-muted"}`}
                 >
                   <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${mondayFullWeekend ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
-                </button>
-              </span>
+                </span>
+                {mondayFullWeekend ? "Édition week-end" : "Lundi seul"}
+              </button>
             )}
-            {/* Toggle actualisation 18h */}
-            <span className="flex items-center gap-1.5 text-[11px]">
-              <label htmlFor="toggle-refresh" className="cursor-pointer select-none font-medium text-muted-foreground">
-                {showAfternoonRefresh ? "Avec actualisation 18h" : "Sans actualisation 18h"}
-              </label>
-              <button
-                id="toggle-refresh"
-                role="switch"
-                aria-checked={showAfternoonRefresh}
-                onClick={() => setShowAfternoonRefresh((v) => !v)}
-                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${showAfternoonRefresh ? "border-accent bg-accent" : "border-border bg-muted"}`}
+            <button
+              type="button"
+              onClick={() => setShowAfternoonRefresh((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${showAfternoonRefresh ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
+            >
+              <span
+                className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${showAfternoonRefresh ? "border-accent bg-accent" : "border-border bg-muted"}`}
               >
                 <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
-              </button>
-            </span>
-          </span>
+              </span>
+              {showAfternoonRefresh ? "Actualisé 18h" : "Sans actualisation"}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -743,6 +738,8 @@ export default function EditionSommairePage() {
             vigieHint={vigieGlobaleHint}
           />
         ) : null}
+
+        <CustomPeriodSelector className="mt-3" />
 
         {date ? (
           <div className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">

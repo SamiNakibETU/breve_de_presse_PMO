@@ -74,6 +74,26 @@ class EditionOut(BaseModel):
     compose_instructions_fr: Optional[str] = None
 
 
+class CreateCustomEditionBody(BaseModel):
+    """Créer une édition couvrant une période arbitraire (ex. « grande édition » manuelle)."""
+
+    publish_date: date = Field(description="Date de parution affichée.")
+    window_start: datetime = Field(description="Début de la fenêtre de collecte (UTC ou avec tz).")
+    window_end: datetime = Field(description="Fin de la fenêtre de collecte (UTC ou avec tz).")
+    label: Optional[str] = Field(
+        default=None,
+        description="Libellé optionnel pour cette édition (ex. « Édition spéciale semaine 14 »).",
+    )
+
+
+class CustomEditionPipelineBody(BaseModel):
+    """Lance le pipeline d'analyse + détection sujets sur une édition custom existante."""
+
+    run_analysis: bool = Field(default=True, description="Lancer l'analyse experte (bullets, thèse, etc.).")
+    run_topic_detection: bool = Field(default=True, description="Lancer la détection de sujets LLM.")
+    analysis_force: bool = Field(default=True, description="Ré-analyser même si déjà analysé.")
+
+
 class EditionPatch(BaseModel):
     status: Optional[str] = None
     generated_text: Optional[str] = None
@@ -765,3 +785,66 @@ async def patch_edition(
     await db.commit()
     await db.refresh(e)
     return _edition_to_out(e)
+
+
+@router.post("/custom", response_model=EditionOut)
+async def create_custom_edition(
+    body: CreateCustomEditionBody,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    """Crée une édition avec fenêtre de collecte arbitraire (pas liée au schedule standard)."""
+    from datetime import timezone as dttz
+
+    ws = body.window_start if body.window_start.tzinfo else body.window_start.replace(tzinfo=dttz.utc)
+    we = body.window_end if body.window_end.tzinfo else body.window_end.replace(tzinfo=dttz.utc)
+    if we <= ws:
+        raise HTTPException(status_code=400, detail="window_end doit être postérieur à window_start.")
+
+    ed = Edition(
+        publish_date=body.publish_date,
+        window_start=ws.astimezone(dttz.utc),
+        window_end=we.astimezone(dttz.utc),
+        timezone="Asia/Beirut",
+        status="CUSTOM",
+    )
+    if body.label:
+        ed.compose_instructions_fr = body.label
+    db.add(ed)
+    await db.flush()
+    n_art, n_cc = await _count_corpus_for_edition_window(db, ed)
+    await db.commit()
+    await db.refresh(ed)
+    return _edition_to_out(ed, corpus_article_count=n_art, corpus_country_count=n_cc)
+
+
+@router.post("/{edition_id}/run-custom-pipeline")
+async def run_custom_edition_pipeline(
+    edition_id: UUID,
+    body: CustomEditionPipelineBody,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_internal_key),
+) -> Any:
+    """Exécute analyse + détection sujets pour une édition (custom ou standard).
+
+    Utile pour régénérer les sujets d'une édition passée ou d'une édition à période custom.
+    """
+    e = await db.get(Edition, edition_id)
+    if not e:
+        raise HTTPException(status_code=404, detail="Edition not found")
+    results: dict[str, Any] = {"edition_id": str(edition_id)}
+
+    if body.run_analysis:
+        from src.services.article_analyst import run_article_analysis_pipeline
+        analysis_result = await run_article_analysis_pipeline(
+            edition_id=edition_id, force=body.analysis_force
+        )
+        results["analysis"] = analysis_result
+
+    if body.run_topic_detection:
+        topics_created = await run_topic_detection_for_edition_id(db, edition_id)
+        await db.refresh(e)
+        results["topics_created"] = topics_created
+        results["detection_status"] = getattr(e, "detection_status", "pending")
+
+    return results

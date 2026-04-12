@@ -399,31 +399,27 @@ export function ArticlesPageClient() {
                     : "space-y-4"
                 }
               >
-              <div className="flex flex-wrap items-center gap-3 text-[12px] text-foreground-body">
-                <span className="text-muted-foreground">Liste filtrée par</span>
-                <label className="flex cursor-pointer items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="articles-date-basis"
-                    className="olj-focus accent-[var(--color-accent)]"
-                    checked={dateBasis === "collected"}
-                    onChange={() => patchSearch({ date_basis: "collected" })}
-                  />
-                  Collecte
-                </label>
-                <label className="flex cursor-pointer items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="articles-date-basis"
-                    className="olj-focus accent-[var(--color-accent)]"
-                    checked={dateBasis === "published"}
-                    onChange={() => patchSearch({ date_basis: "published" })}
-                  />
-                  Parution
-                </label>
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Base</span>
+                <div className="inline-flex rounded-lg border border-border/60 bg-muted/10 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => patchSearch({ date_basis: "collected" })}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${dateBasis === "collected" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Collecte
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => patchSearch({ date_basis: "published" })}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${dateBasis === "published" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Parution
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-foreground-body">
-                <span className="text-muted-foreground">Plage · max. 31 j.</span>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Plage</span>
                 <EditionCalendarPopover
                   currentIso={beirutFrom ?? todayIso}
                   triggerLabel={beirutFrom ? `Depuis ${beirutFrom}` : "Depuis"}
@@ -452,7 +448,6 @@ export function ArticlesPageClient() {
                 {(beirutDate || rangeActive) && (
                   <button
                     type="button"
-                    className="text-accent underline underline-offset-2 hover:opacity-90"
                     onClick={() =>
                       patchSearch({
                         date: null,
@@ -460,8 +455,9 @@ export function ArticlesPageClient() {
                         date_to: null,
                       })
                     }
+                    className="rounded-full border border-border px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
                   >
-                    Période glissante ({ARTICLES_ROLLING_DAYS} j.)
+                    Glissant ({ARTICLES_ROLLING_DAYS} j.)
                   </button>
                 )}
               </div>

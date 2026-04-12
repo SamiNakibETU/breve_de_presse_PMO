@@ -20,11 +20,12 @@ import {
   useState,
 } from "react";
 import { shiftIsoDate } from "@/lib/beirut-date";
+import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 
 const TZ = "Europe/Paris";
 const DAY_PX = 260;       // px par jour dans la timeline
 const VISIBLE_DAYS = 3;   // J-1, J, J+1
-const SELECTOR_RANGE = 4; // ±4 jours dans le sélecteur
+const SELECTOR_RANGE = 7; // ±7 jours dans le sélecteur
 
 /* ── Géométrie des ticks ──────────────────────────────────────────── */
 const TICK_MAJOR_H = 60;   // minuit
@@ -134,7 +135,7 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
 
   return (
     <div
-      className="flex min-w-[200px] max-w-[260px] flex-col items-center justify-center rounded-[24px] bg-white px-5 py-5"
+      className="flex w-full flex-col items-center justify-center rounded-[24px] bg-white px-5 py-5 sm:min-w-[200px] sm:max-w-[260px]"
       style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)" }}
     >
       {/* Titre édition */}
@@ -216,7 +217,7 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
 
   /* Horloge Live */
   useEffect(() => {
-    const id = setInterval(() => setNowIso(new Date().toISOString()), 30_000);
+    const id = setInterval(() => setNowIso(new Date().toISOString()), 10_000);
     return () => clearInterval(id);
   }, []);
 
@@ -286,12 +287,12 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
 
   return (
     <div
-      className="relative flex-1 overflow-hidden rounded-[24px] bg-white"
+      className="relative flex flex-1 items-center overflow-hidden rounded-[24px] bg-white"
       style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", minHeight: 150 }}
     >
       <div
         ref={containerRef}
-        className="olj-scrollbar-none h-full overflow-x-auto"
+        className="olj-scrollbar-none w-full overflow-x-auto"
         style={{ cursor: "grab", touchAction: "pan-x" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -382,6 +383,34 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
             }),
           )}
 
+          {/* ── Barres start/end de la fenêtre de collecte ──────── */}
+          {collecteW > 0 && (
+            <>
+              <div
+                className="absolute z-[2]"
+                style={{
+                  left: collecteX1 - 1,
+                  top: LABEL_Y + 10,
+                  width: 2,
+                  height: TICK_BOTTOM - LABEL_Y - 10,
+                  background: COL_ORANGE,
+                  borderRadius: 1,
+                }}
+              />
+              <div
+                className="absolute z-[2]"
+                style={{
+                  left: collecteX1 + collecteW - 1,
+                  top: LABEL_Y + 10,
+                  width: 2,
+                  height: TICK_BOTTOM - LABEL_Y - 10,
+                  background: COL_ORANGE,
+                  borderRadius: 1,
+                }}
+              />
+            </>
+          )}
+
           {/* ── Live ───────────────────────────────────────────────── */}
           {showLive && (
             <>
@@ -470,6 +499,7 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
   }, [currentIdx, days, onSelect]);
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("button[data-day-btn]")) return;
     const el = railRef.current;
     if (!el) return;
     dragRef.current = { startX: e.clientX, scrollLeft: el.scrollLeft, moved: false };
@@ -485,23 +515,17 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!railRef.current) return;
-    railRef.current.releasePointerCapture(e.pointerId);
+    try { railRef.current.releasePointerCapture(e.pointerId); } catch { /* */ }
     dragRef.current = null;
   }, []);
 
-  function handleDayClick(iso: string, e: React.MouseEvent) {
-    if (dragRef.current?.moved) { e.preventDefault(); return; }
-    onSelect(iso);
-  }
-
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-1 items-center gap-1.5">
       <button
         onClick={goLeft}
         disabled={currentIdx <= 0}
         aria-label="Jour précédent"
-        className="flex h-[38px] w-8 shrink-0 items-center justify-center rounded-[5px] text-[#191919]/60 transition-colors hover:text-[#191919] disabled:opacity-30"
-        style={{ background: "rgba(231,227,227,0.33)" }}
+        className="flex h-[36px] w-7 shrink-0 items-center justify-center rounded-[8px] text-[#191919]/50 transition-colors hover:bg-muted/40 hover:text-[#191919] disabled:opacity-25"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M7 1L3 5L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -510,8 +534,8 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
 
       <div
         ref={railRef}
-        className="olj-scrollbar-none flex-1 overflow-x-auto rounded-[5px] p-1.5"
-        style={{ background: "rgba(231,227,227,0.33)", height: 50, cursor: "grab", touchAction: "pan-x" }}
+        className="olj-scrollbar-none flex-1 overflow-x-auto rounded-[10px] p-1"
+        style={{ background: "rgba(231,227,227,0.22)", height: 44, cursor: "grab", touchAction: "pan-x" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -523,16 +547,17 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
             return (
               <button
                 key={iso}
+                data-day-btn
                 data-active={isActive}
-                onClick={(e) => handleDayClick(iso, e)}
-                className="shrink-0 whitespace-nowrap rounded-[5px] px-3 text-[12px] transition-all duration-100"
+                onClick={() => onSelect(iso)}
+                className="shrink-0 cursor-pointer whitespace-nowrap rounded-[8px] px-3.5 text-[12px] transition-all duration-150 hover:bg-white/80"
                 style={{
-                  height:     38,
-                  minWidth:   147,
-                  background: isActive ? "white" : "rgba(231,227,227,0.16)",
-                  boxShadow:  isActive ? "0 4px 2.5px 0 rgba(0,0,0,0.06)" : "none",
+                  height:     36,
+                  minWidth:   130,
+                  background: isActive ? "white" : "transparent",
+                  boxShadow:  isActive ? "0 1px 4px 0 rgba(0,0,0,0.08)" : "none",
                   color:      isActive ? COL_DARK : "#888",
-                  fontWeight: isActive ? 500 : 400,
+                  fontWeight: isActive ? 600 : 400,
                 }}
               >
                 {fmtFullDayName(iso)}
@@ -546,8 +571,7 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
         onClick={goRight}
         disabled={currentIdx >= days.length - 1}
         aria-label="Jour suivant"
-        className="flex h-[38px] w-8 shrink-0 items-center justify-center rounded-[5px] text-[#191919]/60 transition-colors hover:text-[#191919] disabled:opacity-30"
-        style={{ background: "rgba(231,227,227,0.33)" }}
+        className="flex h-[36px] w-7 shrink-0 items-center justify-center rounded-[8px] text-[#191919]/50 transition-colors hover:bg-muted/40 hover:text-[#191919] disabled:opacity-25"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M3 1L7 5L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -574,7 +598,7 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
 
   return (
     <nav className="w-full space-y-3" aria-label="Navigation temporelle de l'édition">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row">
         <FriseInfoCard
           currentIso={currentIso}
           windowStart={editionWindow?.start}
@@ -586,11 +610,18 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
           windowEnd={editionWindow?.end}
         />
       </div>
-      <FriseDaySelector
-        currentIso={currentIso}
-        days={calDays}
-        onSelect={unifiedDayNav}
-      />
+      <div className="flex items-center gap-2">
+        <FriseDaySelector
+          currentIso={currentIso}
+          days={calDays}
+          onSelect={unifiedDayNav}
+        />
+        <EditionCalendarPopover
+          currentIso={currentIso}
+          compact
+          onDateSelect={unifiedDayNav}
+        />
+      </div>
     </nav>
   );
 };
