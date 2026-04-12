@@ -865,6 +865,36 @@ async def selected_fulltext_translation_tick() -> None:
         )
 
 
+async def article_analysis_fill_tick() -> None:
+    """Job périodique : analyse tous les articles récents non encore analysés (sans filtre édition).
+
+    Cela couvre les articles du Panorama (clusters 48h) qui appartiennent à des éditions passées,
+    ainsi que les articles collectés depuis le dernier cycle pipeline.
+    """
+    s = get_settings()
+    if not s.article_analysis_enabled or s.article_analysis_fill_interval_minutes <= 0:
+        return
+    try:
+        from src.services.article_analyst import run_article_analysis_pipeline
+
+        res = await run_article_analysis_pipeline(
+            edition_id=None,
+            limit=s.article_analysis_fill_batch,
+            recent_hours=s.article_analysis_fill_hours,
+        )
+        analyzed = res.get("analyzed", 0)
+        if analyzed > 0 or res.get("eligible_total", 0) > 0:
+            logger.info(
+                "scheduler.analysis_fill",
+                analyzed=analyzed,
+                eligible_total=res.get("eligible_total", 0),
+                skipped=res.get("skipped_articles", 0),
+                errors=res.get("errors", 0),
+            )
+    except Exception as exc:
+        logger.warning("scheduler.analysis_fill_failed", error=str(exc)[:200])
+
+
 async def run_afternoon_refresh(*, trigger: str = "cron_afternoon") -> dict:
     """
     Refresh léger 16h Paris (mar.–ven.) :
@@ -1102,6 +1132,24 @@ def create_scheduler() -> AsyncIOScheduler:
             coalesce=True,
         )
 
+    if settings.article_analysis_fill_interval_minutes > 0:
+        scheduler.add_job(
+            article_analysis_fill_tick,
+            trigger=IntervalTrigger(
+                minutes=settings.article_analysis_fill_interval_minutes,
+            ),
+            id="article_analysis_fill",
+            name=(
+                f"Analyse articles récents sans filtre édition "
+                f"(toutes les {settings.article_analysis_fill_interval_minutes} min, "
+                f"fenêtre {settings.article_analysis_fill_hours}h, "
+                f"batch {settings.article_analysis_fill_batch})"
+            ),
+            replace_existing=True,
+            misfire_grace_time=_misfire,
+            coalesce=True,
+        )
+
     logger.info(
         "scheduler.configured",
         paris_morning=f"{h:02d}:{m:02d} Europe/Paris (lun. + mar.–ven.)",
@@ -1110,5 +1158,6 @@ def create_scheduler() -> AsyncIOScheduler:
         completion_retry_minutes=settings.pipeline_completion_retry_minutes,
         stall_check_minutes=settings.pipeline_stall_check_interval_minutes,
         selected_fulltext_interval_minutes=settings.selected_fulltext_job_interval_minutes,
+        analysis_fill_interval_minutes=settings.article_analysis_fill_interval_minutes,
     )
     return scheduler

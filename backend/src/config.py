@@ -535,6 +535,24 @@ class Settings(BaseSettings):
         le=2000,
         description="Plafond d’articles à analyser par run pipeline",
     )
+    article_analysis_fill_interval_minutes: int = Field(
+        default=20,
+        ge=0,
+        le=1440,
+        description="Intervalle (min) du job fill autonome (tous articles recents, sans filtre edition). 0=desactive.",
+    )
+    article_analysis_fill_batch: int = Field(
+        default=150,
+        ge=1,
+        le=1000,
+        description="Batch du job fill autonome (hors pipeline principal)",
+    )
+    article_analysis_fill_hours: int = Field(
+        default=72,
+        ge=1,
+        le=720,
+        description="Fenetre temporelle (heures) du job fill",
+    )
     article_analysis_max_tokens: int = Field(
         default=8192,
         ge=512,

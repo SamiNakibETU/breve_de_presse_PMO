@@ -8,7 +8,7 @@ import json
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
@@ -39,6 +39,7 @@ def _analysis_candidate_conditions(
     *,
     edition_id: uuid.UUID | None,
     force: bool,
+    recent_hours: int | None = None,
 ) -> list[Any]:
     """Prédicats communs COUNT et SELECT (hors ``out_of_scope`` : non pertinents)."""
     conds: list[Any] = [
@@ -54,6 +55,9 @@ def _analysis_candidate_conditions(
         conds.append(Article.analyzed_at.is_(None))
     if edition_id is not None:
         conds.append(Article.edition_id == edition_id)
+    elif recent_hours is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=recent_hours)
+        conds.append(Article.collected_at >= cutoff)
     return conds
 
 
@@ -209,8 +213,12 @@ async def run_article_analysis_pipeline(
     edition_id: uuid.UUID | None = None,
     limit: int | None = None,
     force: bool = False,
+    recent_hours: int | None = None,
 ) -> dict[str, Any]:
-    """Articles traduits pertinents ; priorité bande × type éditorial ; si ``force``, ré-analyse."""
+    """Articles traduits pertinents ; priorité bande × type éditorial ; si ``force``, ré-analyse.
+
+    ``recent_hours`` : si ``edition_id`` est None, limite aux articles collectés dans les N dernières heures.
+    """
     s = get_settings()
     if not s.article_analysis_enabled:
         return _disabled_pipeline_payload()
@@ -218,7 +226,7 @@ async def run_article_analysis_pipeline(
     factory = get_session_factory()
     async with factory() as db:
         lim = limit if limit is not None else s.article_analysis_batch_limit
-        conds = _analysis_candidate_conditions(edition_id=edition_id, force=force)
+        conds = _analysis_candidate_conditions(edition_id=edition_id, force=force, recent_hours=recent_hours)
         predicate = and_(*conds)
 
         count_stmt = select(func.count()).select_from(Article).where(predicate)
