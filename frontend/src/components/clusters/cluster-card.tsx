@@ -30,8 +30,8 @@ import { formatDateTimeBeirutFr } from "@/lib/dates-display-fr";
 import type { ThesisPreviewItem, TopicCluster } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 
-const MAX_SECOND_VOICE = 220;
-const MAX_THIRD_VOICE = 180;
+const MAX_SECOND_VOICE = 300;
+const MAX_THIRD_VOICE = 250;
 
 function normalizePreview(
   raw: string | ThesisPreviewItem,
@@ -131,7 +131,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
     >
       <article
         className={[
-          "flex h-full flex-col rounded-xl border bg-card p-5",
+          "flex h-full flex-col rounded-lg border bg-card p-5",
           "transition-all [transition-duration:var(--duration-normal)] [transition-timing-function:var(--ease-out-expo)]",
           "hover:border-accent/20 hover:shadow-mid hover:-translate-y-px",
           "sm:p-6",
@@ -154,7 +154,6 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
           {cluster.article_count} article{cluster.article_count !== 1 ? "s" : ""}
           {" · "}
           {cluster.country_count} pays
-          {pertinencePct !== null && ` · ${pertinencePct} %`}
           {freshness && ` · ${freshness}`}
         </p>
 
@@ -164,7 +163,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
           {first?.thesis.trim() ? (
             <div>
               <p
-                className="font-[family-name:var(--font-serif)] text-[14px] leading-relaxed text-foreground-body line-clamp-4 italic"
+                className="font-[family-name:var(--font-serif)] text-[14px] leading-relaxed text-foreground-body line-clamp-5 italic"
                 title={first.thesis}
               >
                 {first.thesis}
@@ -177,7 +176,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
           {second?.thesis.trim() ? (
             <div>
               <p
-                className="font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-subtle line-clamp-3"
+                className="font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-subtle line-clamp-4"
                 title={second.thesis}
               >
                 «&nbsp;{truncate(second.thesis, MAX_SECOND_VOICE)}&nbsp;»

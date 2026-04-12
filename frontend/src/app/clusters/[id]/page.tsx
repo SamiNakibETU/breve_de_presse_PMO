@@ -4,12 +4,139 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { displayClusterTitle } from "@/lib/cluster-display";
 import { reviewPagePath } from "@/lib/review-url";
 import { countryLabelFr } from "@/lib/country-labels-fr";
 import { formatPublishedAtFr } from "@/lib/dates-display-fr";
+import { useArticleReader } from "@/contexts/article-reader";
 import type { ClusterArticlesResponse } from "@/lib/types";
+
+/* Article dans le détail cluster */
+function ClusterArticleItem({
+  a,
+  selected,
+  onToggle,
+}: {
+  a: ClusterArticlesResponse["articles_by_country"][string][number];
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { openArticle, prefetchArticle } = useArticleReader();
+  const hasBullets = a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0;
+  const hasSummary = Boolean(a.summary_fr);
+
+  return (
+    <li className="flex gap-3">
+      {/* Checkbox custom carré */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={selected ? "Désélectionner" : "Sélectionner"}
+        className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center border transition-colors"
+        style={{
+          borderRadius: 3,
+          borderColor: selected ? "var(--color-accent)" : "var(--color-border)",
+          background: selected ? "var(--color-accent)" : "var(--color-background)",
+        }}
+      >
+        {selected && (
+          <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-white">
+            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" fill="none" />
+          </svg>
+        )}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        {/* Thèse */}
+        {a.thesis_summary_fr && (
+          <p className="mb-1 font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground">
+            {a.thesis_summary_fr}
+          </p>
+        )}
+
+        {/* Titre + meta */}
+        <a
+          href={a.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-[family-name:var(--font-serif)] text-[14px] font-medium text-foreground hover:text-accent"
+        >
+          {a.title_fr || a.title_original}
+        </a>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          {a.source_name ?? ""}
+          {a.published_at ? ` · ${formatPublishedAtFr(a.published_at, "short")}` : ""}
+          {a.article_type ? ` · ${a.article_type}` : ""}
+        </p>
+
+        {/* Bullets d'analyse — toujours visibles */}
+        {hasBullets && (
+          <ul className="mt-2 space-y-1.5">
+            {a.analysis_bullets_fr!.slice(0, 3).map((b, i) => (
+              <li key={i} className="flex gap-1.5 text-[12px] leading-snug text-foreground-body">
+                <span className="mt-px shrink-0 font-bold text-accent">{i + 1}.</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Résumé expandable */}
+        {hasSummary && (
+          <div className="mt-2">
+            {expanded ? (
+              <>
+                <p className="text-[13px] leading-relaxed text-foreground-body">{a.summary_fr}</p>
+                <button
+                  type="button"
+                  onClick={() => setExpanded(false)}
+                  className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  <ChevronUp className="h-3 w-3" />
+                  Réduire
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                <ChevronDown className="h-3 w-3" />
+                Lire le résumé
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            className="olj-btn-secondary px-2.5 py-1 text-[10px]"
+            onMouseEnter={() => prefetchArticle(a.id)}
+            onClick={() => openArticle(a.id)}
+          >
+            Lire
+          </button>
+          {a.url && (
+            <a
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="olj-link-action text-[10px]"
+            >
+              Source ↗
+            </a>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
 
 export default function ClusterDetailPage() {
   const params = useParams();
@@ -26,9 +153,7 @@ export default function ClusterDetailPage() {
     });
   }, []);
 
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const { data, isPending, error: queryError } = useQuery({
     queryKey: ["clusterArticles", id],
@@ -77,80 +202,82 @@ export default function ClusterDetailPage() {
 
   return (
     <div className="space-y-8 pb-24">
-      <header>
+      {/* Header */}
+      <header className="space-y-4">
         <Link
           href="/panorama"
-          className="mb-4 inline-block text-[12px] text-muted-foreground hover:text-foreground"
+          className="inline-block text-[12px] text-muted-foreground hover:text-foreground"
         >
           ← Panorama
         </Link>
         <h1 className="font-[family-name:var(--font-serif)] text-[26px] font-semibold leading-tight">
           {loading ? "Chargement…" : displayClusterTitle(clusterLabel)}
         </h1>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {data
-            ? `${data.total_articles} articles · ${data.countries.length} pays`
-            : ""}
-        </p>
-        {!loading && ledeThesis ? (
-          <div className="mt-6 rounded-lg bg-muted/15 p-4">
-            <p className="font-[family-name:var(--font-serif)] text-[1.15rem] font-semibold leading-snug text-foreground sm:text-[1.25rem]">
+        {data && (
+          <p className="text-[13px] text-muted-foreground">
+            {data.total_articles} article{data.total_articles > 1 ? "s" : ""} · {data.countries.length} pays
+          </p>
+        )}
+
+        {/* Lede thèse + résumé */}
+        {!loading && ledeThesis && (
+          <div className="rounded-lg border border-border/50 bg-muted/10 p-5">
+            <p className="font-[family-name:var(--font-serif)] text-[1.2rem] font-semibold leading-snug text-foreground">
               {ledeThesis}
             </p>
-            {ledeSummaryExcerpt ? (
-              <p
-                className="mt-3 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
-                title={ledeSummaryExcerpt}
-              >
+            {ledeSummaryExcerpt && (
+              <p className="mt-3 text-[13px] leading-relaxed text-foreground-body">
                 {ledeSummaryExcerpt}
               </p>
-            ) : null}
+            )}
           </div>
-        ) : !loading && ledeSummaryExcerpt ? (
-          <p
-            className="mt-6 max-w-3xl rounded-lg bg-muted/15 p-4 text-[13px] leading-relaxed text-foreground-body line-clamp-3"
-            title={ledeSummaryExcerpt}
-          >
-            {ledeSummaryExcerpt}
-          </p>
-        ) : null}
+        )}
+        {!loading && !ledeThesis && ledeSummaryExcerpt && (
+          <div className="rounded-lg border border-border/50 bg-muted/10 p-5">
+            <p className="text-[13px] leading-relaxed text-foreground-body">
+              {ledeSummaryExcerpt}
+            </p>
+          </div>
+        )}
       </header>
 
       {error && (
-        <p className="olj-alert-destructive px-3 py-2">
-          {error}
-        </p>
+        <p className="olj-alert-destructive px-3 py-2">{error}</p>
       )}
 
+      {/* Matrice pays */}
       {matrixRows.length > 0 && (
-        <section className="border border-border-light">
-          <h2 className="border-b border-border-light px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <section>
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Matrice pays (aperçu)
           </h2>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[32rem] text-left text-[12px]">
               <thead>
-                <tr className="border-b border-border-light text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Pays</th>
-                  <th className="px-3 py-2 font-medium">Thèse</th>
-                  <th className="px-3 py-2 font-medium">Média</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
+                <tr className="border-b border-border bg-muted/20 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+                  <th className="px-4 py-2.5 font-medium">Pays</th>
+                  <th className="px-4 py-2.5 font-medium">Thèse</th>
+                  <th className="px-4 py-2.5 font-medium">Média</th>
+                  <th className="px-4 py-2.5 font-medium">Type</th>
                 </tr>
               </thead>
               <tbody>
-                {matrixRows.map((row) => (
-                  <tr key={row.code} className="border-b border-border-light">
-                    <td className="px-3 py-2 align-top text-foreground">
+                {matrixRows.map((row, idx) => (
+                  <tr
+                    key={row.code}
+                    className={`border-b border-border/50 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
+                  >
+                    <td className="px-4 py-2.5 align-top font-medium text-foreground">
                       {row.countryLabel}
                     </td>
-                    <td className="px-3 py-2 align-top font-[family-name:var(--font-serif)] italic text-foreground">
-                      {row.thesis ? `« ${row.thesis} »` : "n.d."}
+                    <td className="px-4 py-2.5 align-top font-[family-name:var(--font-serif)] italic text-foreground">
+                      {row.thesis ? `« ${row.thesis} »` : "—"}
                     </td>
-                    <td className="px-3 py-2 align-top text-foreground-body">
-                      {row.media ?? "n.d."}
+                    <td className="px-4 py-2.5 align-top text-foreground-body">
+                      {row.media ?? "—"}
                     </td>
-                    <td className="px-3 py-2 align-top text-muted-foreground">
-                      {row.type ?? "n.d."}
+                    <td className="px-4 py-2.5 align-top text-muted-foreground">
+                      {row.type ?? "—"}
                     </td>
                   </tr>
                 ))}
@@ -160,82 +287,48 @@ export default function ClusterDetailPage() {
         </section>
       )}
 
+      {/* Articles par pays — avec barre latérale accent */}
       {data &&
         data.countries.map((code) => {
           const articles = data.articles_by_country[code] ?? [];
-          const heading =
-            articles[0]?.country?.trim() || countryLabelFr(code);
+          const heading = articles[0]?.country?.trim() || countryLabelFr(code);
           return (
             <section key={code}>
-              <h2 className="mb-2 border-b border-border pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {heading}
-              </h2>
-              <ul className="space-y-4">
+              {/* Header pays — barre accent à gauche */}
+              <div className="mb-4 flex items-center gap-3 border-l-2 border-accent pl-3">
+                <h2 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-foreground">
+                  {heading}
+                </h2>
+                <span className="text-[11px] text-muted-foreground">
+                  {articles.length} texte{articles.length > 1 ? "s" : ""}
+                </span>
+              </div>
+              <ul className="space-y-5">
                 {articles.map((a) => (
-                  <li key={a.id} className="flex gap-4">
-                    <label className="flex shrink-0 items-start pt-0.5">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(a.id)}
-                        onChange={() => {
-                          toggleArticle(a.id);
-                        }}
-                        className="h-4 w-4 border-border"
-                      />
-                    </label>
-                    <div className="min-w-0 flex-1">
-                      {a.thesis_summary_fr && (
-                        <p className="mb-1 font-[family-name:var(--font-serif)] text-[14px] font-medium italic text-foreground">
-                          «&nbsp;{a.thesis_summary_fr}&nbsp;»
-                        </p>
-                      )}
-                      <a
-                        href={a.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-[family-name:var(--font-serif)] text-[15px] font-medium text-foreground hover:underline"
-                      >
-                        {a.title_fr || a.title_original}
-                      </a>
-                      <p className="mt-0.5 text-[12px] text-muted-foreground">
-                        {a.source_name ?? ""}
-                        {a.published_at
-                          ? ` · ${formatPublishedAtFr(a.published_at, "short")}`
-                          : ""}
-                        {a.article_type ? ` · ${a.article_type}` : ""}
-                        {a.cluster_soft_assigned ? " · rattaché au sujet" : ""}
-                      </p>
-                      {a.framing_line && (
-                        <p className="mt-1 text-[12px] text-foreground-body">{a.framing_line}</p>
-                      )}
-                      {a.summary_fr && (
-                        <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-foreground-body">
-                          {a.summary_fr}
-                        </p>
-                      )}
-                    </div>
-                  </li>
+                  <ClusterArticleItem
+                    key={a.id}
+                    a={a}
+                    selected={selectedIds.has(a.id)}
+                    onToggle={() => toggleArticle(a.id)}
+                  />
                 ))}
               </ul>
             </section>
           );
         })}
 
+      {/* Barre sticky sélection */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-background px-5 py-4 sm:px-6">
+        <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-background/95 px-5 py-4 backdrop-blur-sm sm:px-6">
           <div className="mx-auto flex max-w-[960px] items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-[13px] text-foreground-body">
-                {selectedIds.size} article{selectedIds.size > 1 ? "s" : ""} sélectionné
-                {selectedIds.size > 1 ? "s" : ""}
-                <span className="ml-1 text-[11px] text-muted-foreground/80">
-                  (plusieurs clusters possibles)
-                </span>
+                {selectedIds.size} article{selectedIds.size > 1 ? "s" : ""} sélectionné{selectedIds.size > 1 ? "s" : ""}
               </span>
               <button
                 type="button"
-                onClick={() => clearSelection()}
-                className="text-[11px] text-muted-foreground underline hover:text-foreground"
+                onClick={clearSelection}
+                className="olj-link-action text-[11px] text-muted-foreground"
               >
                 Tout effacer
               </button>
@@ -243,7 +336,7 @@ export default function ClusterDetailPage() {
             <button
               type="button"
               onClick={goToReview}
-              className="shrink-0 bg-accent px-6 py-2.5 text-[13px] font-semibold text-accent-foreground hover:opacity-90"
+              className="olj-btn-primary rounded-lg px-6 py-2.5 text-[13px]"
             >
               Générer la revue →
             </button>

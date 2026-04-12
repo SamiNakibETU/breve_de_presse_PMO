@@ -985,38 +985,20 @@ def create_scheduler() -> AsyncIOScheduler:
     m = settings.pipeline_paris_morning_minute
     tz_paris = "Europe/Paris"
 
-    async def _cron_monday() -> None:
-        await run_daily_pipeline(trigger="cron_monday")
-
-    async def _cron_weekday() -> None:
-        await run_daily_pipeline(trigger="cron_weekday")
+    async def _cron_daily_pipeline() -> None:
+        await run_daily_pipeline(trigger="cron_daily")
 
     _misfire = 3600
     scheduler.add_job(
-        _cron_monday,
+        _cron_daily_pipeline,
         trigger=CronTrigger(
-            day_of_week="mon",
+            day_of_week="mon-sun",
             hour=h,
             minute=m,
             timezone=tz_paris,
         ),
-        id="daily_pipeline_monday",
-        name=f"Pipeline week-end (lun. {h:02d}:{m:02d} Paris)",
-        replace_existing=True,
-        misfire_grace_time=_misfire,
-        coalesce=True,
-    )
-
-    scheduler.add_job(
-        _cron_weekday,
-        trigger=CronTrigger(
-            day_of_week="tue-fri",
-            hour=h,
-            minute=m,
-            timezone=tz_paris,
-        ),
-        id="daily_pipeline_weekday",
-        name=f"Pipeline mar.–ven. ({h:02d}:{m:02d} Paris)",
+        id="daily_pipeline",
+        name=f"Pipeline quotidien ({h:02d}:{m:02d} Paris, lun–dim)",
         replace_existing=True,
         misfire_grace_time=_misfire,
         coalesce=True,
@@ -1032,38 +1014,17 @@ def create_scheduler() -> AsyncIOScheduler:
         scheduler.add_job(
             _cron_afternoon_refresh,
             trigger=CronTrigger(
-                day_of_week="tue-fri",
+                day_of_week="mon-sun",
                 hour=ah,
                 minute=am,
                 timezone=tz_paris,
             ),
-            id="afternoon_refresh_weekday",
-            name=f"Refresh léger 16h (mar.–ven. {ah:02d}:{am:02d} Paris)",
+            id="afternoon_refresh_daily",
+            name=f"Actualisation après-midi ({ah:02d}:{am:02d} Paris, lun–dim)",
             replace_existing=True,
             misfire_grace_time=_misfire,
             coalesce=True,
         )
-
-    if settings.weekend_collect_enabled:
-
-        async def _cron_weekend_collect() -> None:
-            await run_weekend_collect_only(trigger="cron_weekend_collect")
-
-        scheduler.add_job(
-            _cron_weekend_collect,
-            trigger=CronTrigger(
-                day_of_week="sat-sun",
-                hour=h,
-                minute=m,
-                timezone=tz_paris,
-            ),
-            id="weekend_collect_only",
-            name=f"Collecte week-end seule (sam.–dim. {h:02d}:{m:02d} Paris)",
-            replace_existing=True,
-            misfire_grace_time=_misfire,
-            coalesce=True,
-        )
-
     if settings.pipeline_completion_retry_minutes > 0:
         scheduler.add_job(
             pipeline_completion_retry_tick,
@@ -1099,9 +1060,9 @@ def create_scheduler() -> AsyncIOScheduler:
 
         scheduler.add_job(
             ensure_next_day_edition_job,
-            trigger=CronTrigger(hour=0, minute=0, timezone="Asia/Beirut"),
-            id="edition_daily_create_beirut",
-            name="Create next-day edition (00:00 Asia/Beirut)",
+            trigger=CronTrigger(hour=0, minute=0, timezone="Europe/Paris"),
+            id="edition_daily_create_paris",
+            name="Create next-day edition (00:00 Europe/Paris)",
             replace_existing=True,
             misfire_grace_time=_misfire,
             coalesce=True,

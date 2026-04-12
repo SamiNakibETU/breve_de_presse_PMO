@@ -62,7 +62,7 @@ class Settings(BaseSettings):
         description="Minute locale Paris du passage pipeline",
     )
     pipeline_paris_afternoon_hour: int = Field(
-        default=16,
+        default=18,
         ge=0,
         le=23,
         description="Heure locale Paris du refresh léger 16h (mar.–ven.)",

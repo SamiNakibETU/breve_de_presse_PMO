@@ -1,7 +1,11 @@
 """
-Fenêtres de collecte par date de parution (Asia/Beirut).
-- Édition du lundi : vendredi 18:00 → lundi 06:00 (Beyrouth).
-- Mardi–vendredi : J-1 18:00 → J 06:00 (Beyrouth).
+Fenêtres de collecte par date de parution (Europe/Paris).
+- Édition du lundi (grosse édition) : vendredi 18:00 → lundi 09:00 (Paris).
+- Mardi–dimanche : J-1 08:00 → J 09:00 (Paris).
+
+Les éditions sont créées pour tous les jours (y compris week-end).
+Le pipeline tourne chaque jour à 9h Paris ; une actualisation à 18h Paris
+couvre les articles publiés dans la journée (09:00–18:00).
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ from src.models.edition import Edition
 
 logger = structlog.get_logger(__name__)
 BEIRUT = ZoneInfo("Asia/Beirut")
+PARIS = ZoneInfo("Europe/Paris")
 
 
 def sql_article_belongs_to_edition_corpus(edition: Edition) -> ColumnElement[bool]:
@@ -41,34 +46,32 @@ def sql_article_belongs_to_edition_corpus(edition: Edition) -> ColumnElement[boo
 
 
 def default_window_utc(publish_date: date) -> tuple[datetime, datetime]:
-    """Retourne (window_start, window_end) en UTC pour la date de parution cible."""
+    """Retourne (window_start, window_end) en UTC pour la date de parution cible.
+
+    Fenêtres en heure de Paris (Europe/Paris) :
+    - Lundi (grosse édition) : vendredi 18:00 → lundi 09:00 Paris.
+    - Mardi–dimanche        : J-1 08:00 → J 09:00 Paris.
+    """
     wd = publish_date.weekday()
-    if wd == 0:  # lundi
+    if wd == 0:  # lundi — grosse édition week-end
         friday = publish_date - timedelta(days=3)
-        start_local = datetime.combine(friday, time(18, 0), tzinfo=BEIRUT)
-        end_local = datetime.combine(publish_date, time(6, 0), tzinfo=BEIRUT)
-    elif wd in (1, 2, 3, 4):  # mar–ven
+        start_local = datetime.combine(friday, time(18, 0), tzinfo=PARIS)
+        end_local = datetime.combine(publish_date, time(9, 0), tzinfo=PARIS)
+    else:  # mar–dim — édition normale
         prev = publish_date - timedelta(days=1)
-        start_local = datetime.combine(prev, time(18, 0), tzinfo=BEIRUT)
-        end_local = datetime.combine(publish_date, time(6, 0), tzinfo=BEIRUT)
-    else:
-        # week-end : même logique que lundi (fenêtre se termine lundi 6h)
-        if wd == 5:  # samedi
-            monday = publish_date + timedelta(days=2)
-        else:
-            monday = publish_date + timedelta(days=1)
-        friday = monday - timedelta(days=3)
-        start_local = datetime.combine(friday, time(18, 0), tzinfo=BEIRUT)
-        end_local = datetime.combine(monday, time(6, 0), tzinfo=BEIRUT)
+        start_local = datetime.combine(prev, time(8, 0), tzinfo=PARIS)
+        end_local = datetime.combine(publish_date, time(9, 0), tzinfo=PARIS)
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
+def next_publish_date(today: date) -> date:
+    """Prochaine date de parution (tous les jours, y compris week-end)."""
+    return today + timedelta(days=1)
+
+
 def next_weekday_publish_date(today: date) -> date:
-    """Prochaine date de parution éditoriale (lun–ven), à partir d’« aujourd’hui » Beyrouth."""
-    d = today + timedelta(days=1)
-    while d.weekday() >= 5:
-        d += timedelta(days=1)
-    return d
+    """Alias conserve pour compatibilite -- redirige vers next_publish_date."""
+    return next_publish_date(today)
 
 
 async def resolve_edition_id_for_timestamp(
@@ -169,11 +172,11 @@ async def bootstrap_editions_for_two_weeks() -> None:
 
 
 async def ensure_next_day_edition_job() -> None:
-    """Cron 00:00 Beyrouth : crée l’édition pour la prochaine date de parution (lun–ven)."""
+    """Cron 00:00 Paris : cree l'edition pour le lendemain (tous les jours)."""
     from src.database import get_session_factory
 
-    today = datetime.now(BEIRUT).date()
-    pub = next_weekday_publish_date(today)
+    today = datetime.now(PARIS).date()
+    pub = next_publish_date(today)
     factory = get_session_factory()
     async with factory() as db:
         await ensure_edition_for_publish_date(db, pub, status="COLLECTING")

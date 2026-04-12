@@ -53,11 +53,7 @@ function oljThemesLine(
 }
 
 function relevancePct(article: Article): string | null {
-  if (article.editorial_relevance != null) {
-    return `${Math.round(article.editorial_relevance * 100)} %`;
-  }
-  const lbl = relevanceBandLabelFr(article.relevance_band, null);
-  return lbl ?? null;
+  return relevanceBandLabelFr(article.relevance_band, article.editorial_relevance);
 }
 
 export const ArticleCard = memo(function ArticleCard({
@@ -85,7 +81,7 @@ export const ArticleCard = memo(function ArticleCard({
   return (
     <article
       className={cn(
-        "group relative rounded-xl border bg-card transition-all",
+        "group relative rounded-lg border bg-card transition-all",
         "[transition-timing-function:var(--ease-out-expo)] [transition-duration:var(--duration-fast)]",
         "hover:shadow-mid hover:-translate-y-px",
         selected
@@ -323,7 +319,7 @@ export const ArticleCard = memo(function ArticleCard({
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Link
                 href={`/articles/${article.id}`}
-                className="text-[12px] font-semibold text-accent underline underline-offset-2 hover:opacity-90"
+                className="olj-link-action text-[12px]"
               >
                 Lire la fiche complète
               </Link>
@@ -332,14 +328,14 @@ export const ArticleCard = memo(function ArticleCard({
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+                  className="olj-link-action text-[11px] text-muted-foreground"
                 >
                   Source originale ↗
                 </a>
               ) : null}
               <button
                 onClick={() => setExpanded(false)}
-                className="ml-auto text-[11px] text-muted-foreground hover:text-foreground"
+                className="olj-link-action ml-auto text-[11px] text-muted-foreground"
               >
                 Réduire
               </button>
@@ -351,9 +347,9 @@ export const ArticleCard = memo(function ArticleCard({
         {!expanded && article.summary_fr && (
           <button
             onClick={() => setExpanded(true)}
-            className="mt-2 text-[11px] text-accent hover:underline underline-offset-2"
+            className="olj-btn-secondary mt-2.5 px-2.5 py-1 text-[10px]"
           >
-            Lire le résumé →
+            Développer
           </button>
         )}
       </div>

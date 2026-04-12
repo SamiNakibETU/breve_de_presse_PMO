@@ -39,7 +39,14 @@ function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" | "Europe/Pa
   if (jobId === "edition_daily_create_beirut") {
     return "Asia/Beirut";
   }
-  if (jobId === "daily_pipeline_monday" || jobId === "daily_pipeline_weekday") {
+  if (
+    jobId === "daily_pipeline_monday" ||
+    jobId === "daily_pipeline_weekday" ||
+    jobId === "daily_pipeline" ||
+    jobId === "afternoon_refresh_daily" ||
+    jobId === "afternoon_refresh_weekday" ||
+    jobId === "edition_daily_create_paris"
+  ) {
     return "Europe/Paris";
   }
   return "UTC";
@@ -47,16 +54,19 @@ function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" | "Europe/Pa
 
 function schedulerJobTitleFr(jobId: string, fallbackName: string): string {
   switch (jobId) {
+    case "daily_pipeline":
+      return "Pipeline quotidien (9h Paris, lun-dim)";
     case "daily_pipeline_monday":
-      return "Mise à jour week-end (lundi 9h Paris)";
+      return "Mise a jour week-end (lundi 9h Paris)";
     case "daily_pipeline_weekday":
-      return "Mise à jour mardi–vendredi (9h Paris)";
-    case "daily_pipeline_morning":
-      return "Collecte du matin (ancien horaire)";
-    case "daily_pipeline_afternoon":
-      return "Mise à jour de l’après-midi (ancien horaire)";
+      return "Mise a jour mardi-vendredi (9h Paris)";
+    case "afternoon_refresh_daily":
+      return "Actualisation 18h (tous les jours, Paris)";
+    case "afternoon_refresh_weekday":
+      return "Actualisation 18h (mar.-ven., Paris)";
+    case "edition_daily_create_paris":
     case "edition_daily_create_beirut":
-      return "Ouverture de l’édition du lendemain";
+      return "Ouverture de l'edition du lendemain";
     case "pipeline_completion_retry":
       return "Relance si pipeline incomplet";
     case "pipeline_lease_stall_watch":
@@ -181,8 +191,8 @@ function EditionSommaireSkeleton() {
   );
 }
 
-/** Seuil 13h UTC = environ 16h Beyrouth = avant le refresh du soir */
-const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 13;
+/** Seuil 16h UTC ≈ 18h Paris (heure d'été) — articles de l'actualisation 18h */
+const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 16;
 
 export default function EditionSommairePage() {
   const params = useParams();
@@ -190,6 +200,8 @@ export default function EditionSommairePage() {
   const qc = useQueryClient();
   const pipeline = usePipelineRunnerOptional();
   const [showAfternoonRefresh, setShowAfternoonRefresh] = useState(true);
+  /** Lundi : true = grosse édition week-end (ven 18h → lun 9h), false = édition lundi seul (dim 8h → lun 9h) */
+  const [mondayFullWeekend, setMondayFullWeekend] = useState(true);
 
   const statsQ = useQuery({
     queryKey: ["stats"] as const,
@@ -233,12 +245,31 @@ export default function EditionSommairePage() {
       q.state.data?.pipeline_running === true ? 4_000 : false,
   });
 
-  /** Heure seuil pour l'édition courante : minuit + 13h UTC = 13h00 UTC ce jour-là */
+  /** Détecte si la date courante est un lundi */
+  const isMonday = useMemo(() => {
+    if (!date) return false;
+    const d = new Date(date + "T12:00:00");
+    return d.getDay() === 1;
+  }, [date]);
+
+  /** Seuil pour exclure les articles du refresh 18h (= minuit + THRESHOLD_UTC) */
   const afternoonThreshold = useMemo(() => {
     if (!date) return null;
     const d = new Date(`${date}T${String(AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR).padStart(2, "0")}:00:00Z`);
     return Number.isNaN(d.getTime()) ? null : d;
   }, [date]);
+
+  /**
+   * Seuil lundi "édition lundi seul" : dimanche 08h Paris ≈ 06h UTC été.
+   * Les articles de vendredi/samedi sont filtrés côté front.
+   */
+  const mondaySingleDayThreshold = useMemo(() => {
+    if (!date || !isMonday) return null;
+    // dimanche = lundi - 1 jour, 08h Paris = 06h UTC (été)
+    const sunday = new Date(date + "T06:00:00Z");
+    sunday.setDate(sunday.getDate() - 1);
+    return sunday;
+  }, [date, isMonday]);
 
   const topics = useMemo(() => {
     const list = topicsQ.data ?? [];
@@ -247,17 +278,33 @@ export default function EditionSommairePage() {
       const rb = b.user_rank ?? b.rank ?? 999;
       return ra - rb;
     });
-    if (showAfternoonRefresh || !afternoonThreshold) return sorted;
-    // Filtrer les previews d'articles arrivés après le seuil
-    return sorted.map((t) => ({
-      ...t,
-      article_previews: (t.article_previews ?? []).filter((p) => {
-        if (!p.collected_at) return true;
-        const ct = new Date(p.collected_at);
-        return ct <= afternoonThreshold;
-      }),
-    }));
-  }, [topicsQ.data, showAfternoonRefresh, afternoonThreshold]);
+
+    let filtered = sorted;
+
+    // Filtre lundi : si "édition lundi seul", exclure articles avant dimanche 8h Paris
+    if (isMonday && !mondayFullWeekend && mondaySingleDayThreshold) {
+      filtered = filtered.map((t) => ({
+        ...t,
+        article_previews: (t.article_previews ?? []).filter((p) => {
+          if (!p.collected_at) return true;
+          return new Date(p.collected_at) >= mondaySingleDayThreshold;
+        }),
+      }));
+    }
+
+    // Filtre actualisation 18h
+    if (!showAfternoonRefresh && afternoonThreshold) {
+      filtered = filtered.map((t) => ({
+        ...t,
+        article_previews: (t.article_previews ?? []).filter((p) => {
+          if (!p.collected_at) return true;
+          return new Date(p.collected_at) <= afternoonThreshold;
+        }),
+      }));
+    }
+
+    return filtered;
+  }, [topicsQ.data, showAfternoonRefresh, afternoonThreshold, isMonday, mondayFullWeekend, mondaySingleDayThreshold]);
   const hasTopicFeed = detectionStatus === "done" && topics.length > 0;
 
   const clustersFallbackQ = useQuery({
@@ -597,30 +644,39 @@ export default function EditionSommairePage() {
           >
             Composition
           </Link>
-          <span className="ml-auto flex items-center gap-1.5 pb-1 text-[11px]">
-            <label
-              htmlFor="toggle-refresh"
-              className="cursor-pointer select-none font-medium text-muted-foreground"
-            >
-              {showAfternoonRefresh ? "Avec actualisation 16h" : "Sans actualisation 16h"}
-            </label>
-            <button
-              id="toggle-refresh"
-              role="switch"
-              aria-checked={showAfternoonRefresh}
-              onClick={() => setShowAfternoonRefresh((v) => !v)}
-              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                showAfternoonRefresh
-                  ? "border-accent bg-accent"
-                  : "border-border bg-muted"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${
-                  showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"
-                } mt-[1px]`}
-              />
-            </button>
+          <span className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 pb-1">
+            {/* Toggle lundi : édition week-end vs lundi seul */}
+            {isMonday && (
+              <span className="flex items-center gap-1.5 text-[11px]">
+                <label htmlFor="toggle-monday" className="cursor-pointer select-none font-medium text-muted-foreground">
+                  {mondayFullWeekend ? "Édition week-end" : "Lundi seul"}
+                </label>
+                <button
+                  id="toggle-monday"
+                  role="switch"
+                  aria-checked={mondayFullWeekend}
+                  onClick={() => setMondayFullWeekend((v) => !v)}
+                  className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${mondayFullWeekend ? "border-accent bg-accent" : "border-border bg-muted"}`}
+                >
+                  <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${mondayFullWeekend ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
+                </button>
+              </span>
+            )}
+            {/* Toggle actualisation 18h */}
+            <span className="flex items-center gap-1.5 text-[11px]">
+              <label htmlFor="toggle-refresh" className="cursor-pointer select-none font-medium text-muted-foreground">
+                {showAfternoonRefresh ? "Avec actualisation 18h" : "Sans actualisation 18h"}
+              </label>
+              <button
+                id="toggle-refresh"
+                role="switch"
+                aria-checked={showAfternoonRefresh}
+                onClick={() => setShowAfternoonRefresh((v) => !v)}
+                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${showAfternoonRefresh ? "border-accent bg-accent" : "border-border bg-muted"}`}
+              >
+                <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
+              </button>
+            </span>
           </span>
         </div>
 
@@ -751,68 +807,52 @@ export default function EditionSommairePage() {
         {detectionMessage ? (
           <p className="mt-3 text-[12px] text-muted-foreground">{detectionMessage}</p>
         ) : null}
-        {editionId &&
-          detectionStatus !== "running" &&
-          (detectionStatus === "pending" ||
-            detectionStatus === "failed" ||
-            (detectionStatus === "done" && topics.length === 0)) && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
-              <button
-                type="button"
-                className="olj-link-action text-[12px] disabled:opacity-45"
-                disabled={detectMutation.isPending || pipeline?.running !== null}
-                onClick={() => detectMutation.mutate()}
-              >
-                {detectMutation.isPending
-                  ? "Analyse en cours…"
-                  : "Identifier les sujets"}
-              </button>
-              {pipeline && (
+        {/* Bloc actions pipeline — un seul séparateur */}
+        {editionId && pipeline && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+            {detectionStatus !== "running" &&
+              (detectionStatus === "pending" ||
+                detectionStatus === "failed" ||
+                (detectionStatus === "done" && topics.length === 0)) && (
+              <>
                 <button
                   type="button"
-                  className="olj-link-action text-[12px] text-muted-foreground disabled:opacity-45"
+                  className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                  disabled={detectMutation.isPending || pipeline.running !== null}
+                  onClick={() => detectMutation.mutate()}
+                >
+                  {detectMutation.isPending ? "Analyse en cours…" : "Identifier les sujets"}
+                </button>
+                <button
+                  type="button"
+                  className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
                   disabled={pipeline.running !== null || detectMutation.isPending}
-                  title="Relance les étapes post-traduction : scoring → embedding → clusters → sujets (pour une édition avec articles traduits mais sans sujets)."
+                  title="Relance scoring → embedding → clusters → sujets"
                   onClick={() =>
                     pipeline.startSequentialChain(
-                      [
-                        "relevance_scoring",
-                        "embedding_only",
-                        "clustering_only",
-                        "cluster_labelling",
-                        "topic_detection",
-                      ],
+                      ["relevance_scoring", "embedding_only", "clustering_only", "cluster_labelling", "topic_detection"],
                       "Relance analyse complète",
                       { editionId },
                     )
                   }
                 >
-                  {pipeline.running?.key === "sequentialChain"
-                    ? "Analyse en cours…"
-                    : "Relancer l'analyse complète"}
+                  {pipeline.running?.key === "sequentialChain" ? "Analyse en cours…" : "Relancer l'analyse"}
                 </button>
-              )}
-            </div>
-          )}
-        {editionId && pipeline ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
+              </>
+            )}
             <button
               type="button"
-              className="olj-link-action text-[12px] disabled:opacity-45"
+              className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
               disabled={pipeline.running !== null}
-              title="Analyse LLM (thèse, structure) sur le corpus de cette édition ; ne lance pas la collecte ni les grands sujets du sommaire."
+              title="Analyse LLM (thèse, structure) sur le corpus de cette édition."
               onClick={() =>
-                pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", {
-                  editionId,
-                })
+                pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", { editionId })
               }
             >
-              {pipeline.running?.key === "articleAnalysis"
-                ? "Analyse en cours…"
-                : "Analyser les articles"}
+              {pipeline.running?.key === "articleAnalysis" ? "Analyse en cours…" : "Analyser les articles"}
             </button>
           </div>
-        ) : null}
+        )}
       </header>
 
       {err && (

@@ -29,6 +29,7 @@ import {
   FLAGSHIP_BADGE_LABEL,
   articleTypeLabelFr,
 } from "@/lib/article-labels-fr";
+import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { countryCodesFromPreviews } from "@/lib/topic-country-codes";
 import type {
@@ -39,7 +40,6 @@ import type {
 import { decodeHtmlEntities } from "@/lib/text-utils";
 import {
   SectionLabel,
-  EditorialRule,
   AnalysisBullets,
 } from "@/components/ui/editorial-primitives";
 import { cn } from "@/lib/utils";
@@ -148,9 +148,9 @@ function TopicArticleCard({
   const isEditorial = ["opinion", "editorial", "tribune"].includes(
     (preview.article_type ?? "").toLowerCase(),
   );
-  const pertinencePct =
+  const pertinenceLabel =
     preview.editorial_relevance != null
-      ? `${Math.round(preview.editorial_relevance * 100)} %`
+      ? relevanceBandLabelFr(null, preview.editorial_relevance)
       : null;
   const badge = analysisQueueBadge(preview);
 
@@ -226,21 +226,21 @@ function TopicArticleCard({
 
           {/* Puces analyse — max 2 */}
           {preview.analysis_bullets_fr && preview.analysis_bullets_fr.length > 0 ? (
-            <ul className="mt-2 space-y-1">
-              {preview.analysis_bullets_fr.slice(0, 2).map((b, i) => (
+            <ul className="mt-2 space-y-1.5">
+              {preview.analysis_bullets_fr.slice(0, 3).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px] leading-snug text-foreground-body">
-                  <span className="shrink-0 font-bold text-accent">{i + 1}.</span>
-                  <span className="line-clamp-1">{b}</span>
+                  <span className="mt-px shrink-0 font-bold text-accent">{i + 1}.</span>
+                  <span>{b}</span>
                 </li>
               ))}
             </ul>
           ) : null}
 
           {/* Actions + pertinence */}
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <button
               type="button"
-              className="olj-btn-secondary px-2 py-0.5 text-[10px] disabled:opacity-50"
+              className="olj-btn-secondary px-2.5 py-1 text-[10px] disabled:opacity-50"
               onMouseEnter={() => prefetchArticle(preview.id)}
               onFocus={() => prefetchArticle(preview.id)}
               onClick={() => openArticle(preview.id)}
@@ -252,14 +252,14 @@ function TopicArticleCard({
                 href={preview.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="olj-focus text-[10px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
+                className="olj-link-action text-[10px]"
               >
                 Source ↗
               </a>
             ) : null}
-            {pertinencePct && (
-              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
-                {pertinencePct}
+            {pertinenceLabel && (
+              <span className="ml-auto text-[10px] text-muted-foreground/70">
+                {pertinenceLabel}
               </span>
             )}
             {badge ? (
@@ -355,9 +355,8 @@ export function TopicSection({
             {/* Label sujet */}
             <SectionLabel>Sujet {displayRank}</SectionLabel>
 
-            {/* Filet fort + Titre */}
+            {/* Titre */}
             <div>
-              <EditorialRule variant="strong" className="mb-2.5" />
               {topicLink ? (
                 <h2 className="font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug tracking-tight text-foreground sm:text-[21px]">
                   <Link
@@ -456,7 +455,7 @@ export function TopicSection({
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            className="olj-btn-secondary px-2 py-0.5 text-[10px]"
+                            className="olj-btn-secondary px-2.5 py-1 text-[10px]"
                             onMouseEnter={() => prefetchArticle(p.id)}
                             onClick={() => openArticle(p.id)}
                           >
@@ -467,7 +466,7 @@ export function TopicSection({
                               href={p.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="olj-focus text-[10px] text-muted-foreground underline decoration-border underline-offset-[3px] hover:text-foreground"
+                              className="olj-link-action text-[10px]"
                             >
                               Source ↗
                             </a>
@@ -569,7 +568,7 @@ export function TopicSection({
 
       {/* ── Actions bas de section ───────────────────────── */}
       {mode === "summary" && editionDate ? (
-        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border-light pt-4">
+        <div className="mt-5 flex flex-wrap items-center gap-3 pt-2">
           <Link
             href={`/edition/${editionDate}/topic/${topic.id}`}
             className="olj-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium sm:text-[12px]"

@@ -263,6 +263,7 @@ export interface ClusterArticle {
   translation_confidence: number | null;
   framing_line?: string | null;
   cluster_soft_assigned?: boolean;
+  analysis_bullets_fr?: string[] | null;
 }
 
 export interface ClusterArticlesResponse {
