@@ -539,8 +539,13 @@ class Settings(BaseSettings):
         description="Pipeline post-traduction : analyse experte (bullets, thèse, faits) via LLM",
     )
     article_analysis_model: str = Field(
-        default="openai/gpt-oss-120b",
-        description="Modèle pour article_analysis. Groq: openai/gpt-oss-120b (strict JSON, MMLU 90%). Anthropic: claude-*",
+        default="llama-3.3-70b-versatile",
+        description=(
+            "Modèle pour article_analysis. "
+            "Groq (préfixes llama/meta-llama/qwen/gemma/mixtral ou absence de '/') : llama-3.3-70b-versatile, qwen-qwq-32b… "
+            "Anthropic (préfixe claude-) : claude-3-5-haiku-20241022. "
+            "Ne pas utiliser 'openai/…' : Groq ne supporte pas ce préfixe."
+        ),
     )
     article_analysis_batch_limit: int = Field(
         default=500,
@@ -624,6 +629,16 @@ class Settings(BaseSettings):
         ge=1,
         le=12,
         description="Intervalle entre deux runs d'ingestion continue (heures).",
+    )
+    continuous_ingest_collect_timeout_s: int = Field(
+        default=900,
+        ge=0,
+        le=7200,
+        description=(
+            "Budget asyncio pour la collecte dans l'ingestion continue. "
+            "900 s (15 min) : évite de bloquer le lock 45 min à cause de sources DNS KO. "
+            "0 = illimité (déconseillé en 24h/24)."
+        ),
     )
     continuous_ingest_translate_limit: int = Field(
         default=150,

@@ -1052,11 +1052,23 @@ async def run_continuous_ingest(*, trigger: str = "cron_continuous") -> dict:
         result: dict = {"trigger": trigger}
         eid = await resolve_current_edition_id()
 
-        # 1. Collecte
+        # 1. Collecte (avec timeout dédié pour éviter de bloquer le lock 45 min)
         try:
-            stats = await run_collection()
+            collect_timeout = s.continuous_ingest_collect_timeout_s
+            if collect_timeout > 0:
+                stats = await asyncio.wait_for(run_collection(), timeout=float(collect_timeout))
+            else:
+                stats = await run_collection()
             result["collection"] = stats
             await log_pipeline_step(eid, "continuous_collect", compact_payload({"stats": stats, "trigger": trigger}))
+        except asyncio.TimeoutError:
+            logger.warning(
+                "continuous_ingest.collect_timed_out",
+                timeout_s=s.continuous_ingest_collect_timeout_s,
+                note="Sources DNS KO probables — collecte partielle, traduction continue.",
+            )
+            result["collection"] = {"timed_out": True, "timeout_s": s.continuous_ingest_collect_timeout_s}
+            await log_pipeline_step(eid, "continuous_collect", compact_payload({"timed_out": True, "timeout_s": s.continuous_ingest_collect_timeout_s, "trigger": trigger}))
         except Exception as exc:
             logger.warning("continuous_ingest.collect_failed", error=str(exc)[:200])
             result["collection"] = {"error": str(exc)[:200]}

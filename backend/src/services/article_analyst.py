@@ -125,15 +125,26 @@ async def analyze_article(
 
     router = get_llm_router()
     model_cfg = (s.article_analysis_model or "").strip()
-    is_groq = model_cfg.startswith("llama") or model_cfg.startswith("meta-llama") or model_cfg.startswith("qwen") or model_cfg.startswith("gemma") or model_cfg.startswith("mixtral") or "/" in model_cfg
+    # Anthropic : préfixe "claude-" ou vide (fallback)
     is_anthropic = model_cfg.startswith("claude") or not model_cfg
+    # Groq : préfixes connus Groq — le préfixe "openai/" n'est PAS supporté par Groq
+    _GROQ_PREFIXES = ("llama", "meta-llama", "qwen", "gemma", "mixtral", "deepseek",
+                      "mistral", "whisper")
+    is_groq = not is_anthropic and (
+        any(model_cfg.startswith(p) for p in _GROQ_PREFIXES)
+        or ("/" not in model_cfg and model_cfg)
+    )
 
     if is_anthropic:
         provider = Provider.ANTHROPIC
         model = model_cfg or s.anthropic_translation_model
-    else:
+    elif is_groq:
         provider = Provider.GROQ
         model = model_cfg
+    else:
+        # Fallback sécurisé : Anthropic si le modèle n'est pas reconnu
+        provider = Provider.ANTHROPIC
+        model = s.anthropic_translation_model
 
     t0 = time.perf_counter()
     try:
