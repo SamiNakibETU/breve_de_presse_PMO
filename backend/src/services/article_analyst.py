@@ -125,42 +125,95 @@ async def analyze_article(
 
     router = get_llm_router()
     model_cfg = (s.article_analysis_model or "").strip()
-    # Anthropic : préfixe "claude-" ou vide (fallback)
-    is_anthropic = model_cfg.startswith("claude") or not model_cfg
-    # Groq : préfixes connus Groq — le préfixe "openai/" n'est PAS supporté par Groq
+
     _GROQ_PREFIXES = ("llama", "meta-llama", "qwen", "gemma", "mixtral", "deepseek",
                       "mistral", "whisper")
-    is_groq = not is_anthropic and (
-        any(model_cfg.startswith(p) for p in _GROQ_PREFIXES)
-        or ("/" not in model_cfg and model_cfg)
-    )
 
-    if is_anthropic:
-        provider = Provider.ANTHROPIC
-        model = model_cfg or s.anthropic_translation_model
-    elif is_groq:
-        provider = Provider.GROQ
-        model = model_cfg
+    def _resolve_provider_model(m: str) -> tuple[Provider, str]:
+        """Résout (provider, model) depuis un model_cfg."""
+        if m.startswith("claude") or not m:
+            return Provider.ANTHROPIC, m or s.anthropic_translation_model
+        if any(m.startswith(p) for p in _GROQ_PREFIXES) or ("/" not in m and m):
+            return Provider.GROQ, m
+        # Préfixe non reconnu (ex. "openai/...") → fallback Anthropic
+        return Provider.ANTHROPIC, s.anthropic_translation_model
+
+    primary_provider, primary_model = _resolve_provider_model(model_cfg)
+
+    # Ordre de fallback : on essaie le provider configuré, puis l'autre provider
+    if primary_provider == Provider.GROQ:
+        candidates: list[tuple[Provider, str]] = [
+            (Provider.GROQ, primary_model),
+            (Provider.ANTHROPIC, "claude-3-haiku-20240307"),
+            (Provider.ANTHROPIC, s.anthropic_translation_model),
+        ]
     else:
-        # Fallback sécurisé : Anthropic si le modèle n'est pas reconnu
-        provider = Provider.ANTHROPIC
-        model = s.anthropic_translation_model
+        candidates = [
+            (Provider.ANTHROPIC, primary_model),
+            (Provider.GROQ, "llama-3.3-70b-versatile"),
+            (Provider.GROQ, "llama-3.1-8b-instant"),
+        ]
+
+    # Dédupliquer en conservant l'ordre
+    seen: set[tuple[str, str]] = set()
+    deduped_candidates: list[tuple[Provider, str]] = []
+    for cand_provider, cand_model in candidates:
+        key = (cand_provider.value, cand_model)
+        if key not in seen:
+            seen.add(key)
+            deduped_candidates.append((cand_provider, cand_model))
 
     t0 = time.perf_counter()
-    try:
-        data = await router.generate_structured_json(
-            bundle.system_prompt,
-            user,
-            schema,
-            provider=provider,
-            model=model,
-            max_tokens=s.article_analysis_max_tokens,
-            temperature=0.1,
+    data: dict[str, Any] | None = None
+    last_exc: Exception | None = None
+    used_provider: Provider = primary_provider
+    used_model: str = primary_model
+
+    for attempt, (attempt_provider, attempt_model) in enumerate(deduped_candidates):
+        try:
+            data = await router.generate_structured_json(
+                bundle.system_prompt,
+                user,
+                schema,
+                provider=attempt_provider,
+                model=attempt_model,
+                max_tokens=s.article_analysis_max_tokens,
+                temperature=0.1,
+            )
+            used_provider = attempt_provider
+            used_model = attempt_model
+            if attempt > 0:
+                logger.info(
+                    "article_analyst.fallback_success",
+                    article_id=str(article_id),
+                    attempt=attempt + 1,
+                    provider=attempt_provider.value,
+                    model=attempt_model,
+                )
+            last_exc = None
+            break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "article_analyst.attempt_failed",
+                article_id=str(article_id),
+                attempt=attempt + 1,
+                provider=attempt_provider.value,
+                model=attempt_model,
+                error=str(exc)[:200],
+            )
+
+    if data is None:
+        logger.warning(
+            "article_analyst.all_attempts_failed",
+            article_id=str(article_id),
+            error=str(last_exc)[:200],
         )
-        out_text = json.dumps(data, ensure_ascii=False)
-    except Exception as exc:
-        logger.warning("article_analyst.failed", article_id=str(article_id), error=str(exc)[:200])
-        return {"error": "llm_failed", "detail": str(exc)[:200]}
+        return {"error": "llm_failed", "detail": str(last_exc)[:200]}
+
+    out_text = json.dumps(data, ensure_ascii=False)
+    provider = used_provider
+    model = used_model
 
     dur_ms = int((time.perf_counter() - t0) * 1000)
     inp_t, out_t, cst = estimate_llm_usage(
