@@ -286,11 +286,11 @@ export default function EditionSommairePage() {
     if (isMonday && !mondayFullWeekend && mondaySingleDayWindow) {
       return mondaySingleDayWindow;
     }
-    if (edition?.window_start && edition?.window_end) {
-      return { start: edition.window_start, end: edition.window_end };
-    }
+    const ws = editionQ.data?.window_start;
+    const we = editionQ.data?.window_end;
+    if (ws && we) return { start: ws, end: we };
     return null;
-  }, [isMonday, mondayFullWeekend, mondaySingleDayWindow, edition?.window_start, edition?.window_end]);
+  }, [isMonday, mondayFullWeekend, mondaySingleDayWindow, editionQ.data?.window_start, editionQ.data?.window_end]);
 
   const topics = useMemo(() => {
     const list = topicsQ.data ?? [];
