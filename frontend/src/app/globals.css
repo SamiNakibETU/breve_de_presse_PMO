@@ -33,6 +33,13 @@
   --radius-sheet: 20px;
 }
 
+/* Squircle global — progressive enhancement.
+ * corner-shape: squircle transforme tout border-radius en superellipse (iOS/figma style).
+ * Les navigateurs sans support ignorent cette propriété et gardent border-radius standard. */
+*, *::before, *::after {
+  corner-shape: squircle;
+}
+
 /* Décalage du contenu principal — règle hors @layer, donc priorité sur les utilities Tailwind.
  * --reader-panel-w  : largeur du panneau latéral droit (desktop)
  * --reader-panel-bh : hauteur du panneau bas (mobile bottom sheet) */

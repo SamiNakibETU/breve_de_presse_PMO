@@ -193,7 +193,9 @@ function EditionSommaireSkeleton() {
 }
 
 /** Seuil 16h UTC ≈ 18h Paris (heure d'été) — articles de l'actualisation 18h */
-const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 16;
+/** Seuil UTC pour le toggle "actualisation 16h" : articles arrivés après cette heure = refresh 16h.
+ *  Pipeline PM tourne à 16h UTC (18h Paris / 19h Beyrouth) ; on coupe à 13h UTC (mi-journée Beyrouth). */
+const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 13;
 
 export default function EditionSommairePage() {
   const params = useParams();
@@ -261,21 +263,22 @@ export default function EditionSommairePage() {
   }, [date]);
 
   /**
-   * Seuil lundi "édition lundi seul" : dimanche 09h Paris ≈ 07h UTC été.
+   * Seuil lundi "édition lundi seul" : dimanche 09h Beyrouth = 06h UTC.
    * Les articles de vendredi/samedi sont filtrés côté front.
    */
   const mondaySingleDayThreshold = useMemo(() => {
     if (!date || !isMonday) return null;
-    // dimanche = lundi - 1 jour, 09h Paris ≈ 07h UTC (été / UTC+2)
-    const sunday = new Date(date + "T07:00:00Z");
+    // dimanche = lundi - 1 jour ; 09h Beyrouth (UTC+3) = 06h UTC
+    const sunday = new Date(date + "T06:00:00Z");
     sunday.setDate(sunday.getDate() - 1);
     return sunday;
   }, [date, isMonday]);
 
-  /** Fenêtre "lundi seul" : dim 09h → lun 09h Paris (≈ UTC+2 en été). */
+  /** Fenêtre "lundi seul" : dim 09h → lun 09h Beyrouth (06h UTC). */
   const mondaySingleDayWindow = useMemo(() => {
     if (!date || !isMonday) return null;
-    const endUTC   = new Date(date + "T07:00:00Z");
+    // 09h Beyrouth = 06h UTC
+    const endUTC   = new Date(date + "T06:00:00Z");
     const startUTC = new Date(endUTC);
     startUTC.setDate(startUTC.getDate() - 1);
     return { start: startUTC.toISOString(), end: endUTC.toISOString() };

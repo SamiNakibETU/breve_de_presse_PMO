@@ -7,7 +7,7 @@
  *   [Info card]  +  [Timeline 3 jours glissable]
  *   [     Sélecteur de jours ◄ · · · ► ]
  *
- * Timezone : Europe/Paris (fenêtres d'édition définies en heure de Paris).
+ * Timezone : Asia/Beirut (fenêtres d'édition définies en heure de Beyrouth, UTC+3).
  * Hachure  : SVG pattern 24° `#FF4E08` — fidèle au SVG Figma fourni.
  * Ticks    : minuit #191919 60px | 6/12/18h #817c7c 50px | autres #e7e3e3 38px.
  */
