@@ -797,27 +797,62 @@ async def _daily_pipeline_body(
 
 
 async def pipeline_completion_retry_tick() -> None:
-    """Cron intervalle : relance ``run_daily_pipeline(resume=True)`` si matinée incomplète."""
+    """Cron intervalle : rattrape les pipelines incomplets ou complètement manqués.
+
+    Deux cas :
+    1. Reprise (``resume=True``) : collecte loguée mais pas de ``pipeline_summary``
+       → timeout, crash ou redémarrage en milieu de pipeline.
+    2. Démarrage complet (``resume=False``) : aucun ``collect`` logué aujourd'hui,
+       mais on est après l'heure planifiée → redémarrage Railway au moment du cron.
+    """
     if settings.pipeline_completion_retry_minutes <= 0:
         return
-    from src.services.pipeline_resume import should_auto_retry_completion
+    from src.services.pipeline_resume import (
+        should_auto_retry_completion,
+        should_auto_start_missed_pipeline,
+    )
 
     now_paris = datetime.now(_PARIS_TZ)
+    ph = now_paris.hour
+    pm = now_paris.minute
+
+    # ── Cas 1 : reprise d'un pipeline interrompu ──
     try:
-        want = await should_auto_retry_completion(
-            paris_hour=now_paris.hour,
+        want_resume = await should_auto_retry_completion(
+            paris_hour=ph,
             paris_start_hour=settings.pipeline_retry_paris_start_hour,
             paris_end_hour=settings.pipeline_retry_paris_end_hour,
         )
     except Exception as exc:
-        logger.warning(
-            "pipeline.completion_retry_probe_failed",
-            error=str(exc)[:200],
+        logger.warning("pipeline.completion_retry_probe_failed", error=str(exc)[:200])
+        want_resume = False
+
+    if want_resume:
+        logger.info("pipeline.completion_retry_resume", paris_hour=ph)
+        await run_daily_pipeline(trigger="cron_completion_retry", resume=True)
+        return
+
+    # ── Cas 2 : pipeline complètement manqué (ex. redémarrage au moment du cron) ──
+    try:
+        want_start = await should_auto_start_missed_pipeline(
+            paris_hour=ph,
+            paris_minute=pm,
+            pipeline_scheduled_hour=settings.pipeline_paris_morning_hour,
+            pipeline_scheduled_minute=settings.pipeline_paris_morning_minute,
+            paris_end_hour=settings.pipeline_retry_paris_end_hour,
         )
-        return
-    if not want:
-        return
-    await run_daily_pipeline(trigger="cron_completion_retry", resume=True)
+    except Exception as exc:
+        logger.warning("pipeline.missed_start_probe_failed", error=str(exc)[:200])
+        want_start = False
+
+    if want_start:
+        logger.info(
+            "pipeline.missed_start_auto_trigger",
+            paris_hour=ph,
+            paris_minute=pm,
+            note="aucun collect logué après heure planifiée — redémarrage raté probable",
+        )
+        await run_daily_pipeline(trigger="cron_missed_start", resume=False)
 
 
 async def run_weekend_collect_only(*, trigger: str) -> None:

@@ -113,3 +113,36 @@ async def should_auto_retry_completion(
     if not snap.has_collect:
         return False
     return True
+
+
+async def should_auto_start_missed_pipeline(
+    *,
+    paris_hour: int,
+    paris_minute: int,
+    pipeline_scheduled_hour: int,
+    pipeline_scheduled_minute: int,
+    paris_end_hour: int,
+) -> bool:
+    """True si le pipeline 9h a été complètement manqué ce jour (aucun ``collect`` logué
+    et pas de ``pipeline_summary``) et qu'on est dans la fenêtre [heure_planifiée, end_hour[.
+
+    Cas typique : redémarrage Railway (déploiement) au moment exact du cron APScheduler
+    → le job est raté, ``misfire_grace_time`` est peut-être dépassé, la tick rattrape.
+    """
+    from src.services.pipeline_debug_log import resolve_current_edition_id
+
+    now_m = paris_hour * 60 + paris_minute
+    scheduled_m = pipeline_scheduled_hour * 60 + pipeline_scheduled_minute
+    end_m = paris_end_hour * 60
+
+    if not (scheduled_m <= now_m < end_m):
+        return False
+
+    eid = await resolve_current_edition_id()
+    snap = await load_resume_snapshot_for_edition(eid)
+
+    # Pipeline déjà parti ou terminé → pas besoin de rattraper
+    if snap.has_collect or snap.has_pipeline_summary:
+        return False
+
+    return True
