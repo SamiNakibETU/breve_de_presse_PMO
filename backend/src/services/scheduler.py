@@ -49,6 +49,10 @@ _PARIS_TZ = ZoneInfo("Europe/Paris")
 
 _pipeline_lock = asyncio.Lock()
 
+# Verrou léger pour l'ingestion continue — permet au pipeline 9h de détecter
+# qu'une collecte/traduction nocturne est encore en cours et d'attendre proprement.
+_continuous_ingest_lock = asyncio.Lock()
+
 T = TypeVar("T")
 
 _last_stall_alert_monotonic: float = 0.0
@@ -240,6 +244,27 @@ async def run_daily_pipeline(
                 "trigger": trigger,
             }
         raise PipelineBusyError()
+
+    # Attendre proprement la fin d'un run d'ingestion continue encore en cours
+    # (ex. ingest démarré à 8h40, pipeline cron démarre à 9h00).
+    # On attend au max 3 min — au-delà on démarre quand même (la traduction est idempotente).
+    if _continuous_ingest_lock.locked():
+        logger.info(
+            "pipeline.waiting_for_continuous_ingest",
+            trigger=trigger,
+            max_wait_s=180,
+        )
+        try:
+            await asyncio.wait_for(_continuous_ingest_lock.acquire(), timeout=180.0)
+            # Relâcher immédiatement — on voulait juste attendre la fin
+            _continuous_ingest_lock.release()
+            logger.info("pipeline.continuous_ingest_finished_ok", trigger=trigger)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "pipeline.continuous_ingest_wait_timeout",
+                trigger=trigger,
+                note="démarrage quand même — traduction idempotente",
+            )
 
     holder_id = str(uuid.uuid4())
     if not await try_acquire_daily_pipeline_lease(
@@ -898,79 +923,112 @@ async def article_analysis_fill_tick() -> None:
 async def run_continuous_ingest(*, trigger: str = "cron_continuous") -> dict:
     """
     Ingestion continue (toutes les N heures, fenêtre nocturne Paris) :
-    1. Collecte RSS / scrapers (sans verrou pipeline principal)
+    1. Collecte RSS / scrapers
     2. Traduction plafonnée (CONTINUOUS_INGEST_TRANSLATE_LIMIT articles)
     3. Scoring pertinence pour l'édition cible
 
     Objectif : pré-traduire les articles publiés la nuit pour que le pipeline 9h
-    passe directement aux étapes d'analyse/clustering.
+    passe directement aux étapes d'analyse/clustering, réduisant son temps de 60-80 %.
 
-    Logs sous "continuous_collect" / "continuous_translate" (pas "collect" / "translate")
-    pour ne PAS déclencher le mécanisme resume du pipeline principal.
+    Logs sous "continuous_collect" / "continuous_translate" (PAS "collect" / "translate")
+    pour ne PAS interférer avec le mécanisme resume du pipeline principal (qui surveille
+    uniquement les steps "collect", "translate", "pipeline_summary" via _TRACKED).
+
+    Coordination avec le pipeline 9h :
+    - Acquiert _continuous_ingest_lock pendant toute sa durée → le pipeline 9h peut
+      détecter qu'un ingest tourne et attendre proprement avant de démarrer.
+    - Vérifie _pipeline_lock.locked() au départ (skip si pipeline déjà en cours).
+    - Guard-rail temporel : skip si l'heure Paris courante == heure du pipeline planifié
+      (évite de démarrer 10 s avant le pipeline).
     """
     s = get_settings()
 
-    # Garde-fou : ne pas s'exécuter si un pipeline complet tient le verrou
+    # Guard-rail 1 : pipeline complet tient le verrou → skip immédiat
     if _pipeline_lock.locked():
         logger.info("continuous_ingest.skipped_pipeline_running", trigger=trigger)
         return {"skipped": True, "reason": "pipeline_lock_held"}
 
-    # Garde-fou fenêtre horaire (en heure de Paris)
+    # Guard-rail 2 : un autre run d'ingestion continue est déjà en cours → skip
+    if _continuous_ingest_lock.locked():
+        logger.info("continuous_ingest.skipped_already_running", trigger=trigger)
+        return {"skipped": True, "reason": "ingest_already_running"}
+
+    # Guard-rail 3 : fenêtre horaire (en heure de Paris)
     now_paris = datetime.now(_PARIS_TZ)
     ph = now_paris.hour
+    pm = now_paris.minute
     start_h = s.continuous_ingest_paris_start_hour
     end_h = s.continuous_ingest_paris_end_hour
     if start_h <= end_h:
-        # Fenêtre intra-journée (rare)
         in_window = start_h <= ph < end_h
     else:
-        # Fenêtre nocturne traversant minuit (ex. 18h → 9h)
         in_window = ph >= start_h or ph < end_h
     if not in_window:
         logger.debug("continuous_ingest.outside_window", trigger=trigger, paris_hour=ph)
         return {"skipped": True, "reason": "outside_window", "paris_hour": ph}
 
-    logger.info("continuous_ingest.start", trigger=trigger, paris_hour=ph)
-    result: dict = {"trigger": trigger}
-    eid = await resolve_current_edition_id()
+    # Guard-rail 4 : stopper 30 min avant le pipeline planifié pour lui laisser la voie libre
+    pipeline_h = s.pipeline_paris_morning_hour
+    pipeline_m = s.pipeline_paris_morning_minute
+    now_minutes = ph * 60 + pm
+    pipeline_minutes = pipeline_h * 60 + pipeline_m
+    minutes_to_pipeline = (pipeline_minutes - now_minutes) % (24 * 60)
+    if minutes_to_pipeline < 30:
+        logger.info(
+            "continuous_ingest.skipped_near_pipeline",
+            trigger=trigger,
+            minutes_to_pipeline=minutes_to_pipeline,
+            pipeline_time=f"{pipeline_h:02d}:{pipeline_m:02d}",
+        )
+        return {"skipped": True, "reason": "near_pipeline_start", "minutes_to_pipeline": minutes_to_pipeline}
 
-    # 1. Collecte
-    try:
-        stats = await run_collection()
-        result["collection"] = stats
-        await log_pipeline_step(eid, "continuous_collect", compact_payload({"stats": stats, "trigger": trigger}))
-    except Exception as exc:
-        logger.warning("continuous_ingest.collect_failed", error=str(exc)[:200])
-        result["collection"] = {"error": str(exc)[:200]}
+    async with _continuous_ingest_lock:
+        # Re-vérifier le pipeline lock après avoir acquis notre verrou (évite TOCTOU)
+        if _pipeline_lock.locked():
+            logger.info("continuous_ingest.skipped_pipeline_running_post_lock", trigger=trigger)
+            return {"skipped": True, "reason": "pipeline_lock_held_post_lock"}
 
-    # 2. Traduction plafonnée
-    try:
-        lim = s.continuous_ingest_translate_limit
-        t_stats = await run_translation_pipeline(limit=lim)
-        result["translation"] = t_stats
-        await log_pipeline_step(eid, "continuous_translate", compact_payload({**t_stats, "limit": lim}))
-    except Exception as exc:
-        logger.warning("continuous_ingest.translate_failed", error=str(exc)[:200])
-        result["translation"] = {"error": str(exc)[:200]}
+        logger.info("continuous_ingest.start", trigger=trigger, paris_hour=ph, paris_minute=pm)
+        result: dict = {"trigger": trigger}
+        eid = await resolve_current_edition_id()
 
-    # 3. Pertinence pour les nouveaux articles
-    try:
-        from src.services.edition_schedule import resolve_edition_id_for_timestamp
-        from src.services.relevance_scorer import run_relevance_scoring_pipeline
+        # 1. Collecte
+        try:
+            stats = await run_collection()
+            result["collection"] = stats
+            await log_pipeline_step(eid, "continuous_collect", compact_payload({"stats": stats, "trigger": trigger}))
+        except Exception as exc:
+            logger.warning("continuous_ingest.collect_failed", error=str(exc)[:200])
+            result["collection"] = {"error": str(exc)[:200]}
 
-        factory = get_session_factory()
-        async with factory() as db:
-            eid_rel = await resolve_edition_id_for_timestamp(db, datetime.now(timezone.utc))
-            rel_stats = await run_relevance_scoring_pipeline(db, edition_id=eid_rel)
-            await db.commit()
-        result["relevance_scoring"] = rel_stats
-    except Exception as exc:
-        logger.warning("continuous_ingest.relevance_failed", error=str(exc)[:200])
-        result["relevance_scoring"] = {"error": str(exc)[:200]}
+        # 2. Traduction plafonnée
+        try:
+            lim = s.continuous_ingest_translate_limit
+            t_stats = await run_translation_pipeline(limit=lim)
+            result["translation"] = t_stats
+            await log_pipeline_step(eid, "continuous_translate", compact_payload({**t_stats, "limit": lim}))
+        except Exception as exc:
+            logger.warning("continuous_ingest.translate_failed", error=str(exc)[:200])
+            result["translation"] = {"error": str(exc)[:200]}
 
-    logger.info("continuous_ingest.done", trigger=trigger, result_keys=list(result.keys()))
-    await log_pipeline_step(eid, "continuous_ingest_summary", compact_payload(result))
-    return result
+        # 3. Scoring pertinence pour les nouveaux articles
+        try:
+            from src.services.edition_schedule import resolve_edition_id_for_timestamp
+            from src.services.relevance_scorer import run_relevance_scoring_pipeline
+
+            factory = get_session_factory()
+            async with factory() as db:
+                eid_rel = await resolve_edition_id_for_timestamp(db, datetime.now(timezone.utc))
+                rel_stats = await run_relevance_scoring_pipeline(db, edition_id=eid_rel)
+                await db.commit()
+            result["relevance_scoring"] = rel_stats
+        except Exception as exc:
+            logger.warning("continuous_ingest.relevance_failed", error=str(exc)[:200])
+            result["relevance_scoring"] = {"error": str(exc)[:200]}
+
+        logger.info("continuous_ingest.done", trigger=trigger, result_keys=list(result.keys()))
+        await log_pipeline_step(eid, "continuous_ingest_summary", compact_payload(result))
+        return result
 
 
 async def run_afternoon_refresh(*, trigger: str = "cron_afternoon") -> dict:
