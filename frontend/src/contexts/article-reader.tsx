@@ -26,6 +26,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -60,6 +61,9 @@ export const articleDetailQueryKey = (articleId: string) =>
   ["article", articleId] as const;
 
 const MAX_OPEN_ARTICLES = 5;
+const PANEL_MIN_W = 320;
+const PANEL_MAX_W = 900;
+const PANEL_DEFAULT_W = 520;
 
 type ArticleReaderContextValue = {
   openArticle: (articleId: string) => void;
@@ -73,6 +77,17 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_W);
+
+  /* Met à jour la variable CSS --reader-panel-w sur :root */
+  useEffect(() => {
+    const isOpen = openIds.length > 0 && !collapsed;
+    const w = isOpen ? panelWidth : 0;
+    document.documentElement.style.setProperty("--reader-panel-w", `${w}px`);
+    return () => {
+      document.documentElement.style.setProperty("--reader-panel-w", "0px");
+    };
+  }, [openIds.length, collapsed, panelWidth]);
 
   const openArticle = useCallback((id: string) => {
     setOpenIds((prev) => {
@@ -125,10 +140,12 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
           openIds={openIds}
           activeId={activeId}
           collapsed={collapsed}
+          panelWidth={panelWidth}
           onSelectTab={setActiveId}
           onCloseTab={closeArticle}
           onCloseAll={closeAll}
           onToggleCollapse={() => setCollapsed((v) => !v)}
+          onResizeWidth={setPanelWidth}
         />
       ) : null}
     </ArticleReaderContext.Provider>
@@ -170,19 +187,27 @@ function ArticleDrawer({
   openIds,
   activeId,
   collapsed,
+  panelWidth,
   onSelectTab,
   onCloseTab,
   onCloseAll,
   onToggleCollapse,
+  onResizeWidth,
 }: {
   openIds: string[];
   activeId: string;
   collapsed: boolean;
+  panelWidth: number;
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
   onCloseAll: () => void;
   onToggleCollapse: () => void;
+  onResizeWidth: (w: number) => void;
 }) {
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startW = useRef(0);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseAll();
@@ -191,15 +216,53 @@ function ArticleDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [onCloseAll]);
 
+  /* Resize handle — drag from left edge */
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startW.current = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMove = (ev: MouseEvent) => {
+      if (!isResizing.current) return;
+      const delta = startX.current - ev.clientX;
+      const newW = Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, startW.current + delta));
+      onResizeWidth(newW);
+    };
+    const onUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [panelWidth, onResizeWidth]);
+
   return (
     <div
       className={cn(
-        "fixed inset-y-0 right-0 z-[80] flex flex-col border-l border-border bg-background shadow-high transition-[width] duration-200 ease-out",
-        collapsed ? "w-[48px]" : "w-full sm:w-[min(560px,50vw)]",
+        "fixed inset-y-0 right-0 z-[80] flex flex-col border-l border-border bg-background shadow-high",
+        !collapsed && "transition-none", // désactive la transition CSS pendant le resize
       )}
+      style={{
+        width: collapsed ? 48 : `min(${panelWidth}px, 100vw)`,
+        transition: isResizing.current ? "none" : "width 0.2s ease-out",
+      }}
       role="complementary"
       aria-label="Lecteur d'articles"
     >
+      {/* Poignée de redimensionnement (bord gauche) */}
+      {!collapsed && (
+        <div
+          className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize opacity-0 hover:opacity-100 hover:bg-accent/30 transition-opacity"
+          onMouseDown={onResizeStart}
+          aria-hidden
+        />
+      )}
+
       {/* Barre d'onglets */}
       <div className="flex h-10 shrink-0 items-stretch border-b border-border bg-muted/10">
         <button
@@ -244,6 +307,7 @@ function ArticleDrawer({
     </div>
   );
 }
+
 
 function ArticleTab({
   articleId,

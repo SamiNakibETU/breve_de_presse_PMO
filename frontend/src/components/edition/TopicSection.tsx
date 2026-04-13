@@ -30,6 +30,7 @@ import {
   articleTypeLabelFr,
 } from "@/lib/article-labels-fr";
 import { relevanceBandLabelFr } from "@/lib/article-relevance-display";
+import { formatDateTimeBeirutFr } from "@/lib/dates-display-fr";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import { countryCodesFromPreviews } from "@/lib/topic-country-codes";
 import type {
@@ -176,7 +177,7 @@ function TopicArticleCard({
           style={{ accentColor: "var(--color-accent)" }}
         />
         <div className="min-w-0 flex-1">
-          {/* Méta : media · type */}
+          {/* Méta : media · type · date */}
           <div className="mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {!countryShownInGroupHeader && flag ? (
               <span className="text-[13px] leading-none" aria-hidden>{flag}</span>
@@ -209,6 +210,11 @@ function TopicArticleCard({
                 className="inline-block size-1.5 rounded-full bg-accent"
                 title={FLAGSHIP_BADGE_LABEL}
               />
+            ) : null}
+            {preview.collected_at ? (
+              <span className="ml-auto shrink-0 tabular-nums text-[10px] text-muted-foreground/60">
+                {formatDateTimeBeirutFr(preview.collected_at)}
+              </span>
             ) : null}
           </div>
 
@@ -333,6 +339,20 @@ export function TopicSection({
   const dominantThesis =
     previews.find((p) => p.thesis_summary_fr?.trim())?.thesis_summary_fr?.trim() ?? null;
 
+  /* Plage de dates des articles du sujet */
+  const dateRange = useMemo(() => {
+    const ts = previews
+      .map((p) => p.collected_at ? new Date(p.collected_at).getTime() : null)
+      .filter((t): t is number => t !== null);
+    if (ts.length === 0) return null;
+    const minTs = Math.min(...ts);
+    const maxTs = Math.max(...ts);
+    const minStr = formatDateTimeBeirutFr(new Date(minTs).toISOString());
+    if (Math.abs(maxTs - minTs) < 3_600_000) return minStr;
+    const maxStr = formatDateTimeBeirutFr(new Date(maxTs).toISOString());
+    return `${minStr} → ${maxStr}`;
+  }, [previews]);
+
   /* Lien vers fiche sujet */
   const topicLink =
     mode === "summary" && editionDate ? `/edition/${editionDate}/topic/${topic.id}` : null;
@@ -426,6 +446,11 @@ export function TopicSection({
                 <span className="text-[12px] text-foreground-body">{countriesText}</span>
               ) : null}
             </div>
+            {dateRange ? (
+              <p className="text-[10px] tabular-nums text-muted-foreground/70">
+                Parution : {dateRange}
+              </p>
+            ) : null}
 
             {/* Contraste des regards — grille 2 voix */}
             {showContrastingBlock ? (

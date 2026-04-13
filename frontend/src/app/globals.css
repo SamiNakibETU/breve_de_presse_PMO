@@ -25,7 +25,21 @@
 
 :root {
   --font-poynter: "Poynter OS Display", Georgia, serif;
+  --reader-panel-w: 0px;
 }
+
+/* Décalage du contenu principal — règle hors @layer, donc priorité sur les utilities Tailwind.
+ * La variable --reader-panel-w est mise à jour dynamiquement par l'ArticleReaderProvider. */
+main[data-reader-layout] {
+  padding-right: calc(1.25rem + var(--reader-panel-w, 0px));
+  transition: padding-right 0.2s ease-out;
+}
+@media (min-width: 640px) {
+  main[data-reader-layout] {
+    padding-right: calc(1.5rem + var(--reader-panel-w, 0px));
+  }
+}
+
 
 @theme {
   /* Palette OLJ — fond blanc, accents papier / info / alerte */

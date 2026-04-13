@@ -24,7 +24,7 @@ import { EditionCalendarPopover } from "@/components/edition/edition-calendar-po
 
 const TZ = "Europe/Paris";
 const DAY_PX = 260;       // px par jour dans la timeline
-const VISIBLE_DAYS = 3;   // J-1, J, J+1
+const VISIBLE_DAYS = 5;   // J-2, J-1, J, J+1, J+2
 const SELECTOR_RANGE = 7; // ±7 jours dans le sélecteur
 
 /* ── Géométrie des ticks ──────────────────────────────────────────── */
@@ -221,22 +221,27 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
     return () => clearInterval(id);
   }, []);
 
-  /* Jours visibles : J-1, J, J+1 */
+  /* Jours visibles : J-2, J-1, J, J+1, J+2 */
   const timelineDays = useMemo(
-    () => [-1, 0, 1].map(offset => shiftIsoDate(currentIso, offset)),
+    () => [-2, -1, 0, 1, 2].map(offset => shiftIsoDate(currentIso, offset)),
     [currentIso],
   );
 
   const totalW       = DAY_PX * VISIBLE_DAYS;
   const firstDayIso  = timelineDays[0];
 
-  /* Zone de collecte hachurée */
-  const rawX1   = windowStart ? timeToX(windowStart, firstDayIso) : -1;
-  const rawX2   = windowEnd   ? timeToX(windowEnd,   firstDayIso) : -1;
-  const clampX1 = rawX1 >= 0 ? Math.max(0, rawX1) : -1;
-  const clampX2 = rawX2 >= 0 ? Math.min(totalW, rawX2) : -1;
-  const collecteX1 = clampX1;
-  const collecteW  = clampX1 >= 0 && clampX2 >= 0 ? Math.max(0, clampX2 - clampX1) : 0;
+  /* Zone de collecte hachurée — clampée à la zone visible.
+   * rawX1 peut être négatif (fenêtre commence avant J-2) → on clamp à 0
+   * pour afficher la hachure dès le bord gauche. */
+  const hasWindow = Boolean(windowStart) && Boolean(windowEnd);
+  const rawX1 = hasWindow ? timeToX(windowStart!, firstDayIso) : 0;
+  const rawX2 = hasWindow ? timeToX(windowEnd!,   firstDayIso) : 0;
+  const collecteX1 = hasWindow ? Math.max(0, rawX1) : 0;
+  const collecteX2 = hasWindow ? Math.min(totalW, rawX2) : 0;
+  const collecteW  = hasWindow && collecteX2 > collecteX1 ? collecteX2 - collecteX1 : 0;
+  /* Barres orange start/end — seulement quand dans la zone visible */
+  const showStartBar = hasWindow && rawX1 >= 0 && rawX1 <= totalW;
+  const showEndBar   = hasWindow && rawX2 >= 0 && rawX2 <= totalW;
 
   /* Indicateur Live */
   const nowX    = timeToX(nowIso, firstDayIso);
@@ -245,7 +250,7 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
   /* Auto-scroll : centrer la fenêtre de collecte au montage */
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || collecteX1 < 0 || collecteW <= 0) return;
+    if (!el || !hasWindow || collecteW <= 0) return;
     const mid = collecteX1 + collecteW / 2;
     el.scrollLeft = Math.max(0, mid - el.clientWidth / 2);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -290,6 +295,12 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
       className="relative flex flex-1 items-center overflow-hidden rounded-[24px] bg-white"
       style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", minHeight: 150 }}
     >
+      {/* Dégradé gauche */}
+      <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 rounded-l-[24px]"
+        style={{ background: "linear-gradient(to right, rgba(255,255,255,0.92) 0%, transparent 100%)" }} />
+      {/* Dégradé droit */}
+      <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 rounded-r-[24px]"
+        style={{ background: "linear-gradient(to left, rgba(255,255,255,0.92) 0%, transparent 100%)" }} />
       <div
         ref={containerRef}
         className="olj-scrollbar-none w-full overflow-x-auto"
@@ -384,31 +395,31 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
           )}
 
           {/* ── Barres start/end de la fenêtre de collecte ──────── */}
-          {collecteW > 0 && (
-            <>
-              <div
-                className="absolute z-[2]"
-                style={{
-                  left: collecteX1 - 1,
-                  top: LABEL_Y + 10,
-                  width: 2,
-                  height: TICK_BOTTOM - LABEL_Y - 10,
-                  background: COL_ORANGE,
-                  borderRadius: 1,
-                }}
-              />
-              <div
-                className="absolute z-[2]"
-                style={{
-                  left: collecteX1 + collecteW - 1,
-                  top: LABEL_Y + 10,
-                  width: 2,
-                  height: TICK_BOTTOM - LABEL_Y - 10,
-                  background: COL_ORANGE,
-                  borderRadius: 1,
-                }}
-              />
-            </>
+          {showStartBar && (
+            <div
+              className="absolute z-[2]"
+              style={{
+                left: rawX1 - 1,
+                top: LABEL_Y + 10,
+                width: 2,
+                height: TICK_BOTTOM - LABEL_Y - 10,
+                background: COL_ORANGE,
+                borderRadius: 1,
+              }}
+            />
+          )}
+          {showEndBar && collecteW > 0 && (
+            <div
+              className="absolute z-[2]"
+              style={{
+                left: rawX2 - 1,
+                top: LABEL_Y + 10,
+                width: 2,
+                height: TICK_BOTTOM - LABEL_Y - 10,
+                background: COL_ORANGE,
+                borderRadius: 1,
+              }}
+            />
           )}
 
           {/* ── Live ───────────────────────────────────────────────── */}

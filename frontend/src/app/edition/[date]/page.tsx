@@ -261,16 +261,36 @@ export default function EditionSommairePage() {
   }, [date]);
 
   /**
-   * Seuil lundi "édition lundi seul" : dimanche 08h Paris ≈ 06h UTC été.
+   * Seuil lundi "édition lundi seul" : dimanche 09h Paris ≈ 07h UTC été.
    * Les articles de vendredi/samedi sont filtrés côté front.
    */
   const mondaySingleDayThreshold = useMemo(() => {
     if (!date || !isMonday) return null;
-    // dimanche = lundi - 1 jour, 08h Paris = 06h UTC (été)
-    const sunday = new Date(date + "T06:00:00Z");
+    // dimanche = lundi - 1 jour, 09h Paris ≈ 07h UTC (été / UTC+2)
+    const sunday = new Date(date + "T07:00:00Z");
     sunday.setDate(sunday.getDate() - 1);
     return sunday;
   }, [date, isMonday]);
+
+  /** Fenêtre "lundi seul" : dim 09h → lun 09h Paris (≈ UTC+2 en été). */
+  const mondaySingleDayWindow = useMemo(() => {
+    if (!date || !isMonday) return null;
+    const endUTC   = new Date(date + "T07:00:00Z");
+    const startUTC = new Date(endUTC);
+    startUTC.setDate(startUTC.getDate() - 1);
+    return { start: startUTC.toISOString(), end: endUTC.toISOString() };
+  }, [date, isMonday]);
+
+  /** Fenêtre affichée dans la frise selon le toggle lundi */
+  const displayedEditionWindow = useMemo(() => {
+    if (isMonday && !mondayFullWeekend && mondaySingleDayWindow) {
+      return mondaySingleDayWindow;
+    }
+    if (edition?.window_start && edition?.window_end) {
+      return { start: edition.window_start, end: edition.window_end };
+    }
+    return null;
+  }, [isMonday, mondayFullWeekend, mondaySingleDayWindow, edition?.window_start, edition?.window_end]);
 
   const topics = useMemo(() => {
     const list = topicsQ.data ?? [];
@@ -710,11 +730,7 @@ export default function EditionSommairePage() {
             >
               <EditionDateRailNew
                 currentIso={date}
-                editionWindow={
-                  edition?.window_start && edition?.window_end
-                    ? { start: edition.window_start, end: edition.window_end }
-                    : null
-                }
+                editionWindow={displayedEditionWindow}
               />
             </nav>
           ) : (
