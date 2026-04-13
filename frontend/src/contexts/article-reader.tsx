@@ -64,6 +64,9 @@ const MAX_OPEN_ARTICLES = 5;
 const PANEL_MIN_W = 320;
 const PANEL_MAX_W = 900;
 const PANEL_DEFAULT_W = 520;
+const MOBILE_SHEET_DEFAULT_H = 78; // % de dvh
+const MOBILE_SHEET_MIN_H    = 30;
+const MOBILE_SHEET_MAX_H    = 96;
 
 type ArticleReaderContextValue = {
   openArticle: (articleId: string) => void;
@@ -78,16 +81,27 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_W);
+  const [sheetHeightPct, setSheetHeightPct] = useState(MOBILE_SHEET_DEFAULT_H);
 
-  /* Met à jour la variable CSS --reader-panel-w sur :root */
+  /* Met à jour les variables CSS sur :root selon l'état du panneau */
   useEffect(() => {
     const isOpen = openIds.length > 0 && !collapsed;
-    const w = isOpen ? panelWidth : 0;
-    document.documentElement.style.setProperty("--reader-panel-w", `${w}px`);
-    return () => {
-      document.documentElement.style.setProperty("--reader-panel-w", "0px");
-    };
-  }, [openIds.length, collapsed, panelWidth]);
+    const isMobile = window.innerWidth < 640;
+    if (isOpen) {
+      if (isMobile) {
+        document.documentElement.style.setProperty("--reader-panel-w",  "0px");
+        document.documentElement.style.setProperty("--reader-panel-bh", `${sheetHeightPct}dvh`);
+        document.documentElement.style.setProperty("--reader-draw-h",   `${sheetHeightPct}dvh`);
+      } else {
+        document.documentElement.style.setProperty("--reader-panel-w",  `${panelWidth}px`);
+        document.documentElement.style.setProperty("--reader-panel-bh", "0px");
+        document.documentElement.style.setProperty("--reader-draw-w",   `${panelWidth}px`);
+      }
+    } else {
+      document.documentElement.style.setProperty("--reader-panel-w",  "0px");
+      document.documentElement.style.setProperty("--reader-panel-bh", "0px");
+    }
+  }, [openIds.length, collapsed, panelWidth, sheetHeightPct]);
 
   const openArticle = useCallback((id: string) => {
     setOpenIds((prev) => {
@@ -141,11 +155,13 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
           activeId={activeId}
           collapsed={collapsed}
           panelWidth={panelWidth}
+          sheetHeightPct={sheetHeightPct}
           onSelectTab={setActiveId}
           onCloseTab={closeArticle}
           onCloseAll={closeAll}
           onToggleCollapse={() => setCollapsed((v) => !v)}
           onResizeWidth={setPanelWidth}
+          onResizeHeight={setSheetHeightPct}
         />
       ) : null}
     </ArticleReaderContext.Provider>
@@ -188,25 +204,32 @@ function ArticleDrawer({
   activeId,
   collapsed,
   panelWidth,
+  sheetHeightPct,
   onSelectTab,
   onCloseTab,
   onCloseAll,
   onToggleCollapse,
   onResizeWidth,
+  onResizeHeight,
 }: {
   openIds: string[];
   activeId: string;
   collapsed: boolean;
   panelWidth: number;
+  sheetHeightPct: number;
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
   onCloseAll: () => void;
   onToggleCollapse: () => void;
   onResizeWidth: (w: number) => void;
+  onResizeHeight: (h: number) => void;
 }) {
-  const isResizing = useRef(false);
+  const isResizingW = useRef(false);
+  const isResizingH = useRef(false);
   const startX = useRef(0);
+  const startY = useRef(0);
   const startW = useRef(0);
+  const startH = useRef(0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -216,22 +239,20 @@ function ArticleDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [onCloseAll]);
 
-  /* Resize handle — drag from left edge */
-  const onResizeStart = useCallback((e: React.MouseEvent) => {
-    isResizing.current = true;
+  /* ── Desktop: resize depuis le bord gauche ── */
+  const onResizeWStart = useCallback((e: React.MouseEvent) => {
+    isResizingW.current = true;
     startX.current = e.clientX;
     startW.current = panelWidth;
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-
     const onMove = (ev: MouseEvent) => {
-      if (!isResizing.current) return;
+      if (!isResizingW.current) return;
       const delta = startX.current - ev.clientX;
-      const newW = Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, startW.current + delta));
-      onResizeWidth(newW);
+      onResizeWidth(Math.min(PANEL_MAX_W, Math.max(PANEL_MIN_W, startW.current + delta)));
     };
     const onUp = () => {
-      isResizing.current = false;
+      isResizingW.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMove);
@@ -241,34 +262,87 @@ function ArticleDrawer({
     window.addEventListener("mouseup", onUp);
   }, [panelWidth, onResizeWidth]);
 
+  /* ── Mobile: resize depuis la poignée supérieure ── */
+  const onResizeHStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    isResizingH.current = true;
+    const clientY = "touches" in e ? e.touches[0]!.clientY : e.clientY;
+    startY.current = clientY;
+    startH.current = sheetHeightPct;
+    document.body.style.userSelect = "none";
+    const onMove = (ev: TouchEvent | MouseEvent) => {
+      if (!isResizingH.current) return;
+      const y = "touches" in ev ? ev.touches[0]!.clientY : ev.clientY;
+      const deltaPx = startY.current - y;
+      const deltaPct = (deltaPx / window.innerHeight) * 100;
+      onResizeHeight(Math.min(MOBILE_SHEET_MAX_H, Math.max(MOBILE_SHEET_MIN_H, startH.current + deltaPct)));
+    };
+    const onUp = () => {
+      isResizingH.current = false;
+      document.body.style.userSelect = "";
+      window.removeEventListener("touchmove", onMove as EventListener);
+      window.removeEventListener("touchend", onUp);
+      window.removeEventListener("mousemove", onMove as EventListener);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("touchmove", onMove as EventListener, { passive: true });
+    window.addEventListener("touchend", onUp);
+    window.addEventListener("mousemove", onMove as EventListener);
+    window.addEventListener("mouseup", onUp);
+  }, [sheetHeightPct, onResizeHeight]);
+
   return (
     <div
       className={cn(
-        "fixed inset-y-0 right-0 z-[80] flex flex-col border-l border-border bg-background shadow-high",
-        !collapsed && "transition-none", // désactive la transition CSS pendant le resize
+        "reader-drawer fixed z-[80] flex flex-col bg-background",
+        /* Desktop */
+        "sm:inset-y-0 sm:right-0 sm:border-l sm:border-border sm:shadow-high",
+        /* Mobile: bottom sheet */
+        "max-sm:inset-x-0 max-sm:bottom-0 max-sm:border-t max-sm:border-border max-sm:shadow-[0_-4px_32px_rgba(0,0,0,0.12)]",
+        collapsed && "reader-drawer--collapsed",
       )}
       style={{
-        width: collapsed ? 48 : `min(${panelWidth}px, 100vw)`,
-        transition: isResizing.current ? "none" : "width 0.2s ease-out",
+        /* Desktop width dynamique */
+        ["--reader-draw-w" as string]: `${panelWidth}px`,
+        width: collapsed ? 48 : undefined,
       }}
       role="complementary"
       aria-label="Lecteur d'articles"
     >
-      {/* Poignée de redimensionnement (bord gauche) */}
+      {/* ── Poignée mobile (swipe up/down) ── */}
+      <div
+        className="sm:hidden flex h-8 shrink-0 cursor-ns-resize items-center justify-center touch-none"
+        onMouseDown={onResizeHStart}
+        onTouchStart={onResizeHStart}
+        aria-hidden
+      >
+        <div className="h-1 w-10 rounded-full bg-border" />
+      </div>
+
+      {/* ── Poignée desktop (drag bord gauche) ── */}
       {!collapsed && (
         <div
-          className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize opacity-0 hover:opacity-100 hover:bg-accent/30 transition-opacity"
-          onMouseDown={onResizeStart}
+          className="max-sm:hidden absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize opacity-0 hover:opacity-100 hover:bg-accent/30 transition-opacity"
+          onMouseDown={onResizeWStart}
           aria-hidden
         />
       )}
 
-      {/* Barre d'onglets */}
+      {/* ── Barre d'onglets ── */}
       <div className="flex h-10 shrink-0 items-stretch border-b border-border bg-muted/10">
+        {/* Mobile: bouton fermer à gauche */}
+        <button
+          type="button"
+          onClick={onCloseAll}
+          className="sm:hidden flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
+          aria-label="Fermer"
+        >
+          ✕
+        </button>
+        {/* Desktop: toggle collapse à gauche */}
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="flex w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+          className="max-sm:hidden flex w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
           aria-label={collapsed ? "Développer" : "Réduire"}
         >
           {collapsed ? "◁" : "▷"}
@@ -287,10 +361,11 @@ function ArticleDrawer({
                 />
               ))}
             </div>
+            {/* Desktop: fermer tout à droite */}
             <button
               type="button"
               onClick={onCloseAll}
-              className="flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
+              className="max-sm:hidden flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
               aria-label="Tout fermer"
             >
               ✕

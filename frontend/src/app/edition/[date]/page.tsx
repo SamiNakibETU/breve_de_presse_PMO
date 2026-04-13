@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useMemo, useEffect, useRef, startTransition, useState } from "react";
+import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { CustomPeriodSelector } from "@/components/edition/custom-period-selector";
 import { EditionDateRailNew } from "@/components/edition/edition-date-rail-new";
 import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
@@ -463,9 +463,7 @@ export default function EditionSommairePage() {
           cur.splice(ix, 1);
         }
       }
-      startTransition(() => {
-        setTopicArticlesStore(editionId, topicId, cur);
-      });
+      setTopicArticlesStore(editionId, topicId, cur);
       scheduleTopicPatch(topicId, cur);
     },
     [editionId, selectionBundle?.topics, setTopicArticlesStore, scheduleTopicPatch],
@@ -509,9 +507,7 @@ export default function EditionSommairePage() {
         n.delete(id);
       }
       const arr = [...n];
-      startTransition(() => {
-        setExtraArticlesStore(editionId, arr);
-      });
+      setExtraArticlesStore(editionId, arr);
       scheduleExtraPatch(n);
     },
     [editionId, selectionBundle?.extra_article_ids, setExtraArticlesStore, scheduleExtraPatch],

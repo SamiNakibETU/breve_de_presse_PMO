@@ -26,17 +26,40 @@
 :root {
   --font-poynter: "Poynter OS Display", Georgia, serif;
   --reader-panel-w: 0px;
+  --reader-panel-bh: 0px;
+  /* Squircle token — border-radius cohérent pour les surfaces "carte" */
+  --radius-card: 18px;
+  --radius-pill: 999px;
+  --radius-sheet: 20px;
 }
 
 /* Décalage du contenu principal — règle hors @layer, donc priorité sur les utilities Tailwind.
- * La variable --reader-panel-w est mise à jour dynamiquement par l'ArticleReaderProvider. */
+ * --reader-panel-w  : largeur du panneau latéral droit (desktop)
+ * --reader-panel-bh : hauteur du panneau bas (mobile bottom sheet) */
 main[data-reader-layout] {
   padding-right: calc(1.25rem + var(--reader-panel-w, 0px));
-  transition: padding-right 0.2s ease-out;
+  padding-bottom: calc(1rem + var(--reader-panel-bh, 0px));
+  transition: padding-right 0.2s ease-out, padding-bottom 0.2s ease-out;
 }
 @media (min-width: 640px) {
   main[data-reader-layout] {
     padding-right: calc(1.5rem + var(--reader-panel-w, 0px));
+    padding-bottom: 5rem; /* sm+ : pas de bottom sheet */
+  }
+}
+
+/* Bottom sheet article reader (mobile only) */
+.reader-drawer {
+  width: var(--reader-draw-w, 520px);
+}
+@media (max-width: 639px) {
+  .reader-drawer {
+    width: 100dvw !important;
+    height: var(--reader-draw-h, 78dvh) !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  .reader-drawer.reader-drawer--collapsed {
+    height: 48px !important;
   }
 }
 

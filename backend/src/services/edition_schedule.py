@@ -172,19 +172,27 @@ async def find_edition_for_calendar_date(
 
 
 async def bootstrap_editions_for_two_weeks() -> None:
-    """Crée les éditions des ~2 prochaines semaines (tous les jours) si absentes — pour rattachement collecte."""
-    from datetime import timedelta
+    """Crée les éditions des 7 derniers jours + 14 prochains jours si absentes.
 
+    Couvre le passé récent (sam/dim manquants, jours fériés) et les 2 semaines
+    à venir pour le rattachement préemptif des articles collectés en continu.
+    """
     from src.database import get_session_factory
 
     today = datetime.now(BEIRUT).date()
     factory = get_session_factory()
     async with factory() as db:
-        d = today
-        for _ in range(14):
+        # 7 jours passés (sam/dim qui auraient pu être manqués)
+        d = today - timedelta(days=7)
+        while d <= today + timedelta(days=14):
             await ensure_edition_for_publish_date(db, d, status="COLLECTING")
             d += timedelta(days=1)
         await db.commit()
+    logger.info(
+        "edition.bootstrap_done",
+        from_date=str(today - timedelta(days=7)),
+        to_date=str(today + timedelta(days=14)),
+    )
 
 
 async def ensure_next_day_edition_job() -> None:

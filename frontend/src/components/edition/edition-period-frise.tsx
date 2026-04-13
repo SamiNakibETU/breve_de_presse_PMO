@@ -22,7 +22,7 @@ import {
 import { shiftIsoDate } from "@/lib/beirut-date";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 
-const TZ = "Europe/Paris";
+const TZ = "Asia/Beirut";
 const DAY_PX = 260;       // px par jour dans la timeline
 const VISIBLE_DAYS = 5;   // J-2, J-1, J, J+1, J+2
 const SELECTOR_RANGE = 7; // ±7 jours dans le sélecteur
@@ -135,8 +135,8 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
 
   return (
     <div
-      className="flex w-full flex-col items-center justify-center rounded-[24px] bg-white px-5 py-5 sm:min-w-[200px] sm:max-w-[260px]"
-      style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)" }}
+      className="flex w-full flex-col items-center justify-center bg-white px-5 py-5 sm:min-w-[200px] sm:max-w-[260px]"
+      style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", borderRadius: "var(--radius-card, 18px)" }}
     >
       {/* Titre édition */}
       <p
@@ -292,8 +292,8 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
 
   return (
     <div
-      className="relative flex flex-1 items-center overflow-hidden rounded-[24px] bg-white"
-      style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", minHeight: 150 }}
+      className="relative flex flex-1 items-center overflow-hidden bg-white"
+      style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", minHeight: 150, borderRadius: "var(--radius-card, 18px)" }}
     >
       {/* Dégradé gauche */}
       <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 rounded-l-[24px]"
@@ -303,7 +303,7 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
         style={{ background: "linear-gradient(to left, rgba(255,255,255,0.92) 0%, transparent 100%)" }} />
       <div
         ref={containerRef}
-        className="olj-scrollbar-none w-full overflow-x-auto"
+        className="olj-scrollbar-none w-full overflow-x-auto px-3"
         style={{ cursor: "grab", touchAction: "pan-x" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -609,7 +609,7 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
 
   return (
     <nav className="w-full min-w-0 max-w-full space-y-3" aria-label="Navigation temporelle de l'édition">
-      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row">
+      <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:gap-3">
         <FriseInfoCard
           currentIso={currentIso}
           windowStart={editionWindow?.start}
