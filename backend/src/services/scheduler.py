@@ -412,18 +412,37 @@ async def _daily_pipeline_body(
                 on_progress=collect_pb if on_progress else None,
             )
 
-        collection_stats = await _run_step_budget(
-            "collect",
-            pipeline_trigger,
-            settings.pipeline_step_timeout_collect_s,
-            _do_collect,
-        )
+        _collect_timed_out = False
+        try:
+            collection_stats = await _run_step_budget(
+                "collect",
+                pipeline_trigger,
+                settings.pipeline_step_timeout_collect_s,
+                _do_collect,
+            )
+        except PipelineStepTimeout:
+            # Timeout sur la collecte : on logue quand même le step "collect" pour que
+            # le mécanisme resume puisse le sauter au prochain run et ne pas boucler.
+            _collect_timed_out = True
+            collection_stats = {
+                "timed_out": True,
+                "budget_s": settings.pipeline_step_timeout_collect_s,
+            }
+            logger.warning(
+                "pipeline.collect_timeout_continuing",
+                budget_s=settings.pipeline_step_timeout_collect_s,
+                note="on logue collect et on continue vers traduction avec les articles disponibles",
+            )
         step_timings["collection_s"] = round(time.monotonic() - t0, 2)
         await log_pipeline_step(
             eid_log,
             "collect",
             compact_payload(
-                {"stats": collection_stats, "duration_s": step_timings["collection_s"]},
+                {
+                    "stats": collection_stats,
+                    "duration_s": step_timings["collection_s"],
+                    "timed_out": _collect_timed_out,
+                },
             ),
         )
 

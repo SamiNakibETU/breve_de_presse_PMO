@@ -138,10 +138,14 @@ class Settings(BaseSettings):
         description="Fréquence du job « surveillance lease bloqué ».",
     )
     pipeline_step_timeout_collect_s: int = Field(
-        default=0,
+        default=2700,
         ge=0,
         le=28800,
-        description="Budget asyncio collecte seule ; 0 = pas de limite propre (repli sur timeout global).",
+        description=(
+            "Budget asyncio collecte seule ; 0 = pas de limite propre (repli sur timeout global). "
+            "Défaut 2700 s (45 min) : évite qu'une source Playwright bloquée gèle l'ensemble du pipeline. "
+            "La collecte log ses résultats partiels et le pipeline passe à la traduction avec ce qui est disponible."
+        ),
     )
     pipeline_step_timeout_translate_s: int = Field(
         default=0,
