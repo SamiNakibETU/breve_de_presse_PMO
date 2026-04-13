@@ -284,8 +284,8 @@ export default function RegiePipelinePage() {
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-2 py-2 font-medium">Statut</th>
-                  <th className="px-2 py-2 font-medium" title="Fuseau UTC">
-                    Date (UTC)
+                  <th className="px-2 py-2 font-medium" title="Heure de Beyrouth (UTC+3 en été)">
+                    Date (Beyrouth)
                   </th>
                   <th className="px-2 py-2 font-medium">Étape</th>
                   <th className="px-2 py-2 font-medium">Édition</th>

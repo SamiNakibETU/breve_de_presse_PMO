@@ -1,13 +1,14 @@
 /**
- * Formats d’affichage des dates côté UI (fuseaux explicites).
+ * Formats d'affichage des dates côté UI (fuseaux explicites).
  * Voir DESIGN_SYSTEM/patterns-pages.md — Temporalités.
+ * Toutes les dates sont affichées en heure de Beyrouth (Asia/Beirut, UTC+3 en été).
  */
 
 const TZ_BEIRUT = "Asia/Beirut";
 const TZ_UTC = "UTC";
 
 /**
- * Titre du jour d’édition pour `YYYY-MM-DD` (calendrier **Beyrouth**, aligné sur la frise et la fenêtre API).
+ * Titre du jour d'édition pour `YYYY-MM-DD` (calendrier **Beyrouth**, aligné sur la frise et la fenêtre API).
  */
 export function formatEditionCalendarTitleFr(isoDate: string): string {
   const parts = isoDate.split("-").map(Number);
@@ -25,7 +26,7 @@ export function formatEditionCalendarTitleFr(isoDate: string): string {
   return raw.length > 0 ? raw.charAt(0).toUpperCase() + raw.slice(1) : raw;
 }
 
-/** Titre de jour d’édition pour en-tête (première lettre en capitale). */
+/** Titre de jour d'édition pour en-tête (première lettre en capitale). */
 export function formatEditionDayHeadingFr(isoDate: string): string {
   try {
     const fr = formatEditionCalendarTitleFr(isoDate);
@@ -38,7 +39,7 @@ export function formatEditionDayHeadingFr(isoDate: string): string {
 
 export type EditionWindowFormatVariant = "compact" | "long";
 
-/** Fenêtre éditoriale [start, end) — toujours interprétée en heure de Beyrouth à l’affichage. */
+/** Fenêtre éditoriale [start, end) — toujours interprétée en heure de Beyrouth à l'affichage. */
 export function formatEditionWindowFr(
   isoStart: string,
   isoEnd: string,
@@ -91,7 +92,7 @@ export function formatPublishedAtFr(iso: string, variant: "short" | "long"): str
   }).format(d);
 }
 
-/** Date + heure courtes en heure de Beyrouth (ex. fraîcheur d’un cluster). */
+/** Date + heure courtes en heure de Beyrouth (ex. fraîcheur d'un cluster). */
 export function formatDateTimeBeirutFr(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -102,7 +103,7 @@ export function formatDateTimeBeirutFr(iso: string): string {
   }).format(new Date(iso));
 }
 
-/** Horodatage technique de collecte — fuseau UTC explicite. */
+/** Horodatage technique de collecte — affiché en heure de Beyrouth (UTC+3 été). */
 export function formatCollectedAtUtcFr(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -110,24 +111,31 @@ export function formatCollectedAtUtcFr(iso: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: TZ_UTC,
+    timeZone: TZ_BEIRUT,
     timeZoneName: "short",
   }).format(new Date(iso));
 }
 
 /**
- * Horodatage renvoyé par l’API (souvent ISO). Si parsing impossible, renvoie la chaîne brute.
- * À utiliser pour journaux pipeline / LLM / régie.
+ * Horodatage renvoyé par l'API (souvent ISO). Si parsing impossible, renvoie la chaîne brute.
+ * Affiché en heure de Beyrouth (UTC+3 été) — journaux pipeline / LLM / régie.
  */
 export function formatLogTimestampFr(raw: string): string {
   const t = Date.parse(raw);
   if (Number.isNaN(t)) {
     return raw;
   }
-  return formatCollectedAtUtcFr(raw);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ_BEIRUT,
+  }).format(new Date(t));
 }
 
-/** Libellés courts pour les puces du rail d’édition (axe jour UTC = paramètre route). */
+/** Libellés courts pour les puces du rail d'édition (axe jour UTC = paramètre route). */
 export function chipLabelsEditionRail(iso: string): {
   weekday: string;
   dayMonth: string;
@@ -177,7 +185,7 @@ export function formatFriseBoundaryDateFr(iso: string): string {
 }
 
 /**
- * Date de borne de frise au même format que l’axe des jours (ex. « lun. 6 avr. ») pour cohérence visuelle.
+ * Date de borne de frise au même format que l'axe des jours (ex. « lun. 6 avr. ») pour cohérence visuelle.
  */
 export function formatFriseEdgeDayFr(iso: string): string {
   const d = new Date(iso);
@@ -205,7 +213,7 @@ export function formatFriseBoundaryTimeFr(iso: string): string {
   }).format(new Date(iso));
 }
 
-/** Jour agrégé `YYYY-MM-DD` (UTC) pour tableaux d’usage. */
+/** Jour agrégé `YYYY-MM-DD` (UTC) pour tableaux d'usage. */
 export function formatUtcDayShortFr(isoYmd: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     weekday: "short",
@@ -231,11 +239,11 @@ export function formatIsoCalendarDayLongFr(iso: string): string {
   }).format(dt);
 }
 
-/** Texte d’en-tête pour la vue exploration Articles (période glissante UTC). */
+/** Texte d'en-tête pour la vue exploration Articles (période glissante, heure de Beyrouth). */
 export function formatArticlesExplorationPeriodHint(days: number): string {
   const period =
     days <= 1
-      ? "Dernier jour (UTC, glissant)."
-      : `${days} derniers jours (UTC, glissant).`;
+      ? "Dernier jour (heure Beyrouth, glissant)."
+      : `${days} derniers jours (heure Beyrouth, glissant).`;
   return `${period} Sommaire daté : Édition du jour.`;
 }

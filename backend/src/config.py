@@ -114,10 +114,14 @@ class Settings(BaseSettings):
         description="Si false, APScheduler n’est pas démarré (réplicas secondaires ou worker HTTP seul).",
     )
     pipeline_lease_ttl_seconds: int = Field(
-        default=1800,
+        default=900,
         ge=120,
         le=86400,
-        description="Durée de validité du lease Postgres ; renouvelée à chaque heartbeat pendant le run.",
+        description=(
+            "Durée de validité du lease Postgres ; renouvelée à chaque heartbeat (toutes les 60 s) pendant le run. "
+            "900 s (15 min) : si Railway tue le process, le nouveau process peut démarrer en max 15 min, "
+            "bien avant le misfire_grace_time du scheduler."
+        ),
     )
     pipeline_heartbeat_interval_seconds: int = Field(
         default=60,
@@ -154,10 +158,15 @@ class Settings(BaseSettings):
         description="Budget asyncio traduction seule ; 0 = pas de limite propre.",
     )
     pipeline_step_timeout_post_s: int = Field(
-        default=600,
+        default=7200,
         ge=0,
-        le=28800,
-        description="Budget asyncio « post » (relevance → fin, hors collecte/traduction) ; 0 = illimité.",
+        le=86400,
+        description=(
+            "Budget asyncio total pour les phases post (relevance → fin, hors collecte/traduction). "
+            "Divisé en deux moitiés : post_analysis (relevance + dedup) et post_embedding "
+            "(embeddings + clustering + topics). Défaut 7200 s (2 h) → 1 h par moitié. "
+            "0 = illimité."
+        ),
     )
     translate_progress_log_every_n: int = Field(
         default=25,
@@ -617,23 +626,31 @@ class Settings(BaseSettings):
         description="Intervalle entre deux runs d'ingestion continue (heures).",
     )
     continuous_ingest_translate_limit: int = Field(
-        default=80,
+        default=150,
         ge=10,
         le=500,
-        description="Plafond d'articles traduits par run d'ingestion continue.",
+        description=(
+            "Plafond d'articles traduits par run d'ingestion continue. "
+            "150 = ~6 min de traduction par run, laisse de la marge dans le budget API."
+        ),
     )
     continuous_ingest_paris_start_hour: int = Field(
-        default=18,
+        default=0,
         ge=0,
         le=23,
-        description="Heure Paris (incluse) à partir de laquelle l'ingestion continue démarre.",
+        description=(
+            "Heure Paris (incluse) à partir de laquelle l'ingestion continue est autorisée. "
+            "Si start == end == 0 : fenêtre désactivée, l'ingestion tourne 24h/24 "
+            "(protégée uniquement par les locks pipeline)."
+        ),
     )
     continuous_ingest_paris_end_hour: int = Field(
-        default=9,
+        default=0,
         ge=0,
         le=23,
         description=(
             "Heure Paris (exclusive) à laquelle l'ingestion continue s'arrête. "
+            "Si start == end == 0 : 24h/24 (pas de restriction horaire). "
             "Si end < start : la fenêtre traverse minuit (ex. 18h → 9h)."
         ),
     )

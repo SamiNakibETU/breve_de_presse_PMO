@@ -1008,12 +1008,15 @@ async def run_continuous_ingest(*, trigger: str = "cron_continuous") -> dict:
         return {"skipped": True, "reason": "ingest_already_running"}
 
     # Guard-rail 3 : fenêtre horaire (en heure de Paris)
+    # Si start == end == 0 : fenêtre désactivée, ingestion 24h/24 (protégée par les locks).
     now_paris = datetime.now(_PARIS_TZ)
     ph = now_paris.hour
     pm = now_paris.minute
     start_h = s.continuous_ingest_paris_start_hour
     end_h = s.continuous_ingest_paris_end_hour
-    if start_h <= end_h:
+    if start_h == 0 and end_h == 0:
+        in_window = True  # 24h/24
+    elif start_h <= end_h:
         in_window = start_h <= ph < end_h
     else:
         in_window = ph >= start_h or ph < end_h
@@ -1021,13 +1024,16 @@ async def run_continuous_ingest(*, trigger: str = "cron_continuous") -> dict:
         logger.debug("continuous_ingest.outside_window", trigger=trigger, paris_hour=ph)
         return {"skipped": True, "reason": "outside_window", "paris_hour": ph}
 
-    # Guard-rail 4 : stopper 30 min avant le pipeline planifié pour lui laisser la voie libre
+    # Guard-rail 4 : stopper 10 min avant le pipeline planifié pour lui laisser la voie libre.
+    # 10 min suffit : le pipeline acquiert le lock en quelques secondes, et la lease TTL
+    # est maintenant de 900 s (15 min). Pas besoin de 30 min qui créaient un trou de collecte
+    # trop large si la pipeline était ratée (ex. redéploiement Railway).
     pipeline_h = s.pipeline_paris_morning_hour
     pipeline_m = s.pipeline_paris_morning_minute
     now_minutes = ph * 60 + pm
     pipeline_minutes = pipeline_h * 60 + pipeline_m
     minutes_to_pipeline = (pipeline_minutes - now_minutes) % (24 * 60)
-    if minutes_to_pipeline < 30:
+    if minutes_to_pipeline < 10:
         logger.info(
             "continuous_ingest.skipped_near_pipeline",
             trigger=trigger,
