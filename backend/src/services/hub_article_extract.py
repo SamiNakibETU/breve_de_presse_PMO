@@ -130,8 +130,70 @@ def html_to_smart_content_body_sync(html: str, page_url: str) -> str:
     return format_plain_article_text(text)
 
 
+def html_to_class_pattern_body_sync(html: str) -> str:
+    """Extraction par class-pattern BS4 — fallback pour CMS non standard (Arab Times, etc.).
+
+    Cherche l'élément ayant 'article', 'content', 'entry' ou 'post' dans ses classes CSS,
+    sélectionne celui avec le plus de texte, puis extrait ses paragraphes.
+    """
+    if not html:
+        return ""
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+            tag.decompose()
+
+        # CSS selectors standard en premier
+        css_selectors = [
+            "article .content", ".article-content", ".entry-content", ".post-content",
+            "article", ".article__body", ".content-area", "#content", "#main-content",
+            "[class*='article-body']", "[class*='story-body']", "[class*='post-body']",
+        ]
+        for sel in css_selectors:
+            try:
+                elem = soup.select_one(sel)
+                if elem:
+                    paras = [p.get_text(strip=True) for p in elem.find_all(["p", "h2", "h3"])
+                             if len(p.get_text(strip=True)) > 40]
+                    if paras:
+                        joined = "\n\n".join(paras)
+                        if len(joined.split()) >= 60:
+                            return format_plain_article_text(joined)
+            except Exception:
+                continue
+
+        # Fallback : trouver l'élément le plus verbeux avec classe article/content/entry/post
+        best_elem = None
+        max_len = 0
+        for elem in soup.find_all():
+            classes = " ".join(elem.get("class") or []).lower()
+            if any(k in classes for k in ("article", "content", "entry", "post")):
+                tlen = len(elem.get_text())
+                if tlen > max_len:
+                    max_len = tlen
+                    best_elem = elem
+        if best_elem:
+            paras = [p.get_text(strip=True) for p in best_elem.find_all("p")
+                     if len(p.get_text(strip=True)) > 30]
+            if paras:
+                joined = "\n\n".join(paras)
+                if len(joined.split()) >= 50:
+                    return format_plain_article_text(joined)
+
+        # Dernier recours : tous les paragraphes significatifs de la page
+        all_paras = [p.get_text(strip=True) for p in soup.find_all("p")
+                     if len(p.get_text(strip=True)) > 40]
+        if all_paras:
+            joined = "\n\n".join(all_paras)
+            if len(joined.split()) >= 50:
+                return format_plain_article_text(joined)
+    except Exception:
+        pass
+    return ""
+
+
 def html_to_article_body_sync(html: str) -> str:
-    """Trafilatura + nettoyage + format_plain_article_text (thread-safe)."""
+    """Trafilatura → class-pattern BS4 + nettoyage + format_plain_article_text (thread-safe)."""
     if not html:
         return ""
     # fast=True : évite compare_extraction → justext (stoplists lourdes, MemoryError possible sur grosses pages).
@@ -157,7 +219,13 @@ def html_to_article_body_sync(html: str) -> str:
     except MemoryError:
         text = None
     if not text:
-        return ""
+        # Fallback : class-pattern extraction (Arab Times, WordPress non-standard, etc.)
+        return html_to_class_pattern_body_sync(html)
+    # Si trafilatura donne trop peu de mots, comparer avec class-pattern et garder le plus long
+    if len(text.split()) < 120:
+        alt = html_to_class_pattern_body_sync(html)
+        if alt and len(alt.split()) > len(text.split()):
+            return alt
     for pattern in (
         r"©\s*\d{4}.*$",
         r"All rights reserved.*$",

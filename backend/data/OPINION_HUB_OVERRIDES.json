@@ -25,6 +25,39 @@
       "wait_until": "load",
       "relaxed_same_site": true
     },
+    "okaz.com.sa": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/articles/|/article/",
+      "relaxed_same_site": true
+    },
+    "saudigazette.com.sa": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/",
+      "relaxed_same_site": true
+    },
+    "majalla.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "link_pattern": "/[0-9]{4}/|/article/|sections/",
+      "relaxed_same_site": true
+    },
+    "aawsat.com": {
+      "playwright": true,
+      "wait_ms": 6500,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/%D8%A7%D9%84%D8%B1%D8%A3%D9%8A/|/%D9%81%D9%8A-%D8%A7%D9%84%D8%B9%D9%85%D9%82/|/[0-9]{7,}",
+      "relaxed_same_site": true
+    },
     "alwatannews.net": {
       "playwright": true,
       "wait_ms": 7000,
@@ -42,6 +75,14 @@
       "link_pattern": "\\.aspx|/Daily/|/WriterArticles/",
       "relaxed_same_site": true
     },
+    "akhbarelyom.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "relaxed_same_site": true
+    },
     "echoroukonline.com": {
       "playwright": true,
       "wait_ms": 7500,
@@ -57,6 +98,7 @@
       "relaxed_same_site": true
     },
     "alsabaah.iq": {
+      "jina_ai_primary": true,
       "playwright": true,
       "wait_ms": 8000,
       "playwright_timeout_ms": 95000,
@@ -66,13 +108,65 @@
       "link_selector": "a[href*='alsabaah'], article a[href], .post-title a, h2 a[href], h3 a[href], .entry-title a",
       "relaxed_same_site": true
     },
+    "newsabah.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/newspaper/|/article/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "azzaman.com": {
+      "relaxed_same_site": true,
+      "link_pattern": "/[0-9]{4}/|/article/|/story/"
+    },
+    "almadapaper.net": {
+      "playwright": true,
+      "wait_ms": 8000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "relaxed_same_site": true
+    },
+    "rudaw.net": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/english/opinion/|/arabic/",
+      "relaxed_same_site": true
+    },
     "iranwire.com": {
       "playwright": true,
       "wait_ms": 5500,
       "playwright_timeout_ms": 90000,
       "relaxed_same_site": true
     },
+    "iranintl.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/en/opinion|/en/analysis|/en/special-report",
+      "relaxed_same_site": true
+    },
+    "donya-e-eqtesad.com": {
+      "relaxed_same_site": true,
+      "link_pattern": "(?i)^(?!.*%D8%A7%D8%AE%D8%A8%D8%A7%D8%B1-2).+\\d{6,}-",
+      "strict_link_pattern": true
+    },
+    "sharghdaily.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/[0-9]{5,}|/news/|/article/",
+      "relaxed_same_site": true
+    },
     "alghad.com": {
+      "jina_ai_primary": true,
       "playwright": true,
       "wait_ms": 8000,
       "playwright_timeout_ms": 95000,
@@ -98,10 +192,177 @@
       "link_selector": "a[href*='/opinion/'], a[href*='/news/'], a.opinion-list-title, article a[href], .card a[href]",
       "relaxed_same_site": true
     },
+    "assabeel.net": {
+      "relaxed_same_site": true,
+      "link_pattern": "/[0-9]{4}/|/article/|/category/.+/.+",
+      "playwright": true,
+      "wait_ms": 6500,
+      "playwright_timeout_ms": 90000
+    },
+    "omandaily.om": {
+      "playwright": true,
+      "wait_ms": 9000,
+      "playwright_timeout_ms": 100000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/%D8%A3%D9%81%D9%83%D8%A7%D8%B1|/article/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "alroya.om": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/category/|/article/|/[0-9]{5,}",
+      "relaxed_same_site": true
+    },
+    "alwatan.om": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/opinions/|/article/|/[0-9]{5,}",
+      "relaxed_same_site": true
+    },
+    "omanobserver.om": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/",
+      "relaxed_same_site": true
+    },
+    "muscatdaily.com": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/category/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "timesofoman.com": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/category/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "shabiba.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "link_pattern": "/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA|/article/|/[0-9]{5,}",
+      "relaxed_same_site": true
+    },
+    "aljazeera.com": {
+      "playwright": true,
+      "wait_ms": 8000,
+      "playwright_timeout_ms": 100000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "gulf-times.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/opinion/|/story/|/[0-9]{6,}",
+      "relaxed_same_site": true
+    },
+    "thepeninsulaqatar.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 90000,
+      "relaxed_same_site": true,
+      "scroll_page": true,
+      "wait_until": "load"
+    },
+    "raya.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/%D8%A2%D8%B1%D8%A7%D8%A1|/article/|/morearticles/",
+      "relaxed_same_site": true
+    },
+    "al-sharq.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "relaxed_same_site": true
+    },
+    "al-watan.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/%D9%83%D8%AA%D8%A7%D8%A8|/article/|/[0-9]{5,}",
+      "relaxed_same_site": true
+    },
+    "middleeasteye.net": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/opinion/|/article/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "newlinesmag.com": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/argument/|/story/|/[a-z0-9-]+-[0-9]+",
+      "relaxed_same_site": true
+    },
+    "kuwaittimes.com": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "alqabas.com": {
+      "relaxed_same_site": true,
+      "link_pattern": "/[0-9]{4}/|categories/[0-9]+|/article/"
+    },
+    "alseyassah.com": {
+      "playwright": true,
+      "wait_ms": 6500,
+      "playwright_timeout_ms": 90000,
+      "scroll_page": true,
+      "link_pattern": "/%D9%83%D9%84-%D8%A7%D9%84%D8%A2%D8%B1%D8%A7%D8%A1|/article/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
     "alanba.com.kw": {
       "playwright": true,
       "wait_ms": 5500,
       "playwright_timeout_ms": 90000,
+      "relaxed_same_site": true
+    },
+    "aljarida.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "link_pattern": "/%D9%85%D9%82%D8%A7%D9%84%D8%A7%D8%AA|/article/|/[0-9]{6,}",
+      "relaxed_same_site": true
+    },
+    "arabtimesonline.com": {
+      "playwright": true,
+      "wait_ms": 6500,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/news/|/opinion/|/[0-9]{4}/",
       "relaxed_same_site": true
     },
     "7al.net": {
@@ -120,57 +381,55 @@
       "wait_until": "load",
       "relaxed_same_site": true
     },
-    "sabah.com.tr": {
-      "link_pattern": "(?i)/yazarlar/[^/]+/[^/]+",
-      "strict_link_pattern": true,
-      "relaxed_same_site": true,
+    "english.enabbaladi.net": {
       "playwright": true,
       "wait_ms": 6000,
-      "playwright_timeout_ms": 90000
-    },
-    "milliyet.com.tr": {
-      "link_pattern": "(?i)/yazarlar/[^/]+/[^/]+",
-      "strict_link_pattern": true,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/archives/|/opinion/|/in-depth/|/[0-9]{4}/",
       "relaxed_same_site": true
     },
-    "echoroukonline.com": {
-      "relaxed_same_site": true,
-      "link_pattern": "/[0-9]{4}/|/[0-9]{6,}|/opinion/|/articles?/"
-    },
-    "azzaman.com": {
-      "relaxed_same_site": true,
-      "link_pattern": "/[0-9]{4}/|/article/|/story/"
-    },
-    "assabeel.net": {
-      "relaxed_same_site": true,
-      "link_pattern": "/[0-9]{4}/|/article/|/category/.+/.+",
-      "playwright": true,
-      "wait_ms": 6500,
-      "playwright_timeout_ms": 90000
-    },
-    "alqabas.com": {
-      "relaxed_same_site": true,
-      "link_pattern": "/[0-9]{4}/|categories/[0-9]+|/article/"
-    },
-    "sozcu.com.tr": {
-      "link_pattern": "/yazarlar/|/yazar/|/[0-9]{4}/",
-      "relaxed_same_site": true
-    },
-    "donya-e-eqtesad.com": {
-      "relaxed_same_site": true,
-      "link_pattern": "(?i)^(?!.*%D8%A7%D8%AE%D8%A8%D8%A7%D8%B1-2).+\\d{6,}-",
-      "strict_link_pattern": true
-    },
-    "thenationalnews.com": {
-      "relaxed_same_site": true
-    },
-    "thepeninsulaqatar.com": {
+    "ultrasyria.ultrasawt.com": {
       "playwright": true,
       "wait_ms": 7000,
-      "playwright_timeout_ms": 90000,
-      "relaxed_same_site": true,
+      "playwright_timeout_ms": 95000,
       "scroll_page": true,
-      "wait_until": "load"
+      "wait_until": "load",
+      "link_pattern": "/%D9%82%D9%88%D9%84|/article/|/[0-9]{5,}",
+      "relaxed_same_site": true
+    },
+    "thawra.sy": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/thawra_blog/|/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "kassioun.org": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/reports-and-opinions/|/[0-9]{4}/|/article/",
+      "relaxed_same_site": true
+    },
+    "levant24.com": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/category/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "thenationalnews.com": {
+      "relaxed_same_site": true,
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/opinion/|/[0-9]{4}/"
     },
     "gulfnews.com": {
       "relaxed_same_site": true,
@@ -180,11 +439,13 @@
       "link_pattern": "(?i)/opinion/",
       "strict_link_pattern": true
     },
-    "khaleejtimes.com": {
+    "aletihad.ae": {
       "playwright": true,
-      "wait_ms": 5500,
-      "playwright_timeout_ms": 90000,
-      "link_pattern": "/opinion/",
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/opinion/|/[0-9]{5,}",
       "relaxed_same_site": true
     },
     "haaretz.com": {
@@ -202,27 +463,91 @@
         "daily-cartoon"
       ]
     },
-    "jpost.com": {
-      "relaxed_same_site": true
-    },
-    "timesofisrael.com": {
-      "relaxed_same_site": true,
-      "link_pattern": "/blogs/|/opinion/|/[a-z-]+-[0-9]+/"
-    },
-    "almadapaper.net": {
-      "playwright": true,
-      "wait_ms": 8000,
-      "playwright_timeout_ms": 95000,
-      "scroll_page": true,
-      "wait_until": "load",
-      "relaxed_same_site": true
-    },
-    "al-sharq.com": {
+    "maariv.co.il": {
       "playwright": true,
       "wait_ms": 7000,
       "playwright_timeout_ms": 95000,
       "scroll_page": true,
       "wait_until": "load",
+      "link_pattern": "/journalists/|/[0-9]{4}/|/article/",
+      "relaxed_same_site": true
+    },
+    "ynet.co.il": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/articles/|/news/",
+      "relaxed_same_site": true
+    },
+    "israelhayom.com": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "jpost.com": {
+      "relaxed_same_site": true,
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/"
+    },
+    "timesofisrael.com": {
+      "relaxed_same_site": true,
+      "link_pattern": "/blogs/|/opinion/|/[a-z-]+-[0-9]+/"
+    },
+    "hurriyet.com.tr": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/yazarlar/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "cumhuriyet.com.tr": {
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "link_pattern": "/gunun-kose-yazilari|/yazarlar/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "dailysabah.com": {
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "sabah.com.tr": {
+      "link_pattern": "(?i)/yazarlar/[^/]+/[^/]+",
+      "strict_link_pattern": true,
+      "relaxed_same_site": true,
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000
+    },
+    "sozcu.com.tr": {
+      "link_pattern": "/yazarlar/|/yazar/|/[0-9]{4}/",
+      "relaxed_same_site": true
+    },
+    "milliyet.com.tr": {
+      "link_pattern": "(?i)/yazarlar/[^/]+/[^/]+",
+      "strict_link_pattern": true,
+      "relaxed_same_site": true
+    },
+    "khaleejtimes.com": {
+      "playwright": true,
+      "wait_ms": 5500,
+      "playwright_timeout_ms": 90000,
+      "link_pattern": "/opinion/",
       "relaxed_same_site": true
     }
   },
@@ -287,6 +612,7 @@
       ]
     },
     "iq_al_sabah": {
+      "jina_ai_primary": true,
       "rss_feed_url": "https://alsabaah.iq/rssFeed/0",
       "rss_feed_urls": [
         "https://www.alsabaah.iq/rssFeed/0"
@@ -297,11 +623,26 @@
         "https://alsabaah.iq/category/%D8%A2%D8%B1%D8%A7%D8%A1/"
       ]
     },
+    "iq_al_sabah_jadeed": {
+      "rss_feed_urls": [
+        "https://newsabah.com/feed/",
+        "https://www.newsabah.com/feed/"
+      ],
+      "rss_link_filter": "/opinions/"
+    },
     "ir_iranwire": {
       "rss_feed_url": "https://iranwire.com/en/feed/",
       "rss_link_filter": "/blogs/"
     },
+    "ir_iran_intl": {
+      "rss_feed_urls": [
+        "https://www.iranintl.com/en/rss",
+        "https://www.iranintl.com/rss"
+      ],
+      "rss_link_filter": "/opinion"
+    },
     "jo_al_ghad": {
+      "jina_ai_primary": true,
       "rss_feed_url": "https://alghad.com/rssFeed/114",
       "additional_hub_urls": [
         "https://alghad.com/",
@@ -333,6 +674,20 @@
       ],
       "rss_link_exclude": "/perwin/"
     },
+    "sy_kassioun": {
+      "rss_feed_urls": [
+        "https://kassioun.org/feed/",
+        "https://www.kassioun.org/feed/"
+      ],
+      "rss_link_filter": "/reports-and-opinions/"
+    },
+    "sy_enab_baladi_en": {
+      "rss_feed_urls": [
+        "https://english.enabbaladi.net/feed/",
+        "https://english.enabbaladi.net/archives/category/opinion/feed/"
+      ],
+      "rss_link_filter": "/opinion/"
+    },
     "sa_al_arabiya": {
       "rss_feed_urls": [
         "https://www.alarabiya.net/.mrss/ar.xml"
@@ -354,6 +709,46 @@
       "additional_hub_urls": [
         "https://alseyassah.com/"
       ]
+    },
+    "om_times_of_oman": {
+      "rss_feed_urls": [
+        "https://rssfeeds.timesofoman.com/index.php",
+        "https://timesofoman.com/rss"
+      ],
+      "rss_link_filter": "/opinion/"
+    },
+    "qa_al_jazeera": {
+      "rss_feed_urls": [
+        "https://www.aljazeera.com/xml/rss/all.xml"
+      ],
+      "rss_link_filter": "/opinion/"
+    },
+    "qa_gulf_times": {
+      "rss_feed_urls": [
+        "https://www.gulf-times.com/Rss/",
+        "https://www.gulf-times.com/rss/opinion"
+      ],
+      "rss_link_filter": "/opinion/"
+    },
+    "re_new_lines": {
+      "rss_feed_urls": [
+        "https://newlinesmag.com/feed/",
+        "https://newlinesmag.com/argument/feed/"
+      ]
+    },
+    "re_middle_east_eye": {
+      "rss_feed_urls": [
+        "https://www.middleeasteye.net/rss",
+        "https://www.middleeasteye.net/rss/opinion"
+      ],
+      "rss_link_filter": "/opinion/"
+    },
+    "il_jerusalem_post": {
+      "rss_feed_urls": [
+        "https://www.jpost.com/rss/rssfeedsfrontpage.aspx",
+        "https://rss.jpost.com/rss/rssfeedsopinion.aspx"
+      ],
+      "rss_link_filter": "/opinion/"
     }
   }
 }

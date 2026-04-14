@@ -1,5 +1,5 @@
 """
-Stratégies combinées : RSS (contourne souvent Cloudflare) + HTTP + Playwright + extraction.
+Stratégies combinées : RSS → Jina AI primary (si configuré) → HTTP → Playwright → Jina AI → Wayback.
 Utilisé par opinion_hub_scraper et validate_media_hubs.
 """
 
@@ -12,7 +12,12 @@ from typing import Any, Optional
 import structlog
 
 from src.config import get_settings
-from src.services.hub_fetch import fetch_html_robust, sanitize_structlog_payload
+from src.services.hub_fetch import (
+    fetch_html_robust,
+    fetch_html_jina_async,
+    fetch_html_wayback_async,
+    sanitize_structlog_payload,
+)
 from src.services.hub_links import extract_hub_article_links
 from src.services.hub_page_diagnostics import analyze_hub_html, merge_diagnosis_priority
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
@@ -208,6 +213,26 @@ async def fetch_html_and_extract_hub_links(
         await asyncio.sleep(
             random.uniform(0.0, float(hub_settings.hub_between_strategy_jitter_seconds)),
         )
+
+    # --- 1b) Jina AI PRIMARY (sources bloquées : al-Sabah Irak, Al Ghad...) ---
+    jina_primary = bool(override.get("jina_ai_primary"))
+    if jina_primary and len(ordered) < min_links:
+        html_jp, err_jp = await fetch_html_jina_async(
+            hub_url, log_extra=_fetch_log_extra("jina_primary")
+        )
+        if html_jp:
+            strategies.append("jina_primary")
+            last_html_len = max(last_html_len, len(html_jp))
+            _add_urls(extract_hub_article_links(html_jp, hub_url, max_links=max_links, **ex_kw))
+            _log(
+                "hub_collect.jina_primary_ok",
+                stage="jina_primary",
+                html_len=len(html_jp),
+                link_candidates=len(ordered),
+                error_code="",
+            )
+        else:
+            best_err = (best_err + f"|jina_primary:{err_jp}").strip("|")
 
     # --- 2) HTML hub (aiohttp → curl_cffi → trafilatura) ---
     html, err = await fetch_html_robust(

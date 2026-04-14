@@ -448,6 +448,61 @@ async def fetch_html_jina_async(
         return None, ec
 
 
+async def fetch_html_wayback_async(
+    url: str,
+    *,
+    timeout_s: float = 25.0,
+    log_extra: dict[str, Any] | None = None,
+) -> tuple[Optional[str], str]:
+    """Fetch depuis Wayback Machine (archive.org) — fallback absolu pour sources inaccessibles.
+
+    Requête CDX pour trouver le snapshot le plus récent, puis fetch depuis l'archive.
+    """
+    t0 = time.perf_counter()
+    try:
+        cdx_url = (
+            f"http://web.archive.org/cdx/search/cdx"
+            f"?url={url}&output=json&limit=1&fl=timestamp&filter=statuscode:200&from=20250101"
+        )
+        timeout = aiohttp.ClientTimeout(total=timeout_s, connect=10)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(cdx_url, timeout=timeout) as resp:
+                if resp.status != 200:
+                    return None, f"wayback_cdx_http_{resp.status}"
+                results = await resp.json(content_type=None)
+
+        if not results or len(results) < 2:
+            return None, "wayback_no_snapshot"
+
+        timestamp = results[1][0]
+        archive_url = f"http://web.archive.org/web/{timestamp}/{url}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(archive_url, timeout=timeout, allow_redirects=True) as resp2:
+                elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                if resp2.status != 200:
+                    return None, f"wayback_fetch_http_{resp2.status}"
+                text = await resp2.text()
+                hlen = len(text) if text else 0
+                if hlen < 400:
+                    return None, "wayback_body_too_small"
+                logger.debug(
+                    "hub_fetch.wayback_ok",
+                    **_log_ex(log_extra, stage="wayback", url=url[:160],
+                              html_len=hlen, elapsed_ms=elapsed_ms, error_code=""),
+                )
+                return text, ""
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        ec = f"wayback:{type(exc).__name__}"
+        logger.debug(
+            "hub_fetch.wayback_attempt",
+            **_log_ex(log_extra, stage="wayback", url=url[:160],
+                      elapsed_ms=elapsed_ms, error_code=ec),
+        )
+        return None, ec
+
+
 async def fetch_html_trafilatura_thread(
     url: str,
     *,
@@ -621,5 +676,14 @@ async def fetch_html_robust(
             )
             hub_html_cache.cache_set(url, html_jina)
             return html_jina, ""
-        return None, f"{err}|cffi:{err_cf}|tf:{err2}|jina:{err_jina}"
+        # Fallback ultime : Wayback Machine (archive.org)
+        html_wb, err_wb = await fetch_html_wayback_async(url, log_extra=log_extra)
+        if html_wb:
+            logger.info(
+                "hub_fetch.wayback_fallback_ok",
+                **_log_ex(log_extra, url=url[:120], after_aiohttp=err[:120] if err else ""),
+            )
+            hub_html_cache.cache_set(url, html_wb)
+            return html_wb, ""
+        return None, f"{err}|cffi:{err_cf}|tf:{err2}|jina:{err_jina}|wb:{err_wb}"
     return None, f"{err}|cffi:{err_cf}"
