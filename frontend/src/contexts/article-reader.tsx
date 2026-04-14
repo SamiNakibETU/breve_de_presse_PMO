@@ -83,8 +83,12 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_W);
   const [sheetHeightPct, setSheetHeightPct] = useState(MOBILE_SHEET_DEFAULT_H);
 
-  /* Met à jour les variables CSS sur :root selon l'état du panneau */
+  /* Met à jour les variables CSS sur :root selon l'état du panneau.
+   * La sauvegarde/restauration de scrollY évite le saut de page causé
+   * par le reflow du padding-right lors de l'ouverture ou du resize. */
   useEffect(() => {
+    const scrollY = window.scrollY;
+
     const isOpen = openIds.length > 0 && !collapsed;
     const isMobile = window.innerWidth < 640;
     if (isOpen) {
@@ -101,6 +105,12 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
       document.documentElement.style.setProperty("--reader-panel-w",  "0px");
       document.documentElement.style.setProperty("--reader-panel-bh", "0px");
     }
+
+    // Restaure la position de scroll après le reflow du layout (padding-right).
+    // requestAnimationFrame garantit l'exécution après le paint initial.
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollY, behavior: "instant" });
+    });
   }, [openIds.length, collapsed, panelWidth, sheetHeightPct]);
 
   const openArticle = useCallback((id: string) => {

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { CoverageGaps } from "@/components/composition/CoverageGaps";
 import { api } from "@/lib/api";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
+import { useSelectionStore } from "@/stores/selection-store";
 
 type Props = {
   /** Date d’édition YYYY-MM-DD (segment URL). */
@@ -166,10 +167,17 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
     },
   });
 
+  // Lecture du store Zustand pour un count instantané (0 latence perçue).
+  // Le store est mis à jour synchroniquement par le composant parent dès le clic.
+  const storeBundle = useSelectionStore((s) =>
+    editionId ? s.byEditionId[editionId] : undefined,
+  );
+
   const { selectionCount, topicCountWithSelection, selectedCountryCodes } =
     useMemo(() => {
-      const topics = selectionsQ.data?.topics;
-      const extraIds = selectionsQ.data?.extra_article_ids ?? [];
+      // Priorité : store Zustand (réactif instantané) > données serveur (fallback initial)
+      const topics = storeBundle?.topics ?? selectionsQ.data?.topics;
+      const extraIds = storeBundle?.extra_article_ids ?? selectionsQ.data?.extra_article_ids ?? [];
       let n = 0;
       let topicsWithSel = 0;
       if (topics) {
@@ -203,7 +211,7 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
         topicCountWithSelection: topicsWithSel,
         selectedCountryCodes: [...codes],
       };
-    }, [selectionsQ.data, idToCountryCode]);
+    }, [storeBundle, selectionsQ.data, idToCountryCode]);
 
   if (!editionDate || selectionCount === 0) {
     return null;

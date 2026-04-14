@@ -15,7 +15,7 @@ import structlog
 
 from src.config import get_settings
 from src.services.article_body_format import format_plain_article_text, is_substantial_article_body
-from src.services.hub_fetch import _fetch_html_curl_cffi_sync, fetch_html_aiohttp
+from src.services.hub_fetch import _fetch_html_curl_cffi_sync, fetch_html_aiohttp, fetch_html_jina_async
 from src.services.hub_playwright import HubPlaywrightBrowser, PLAYWRIGHT_AVAILABLE
 from src.services.hub_rss import is_cloudflare_interstitial_html
 from src.services.smart_content import extract_main_text, is_cloudflare_challenge
@@ -176,6 +176,13 @@ async def extract_with_cascade(
     loop = asyncio.get_event_loop()
     html_sl = await loop.run_in_executor(None, _scrapling_sync)
     r = _try_html(html_sl, "scrapling_stealth")
+    if r:
+        b, au, ti, pd, m = r
+        return b, au, ti, pd, m, attempts
+
+    # Dernier recours : Jina AI Reader — bypass Cloudflare/geo-block
+    html_jina, _jina_err = await fetch_html_jina_async(url)
+    r = _try_html(html_jina, "jina_reader")
     if r:
         b, au, ti, pd, m = r
         return b, au, ti, pd, m, attempts

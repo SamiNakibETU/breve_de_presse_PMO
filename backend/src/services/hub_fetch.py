@@ -374,6 +374,80 @@ def _fetch_html_curl_cffi_sync(
         return None, f"curl_cffi:{type(exc).__name__}", diag
 
 
+async def fetch_html_jina_async(
+    url: str,
+    *,
+    timeout_s: float = 30.0,
+    log_extra: dict[str, Any] | None = None,
+) -> tuple[Optional[str], str]:
+    """Proxy Jina AI Reader (r.jina.ai) — bypass Cloudflare/geo-block sans clé API.
+
+    Retourne le contenu au format markdown/texte brut. Utilisé comme dernier recours
+    quand toutes les méthodes directes échouent.
+    """
+    st = get_settings()
+    if not st.jina_ai_fallback_enabled:
+        return None, "jina_disabled"
+
+    t0 = time.perf_counter()
+    try:
+        # Construire l'URL Jina AI Reader
+        clean = url.replace("https://", "").replace("http://", "")
+        jina_url = f"https://r.jina.ai/https://{clean}"
+
+        headers_jina: dict[str, str] = {
+            "Accept": "text/html,text/plain,*/*",
+            "User-Agent": random.choice(USER_AGENTS),
+        }
+        if st.jina_ai_api_key:
+            headers_jina["Authorization"] = f"Bearer {st.jina_ai_api_key}"
+
+        timeout = aiohttp.ClientTimeout(total=timeout_s, connect=15)
+        async with aiohttp.ClientSession(headers=headers_jina) as http:
+            async with http.get(jina_url, timeout=timeout, allow_redirects=True) as resp:
+                elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                if resp.status >= 400:
+                    ec = f"jina_http_{resp.status}"
+                    logger.debug(
+                        "hub_fetch.jina_attempt",
+                        **_log_ex(log_extra, stage="jina", http_status=resp.status,
+                                  error_code=ec, elapsed_ms=elapsed_ms, url=url[:160]),
+                    )
+                    return None, ec
+                text = await resp.text()
+                hlen = len(text) if text else 0
+                if hlen < 200:
+                    logger.debug(
+                        "hub_fetch.jina_attempt",
+                        **_log_ex(log_extra, stage="jina", http_status=resp.status,
+                                  html_len=hlen, error_code="jina_empty", elapsed_ms=elapsed_ms, url=url[:160]),
+                    )
+                    return None, "jina_empty"
+                logger.debug(
+                    "hub_fetch.jina_attempt",
+                    **_log_ex(log_extra, stage="jina", http_status=resp.status,
+                              html_len=hlen, error_code="", elapsed_ms=elapsed_ms, url=url[:160]),
+                )
+                return text, ""
+    except asyncio.TimeoutError:
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.debug(
+            "hub_fetch.jina_attempt",
+            **_log_ex(log_extra, stage="jina", http_status=0,
+                      error_code="jina_timeout", elapsed_ms=elapsed_ms, url=url[:160]),
+        )
+        return None, "jina_timeout"
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        ec = f"jina:{type(exc).__name__}"
+        logger.debug(
+            "hub_fetch.jina_attempt",
+            **_log_ex(log_extra, stage="jina", http_status=0,
+                      error_code=ec, elapsed_ms=elapsed_ms, url=url[:160]),
+        )
+        return None, ec
+
+
 async def fetch_html_trafilatura_thread(
     url: str,
     *,
@@ -487,7 +561,7 @@ async def fetch_html_robust(
         return html, ""
 
     curl_timeout = float(st.hub_curl_timeout_seconds)
-    curl_profiles = ("chrome131", "chrome124", "chrome120", "edge101")
+    curl_profiles = ("chrome136", "chrome131", "chrome124", "chrome120", "edge101")
     html_cf: Optional[str] = None
     err_cf = ""
     curl_diag: dict[str, Any] = {}
@@ -537,5 +611,15 @@ async def fetch_html_robust(
             )
             hub_html_cache.cache_set(url, html2)
             return html2, ""
-        return None, f"{err}|cffi:{err_cf}|tf:{err2}"
+
+        # Dernier recours : Jina AI Reader (bypass Cloudflare / geo-block)
+        html_jina, err_jina = await fetch_html_jina_async(url, log_extra=log_extra)
+        if html_jina:
+            logger.info(
+                "hub_fetch.jina_ok",
+                **_log_ex(log_extra, url=url[:120], after_aiohttp=err[:120] if err else ""),
+            )
+            hub_html_cache.cache_set(url, html_jina)
+            return html_jina, ""
+        return None, f"{err}|cffi:{err_cf}|tf:{err2}|jina:{err_jina}"
     return None, f"{err}|cffi:{err_cf}"
