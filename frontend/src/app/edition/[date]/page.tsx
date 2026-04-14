@@ -694,32 +694,13 @@ export default function EditionSommairePage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <p className="olj-rubric">Édition</p>
-          {pipeline ? (
-            <button
-              type="button"
-              className="olj-btn-secondary shrink-0 text-[11px] disabled:opacity-45"
-              disabled={
-                pipeline.running !== null ||
-                Boolean(statusQ.data?.pipeline_running)
-              }
-              title={
-                statusQ.data?.pipeline_running
-                  ? "Une mise à jour complète est déjà en cours sur le serveur."
-                  : undefined
-              }
-              onClick={() =>
-                pipeline.startRun("pipeline", "Mise à jour complète")
-              }
-            >
-              {pipeline.running?.key === "pipeline"
-                ? "Mise à jour…"
-                : statusQ.data?.pipeline_running
-                  ? "Mise à jour serveur…"
-                  : "Mise à jour"}
-            </button>
-          ) : null}
+          <p className="max-w-md text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+            Mise à jour complète du corpus : bouton{" "}
+            <span className="font-medium text-foreground-body">Actualiser</span> dans le bandeau
+            supérieur.
+          </p>
         </div>
         <div className="mt-3 w-full">
           {date ? (
@@ -763,7 +744,9 @@ export default function EditionSommairePage() {
                 className="rounded-md bg-muted/40 px-2.5 py-1.5 text-foreground-body"
                 role="status"
               >
-                Mise à jour en cours sur le serveur ; le bouton ci-dessus est indisponible jusqu’à la fin.
+                Mise à jour en cours sur le serveur ; le bouton{" "}
+                <span className="font-medium text-foreground-body">Actualiser</span> du bandeau est
+                indisponible jusqu’à la fin.
               </p>
             ) : null}
             {pipeline?.running ? (
@@ -819,50 +802,84 @@ export default function EditionSommairePage() {
         {detectionMessage ? (
           <p className="mt-3 text-[12px] text-muted-foreground">{detectionMessage}</p>
         ) : null}
-        {/* Bloc actions pipeline — un seul séparateur */}
+        {/* Bloc actions pipeline : action principale + regroupement dans « avancé » */}
         {editionId && pipeline && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
-            {detectionStatus !== "running" &&
-              (detectionStatus === "pending" ||
-                detectionStatus === "failed" ||
-                (detectionStatus === "done" && topics.length === 0)) && (
-              <>
-                <button
-                  type="button"
-                  className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-                  disabled={detectMutation.isPending || pipeline.running !== null}
-                  onClick={() => detectMutation.mutate()}
-                >
-                  {detectMutation.isPending ? "Analyse en cours…" : "Identifier les sujets"}
-                </button>
-                <button
-                  type="button"
-                  className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-                  disabled={pipeline.running !== null || detectMutation.isPending}
-                  title="Relance scoring → embedding → clusters → sujets"
-                  onClick={() =>
-                    pipeline.startSequentialChain(
-                      ["relevance_scoring", "embedding_only", "clustering_only", "cluster_labelling", "topic_detection"],
-                      "Relance analyse complète",
-                      { editionId },
-                    )
-                  }
-                >
-                  {pipeline.running?.key === "sequentialChain" ? "Analyse en cours…" : "Relancer l'analyse"}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-              disabled={pipeline.running !== null}
-              title="Analyse LLM (thèse, structure) sur le corpus de cette édition."
-              onClick={() =>
-                pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", { editionId })
-              }
-            >
-              {pipeline.running?.key === "articleAnalysis" ? "Analyse en cours…" : "Analyser les articles"}
-            </button>
+          <div className="mt-4 space-y-3 border-t border-border/50 pt-3">
+            <div>
+              <button
+                type="button"
+                className="olj-btn-primary px-3.5 py-2 text-[12px] disabled:opacity-45"
+                disabled={pipeline.running !== null}
+                title="Analyse LLM (thèse, structure, points clés) sur le corpus de cette édition."
+                onClick={() =>
+                  pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", { editionId })
+                }
+              >
+                {pipeline.running?.key === "articleAnalysis"
+                  ? "Analyse en cours…"
+                  : "Analyser les articles"}
+              </button>
+              <p className="mt-1.5 max-w-xl text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+                Action principale : enrichit chaque article (thèses, analyse) pour le sommaire et la
+                composition.
+              </p>
+            </div>
+
+            <details className="rounded-lg border border-border/55 bg-muted/10 px-3 py-2 sm:px-3.5">
+              <summary className="cursor-pointer list-none text-[11px] font-semibold text-foreground-body marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
+                <span className="underline decoration-border/50 underline-offset-2">
+                  Regroupement & sujets (avancé)
+                </span>
+              </summary>
+              <div className="mt-2 space-y-2 border-t border-border/40 pt-2.5">
+                <p className="text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+                  <span className="font-medium text-foreground-body">Identifier les sujets</span> : détecte
+                  des sujets à partir des regroupements (clusters) déjà calculés pour cette édition.{" "}
+                  <span className="font-medium text-foreground-body">Recalculer…</span> : relance tout le
+                  chaînage (pertinence → embeddings → clusters → libellés → sujets), plus long et plus
+                  coûteux.
+                </p>
+                {detectionStatus !== "running" &&
+                  (detectionStatus === "pending" ||
+                    detectionStatus === "failed" ||
+                    (detectionStatus === "done" && topics.length === 0)) && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                      disabled={detectMutation.isPending || pipeline.running !== null}
+                      title="Détection de sujets sur les clusters existants (sans refaire tout le scoring)."
+                      onClick={() => detectMutation.mutate()}
+                    >
+                      {detectMutation.isPending ? "Traitement…" : "Identifier les sujets"}
+                    </button>
+                    <button
+                      type="button"
+                      className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                      disabled={pipeline.running !== null || detectMutation.isPending}
+                      title="Pertinence → embeddings → clusters → libellés → détection des sujets."
+                      onClick={() =>
+                        pipeline.startSequentialChain(
+                          [
+                            "relevance_scoring",
+                            "embedding_only",
+                            "clustering_only",
+                            "cluster_labelling",
+                            "topic_detection",
+                          ],
+                          "Relance analyse complète",
+                          { editionId },
+                        )
+                      }
+                    >
+                      {pipeline.running?.key === "sequentialChain"
+                        ? "Traitement…"
+                        : "Recalculer (scoring → clusters → sujets)"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
         )}
       </header>

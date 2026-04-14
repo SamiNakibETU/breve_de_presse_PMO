@@ -232,7 +232,8 @@ body {
     color 0.15s ease;
 }
 .olj-nav-item:hover {
-  border-color: var(--color-foreground);
+  border-color: color-mix(in srgb, var(--color-foreground) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-foreground) 4%, var(--color-background));
   color: var(--color-foreground);
 }
 .olj-nav-item:focus-visible {
@@ -340,7 +341,8 @@ input[type="checkbox"] {
   transition: opacity 0.15s ease;
 }
 .olj-btn-primary:hover:not(:disabled) {
-  opacity: 0.92;
+  opacity: 0.94;
+  filter: brightness(1.03);
 }
 .olj-btn-primary:focus-visible {
   outline: 2px solid var(--color-accent);
@@ -369,14 +371,47 @@ input[type="checkbox"] {
     border-color 0.15s ease;
 }
 .olj-btn-secondary:hover:not(:disabled) {
-  background: var(--color-surface-warm);
-  border-color: var(--color-muted-foreground);
+  background: color-mix(in srgb, var(--color-foreground) 6%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-foreground) 30%, var(--color-border));
 }
 .olj-btn-secondary:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 .olj-btn-secondary:disabled {
+  opacity: 0.45;
+}
+
+/* Bouton discret (icônes, actions tertiaires) */
+.olj-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 0.375rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-foreground-body);
+  padding: 0.375rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.olj-btn-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+  border-color: var(--color-border);
+  color: var(--color-foreground);
+}
+.olj-btn-ghost:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.olj-btn-ghost:disabled {
   opacity: 0.45;
 }
 

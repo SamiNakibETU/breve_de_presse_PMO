@@ -56,20 +56,21 @@ export function Masthead() {
   return (
     <header className="border-b border-border bg-background shadow-sm">
       <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 py-4 sm:py-5">
-          <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5 py-3.5 sm:gap-x-4 sm:gap-y-3 sm:py-5">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <Link
               href={todayEditionHref}
               prefetch
               onMouseEnter={() => prefetchNavData(queryClient)}
+              className="shrink-0"
             >
               <Image
                 src="/logo_olj.svg"
                 alt="L'Orient-Le Jour"
-                width={200}
-                height={30}
+                width={220}
+                height={34}
                 priority
-                className="h-[28px] w-auto"
+                className="h-[32px] w-auto sm:h-[34px]"
               />
             </Link>
             <span className="hidden text-[11px] font-medium leading-snug tracking-wide text-muted-foreground sm:inline sm:max-w-[14rem]">
@@ -77,35 +78,77 @@ export function Masthead() {
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-[11px] font-medium text-muted-foreground sm:hidden">
-              Revue de presse
-            </span>
             {pipeline && (
-              <button
-                type="button"
-                className="olj-btn-secondary shrink-0"
-                disabled={running !== null || serverPipelineBusy}
-                title={
-                  serverPipelineBusy
-                    ? "Un pipeline complet est déjà en cours sur le serveur."
-                    : undefined
-                }
-                onClick={() =>
-                  pipeline.startRun("pipeline", "Traitement complet")
-                }
-              >
-                {running?.key === "pipeline"
-                  ? "Traitement…"
-                  : serverPipelineBusy
-                    ? "Pipeline serveur…"
-                    : "Actualiser (traitement complet)"}
-              </button>
+              <>
+                {/* Desktop : libellé complet */}
+                <button
+                  type="button"
+                  className="olj-btn-secondary hidden shrink-0 sm:inline-flex"
+                  disabled={running !== null || serverPipelineBusy}
+                  title={
+                    serverPipelineBusy
+                      ? "Un pipeline complet est déjà en cours sur le serveur."
+                      : "Lancer collecte, traduction et traitements complets (plusieurs minutes)."
+                  }
+                  onClick={() =>
+                    pipeline.startRun("pipeline", "Traitement complet")
+                  }
+                >
+                  {running?.key === "pipeline"
+                    ? "Traitement…"
+                    : serverPipelineBusy
+                      ? "Pipeline serveur…"
+                      : "Actualiser (traitement complet)"}
+                </button>
+                {/* Mobile : icône seule pour libérer l’espace */}
+                <button
+                  type="button"
+                  className="olj-btn-secondary inline-flex h-9 w-9 shrink-0 items-center justify-center p-0 sm:hidden"
+                  disabled={running !== null || serverPipelineBusy}
+                  title={
+                    serverPipelineBusy
+                      ? "Pipeline serveur en cours."
+                      : "Actualiser — traitement complet"
+                  }
+                  aria-label={
+                    running?.key === "pipeline"
+                      ? "Traitement en cours"
+                      : serverPipelineBusy
+                        ? "Pipeline serveur en cours"
+                        : "Actualiser (traitement complet)"
+                  }
+                  onClick={() =>
+                    pipeline.startRun("pipeline", "Traitement complet")
+                  }
+                >
+                  {running?.key === "pipeline" || serverPipelineBusy ? (
+                    <span className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground border-t-foreground" aria-hidden />
+                  ) : (
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                      <path d="M16 16h5v5" />
+                    </svg>
+                  )}
+                </button>
+              </>
             )}
           </div>
         </div>
 
         <nav
-          className="flex flex-wrap items-center gap-2 border-t border-border py-3 sm:gap-3"
+          className="olj-scrollbar-none -mx-1 flex flex-nowrap items-center gap-2 overflow-x-auto border-t border-border px-1 py-3 sm:mx-0 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:px-0"
           aria-label="Navigation principale"
         >
           {/* Édition — point d'entrée unique pour tout le flux éditorial */}
@@ -114,7 +157,7 @@ export function Masthead() {
             prefetch
             onMouseEnter={() => prefetchNavData(queryClient)}
             className={cn(
-              "olj-nav-item",
+              "olj-nav-item shrink-0",
               (pathname === "/" || pathname.startsWith("/edition")) &&
                 "olj-nav-item--active",
             )}
@@ -132,7 +175,7 @@ export function Masthead() {
                   if (href === "/panorama") prefetchNavData(queryClient);
                 }}
                 className={cn(
-                  "olj-nav-item",
+                  "olj-nav-item shrink-0",
                   active && "olj-nav-item--active",
                 )}
               >
@@ -148,7 +191,7 @@ export function Masthead() {
             title="Régie"
             aria-label="Régie"
             className={cn(
-              "ml-auto flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
               pathname.startsWith("/regie") && "bg-muted text-foreground",
             )}
           >

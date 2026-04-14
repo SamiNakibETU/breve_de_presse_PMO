@@ -36,7 +36,7 @@ function filterClusters(
 const CHIP_BASE =
   "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-[11px] font-medium leading-tight transition-colors [transition-duration:var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 active:scale-[0.97]";
 const CHIP_OFF =
-  "border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground";
+  "border-border bg-background text-muted-foreground hover:border-foreground/25 hover:bg-muted/50 hover:text-foreground";
 const CHIP_ON = "border-foreground bg-foreground text-background";
 
 export function PanoramaPageContent() {
@@ -94,29 +94,26 @@ export function PanoramaPageContent() {
     <div className="space-y-8">
       {/* ── HERO ÉPURÉ ─────────────────────────────────────────── */}
       <header className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-          <div className="min-w-0">
-            <p className="olj-rubric mb-1">Vue régionale</p>
-            <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight text-foreground sm:text-[32px]">
-              Panorama
-            </h1>
-            <p className="mt-1.5 text-[13px] capitalize text-muted-foreground">
-              {dateStr} · {subjectCount} regroupement
-              {subjectCount !== 1 ? "s" : ""}
-              {countryFilter.length > 0 || emergingOnly ? " · filtrés" : ""}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
-            <Link href={`/edition/${editionDate}`} className="olj-btn-primary px-3.5 py-1.5 text-[12px]">
-              Édition du jour
+        <div className="min-w-0">
+          <p className="olj-rubric mb-1">Vue régionale</p>
+          <h1 className="font-[family-name:var(--font-serif)] text-[28px] font-semibold leading-tight tracking-tight text-foreground sm:text-[32px]">
+            Panorama
+          </h1>
+          <p className="mt-1.5 text-[13px] capitalize text-muted-foreground">
+            {dateStr} · {subjectCount} regroupement
+            {subjectCount !== 1 ? "s" : ""}
+            {countryFilter.length > 0 || emergingOnly ? " · filtrés" : ""}
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground sm:text-[12px]">
+            Sommaire rédactionnel pour la même date :{" "}
+            <Link
+              href={`/edition/${editionDate}`}
+              className="olj-link-action font-semibold underline-offset-2 hover:underline"
+            >
+              ouvrir l&apos;édition du {dateStr}
             </Link>
-            <Link href="/articles" className="olj-btn-secondary px-3.5 py-1.5 text-[12px]">
-              Articles
-            </Link>
-            <Link href="/regie/pipeline" className="olj-btn-secondary px-3.5 py-1.5 text-[12px]">
-              Pipeline
-            </Link>
-          </div>
+            .
+          </p>
         </div>
 
         {/* Frise */}

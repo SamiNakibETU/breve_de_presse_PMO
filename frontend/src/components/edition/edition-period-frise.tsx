@@ -15,6 +15,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -93,6 +94,18 @@ function fmtFullDayName(iso: string): string {
   return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${ds} ${mo}`;
 }
 
+/** Libellé court pour le rail de jours sur mobile (évite la troncature « Mard »). */
+function fmtDaySelectorCompact(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const wd = d
+    .toLocaleDateString("fr-FR", { weekday: "short" })
+    .replace(/\.$/, "");
+  const day = d.getDate();
+  const ds = day === 1 ? "1er" : String(day);
+  const capitalized = wd.charAt(0).toUpperCase() + wd.slice(1);
+  return `${capitalized} ${ds}`;
+}
+
 function fmtDayShortTimeline(iso: string): string {
   const d   = new Date(iso + "T12:00:00");
   const wd  = d.toLocaleDateString("fr-FR", { weekday: "long" });
@@ -154,7 +167,7 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
       {/* Barre hachurée SVG Figma */}
       <div className="relative mt-4 flex w-full max-w-[180px] items-center">
         <div className="h-3 w-0.5 shrink-0" style={{ background: COL_ORANGE }} />
-        <svg className="h-[10px] flex-1" preserveAspectRatio="none">
+        <svg className="h-[10px] flex-1" preserveAspectRatio="none" aria-hidden>
           <defs>
             <pattern
               id="info-hatch"
@@ -165,7 +178,9 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
               <line x1="1" y1="0" x2="1" y2="4" stroke={COL_ORANGE} strokeWidth="1.2" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#info-hatch)" opacity="0.7" />
+          <rect width="100%" height="100%" fill="url(#info-hatch)" opacity="0.7">
+            <title>Représentation schématique de la fenêtre de collecte sur la frise.</title>
+          </rect>
         </svg>
         <div className="h-3 w-0.5 shrink-0" style={{ background: COL_ORANGE }} />
       </div>
@@ -292,8 +307,9 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
 
   return (
     <div
-      className="relative flex flex-1 items-center overflow-hidden bg-white"
-      style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", minHeight: 150, borderRadius: "var(--radius-card, 18px)" }}
+      className="relative flex min-h-[150px] w-full min-w-0 flex-1 items-center overflow-hidden bg-white"
+      style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", borderRadius: "var(--radius-card, 18px)" }}
+      title="Frise horaire (heure de Beyrouth) : faites défiler pour voir les jours voisins."
     >
       {/* Dégradé gauche */}
       <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 rounded-l-[24px]"
@@ -434,10 +450,12 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
                   height:     TICK_BOTTOM - LABEL_Y - 12,
                   background: COL_LIVE,
                 }}
+                title="Heure actuelle (fuseau de la frise : Beyrouth)."
               />
               <span
                 className="absolute text-[10px] font-semibold"
                 style={{ left: nowX + 5, top: LABEL_Y + 12, color: COL_LIVE }}
+                title="Position « maintenant » sur la frise."
               >
                 Live
               </span>
@@ -536,7 +554,8 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
         onClick={goLeft}
         disabled={currentIdx <= 0}
         aria-label="Jour précédent"
-        className="flex h-[36px] w-7 shrink-0 items-center justify-center rounded-[8px] text-[#191919]/50 transition-colors hover:bg-muted/40 hover:text-[#191919] disabled:opacity-25"
+        type="button"
+        className="flex h-[36px] w-7 shrink-0 items-center justify-center rounded-[8px] text-[#191919]/50 transition-colors hover:bg-muted/50 hover:text-[#191919] disabled:opacity-25"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M7 1L3 5L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -560,18 +579,20 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
                 key={iso}
                 data-day-btn
                 data-active={isActive}
+                type="button"
+                title={fmtFullDayName(iso)}
                 onClick={() => onSelect(iso)}
-                className="shrink-0 cursor-pointer whitespace-nowrap rounded-[8px] px-3.5 text-[12px] transition-all duration-150 hover:bg-white/80"
+                className="min-w-[5.5rem] shrink-0 cursor-pointer whitespace-nowrap rounded-[8px] px-2.5 text-[11px] transition-all duration-150 hover:bg-white/90 hover:ring-1 hover:ring-border/40 sm:min-w-[8.125rem] sm:px-3.5 sm:text-[12px]"
                 style={{
                   height:     36,
-                  minWidth:   130,
                   background: isActive ? "white" : "transparent",
                   boxShadow:  isActive ? "0 1px 4px 0 rgba(0,0,0,0.08)" : "none",
                   color:      isActive ? COL_DARK : "#888",
                   fontWeight: isActive ? 600 : 400,
                 }}
               >
-                {fmtFullDayName(iso)}
+                <span className="sm:hidden">{fmtDaySelectorCompact(iso)}</span>
+                <span className="hidden sm:inline">{fmtFullDayName(iso)}</span>
               </button>
             );
           })}
@@ -582,13 +603,46 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
         onClick={goRight}
         disabled={currentIdx >= days.length - 1}
         aria-label="Jour suivant"
-        className="flex h-[36px] w-7 shrink-0 items-center justify-center rounded-[8px] text-[#191919]/50 transition-colors hover:bg-muted/40 hover:text-[#191919] disabled:opacity-25"
+        type="button"
+        className="flex h-[36px] w-7 shrink-0 items-center justify-center rounded-[8px] text-[#191919]/50 transition-colors hover:bg-muted/50 hover:text-[#191919] disabled:opacity-25"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M3 1L7 5L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
     </div>
+  );
+}
+
+/** Légende commune : zone hachurée = fenêtre de collecte de l'édition. */
+function FriseCollectionLegend({ patternId }: { patternId: string }) {
+  return (
+    <p className="mx-auto flex max-w-xl flex-wrap items-center justify-center gap-2 px-1 text-center text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+      <span
+        className="inline-flex h-3 w-9 shrink-0 overflow-hidden rounded-sm border border-border/70"
+        aria-hidden
+      >
+        <svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 36 12">
+          <defs>
+            <pattern
+              id={patternId}
+              width="4"
+              height="4"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(24)"
+            >
+              <line x1="1" y1="0" x2="1" y2="4" stroke={COL_ORANGE} strokeWidth="1.2" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill={`url(#${patternId})`} opacity={0.65} />
+        </svg>
+      </span>
+      <span>
+        Zone hachurée :{" "}
+        <span className="text-foreground-body">fenêtre de collecte</span> de l&apos;édition (articles
+        retenus entre les bornes).
+      </span>
+    </p>
   );
 }
 
@@ -606,6 +660,7 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
   unifiedDayNav,
 }: EditionPeriodFriseProps) {
   const calDays = useMemo(() => isoRange(currentIso, SELECTOR_RANGE), [currentIso]);
+  const legendPatternId = `frise-legend-hatch-${useId().replace(/:/g, "")}`;
 
   return (
     <nav className="w-full min-w-0 max-w-full space-y-3" aria-label="Navigation temporelle de l'édition">
@@ -621,6 +676,7 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
           windowEnd={editionWindow?.end}
         />
       </div>
+      <FriseCollectionLegend patternId={legendPatternId} />
       <div className="flex min-w-0 w-full max-w-full items-center gap-2">
         <FriseDaySelector
           currentIso={currentIso}

@@ -102,8 +102,6 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
   const second = rawPreviews[1] ? normalizePreview(rawPreviews[1]) : null;
   const third = rawPreviews[2] ? normalizePreview(rawPreviews[2]) : null;
 
-  const pertinencePct =
-    cluster.avg_relevance > 0 ? Math.round(cluster.avg_relevance * 100) : null;
   const freshness = formatFreshness(cluster.latest_article_at);
 
   /* Drapeaux pays : emoji seuls, tooltip pays complet */
@@ -131,9 +129,9 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
     >
       <article
         className={[
-          "flex h-full flex-col rounded-xl border bg-card p-5",
+          "flex h-full flex-col rounded-xl border border-border bg-card p-5",
           "transition-all [transition-duration:var(--duration-normal)] [transition-timing-function:var(--ease-out-expo)]",
-          "hover:border-accent/25 hover:shadow-mid hover:-translate-y-px",
+          "group-hover:border-accent/35 group-hover:shadow-mid group-hover:-translate-y-px",
           "sm:p-6",
         ].join(" ")}
       >
@@ -208,12 +206,18 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
 
         {/* PIED : drapeaux + pays tags + lien */}
         <footer className="mt-4 border-t border-border-light pt-3.5">
+          {freshness ? (
+            <p className="mb-2.5 text-[10px] tabular-nums text-muted-foreground">
+              Parution la plus récente (Beyrouth) :{" "}
+              <span className="font-medium text-foreground-body">{freshness}</span>
+            </p>
+          ) : null}
           {flags.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-1" aria-label="Pays couverts">
               {flags.map(({ emoji, name }) => (
                 <span
                   key={name}
-                  className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/15 px-1.5 py-0.5 text-[11px]"
+                  className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/15 px-1.5 py-0.5 text-[11px] transition-colors hover:border-foreground/25 hover:bg-muted/45"
                   title={name}
                 >
                   <span className="text-[13px] leading-none">{emoji}</span>
@@ -228,9 +232,12 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
             </div>
           )}
 
-          <p className="text-[12px] font-semibold text-foreground group-hover:text-accent transition-colors [transition-duration:var(--duration-fast)]">
-            Ouvrir le dossier →
-          </p>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-low transition-all [transition-duration:var(--duration-fast)] group-hover:border-accent/40 group-hover:bg-accent-tint/90 group-hover:text-accent">
+            Ouvrir le dossier
+            <span aria-hidden className="text-accent">
+              →
+            </span>
+          </span>
         </footer>
       </article>
     </Link>
