@@ -32,26 +32,37 @@ from src.services.opinion_hub_overrides import merge_hub_override
 
 logger = structlog.get_logger(__name__)
 
-_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\((https?://[^\)]+)\)")
+_MD_LINK_RE = re.compile(r'\[([^\]]*)\]\((https?://[^\s)"\']+)')
+_MEDIA_EXTS = re.compile(
+    r"\.(png|jpg|jpeg|gif|webp|svg|ico|mp4|mp3|pdf|zip|css|js)(\?.*)?$",
+    re.IGNORECASE,
+)
+_MIN_ARTICLE_PATH_LEN = 10  # /a = trop court pour être un article
 
 
 def _extract_links_from_jina_markdown(markdown: str, base_url: str) -> list[str]:
-    """Extrait les URLs depuis le contenu Markdown retourné par Jina AI Reader.
+    """Extrait les URLs d'articles depuis le Markdown retourné par Jina AI Reader.
 
-    Jina retourne [texte](url) — BeautifulSoup ne trouve rien sur ce format.
-    On extrait les URLs absolues et on filtre par domaine du hub.
+    Jina retourne [texte](url). BeautifulSoup ne trouve rien dans ce format.
+    Filtre : même domaine, chemin non-vide, pas un fichier media/statique.
     """
     base_domain = urlparse(base_url).netloc
     links: list[str] = []
     seen: set[str] = set()
-    for _text, url in _MD_LINK_RE.findall(markdown):
-        url = url.strip().rstrip(")")
+    for text, url in _MD_LINK_RE.findall(markdown):
+        url = url.strip().rstrip(")\"'")
         if not url.startswith("http"):
             try:
                 url = urljoin(base_url, url)
             except Exception:
                 continue
-        if urlparse(url).netloc != base_domain:
+        parsed = urlparse(url)
+        if parsed.netloc != base_domain:
+            continue
+        path = parsed.path
+        if not path or len(path) < _MIN_ARTICLE_PATH_LEN:
+            continue
+        if _MEDIA_EXTS.search(path):
             continue
         if url not in seen:
             seen.add(url)

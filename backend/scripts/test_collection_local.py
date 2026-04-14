@@ -52,6 +52,8 @@ REGISTRY_PATH = BACKEND_DIR / "data" / "MEDIA_REVUE_REGISTRY.json"
 OUT_DIR = BACKEND_DIR / "test_collection_results"
 MAX_ARTICLES_PER_SOURCE = 3
 MAX_CONCURRENT_SOURCES = 4
+# Timeout global par source (évite tout blocage indéfini Playwright)
+SOURCE_TIMEOUT_S = 180
 
 QUALITY_THRESHOLDS = {
     "words_full": 300,
@@ -100,18 +102,17 @@ def detect_artifacts(text: str) -> list[str]:
     return found
 
 
-async def test_one_source(
+async def _test_one_source_inner(
     source: dict,
     pw: PlaywrightPool,
     pw_lock: asyncio.Lock,
-    sem: asyncio.Semaphore,
-    max_articles: int = MAX_ARTICLES_PER_SOURCE,
+    max_articles: int,
 ) -> dict:
     source_id = source["id"]
     source_name = source["name"]
     hub_urls: list[str] = source.get("opinion_hub_urls") or []
-    
-    result = {
+
+    result: dict = {
         "id": source_id,
         "name": source_name,
         "country": source.get("country", ""),
@@ -131,104 +132,147 @@ async def test_one_source(
         "error": "",
         "elapsed_s": 0.0,
     }
-    
-    async with sem:
-        t0 = time.perf_counter()
-        try:
-            print(f"[{source_id}] → Hub fetch…")
-            
-            # Collecter les liens depuis tous les hub_urls
-            all_links: list[str] = []
-            for hub_url in hub_urls:
-                links, meta = await fetch_html_and_extract_hub_links(
-                    source_id=source_id,
-                    hub_url=hub_url.strip(),
-                    pw=pw,
-                    pw_lock=pw_lock,
-                    max_links=max_articles * 6,
-                    min_links=1,
+
+    t0 = time.perf_counter()
+    try:
+        print(f"[{source_id}] → Hub fetch…")
+
+        # Collecter les liens depuis tous les hub_urls
+        all_links: list[str] = []
+        for hub_url in hub_urls:
+            links, _meta = await fetch_html_and_extract_hub_links(
+                source_id=source_id,
+                hub_url=hub_url.strip(),
+                pw=pw,
+                pw_lock=pw_lock,
+                max_links=max_articles * 6,
+                min_links=1,
+            )
+            for lnk in links:
+                if lnk not in all_links:
+                    all_links.append(lnk)
+            if all_links:
+                result["hub_ok"] = True
+
+        result["links_found"] = len(all_links)
+
+        if not all_links:
+            result["status"] = "no_links"
+            result["error"] = "Aucun lien d'article trouvé sur le hub"
+            result["elapsed_s"] = round(time.perf_counter() - t0, 2)
+            return result
+
+        print(f"[{source_id}] → {len(all_links)} liens, extraction {min(max_articles, len(all_links))} articles…")
+
+        # Extraire les articles (avec timeout individuel par article)
+        article_links = all_links[:max_articles]
+        for url in article_links:
+            try:
+                body, author, title, pub_date, strategy, image_url = await asyncio.wait_for(
+                    extract_hub_article_page(url, pw=pw, pw_lock=pw_lock),
+                    timeout=90,
                 )
-                for lnk in links:
-                    if lnk not in all_links:
-                        all_links.append(lnk)
-                if all_links:
-                    result["hub_ok"] = True
-            
-            result["links_found"] = len(all_links)
-            
-            if not all_links:
-                result["status"] = "no_links"
-                result["error"] = "Aucun lien d'article trouvé sur le hub"
-                return result
-            
-            print(f"[{source_id}] → {len(all_links)} liens trouvés, extraction de {min(max_articles, len(all_links))} articles…")
-            
-            # Extraire les articles
-            article_links = all_links[:max_articles]
-            for url in article_links:
-                try:
-                    body, author, title, pub_date, strategy, image_url = await extract_hub_article_page(
-                        url, pw=pw, pw_lock=pw_lock
-                    )
-                    wc = word_count(body or "")
-                    artifacts = detect_artifacts(body or "")
-                    q = quality_label(wc, bool(image_url))
-                    
-                    art = {
-                        "url": url,
-                        "title": title or "",
-                        "author": author or "",
-                        "pub_date": pub_date.isoformat() if pub_date else "",
-                        "word_count": wc,
-                        "quality": q,
-                        "has_image": bool(image_url),
-                        "image_url": image_url or "",
-                        "strategy": strategy,
-                        "artifacts": artifacts,
-                        "body_preview": (body or "")[:400].replace("\n", " ") if body else "",
-                    }
-                    result["articles"].append(art)
-                    
-                    if "FULL" in q:
-                        result["articles_full"] += 1
-                    elif "PARTIAL" in q:
-                        result["articles_partial"] += 1
-                    elif "MINIMAL" in q:
-                        result["articles_minimal"] += 1
-                    else:
-                        result["articles_failed"] += 1
-                    if image_url:
-                        result["has_images"] += 1
-                    if artifacts:
-                        for a in artifacts:
-                            if a not in result["artifacts_detected"]:
-                                result["artifacts_detected"].append(a)
-                    
-                    status_icon = "✅" if "FULL" in q else ("⚠️" if "PARTIAL" in q else "❌")
-                    print(f"  {status_icon} {url[:80]} → {wc}w [{q}] (strat={strategy})")
-                    
-                    await asyncio.sleep(0.8)
-                except Exception as exc:
-                    result["articles"].append({"url": url, "error": str(exc)[:200], "quality": "ERROR"})
+                wc = word_count(body or "")
+                artifacts = detect_artifacts(body or "")
+                q = quality_label(wc, bool(image_url))
+
+                art = {
+                    "url": url,
+                    "title": title or "",
+                    "author": author or "",
+                    "pub_date": pub_date.isoformat() if pub_date else "",
+                    "word_count": wc,
+                    "quality": q,
+                    "has_image": bool(image_url),
+                    "image_url": image_url or "",
+                    "strategy": strategy,
+                    "artifacts": artifacts,
+                    "body_preview": (body or "")[:400].replace("\n", " ") if body else "",
+                }
+                result["articles"].append(art)
+
+                if "FULL" in q:
+                    result["articles_full"] += 1
+                elif "PARTIAL" in q:
+                    result["articles_partial"] += 1
+                elif "MINIMAL" in q:
+                    result["articles_minimal"] += 1
+                else:
                     result["articles_failed"] += 1
-                    print(f"  ❌ {url[:80]} → ERREUR: {exc!s:.80}")
-            
-            # Statut global de la source
-            total = len(result["articles"])
-            if result["articles_full"] + result["articles_partial"] >= max(1, total // 2):
-                result["status"] = "ok"
-            elif result["articles_full"] + result["articles_partial"] > 0:
-                result["status"] = "partial"
-            else:
-                result["status"] = "failed"
-        
-        except Exception as exc:
-            result["status"] = "error"
-            result["error"] = str(exc)[:500]
-            print(f"[{source_id}] ❌ ERREUR source: {exc!s:.200}")
-        
-        result["elapsed_s"] = round(time.perf_counter() - t0, 2)
-        return result
+                if image_url:
+                    result["has_images"] += 1
+                for a in artifacts:
+                    if a not in result["artifacts_detected"]:
+                        result["artifacts_detected"].append(a)
+
+                icon = "✅" if "FULL" in q else ("⚠️" if "PARTIAL" in q else "❌")
+                print(f"  {icon} {url[:80]} → {wc}w [{q}]")
+                await asyncio.sleep(0.5)
+
+            except asyncio.TimeoutError:
+                result["articles"].append({"url": url, "error": "article_timeout_90s", "quality": "TIMEOUT"})
+                result["articles_failed"] += 1
+                print(f"  ⏱ {url[:80]} → TIMEOUT 90s")
+            except Exception as exc:
+                result["articles"].append({"url": url, "error": str(exc)[:200], "quality": "ERROR"})
+                result["articles_failed"] += 1
+                print(f"  ❌ {url[:80]} → {exc!s:.80}")
+
+        # Statut global
+        total = len(result["articles"])
+        good = result["articles_full"] + result["articles_partial"]
+        if good >= max(1, total // 2):
+            result["status"] = "ok"
+        elif good > 0:
+            result["status"] = "partial"
+        else:
+            result["status"] = "failed"
+
+    except Exception as exc:
+        result["status"] = "error"
+        result["error"] = str(exc)[:500]
+        print(f"[{source_id}] ❌ ERREUR: {exc!s:.200}")
+
+    result["elapsed_s"] = round(time.perf_counter() - t0, 2)
+    return result
+
+
+async def test_one_source(
+    source: dict,
+    pw: PlaywrightPool,
+    pw_lock: asyncio.Lock,
+    sem: asyncio.Semaphore,
+    max_articles: int = MAX_ARTICLES_PER_SOURCE,
+) -> dict:
+    """Wrapper avec sémaphore de concurrence + timeout global par source."""
+    async with sem:
+        try:
+            return await asyncio.wait_for(
+                _test_one_source_inner(source, pw, pw_lock, max_articles),
+                timeout=SOURCE_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            print(f"[{source['id']}] ⏱ TIMEOUT global {SOURCE_TIMEOUT_S}s — source ignorée")
+            return {
+                "id": source["id"],
+                "name": source["name"],
+                "country": source.get("country", ""),
+                "country_code": source.get("country_code", ""),
+                "language": source.get("languages", ["?"])[0],
+                "hub_urls": source.get("opinion_hub_urls") or [],
+                "hub_ok": False,
+                "links_found": 0,
+                "articles": [],
+                "articles_full": 0,
+                "articles_partial": 0,
+                "articles_minimal": 0,
+                "articles_failed": 0,
+                "has_images": 0,
+                "artifacts_detected": [],
+                "status": "timeout",
+                "error": f"Source timeout après {SOURCE_TIMEOUT_S}s",
+                "elapsed_s": SOURCE_TIMEOUT_S,
+            }
 
 
 def build_markdown_report(results: list[dict], elapsed_total: float) -> str:
@@ -331,6 +375,29 @@ def build_markdown_report(results: list[dict], elapsed_total: float) -> str:
     return md
 
 
+async def _test_with_timeout(src: dict, pw: "PlaywrightPool", pw_lock: asyncio.Lock,
+                             sem: asyncio.Semaphore, max_articles: int) -> dict:
+    """Enveloppe avec timeout global par source pour éviter tout blocage."""
+    try:
+        return await asyncio.wait_for(
+            test_one_source(src, pw, pw_lock, sem, max_articles),
+            timeout=SOURCE_TIMEOUT_S,
+        )
+    except asyncio.TimeoutError:
+        print(f"[{src['id']}] ⏱ TIMEOUT ({SOURCE_TIMEOUT_S}s) — source ignorée")
+        return {
+            "id": src["id"], "name": src["name"],
+            "country": src.get("country", ""), "country_code": src.get("country_code", ""),
+            "language": src.get("languages", ["?"])[0],
+            "hub_urls": src.get("opinion_hub_urls", []),
+            "hub_ok": False, "links_found": 0, "articles": [],
+            "articles_full": 0, "articles_partial": 0, "articles_minimal": 0, "articles_failed": 0,
+            "has_images": 0, "artifacts_detected": [],
+            "status": "timeout", "error": f"Timeout global {SOURCE_TIMEOUT_S}s dépassé",
+            "elapsed_s": SOURCE_TIMEOUT_S,
+        }
+
+
 async def run_tests(sources: list[dict], max_articles: int) -> list[dict]:
     pw = PlaywrightPool(max_contexts=3)
     pw_lock = asyncio.Lock()
@@ -338,7 +405,7 @@ async def run_tests(sources: list[dict], max_articles: int) -> list[dict]:
     
     try:
         tasks = [
-            test_one_source(src, pw, pw_lock, sem, max_articles)
+            _test_with_timeout(src, pw, pw_lock, sem, max_articles)
             for src in sources
         ]
         results = await asyncio.gather(*tasks, return_exceptions=False)
@@ -351,17 +418,19 @@ async def run_tests(sources: list[dict], max_articles: int) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Test local collection pipeline OLJ")
     parser.add_argument("--limit", type=int, default=0, help="Limiter à N sources (0 = toutes)")
-    parser.add_argument("--source", type=str, default="", help="ID d'une source précise")
+    parser.add_argument("--source", type=str, action="append", dest="sources", default=[],
+                        help="ID d'une source (répétable : --source a --source b)")
     parser.add_argument("--articles", type=int, default=3, help="Nb articles par source (défaut 3)")
     args = parser.parse_args()
     
     sources = load_registry()
     print(f"✅ Registre chargé : {len(sources)} sources actives\n")
     
-    if args.source:
-        sources = [s for s in sources if s["id"] == args.source]
+    if args.sources:
+        ids = set(args.sources)
+        sources = [s for s in sources if s["id"] in ids]
         if not sources:
-            print(f"❌ Source '{args.source}' non trouvée.")
+            print(f"❌ Sources '{args.sources}' non trouvées.")
             sys.exit(1)
     elif args.limit > 0:
         sources = sources[:args.limit]

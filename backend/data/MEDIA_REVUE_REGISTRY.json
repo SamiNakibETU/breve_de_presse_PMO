@@ -61,7 +61,7 @@
       "paywall": "free",
       "translation_quality_to_fr": "high",
       "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "is_active": false
     },
     {
       "id": "ae_the_national",
@@ -148,7 +148,7 @@
       "paywall": "free",
       "translation_quality_to_fr": "high",
       "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "is_active": false
     },
     {
       "id": "dz_el_chourouk_el_yom",
@@ -200,7 +200,8 @@
       "rss_opinion_url": null,
       "english_version_url": null,
       "opinion_hub_urls": [
-        "https://gate.ahram.org.eg/Daily/Opinion.aspx"
+        "https://gate.ahram.org.eg/",
+        "https://gate.ahram.org.eg/Category/43/254/Artilces/Writers.aspx"
       ],
       "collection_method": "opinion_hub",
       "paywall": "free",
@@ -503,7 +504,7 @@
       "paywall": "free",
       "translation_quality_to_fr": "high",
       "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "is_active": false
     },
     {
       "id": "iq_al_sabah_al_jadeed",
@@ -677,8 +678,8 @@
       "collection_method": "opinion_hub",
       "paywall": "free",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "editorial_notes": "Site inaccessible hors Iran (timeout). Désactivé.",
+      "is_active": false
     },
     {
       "id": "ir_hamshahri",
@@ -706,8 +707,8 @@
       "collection_method": "opinion_hub",
       "paywall": "free",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "editorial_notes": "Site inaccessible hors Iran (timeout). Désactivé.",
+      "is_active": false
     },
     {
       "id": "ir_iran_international",
@@ -738,7 +739,7 @@
       "paywall": "free",
       "translation_quality_to_fr": "high",
       "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "is_active": false
     },
     {
       "id": "ir_iranwire",
@@ -795,8 +796,8 @@
       "collection_method": "opinion_hub",
       "paywall": "free",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "editorial_notes": "Site inaccessible / pas de site web. Désactivé.",
+      "is_active": false
     },
     {
       "id": "ir_kayhan",
@@ -824,8 +825,8 @@
       "collection_method": "opinion_hub",
       "paywall": "free",
       "translation_quality_to_fr": "high",
-      "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "editorial_notes": "Site inaccessible / pas de site web. Désactivé.",
+      "is_active": false
     },
     {
       "id": "ir_shargh",
@@ -970,7 +971,7 @@
       "paywall": "free",
       "translation_quality_to_fr": "high",
       "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "is_active": false
     },
     {
       "id": "kw_al_anba",
@@ -1492,7 +1493,7 @@
       "paywall": "free",
       "translation_quality_to_fr": "high",
       "editorial_notes": "Liste revue de presse (CSV) — hub opinion / colonnes.",
-      "is_active": true
+      "is_active": false
     },
     {
       "id": "qa_al_watan",

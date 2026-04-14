@@ -441,11 +441,11 @@
     },
     "aletihad.ae": {
       "playwright": true,
-      "wait_ms": 7000,
+      "wait_ms": 8000,
       "playwright_timeout_ms": 95000,
       "scroll_page": true,
       "wait_until": "load",
-      "link_pattern": "/[0-9]{4,}|/article/|/opinion/|/news/",
+      "link_pattern": "/opinion(?:-videos)?/[0-9]{4,}/",
       "relaxed_same_site": true
     },
     "haaretz.com": {
@@ -563,8 +563,9 @@
     },
     "ae_gulf_news": {
       "rss_feed_urls": [
+        "https://gulfnews.com/rss/opinion-columnists",
+        "https://gulfnews.com/rss/opinion-editorials",
         "https://gulfnews.com/rss/opinion",
-        "https://gulfnews.com/feed/opinion",
         "https://gulfnews.com/feed"
       ],
       "rss_link_filter": "/opinion/",
@@ -575,10 +576,11 @@
       "playwright_timeout_ms": 90000
     },
     "bh_al_watan": {
-      "rss_feed_url": "https://www.alwatannews.net/rssFeed/14",
+      "jina_ai_primary": true,
       "rss_feed_urls": [
         "https://www.alwatannews.net/rssFeed/14",
-        "https://alwatannews.net/rssFeed/14"
+        "https://alwatannews.net/rssFeed/14",
+        "https://alwatannews.net/feed/"
       ],
       "additional_hub_urls": [
         "https://www.alwatannews.net/opinion",
@@ -592,10 +594,13 @@
       "relaxed_same_site": true
     },
     "eg_al_ahram_daily": {
-      "additional_hub_urls": [
-        "https://gate.ahram.org.eg/Daily/Opinion.aspx",
-        "https://gate.ahram.org.eg/daily/Opinion.aspx"
-      ]
+      "jina_ai_primary": true,
+      "link_pattern": "/Daily/(?:News/\\d+/\\d+/\\d+|WriterArticles/\\d+)/|Category/\\d+/\\d+/",
+      "playwright": true,
+      "playwright_timeout_ms": 90000,
+      "wait_ms": 5000,
+      "scroll_page": false,
+      "relaxed_same_site": true
     },
     "eg_madam_masr": {
       "rss_feed_url": "https://www.madamasr.com/en/feed/"
@@ -615,15 +620,21 @@
     },
     "iq_al_sabah": {
       "jina_ai_primary": true,
-      "rss_feed_url": "https://alsabaah.iq/rssFeed/0",
       "rss_feed_urls": [
-        "https://www.alsabaah.iq/rssFeed/0"
+        "https://www.alsabaah.iq/rssFeed/0",
+        "https://alsabaah.iq/rssFeed/0",
+        "https://alsabaah.iq/feed/"
       ],
       "additional_hub_urls": [
         "https://alsabaah.iq/",
         "https://www.alsabaah.iq/",
         "https://alsabaah.iq/category/%D8%A2%D8%B1%D8%A7%D8%A1/"
-      ]
+      ],
+      "link_pattern": "/[Nn]ewspaper/[0-9]+|/article/[0-9]+|/[0-9]{4,}",
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "relaxed_same_site": true
     },
     "iq_al_sabah_jadeed": {
       "rss_feed_urls": [
@@ -636,13 +647,6 @@
       "rss_feed_url": "https://iranwire.com/en/feed/",
       "rss_link_filter": "/blogs/"
     },
-    "ir_iran_intl": {
-      "rss_feed_urls": [
-        "https://www.iranintl.com/en/rss",
-        "https://www.iranintl.com/rss"
-      ],
-      "rss_link_filter": "/opinion"
-    },
     "jo_al_ghad": {
       "jina_ai_primary": true,
       "rss_feed_url": "https://alghad.com/rssFeed/114",
@@ -654,20 +658,31 @@
     "jo_assabel": {
       "rss_feed_urls": [
         "https://assabeel.net/feed/",
-        "https://www.assabeel.net/feed/"
+        "https://www.assabeel.net/feed/",
+        "https://assabeel.net/category/articles/feed/"
       ],
-      "rss_link_filter": "/articles/"
+      "link_pattern": "^/[0-9]{4,}$|/[0-9]{5,}",
+      "relaxed_same_site": true,
+      "playwright": true,
+      "wait_ms": 5000,
+      "playwright_timeout_ms": 90000
     },
     "jo_jordan_times": {
-      "rss_feed_url": "https://jordantimes.com/rss-feed/1",
       "rss_feed_urls": [
         "https://jordantimes.com/rss-feed/1",
-        "https://www.jordantimes.com/rss-feed/1"
+        "https://www.jordantimes.com/rss-feed/1",
+        "https://jordantimes.com/rss-feed/opinion",
+        "https://jordantimes.com/rss"
       ],
       "rss_link_filter": "/opinion/",
       "additional_hub_urls": [
         "https://jordantimes.com/writer/editorial"
-      ]
+      ],
+      "link_pattern": "/opinion/",
+      "playwright": true,
+      "wait_ms": 6000,
+      "playwright_timeout_ms": 90000,
+      "relaxed_same_site": true
     },
     "sy_al_hal": {
       "rss_feed_urls": [
@@ -685,19 +700,29 @@
     },
     "sy_enab_baladi_en": {
       "rss_feed_urls": [
-        "https://english.enabbaladi.net/feed/",
-        "https://english.enabbaladi.net/archives/category/opinion/feed/"
-      ],
-      "rss_link_filter": "/opinion/"
+        "https://english.enabbaladi.net/archives/category/in-depth/feed/",
+        "https://english.enabbaladi.net/feed/"
+      ]
     },
     "sa_al_arabiya": {
+      "jina_ai_primary": true,
       "rss_feed_urls": [
-        "https://www.alarabiya.net/.mrss/ar.xml"
+        "https://www.alarabiya.net/.mrss/ar/views.xml",
+        "https://www.alarabiya.net/.mrss/ar.xml",
+        "https://www.alarabiya.net/ar/views.rss"
       ],
       "rss_link_filter": "/views/",
       "additional_hub_urls": [
         "https://www.alarabiya.net/ar/views"
-      ]
+      ],
+      "playwright": true,
+      "wait_ms": 12000,
+      "playwright_timeout_ms": 110000,
+      "scroll_page": true,
+      "wait_until": "load",
+      "wait_for_selector": "a[href*='/views/']",
+      "link_pattern": "/ar/views/",
+      "relaxed_same_site": true
     },
     "tr_sabah": {
       "link_pattern": "(?i)/yazarlar/[^/]+/[^/]+",
@@ -751,6 +776,64 @@
         "https://rss.jpost.com/rss/rssfeedsopinion.aspx"
       ],
       "rss_link_filter": "/opinion/"
+    },
+    "ae_al_ittihad": {
+      "jina_ai_primary": true
+    },
+    "eg_al_akhbar_el_yom": {
+      "jina_ai_primary": true,
+      "rss_feed_urls": [
+        "https://akhbarelyom.com/feed/",
+        "https://www.akhbarelyom.com/feed/"
+      ],
+      "rss_link_filter": "/news/|/opinion/|/article/",
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 90000,
+      "scroll_page": true,
+      "relaxed_same_site": true
+    },
+    "ir_iran_international": {
+      "rss_feed_urls": [
+        "https://www.iranintl.com/en/feed",
+        "https://www.iranintl.com/feed"
+      ],
+      "link_pattern": "/en/[0-9]{10,}",
+      "relaxed_same_site": true
+    },
+    "jo_al_rai": {
+      "jina_ai_primary": true,
+      "rss_feed_urls": [
+        "https://alrai.com/feed/",
+        "https://www.alrai.com/feed/",
+        "https://alrai.com/rss"
+      ],
+      "rss_link_filter": "/[0-9]{5,}|/article/",
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 90000,
+      "scroll_page": true,
+      "relaxed_same_site": true,
+      "link_pattern": "/[0-9]{5,}"
+    },
+    "qa_al_sharq": {
+      "jina_ai_primary": true,
+      "rss_feed_urls": [
+        "https://al-sharq.com/feed/",
+        "https://www.al-sharq.com/feed/"
+      ],
+      "rss_link_filter": "/opinion/|/[Aa]ras/|/[Aa]ra/",
+      "playwright": true,
+      "wait_ms": 7000,
+      "playwright_timeout_ms": 95000,
+      "scroll_page": true,
+      "relaxed_same_site": true
+    },
+    "sy_enab_baladi": {
+      "rss_feed_urls": [
+        "https://english.enabbaladi.net/archives/category/in-depth/feed/",
+        "https://english.enabbaladi.net/feed/"
+      ]
     }
   }
 }
