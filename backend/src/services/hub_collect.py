@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import random
+import re
 from typing import Any, Optional
+from urllib.parse import urljoin, urlparse
 
 import structlog
 
@@ -29,6 +31,32 @@ from src.services.hub_rss import (
 from src.services.opinion_hub_overrides import merge_hub_override
 
 logger = structlog.get_logger(__name__)
+
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\((https?://[^\)]+)\)")
+
+
+def _extract_links_from_jina_markdown(markdown: str, base_url: str) -> list[str]:
+    """Extrait les URLs depuis le contenu Markdown retourné par Jina AI Reader.
+
+    Jina retourne [texte](url) — BeautifulSoup ne trouve rien sur ce format.
+    On extrait les URLs absolues et on filtre par domaine du hub.
+    """
+    base_domain = urlparse(base_url).netloc
+    links: list[str] = []
+    seen: set[str] = set()
+    for _text, url in _MD_LINK_RE.findall(markdown):
+        url = url.strip().rstrip(")")
+        if not url.startswith("http"):
+            try:
+                url = urljoin(base_url, url)
+            except Exception:
+                continue
+        if urlparse(url).netloc != base_domain:
+            continue
+        if url not in seen:
+            seen.add(url)
+            links.append(url)
+    return links
 
 
 def _extract_kwargs(override: dict[str, Any]) -> dict[str, Any]:
@@ -223,11 +251,16 @@ async def fetch_html_and_extract_hub_links(
         if html_jp:
             strategies.append("jina_primary")
             last_html_len = max(last_html_len, len(html_jp))
-            _add_urls(extract_hub_article_links(html_jp, hub_url, max_links=max_links, **ex_kw))
+            # Jina retourne du Markdown : extraire les liens MD ET les liens HTML
+            md_links = _extract_links_from_jina_markdown(html_jp, hub_url)
+            html_links = extract_hub_article_links(html_jp, hub_url, max_links=max_links, **ex_kw)
+            _add_urls(md_links + html_links)
             _log(
                 "hub_collect.jina_primary_ok",
                 stage="jina_primary",
                 html_len=len(html_jp),
+                md_links=len(md_links),
+                html_links=len(html_links),
                 link_candidates=len(ordered),
                 error_code="",
             )

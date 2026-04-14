@@ -445,7 +445,7 @@
       "playwright_timeout_ms": 95000,
       "scroll_page": true,
       "wait_until": "load",
-      "link_pattern": "/opinion/|/[0-9]{5,}",
+      "link_pattern": "/[0-9]{4,}|/article/|/opinion/|/news/",
       "relaxed_same_site": true
     },
     "haaretz.com": {
@@ -562,11 +562,13 @@
       ]
     },
     "ae_gulf_news": {
-      "rss_feed_url": "https://gulfnews.com/feed",
       "rss_feed_urls": [
+        "https://gulfnews.com/rss/opinion",
+        "https://gulfnews.com/feed/opinion",
         "https://gulfnews.com/feed"
       ],
       "rss_link_filter": "/opinion/",
+      "jina_ai_primary": true,
       "relaxed_same_site": true,
       "playwright": true,
       "wait_ms": 5500,
