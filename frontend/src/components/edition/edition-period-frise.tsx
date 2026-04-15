@@ -222,9 +222,15 @@ interface TimelineCardProps {
   currentIso:   string;
   windowStart?: string;
   windowEnd?:   string;
+  legendPatternId: string;
 }
 
-function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardProps) {
+function FriseTimelineCard({
+  currentIso,
+  windowStart,
+  windowEnd,
+  legendPatternId,
+}: TimelineCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef      = useRef<{ startX: number; scrollLeft: number } | null>(null);
   const [nowIso, setNowIso]         = useState(() => new Date().toISOString());
@@ -307,10 +313,11 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
 
   return (
     <div
-      className="relative flex min-h-[150px] w-full min-w-0 flex-1 items-center overflow-hidden bg-white"
+      className="relative flex w-full min-w-0 flex-1 flex-col overflow-hidden bg-white"
       style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", borderRadius: "var(--radius-card, 18px)" }}
       title="Frise horaire (heure de Beyrouth) : faites défiler pour voir les jours voisins."
     >
+      <div className="relative flex min-h-[150px] min-w-0 flex-1 items-center">
       {/* Dégradé gauche */}
       <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 rounded-l-[24px]"
         style={{ background: "linear-gradient(to right, rgba(255,255,255,0.92) 0%, transparent 100%)" }} />
@@ -494,6 +501,37 @@ function FriseTimelineCard({ currentIso, windowStart, windowEnd }: TimelineCardP
 
         </div>
       </div>
+      </div>
+
+      {/* Légende zone hachurée — centrée dans la carte (même bloc que la frise) */}
+      <div className="shrink-0 border-t border-border/25 bg-white px-2 py-2">
+        <p className="mx-auto flex max-w-xl flex-wrap items-center justify-center gap-2 text-center text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+          <span
+            className="inline-flex h-3 w-9 shrink-0 overflow-hidden rounded-sm border border-border/70"
+            aria-hidden
+          >
+            <svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 36 12">
+              <defs>
+                <pattern
+                  id={legendPatternId}
+                  width="4"
+                  height="4"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(24)"
+                >
+                  <line x1="1" y1="0" x2="1" y2="4" stroke={COL_ORANGE} strokeWidth="1.2" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill={`url(#${legendPatternId})`} opacity={0.65} />
+            </svg>
+          </span>
+          <span>
+            Zone hachurée :{" "}
+            <span className="text-foreground-body">fenêtre de collecte</span> de l&apos;édition (articles
+            retenus entre les bornes).
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -614,38 +652,6 @@ function FriseDaySelector({ currentIso, days, onSelect }: DaySelectorProps) {
   );
 }
 
-/** Légende commune : zone hachurée = fenêtre de collecte de l'édition. */
-function FriseCollectionLegend({ patternId }: { patternId: string }) {
-  return (
-    <p className="mx-auto flex max-w-xl flex-wrap items-center justify-center gap-2 px-1 text-center text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
-      <span
-        className="inline-flex h-3 w-9 shrink-0 overflow-hidden rounded-sm border border-border/70"
-        aria-hidden
-      >
-        <svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 36 12">
-          <defs>
-            <pattern
-              id={patternId}
-              width="4"
-              height="4"
-              patternUnits="userSpaceOnUse"
-              patternTransform="rotate(24)"
-            >
-              <line x1="1" y1="0" x2="1" y2="4" stroke={COL_ORANGE} strokeWidth="1.2" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#${patternId})`} opacity={0.65} />
-        </svg>
-      </span>
-      <span>
-        Zone hachurée :{" "}
-        <span className="text-foreground-body">fenêtre de collecte</span> de l&apos;édition (articles
-        retenus entre les bornes).
-      </span>
-    </p>
-  );
-}
-
 /* ── Export principal ─────────────────────────────────────────────── */
 
 interface EditionPeriodFriseProps {
@@ -674,9 +680,9 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
           currentIso={currentIso}
           windowStart={editionWindow?.start}
           windowEnd={editionWindow?.end}
+          legendPatternId={legendPatternId}
         />
       </div>
-      <FriseCollectionLegend patternId={legendPatternId} />
       <div className="flex min-w-0 w-full max-w-full items-center gap-2">
         <FriseDaySelector
           currentIso={currentIso}

@@ -20,6 +20,7 @@ import {
   PipelineResultPanel,
   type PipelineActionKey,
 } from "./pipeline-result-panel";
+import { confirmHeavyPipelineRun } from "@/lib/pipeline-confirm";
 
 interface PipelineStatusProps {
   status: AppStatus | null;
@@ -173,6 +174,7 @@ export function PipelineStatus({
     running !== null || (!useServerEdition && !editionTargetReady);
 
   const runAdvanced = (key: PipelineActionKey, label: string) => {
+    if (!confirmHeavyPipelineRun(key)) return;
     if (useServerEdition) {
       startRun(key, label);
       return;
@@ -226,7 +228,10 @@ export function PipelineStatus({
             <button
               key={key}
               type="button"
-              onClick={() => startRun(key, label)}
+              onClick={() => {
+                if (!confirmHeavyPipelineRun(key)) return;
+                startRun(key, label);
+              }}
               disabled={running !== null || serverPipelineBusy}
               className="olj-btn-secondary text-[12px] disabled:opacity-40"
               title={

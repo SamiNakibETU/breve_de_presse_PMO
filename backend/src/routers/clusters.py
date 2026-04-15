@@ -136,7 +136,7 @@ async def list_clusters(db: AsyncSession = Depends(get_db)):
         if cid is None or not thesis or not str(thesis).strip():
             continue
         cur = theses_by_cluster[cid]
-        if len(cur) >= 3:
+        if len(cur) >= 5:
             continue
         t = str(thesis).strip()[:220]
         key = f"{t}|{media_name or ''}|{article_type or ''}"

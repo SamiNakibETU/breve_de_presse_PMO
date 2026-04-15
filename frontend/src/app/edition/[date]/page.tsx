@@ -18,6 +18,7 @@ import type {
   EditionTopic,
 } from "@/lib/types";
 import { formatEditionWindowFr } from "@/lib/dates-display-fr";
+import { confirmHeavyPipelineRun } from "@/lib/pipeline-confirm";
 
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
@@ -1010,9 +1011,10 @@ export default function EditionSommairePage() {
                         pipeline.running !== null ||
                         Boolean(statusQ.data?.pipeline_running)
                       }
-                      onClick={() =>
-                        pipeline.startRun("pipeline", "Mise à jour complète")
-                      }
+                      onClick={() => {
+                        if (!confirmHeavyPipelineRun("pipeline")) return;
+                        pipeline.startRun("pipeline", "Mise à jour complète");
+                      }}
                     >
                       {pipeline.running?.key === "pipeline"
                         ? "Mise à jour…"

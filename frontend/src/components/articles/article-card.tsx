@@ -3,7 +3,7 @@
 /**
  * ArticleCard — Carte article compacte.
  *
- * Pattern produit : click titre OU bouton "Lire" → reader modal.
+ * Pattern produit : clic sur la carte (sauf case à cocher) ou bouton « Lire » → lecteur.
  * Aucun expand inline — toute la lecture passe par ArticleReadModal.
  *
  * Hiérarchie typographique :
@@ -80,7 +80,11 @@ export const ArticleCard = memo(function ArticleCard({
     >
       {/* Checkbox sélection */}
       <button
-        onClick={() => onToggle(article.id)}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(article.id);
+        }}
         aria-label={selected ? "Désélectionner" : "Sélectionner"}
         className={cn(
           "absolute left-3 top-3 flex h-4 w-4 items-center justify-center border transition-colors",
@@ -139,7 +143,7 @@ export const ArticleCard = memo(function ArticleCard({
         {/* Niveau 2 : titre — click → reader */}
         <h3
           className={cn(
-            "cursor-pointer leading-snug hover:text-accent transition-colors",
+            "leading-snug transition-colors group-hover:text-accent/90",
             "[transition-duration:var(--duration-fast)]",
             variant === "grid"
               ? "font-[family-name:var(--font-serif)] text-[17px] font-semibold text-foreground"
@@ -147,7 +151,6 @@ export const ArticleCard = memo(function ArticleCard({
                 ? "font-[family-name:var(--font-serif)] text-[16px] font-semibold text-foreground"
                 : "text-[14px] font-medium text-foreground",
           )}
-          onClick={() => openArticle(article.id)}
         >
           {article.title_fr || article.title_original}
         </h3>
@@ -195,7 +198,11 @@ export const ArticleCard = memo(function ArticleCard({
         {/* Bouton Lire → reader modal */}
         {hasSummaryOrAnalysis && (
           <button
-            onClick={() => openArticle(article.id)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openArticle(article.id);
+            }}
             className="olj-btn-secondary mt-2.5 px-2.5 py-1 text-[10px]"
           >
             Lire

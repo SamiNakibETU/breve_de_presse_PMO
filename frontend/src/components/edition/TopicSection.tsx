@@ -68,19 +68,23 @@ function previewGeneratedText(raw: string, maxChars = 380): string {
 
 const SUMMARY_PREVIEW_COUNT = 2;
 const MAX_ARTICLES_PER_COUNTRY = 2;
+const MAX_TOPIC_ANALYSIS_BULLETS = 5;
 
-function pickContrastingPreviews(
+/** Puces d’analyse agrégées sur le sujet (jusqu’à 5, sans doublon exact). */
+function aggregateAnalysisBullets(
   previews: TopicArticlePreview[],
   max: number,
-): TopicArticlePreview[] {
-  const seen = new Set<string>();
-  const out: TopicArticlePreview[] = [];
+): string[] {
+  const out: string[] = [];
   for (const p of previews) {
-    const cc = (p.country_code ?? "").trim().toUpperCase() || "XX";
-    if (seen.has(cc)) continue;
-    seen.add(cc);
-    out.push(p);
-    if (out.length >= max) break;
+    const bs = p.analysis_bullets_fr ?? [];
+    for (const b of bs) {
+      const t = String(b).trim();
+      if (!t) continue;
+      if (out.some((x) => x === t)) continue;
+      out.push(t);
+      if (out.length >= max) return out;
+    }
   }
   return out;
 }
@@ -233,7 +237,7 @@ function TopicArticleCard({
           {/* Puces analyse — max 2 */}
           {preview.analysis_bullets_fr && preview.analysis_bullets_fr.length > 0 ? (
             <ul className="mt-2 space-y-1.5">
-              {preview.analysis_bullets_fr.slice(0, 3).map((b, i) => (
+              {preview.analysis_bullets_fr.slice(0, 5).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px] leading-snug text-foreground-body">
                   <span className="mt-px shrink-0 font-bold text-accent">{i + 1}.</span>
                   <span>{b}</span>
@@ -300,7 +304,6 @@ export function TopicSection({
   mode?: "full" | "summary";
   countryLabelsFr?: Record<string, string> | null;
 }) {
-  const { openArticle, prefetchArticle } = useArticleReader();
   const [expanded, setExpanded] = useState(false);
   const [copiedGen, setCopiedGen] = useState(false);
 
@@ -319,9 +322,6 @@ export function TopicSection({
   const countriesText = countriesInlineFromCodes(derivedCodes, countryLabelsFr);
   const articleTotal = topic.article_count ?? previews.length;
   const nCountryCodes = derivedCodes.length;
-  const contrasting = pickContrastingPreviews(previews, 3);
-  const showContrastingBlock =
-    mode === "summary" && previews.length > 0 && contrasting.length >= 2;
 
   const groups = useMemo(() => groupVisibleByCountry(visible), [visible]);
   const displayRank = topic.user_rank ?? topic.rank;
@@ -329,11 +329,10 @@ export function TopicSection({
 
   /* Image hero non disponible via TopicArticlePreview — champ image_url absent */
 
-  /* Puces analyse du premier article analysé */
-  const withBullets = previews.find(
-    (p) => p.analysis_bullets_fr && p.analysis_bullets_fr.length > 0,
+  const analysisBullets = useMemo(
+    () => aggregateAnalysisBullets(previews, MAX_TOPIC_ANALYSIS_BULLETS),
+    [previews],
   );
-  const analysisBullets = withBullets?.analysis_bullets_fr?.slice(0, 3) ?? [];
 
   /* These dominante */
   const dominantThesis =
@@ -419,7 +418,7 @@ export function TopicSection({
             {analysisBullets.length > 0 && (
               <AnalysisBullets
                 bullets={analysisBullets}
-                maxVisible={3}
+                maxVisible={MAX_TOPIC_ANALYSIS_BULLETS}
                 className="max-w-xl"
               />
             )}
@@ -447,60 +446,13 @@ export function TopicSection({
               ) : null}
             </div>
             {dateRange ? (
-              <p className="text-[10px] tabular-nums text-muted-foreground/70">
-                Parution : {dateRange}
-              </p>
-            ) : null}
-
-            {/* Contraste des regards — grille 2 voix */}
-            {showContrastingBlock ? (
-              <div className="max-w-xl rounded-lg border border-border-light bg-surface/50 p-3">
-                <SectionLabel className="mb-3">Contraste des regards</SectionLabel>
-                <div className={cn(
-                  "gap-3",
-                  contrasting.length >= 2 ? "grid grid-cols-1 sm:grid-cols-2" : "flex flex-col",
-                )}>
-                  {contrasting.slice(0, 2).map((p) => {
-                    const pcc = (p.country_code ?? "").trim().toUpperCase();
-                    const pflag = REGION_FLAG_EMOJI[pcc];
-                    const journal = p.media_name?.trim();
-                    const typeFr = articleTypeLabelFr(p.article_type);
-                    return (
-                      <div key={p.id} className="min-w-0 space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                          {pflag && <span className="text-[14px] leading-none">{pflag}</span>}
-                          {journal && <span className="font-semibold text-foreground">{journal}</span>}
-                          {typeFr && <span className="olj-type-chip">{typeFr}</span>}
-                        </div>
-                        {p.thesis_summary_fr ? (
-                          <p className="font-[family-name:var(--font-serif)] text-[12px] italic leading-relaxed text-foreground-body line-clamp-3">
-                            {p.thesis_summary_fr}
-                          </p>
-                        ) : null}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            className="olj-btn-secondary px-2.5 py-1 text-[10px]"
-                            onMouseEnter={() => prefetchArticle(p.id)}
-                            onClick={() => openArticle(p.id)}
-                          >
-                            Lire
-                          </button>
-                          {p.url ? (
-                            <a
-                              href={p.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="olj-link-action text-[10px]"
-                            >
-                              Source ↗
-                            </a>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="max-w-xl rounded-lg border border-border/50 bg-muted/15 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Parution (collecte, Beyrouth)
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-serif)] text-[14px] font-medium tabular-nums leading-snug text-foreground sm:text-[15px]">
+                  {dateRange}
+                </p>
               </div>
             ) : null}
 

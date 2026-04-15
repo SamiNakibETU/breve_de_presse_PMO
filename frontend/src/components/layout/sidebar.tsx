@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
+import { confirmHeavyPipelineRun } from "@/lib/pipeline-confirm";
 
 const PRIMARY_NAV = [
   { href: "/panorama", label: "Panorama" },
@@ -90,57 +91,16 @@ export function Masthead() {
                       ? "Un pipeline complet est déjà en cours sur le serveur."
                       : "Lancer collecte, traduction et traitements complets (plusieurs minutes)."
                   }
-                  onClick={() =>
-                    pipeline.startRun("pipeline", "Traitement complet")
-                  }
+                  onClick={() => {
+                    if (!confirmHeavyPipelineRun("pipeline")) return;
+                    pipeline.startRun("pipeline", "Traitement complet");
+                  }}
                 >
                   {running?.key === "pipeline"
                     ? "Traitement…"
                     : serverPipelineBusy
                       ? "Pipeline serveur…"
                       : "Actualiser (traitement complet)"}
-                </button>
-                {/* Mobile : icône seule pour libérer l’espace */}
-                <button
-                  type="button"
-                  className="olj-btn-secondary inline-flex h-9 w-9 shrink-0 items-center justify-center p-0 sm:hidden"
-                  disabled={running !== null || serverPipelineBusy}
-                  title={
-                    serverPipelineBusy
-                      ? "Pipeline serveur en cours."
-                      : "Actualiser — traitement complet"
-                  }
-                  aria-label={
-                    running?.key === "pipeline"
-                      ? "Traitement en cours"
-                      : serverPipelineBusy
-                        ? "Pipeline serveur en cours"
-                        : "Actualiser (traitement complet)"
-                  }
-                  onClick={() =>
-                    pipeline.startRun("pipeline", "Traitement complet")
-                  }
-                >
-                  {running?.key === "pipeline" || serverPipelineBusy ? (
-                    <span className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground border-t-foreground" aria-hidden />
-                  ) : (
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                      <path d="M3 3v5h5" />
-                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                      <path d="M16 16h5v5" />
-                    </svg>
-                  )}
                 </button>
               </>
             )}
