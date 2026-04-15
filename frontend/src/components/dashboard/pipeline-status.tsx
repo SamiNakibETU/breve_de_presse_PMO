@@ -26,9 +26,6 @@ interface PipelineStatusProps {
   status: AppStatus | null;
   /** Santé des sources (GET /api/media-sources/health) — affichage discret sous le pipeline */
   sourceHealth?: MediaSourcesHealthResponse | null;
-  /** Par défaut : sources du registre revue uniquement (voir API `revue_registry_only`). */
-  revueRegistryOnly?: boolean;
-  onRevueRegistryOnlyChange?: (value: boolean) => void;
 }
 
 const PRIMARY_ACTIONS: {
@@ -135,12 +132,7 @@ const CHAIN_STEP_DEFS: {
   { kind: "topic_detection", label: "Grands sujets" },
 ];
 
-export function PipelineStatus({
-  status,
-  sourceHealth,
-  revueRegistryOnly = true,
-  onRevueRegistryOnlyChange,
-}: PipelineStatusProps) {
+export function PipelineStatus({ status, sourceHealth }: PipelineStatusProps) {
   const { running, lastRun, diagnostics, startRun, startSequentialChain, clearDiagnostics } =
     usePipelineRunner();
   const [showAllSources, setShowAllSources] = useState(false);
@@ -449,23 +441,6 @@ export function PipelineStatus({
         <div className="border-t border-border-light pt-3">
           <div className="mb-2">
             <p className="olj-rubric olj-rule text-[11px]">État des sources</p>
-            {onRevueRegistryOnlyChange ? (
-              <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-foreground-body">
-                <input
-                  type="checkbox"
-                  className="accent-[var(--color-accent)]"
-                  checked={revueRegistryOnly}
-                  onChange={(e) => onRevueRegistryOnlyChange(e.target.checked)}
-                />
-                <span>
-                  Limiter aux sources du{" "}
-                  <strong className="font-medium text-foreground-subtle">
-                    registre revue de presse
-                  </strong>{" "}
-                  (décocher pour toutes les sources techniques)
-                </span>
-              </label>
-            ) : null}
             <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
               Volume d’articles sur les{" "}
               <strong className="font-medium text-foreground-subtle">

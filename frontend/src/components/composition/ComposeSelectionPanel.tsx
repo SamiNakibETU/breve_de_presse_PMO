@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { TopicArticlePreview, EditionTopic } from "@/lib/types";
 import { ArticleReorderInTopic, type ArticleReorderItem } from "./ArticleReorderInTopic";
+import { UI_SURFACE_INSET, UI_SURFACE_INSET_PAD } from "@/lib/ui-surface-classes";
 
 function previewLine(p: TopicArticlePreview): string {
   const t = (p.title_fr || p.title_original || "").trim();
@@ -48,24 +49,24 @@ export function ComposeSelectionPanel({
   return (
     <section
       aria-labelledby="compose-selection-heading"
-      className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
+      className={`rounded-2xl border border-border/50 bg-card ${UI_SURFACE_INSET_PAD} shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-6`}
     >
       <h2
         id="compose-selection-heading"
-        className="olj-rubric mb-3 border-b border-border-light pb-2"
+        className="mb-4 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
       >
-        Articles retenus ({totalSelected})
+        Articles retenus ·{" "}
+        <span className="tabular-nums text-foreground">{totalSelected}</span>
       </h2>
       {isLoading ? (
         <p className="text-[13px] text-muted-foreground">Chargement…</p>
       ) : totalSelected === 0 ? (
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Aucune sélection : retournez au{" "}
+          Aucun article pour l’instant —{" "}
           <Link href={`/edition/${date}`} className="olj-link-action">
             sommaire
-          </Link>{" "}
-          et cochez des articles sous les grands sujets (et sous les regroupements si
-          besoin).
+          </Link>
+          .
         </p>
       ) : (
         <div className="space-y-6">
@@ -77,7 +78,7 @@ export function ComposeSelectionPanel({
             }));
             return (
               <div key={topic.id}>
-                <p className="text-[12px] font-semibold text-foreground">
+                <p className="text-[12px] font-medium text-foreground">
                   {topic.title_final ?? topic.title_proposed}
                 </p>
                 <div className="mt-2">
@@ -85,48 +86,36 @@ export function ComposeSelectionPanel({
                     items={reorderItems}
                     disabled={reorderDisabled || removeDisabled}
                     onOrderChange={(orderedIds) => onOrderChange(topic.id, orderedIds)}
-                    onRemoveArticle={(articleId) =>
-                      onRemoveArticle(topic.id, articleId)
-                    }
+                    onRemoveArticle={(articleId) => onRemoveArticle(topic.id, articleId)}
                   />
                 </div>
               </div>
             );
           })}
           {extraOnlyPreviews.length > 0 && (
-            <div>
-              <p className="text-[12px] font-semibold text-foreground">
-                Complément (regroupements)
-              </p>
+            <div className={`${UI_SURFACE_INSET} ${UI_SURFACE_INSET_PAD}`}>
+              <p className="text-[12px] font-medium text-foreground">Complément (regroupements)</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                Ces coches renforcent la{" "}
-                <strong className="font-medium text-foreground">couverture</strong>{" "}
-                affichée sur le sommaire. La génération de texte utilise les articles{" "}
-                <strong className="font-medium text-foreground">
-                  sélectionnés dans chaque grand sujet
-                </strong>{" "}
-                (au moins 2 par sujet).
+                Renforce la couverture affichée au sommaire. La génération utilise surtout les articles
+                cochés dans chaque grand sujet (deux minimum par sujet).
               </p>
-              <ul className="mt-2 space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
+              <ul className="mt-3 space-y-2">
                 {extraOnlyPreviews.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-start justify-between gap-2 text-[12px] leading-relaxed"
+                    className="flex items-start justify-between gap-2 border-b border-border/30 pb-2 text-[12px] last:border-b-0 last:pb-0"
                   >
                     <div className="min-w-0">
                       <span className="font-medium text-foreground">{p.media_name}</span>
                       {p.country_code ? (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {p.country_code}
-                        </span>
+                        <span className="text-muted-foreground"> · {p.country_code}</span>
                       ) : null}
                       <br />
                       <span className="text-foreground-body">{previewLine(p)}</span>
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-40"
+                      className="olj-focus shrink-0 rounded-md border border-border/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-40"
                       disabled={removeExtraDisabled}
                       aria-label="Retirer cet article"
                       onClick={() => onRemoveExtra(p.id)}

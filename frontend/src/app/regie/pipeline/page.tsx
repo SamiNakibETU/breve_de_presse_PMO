@@ -30,8 +30,6 @@ const SUGGESTED_ACTION_GUIDE_FR: Record<string, string> = {
 };
 
 export default function RegiePipelinePage() {
-  const [revueRegistryOnly, setRevueRegistryOnly] = useState(true);
-
   const statusQ = useQuery({
     queryKey: ["status"] as const,
     queryFn: (): Promise<AppStatus> => api.status(),
@@ -41,11 +39,11 @@ export default function RegiePipelinePage() {
   });
 
   const healthQ = useQuery({
-    queryKey: ["mediaSourcesHealth", revueRegistryOnly] as const,
+    queryKey: ["mediaSourcesHealth", true] as const,
     queryFn: ({
       signal,
     }): Promise<MediaSourcesHealthResponse> =>
-      api.mediaSourcesHealth(signal, { revueRegistryOnly }),
+      api.mediaSourcesHealth(signal, { revueRegistryOnly: true }),
   });
 
   const logsQ = useQuery({
@@ -95,12 +93,7 @@ export default function RegiePipelinePage() {
           Les suggestions du diagnostic édition renvoient ici pour déclencher les tâches sans ambiguïté (collecte vs
           pipeline seul).
         </p>
-        <PipelineStatus
-          status={status}
-          sourceHealth={sourceHealth}
-          revueRegistryOnly={revueRegistryOnly}
-          onRevueRegistryOnlyChange={setRevueRegistryOnly}
-        />
+        <PipelineStatus status={status} sourceHealth={sourceHealth} />
       </section>
 
       {status?.batch_limits ? (

@@ -11,6 +11,10 @@ import type {
   TopicArticlePreview,
 } from "@/lib/types";
 import {
+  nextSelectionsAfterRemove,
+  useSelectionStore,
+} from "@/stores/selection-store";
+import {
   type ComposeInstructionsPayload,
   DEFAULT_COMPOSE_INSTRUCTIONS,
   buildInstructionSuffixForLlm,
@@ -191,10 +195,35 @@ export default function ComposePage() {
   const removeArticleMutation = useMutation({
     mutationFn: async ({ topicId, articleId }: { topicId: string; articleId: string }) => {
       if (!editionId) throw new Error("Édition introuvable");
-      const cur = topicsSelectionMap[topicId] ?? [];
+      const bundle =
+        qc.getQueryData<EditionSelectionsResponse>(["editionSelections", editionId]) ??
+        selectionsQ.data;
+      const cur = bundle?.topics[topicId] ?? [];
       await api.editionTopicSelection(editionId, topicId, cur.filter((id) => id !== articleId));
     },
-    onSuccess: async () => {
+    onMutate: async ({ topicId, articleId }) => {
+      if (!editionId) return undefined;
+      await qc.cancelQueries({ queryKey: ["editionSelections", editionId] });
+      const previous = qc.getQueryData<EditionSelectionsResponse>([
+        "editionSelections",
+        editionId,
+      ]);
+      if (!previous) return undefined;
+      const next = nextSelectionsAfterRemove(previous, {
+        id: articleId,
+        topicId,
+        isExtra: false,
+      });
+      qc.setQueryData(["editionSelections", editionId], next);
+      useSelectionStore.getState().hydrateFromServer(editionId, next);
+      return { previous } as const;
+    },
+    onError: (_e, _v, ctx) => {
+      if (!editionId || !ctx?.previous) return;
+      qc.setQueryData(["editionSelections", editionId], ctx.previous);
+      useSelectionStore.getState().hydrateFromServer(editionId, ctx.previous);
+    },
+    onSettled: async () => {
       await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
     },
   });
@@ -202,12 +231,37 @@ export default function ComposePage() {
   const removeExtraArticleMutation = useMutation({
     mutationFn: async (articleId: string) => {
       if (!editionId) throw new Error("Édition introuvable");
-      const cur = selectionsQ.data?.extra_article_ids ?? [];
+      const bundle =
+        qc.getQueryData<EditionSelectionsResponse>(["editionSelections", editionId]) ??
+        selectionsQ.data;
+      const cur = bundle?.extra_article_ids ?? [];
       await api.editionComposePreferences(editionId, {
         extra_selected_article_ids: cur.filter((id) => id !== articleId),
       });
     },
-    onSuccess: async () => {
+    onMutate: async (articleId) => {
+      if (!editionId) return undefined;
+      await qc.cancelQueries({ queryKey: ["editionSelections", editionId] });
+      const previous = qc.getQueryData<EditionSelectionsResponse>([
+        "editionSelections",
+        editionId,
+      ]);
+      if (!previous) return undefined;
+      const next = nextSelectionsAfterRemove(previous, {
+        id: articleId,
+        topicId: null,
+        isExtra: true,
+      });
+      qc.setQueryData(["editionSelections", editionId], next);
+      useSelectionStore.getState().hydrateFromServer(editionId, next);
+      return { previous } as const;
+    },
+    onError: (_e, _id, ctx) => {
+      if (!editionId || !ctx?.previous) return;
+      qc.setQueryData(["editionSelections", editionId], ctx.previous);
+      useSelectionStore.getState().hydrateFromServer(editionId, ctx.previous);
+    },
+    onSettled: async () => {
       await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
     },
   });

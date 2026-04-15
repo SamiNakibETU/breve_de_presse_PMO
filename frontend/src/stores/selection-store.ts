@@ -1,6 +1,38 @@
 import { create } from "zustand";
 import type { EditionSelectionsResponse } from "@/lib/types";
 
+/** Ligne retirée depuis la barre de sélection ou la page Rédaction. */
+export type SelectionRemoveRow = {
+  id: string;
+  topicId: string | null;
+  isExtra: boolean;
+};
+
+/** Copie des sélections après retrait optimiste d’un article (UI instantanée). */
+export function nextSelectionsAfterRemove(
+  data: EditionSelectionsResponse,
+  row: SelectionRemoveRow,
+): EditionSelectionsResponse {
+  if (row.isExtra) {
+    return {
+      ...data,
+      extra_article_ids: data.extra_article_ids.filter((x) => x !== row.id),
+      extra_articles: (data.extra_articles ?? []).filter((p) => p.id !== row.id),
+    };
+  }
+  if (!row.topicId) {
+    return data;
+  }
+  const cur = data.topics[row.topicId] ?? [];
+  return {
+    ...data,
+    topics: {
+      ...data.topics,
+      [row.topicId]: cur.filter((x) => x !== row.id),
+    },
+  };
+}
+
 /**
  * Sélections rédaction par édition (sommaire + fiche sujet).
  * Hydratation depuis GET …/selections ; les PATCH restent déclenchés par les écrans.

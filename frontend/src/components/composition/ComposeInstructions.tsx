@@ -44,8 +44,8 @@ export function ComposeInstructions({
   };
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
-      <h2 className="olj-rubric border-b border-border-light pb-2">
+    <div className="space-y-4 rounded-2xl border border-border/50 bg-card p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-6">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Consignes pour le modèle
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">

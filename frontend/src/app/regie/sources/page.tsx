@@ -12,7 +12,6 @@ import {
 } from "@/lib/media-source-health-display";
 
 export default function RegieSourcesPage() {
-  const [revueRegistryOnly, setRevueRegistryOnly] = useState(true);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -27,11 +26,12 @@ export default function RegieSourcesPage() {
   }, []);
 
   const healthQ = useQuery({
-    queryKey: ["mediaSourcesHealth", "regie", revueRegistryOnly] as const,
+    queryKey: ["mediaSourcesHealth", "regie", true] as const,
     queryFn: ({ signal }) =>
-      api.mediaSourcesHealth(signal, { revueRegistryOnly }),
+      api.mediaSourcesHealth(signal, { revueRegistryOnly: true }),
     staleTime: 60_000,
     retry: 1,
+    refetchOnWindowFocus: true,
   });
 
   const data = healthQ.data;
@@ -50,31 +50,16 @@ export default function RegieSourcesPage() {
       <p className="max-w-3xl text-[13px] leading-relaxed text-foreground-body">
         Même périmètre et libellés que le bloc « État des sources » de la Régie (collecte) : volumes sur{" "}
         <strong className="font-medium text-foreground">{wh} h</strong>, traductions sur{" "}
-        <strong className="font-medium text-foreground">24 h</strong> (persistées en base).
+        <strong className="font-medium text-foreground">24 h</strong> (persistées en base). Liste limitée aux{" "}
+        <strong className="font-medium text-foreground">médias validés</strong> pour la revue de presse régionale
+        {data?.revue_registry_count != null ? (
+          <>
+            {" "}
+            (<span className="tabular-nums">{data.revue_registry_count}</span> entrées actives)
+          </>
+        ) : null}
+        .
       </p>
-
-      <label className="flex max-w-2xl cursor-pointer items-start gap-2 text-[12px] text-foreground-body">
-        <input
-          type="checkbox"
-          className="mt-0.5 accent-[var(--color-accent)]"
-          checked={revueRegistryOnly}
-          onChange={(e) => setRevueRegistryOnly(e.target.checked)}
-        />
-        <span>
-          Limiter aux sources du{" "}
-          <strong className="font-medium text-foreground-subtle">
-            registre revue de presse
-          </strong>{" "}
-          (<code className="text-[11px]">MEDIA_REVUE_REGISTRY.json</code>
-          {data?.revue_registry_count != null ? (
-            <>
-              ,{" "}
-              <span className="tabular-nums">{data.revue_registry_count}</span> entrées dans le JSON
-            </>
-          ) : null}
-          ). Décocher pour toutes les sources techniques.
-        </span>
-      </label>
 
       {data?.translation_metrics_note_fr ? (
         <p className="max-w-3xl text-[11px] leading-relaxed text-muted-foreground">

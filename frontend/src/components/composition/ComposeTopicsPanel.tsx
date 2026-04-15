@@ -14,6 +14,32 @@ function topicReadiness(ordered: TopicArticlePreview[]): ReadinessLevel {
   return readyCount >= 2 ? "ok" : "warn";
 }
 
+function scorePreviewForReco(p: TopicArticlePreview): number {
+  let s = 0;
+  if (p.editorial_relevance != null) s += p.editorial_relevance * 4;
+  if (p.has_full_translation_fr) s += 5;
+  if (p.is_flagship) s += 2;
+  if (p.analysis_bullets_fr && p.analysis_bullets_fr.length > 0) s += 2;
+  return s;
+}
+
+function recommendedUnselectedForTopic(
+  topic: EditionTopic,
+  map: Record<string, string[]>,
+  limit: number,
+): TopicArticlePreview[] {
+  const selected = new Set(map[topic.id] ?? []);
+  const pool = (topic.article_previews ?? []).filter((p) => !selected.has(p.id));
+  return [...pool]
+    .sort((a, b) => scorePreviewForReco(b) - scorePreviewForReco(a))
+    .slice(0, limit);
+}
+
+function shortArticleTitle(p: TopicArticlePreview): string {
+  const t = (p.title_fr || p.title_original || "").trim() || "Sans titre";
+  return t.length > 72 ? `${t.slice(0, 72)}…` : t;
+}
+
 interface ComposeTopicsPanelProps {
   date: string;
   topics: EditionTopic[];
@@ -55,28 +81,25 @@ export function ComposeTopicsPanel({
   }
 
   return (
-    <section aria-labelledby="compose-topics-heading" className="space-y-10">
+    <section aria-labelledby="compose-topics-heading" className="space-y-8">
       <h2
         id="compose-topics-heading"
-        className="olj-rubric border-b border-border pb-2"
+        className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
       >
-        Revue par article · grands sujets ({topics.length})
+        Textes par sujet ({topics.length})
       </h2>
 
       {topics.length === 0 ? (
         <p className="text-[13px] text-muted-foreground">
-          Aucun sujet pour cette édition. Lancez la détection des sujets depuis le
-          sommaire.
+          Aucun sujet pour cette édition. Lancez la détection des sujets depuis le sommaire.
         </p>
       ) : (
         topics.map((t, idx) => {
-          const rankLabel = t.user_rank ?? t.rank ?? idx + 1;
+          const position = idx + 1;
           const title = t.title_final ?? t.title_proposed;
           const previews = t.article_previews ?? [];
           const codes = new Set(
-            previews
-              .map((p) => (p.country_code ?? "").trim().toUpperCase())
-              .filter(Boolean),
+            previews.map((p) => (p.country_code ?? "").trim().toUpperCase()).filter(Boolean),
           );
           const nTexts = t.article_count ?? previews.length;
           const nCountries = codes.size;
@@ -84,49 +107,36 @@ export function ComposeTopicsPanel({
           const orderedForTopic = orderedSelectedPreviews(t, topicsSelectionMap);
           const nSelected = orderedForTopic.length;
           const canGenerate = nSelected >= 2;
+          const reco = recommendedUnselectedForTopic(t, topicsSelectionMap, 8);
 
           return (
             <article
               key={t.id}
-              className={
-                nSelected === 0
-                  ? "rounded-lg border border-dashed border-border bg-muted/15 p-5 opacity-90 shadow-sm sm:p-6"
-                  : "rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6"
-              }
+              className="rounded-2xl border border-border/55 bg-card p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-6"
             >
-              <div className="mb-4 flex flex-col gap-4 border-b border-border-light pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-4 border-b border-border/40 pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Grand sujet {rankLabel} sur {topics.length}
-                    </p>
+                    <span className="tabular-nums text-[11px] font-semibold text-muted-foreground">
+                      {position}/{topics.length}
+                    </span>
                     <ReadinessIndicator level={topicReadiness(orderedForTopic)} />
                   </div>
-                  <h3 className="mt-1 font-[family-name:var(--font-serif)] text-[19px] font-semibold leading-snug text-foreground">
+                  <h3 className="mt-1 font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug text-foreground">
                     {title}
                   </h3>
-                  <p className="mt-1 text-[12px] text-muted-foreground">
-                    {nTexts} texte{nTexts > 1 ? "s" : ""} lié{nTexts > 1 ? "s" : ""}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {nTexts} texte{nTexts > 1 ? "s" : ""}
                     {nCountries > 0 ? ` · ${nCountries} pays` : ""}
                     {nSelected > 0
-                      ? ` · ${nSelected} article${nSelected > 1 ? "s" : ""} sélectionné${nSelected > 1 ? "s" : ""} pour ce bloc`
-                      : " · aucun article sélectionné — cochez au moins deux textes au sommaire"}
+                      ? ` · ${nSelected} retenu${nSelected > 1 ? "s" : ""}`
+                      : " · aucune sélection"}
                   </p>
-                  {nSelected === 0 && (
-                    <p className="mt-2 text-[12px] text-muted-foreground">
-                      Retournez au{" "}
-                      <Link href={`/edition/${date}`} className="olj-link-action">
-                        sommaire
-                      </Link>{" "}
-                      pour cocher les articles à inclure dans la revue pour ce sujet.
+                  {nSelected === 1 ? (
+                    <p className="mt-2 text-[11px] text-warning">
+                      Encore un article dans ce sujet pour atteindre le minimum (2) avant génération.
                     </p>
-                  )}
-                  {nSelected === 1 && (
-                    <p className="mt-2 text-[12px] text-warning">
-                      Cochez au moins un article de plus dans ce sujet (deux au minimum
-                      pour générer le bloc).
-                    </p>
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap gap-2">
                   <button
@@ -138,27 +148,58 @@ export function ComposeTopicsPanel({
                     {isGeneratingTopic && regeneratingTopicId === t.id
                       ? "Rédaction…"
                       : hasGen
-                        ? "Rédiger à nouveau ce bloc"
-                        : "Rédiger ce bloc"}
+                        ? "Régénérer"
+                        : "Rédiger"}
                   </button>
                   <button
                     type="button"
                     className="olj-btn-secondary px-3 py-2 text-[12px]"
                     onClick={() => onCopyTopic(t)}
                   >
-                    {copiedTopicId === t.id ? "Copié" : "Copier ce bloc"}
+                    {copiedTopicId === t.id ? "Copié" : "Copier"}
                   </button>
                 </div>
               </div>
 
-              {hasGen ? (
-                <TopicGeneratedProse text={t.generated_text!} variant="compose" />
-              ) : (
-                <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-[14px] leading-relaxed text-muted-foreground">
-                  Pas encore de texte : cochez au moins deux articles pour ce grand sujet
-                  au sommaire, puis cliquez sur « Rédiger ce bloc ».
-                </p>
-              )}
+              {reco.length > 0 && nSelected < 2 ? (
+                <div className="mt-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Pistes (non sélectionnées)
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Pertinence et complétude de traduction — ouvrir pour décider au{" "}
+                    <Link href={`/edition/${date}`} className="olj-link-action">
+                      sommaire
+                    </Link>
+                    .
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {reco.map((p) => (
+                      <Link
+                        key={p.id}
+                        href={`/articles/${p.id}`}
+                        className="olj-focus max-w-[min(100%,18rem)] truncate rounded-md border border-border/55 bg-muted/15 px-2 py-1 text-[11px] text-foreground transition-colors hover:border-accent/40 hover:bg-muted/25"
+                        title={shortArticleTitle(p)}
+                      >
+                        <span className="text-muted-foreground">{p.media_name}</span>
+                        <span className="mx-1 text-border">·</span>
+                        <span>{shortArticleTitle(p)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4">
+                {hasGen ? (
+                  <TopicGeneratedProse text={t.generated_text!} variant="compose" />
+                ) : (
+                  <p className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
+                    Pas encore de texte — sélectionnez au moins deux articles au sommaire, puis «
+                    Rédiger ».
+                  </p>
+                )}
+              </div>
             </article>
           );
         })
