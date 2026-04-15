@@ -105,7 +105,7 @@ export function ArticleRow({
         {/* Zone cliquable principale → reader modal */}
         <button
           type="button"
-          className="min-w-0 flex-1 rounded-sm text-left focus:outline-none"
+          className="min-w-0 flex-1 cursor-pointer rounded-sm text-left focus:outline-none"
           onMouseEnter={() => prefetchArticle(article.id)}
           onClick={() => openArticle(article.id)}
         >

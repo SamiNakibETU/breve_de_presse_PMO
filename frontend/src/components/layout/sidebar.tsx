@@ -5,10 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { api } from "@/lib/api";
-import { usePipelineRunnerOptional } from "@/contexts/pipeline-runner";
 import { cn } from "@/lib/utils";
 import { todayBeirutIsoDate } from "@/lib/beirut-date";
-import { confirmHeavyPipelineRun } from "@/lib/pipeline-confirm";
+import { editionCalendarDateFromPath } from "@/lib/edition-nav-date";
 
 const PRIMARY_NAV = [
   { href: "/panorama", label: "Panorama" },
@@ -35,9 +34,11 @@ function prefetchNavData(queryClient: ReturnType<typeof useQueryClient>) {
 export function Masthead() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const pipeline = usePipelineRunnerOptional();
-  const running = pipeline?.running ?? null;
-  const todayEditionHref = `/edition/${todayBeirutIsoDate()}`;
+  const today = todayBeirutIsoDate();
+  const todayEditionHref = `/edition/${today}`;
+  const navEditionDate = editionCalendarDateFromPath(pathname) ?? today;
+  const composeNavHref = `/edition/${navEditionDate}/compose`;
+  const onComposeRoute = pathname.includes("/compose");
 
   useQuery({
     queryKey: ["stats"] as const,
@@ -45,20 +46,11 @@ export function Masthead() {
     staleTime: 60_000,
   });
 
-  const statusQ = useQuery({
-    queryKey: ["status"] as const,
-    queryFn: () => api.status(),
-    staleTime: 30_000,
-    refetchInterval: (q) =>
-      q.state.data?.pipeline_running === true ? 4_000 : false,
-  });
-  const serverPipelineBusy = Boolean(statusQ.data?.pipeline_running);
-
   return (
     <header className="border-b border-border bg-background shadow-sm">
       <div className="mx-auto max-w-[80rem] px-5 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5 py-3.5 sm:gap-x-4 sm:gap-y-3 sm:py-5">
-          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+        <div className="flex flex-col gap-3 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-3 sm:py-5">
+          <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1 sm:gap-4">
             <Link
               href={todayEditionHref}
               prefetch
@@ -71,39 +63,12 @@ export function Masthead() {
                 width={220}
                 height={34}
                 priority
-                className="h-[32px] w-auto sm:h-[34px]"
+                className="h-[28px] w-auto sm:h-[34px]"
               />
             </Link>
             <span className="hidden text-[11px] font-medium leading-snug tracking-wide text-muted-foreground sm:inline sm:max-w-[14rem]">
               Outil revue de presse
             </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {pipeline && (
-              <>
-                {/* Desktop : libellé complet */}
-                <button
-                  type="button"
-                  className="olj-btn-secondary hidden shrink-0 sm:inline-flex"
-                  disabled={running !== null || serverPipelineBusy}
-                  title={
-                    serverPipelineBusy
-                      ? "Un pipeline complet est déjà en cours sur le serveur."
-                      : "Lancer collecte, traduction et traitements complets (plusieurs minutes)."
-                  }
-                  onClick={() => {
-                    if (!confirmHeavyPipelineRun("pipeline")) return;
-                    pipeline.startRun("pipeline", "Traitement complet");
-                  }}
-                >
-                  {running?.key === "pipeline"
-                    ? "Traitement…"
-                    : serverPipelineBusy
-                      ? "Pipeline serveur…"
-                      : "Actualiser (traitement complet)"}
-                </button>
-              </>
-            )}
           </div>
         </div>
 
@@ -118,11 +83,20 @@ export function Masthead() {
             onMouseEnter={() => prefetchNavData(queryClient)}
             className={cn(
               "olj-nav-item shrink-0",
-              (pathname === "/" || pathname.startsWith("/edition")) &&
+              (pathname === "/" ||
+                (pathname.startsWith("/edition") && !onComposeRoute)) &&
                 "olj-nav-item--active",
             )}
           >
             Édition
+          </Link>
+          <Link
+            href={composeNavHref}
+            prefetch
+            onMouseEnter={() => prefetchNavData(queryClient)}
+            className={cn("olj-nav-item shrink-0", onComposeRoute && "olj-nav-item--active")}
+          >
+            Composition
           </Link>
           {PRIMARY_NAV.map(({ href, label }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -172,7 +146,6 @@ export function Masthead() {
           </Link>
         </nav>
 
-        {/* La nav Sommaire/Composition est gérée par la page elle-même */}
       </div>
     </header>
   );

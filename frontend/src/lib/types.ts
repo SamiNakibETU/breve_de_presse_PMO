@@ -266,6 +266,19 @@ export interface ClusterArticle {
   analysis_bullets_fr?: string[] | null;
 }
 
+/** POST /api/articles/search/semantic */
+export interface SemanticSearchHit {
+  article_id: string;
+  distance: number;
+  title_fr: string | null;
+  url: string;
+}
+
+export interface SemanticSearchResponse {
+  hits: SemanticSearchHit[];
+  query: string;
+}
+
 export interface ClusterArticlesResponse {
   cluster_id: string;
   cluster_label: string | null;

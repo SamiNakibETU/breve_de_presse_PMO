@@ -1,6 +1,7 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -9,6 +10,7 @@ import {
   type Filters,
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
+import { SelectionActionDock } from "@/components/layout/selection-action-dock";
 import { mergeArticlesQuery } from "@/lib/articles-url-query";
 import { EditionCalendarPopover } from "@/components/edition/edition-calendar-popover";
 import { EditionPeriodFrise } from "@/components/edition/edition-period-frise";
@@ -22,7 +24,7 @@ import {
   UI_SURFACE_FRise_INSET,
 } from "@/lib/ui-surface-classes";
 import { reviewPagePath } from "@/lib/review-url";
-import type { Article } from "@/lib/types";
+import type { Article, SemanticSearchHit } from "@/lib/types";
 
 const PAGE_SIZE = 40;
 
@@ -149,6 +151,25 @@ export function ArticlesPageClient() {
     groupSyndicated: false,
   });
   const [groupByOljTheme, setGroupByOljTheme] = useState(true);
+  const [semanticQuery, setSemanticQuery] = useState("");
+  const [semanticHits, setSemanticHits] = useState<SemanticSearchHit[] | null>(null);
+
+  const semanticMutation = useMutation({
+    mutationFn: (q: string) =>
+      api.semanticArticleSearch({
+        query: q.trim(),
+        limit: 20,
+        hours: 336,
+        country_codes: filters.countries.length ? filters.countries : undefined,
+        article_types: filters.types.length ? filters.types : undefined,
+      }),
+    onSuccess: (res) => {
+      setSemanticHits(res.hits);
+    },
+    onError: () => {
+      setSemanticHits(null);
+    },
+  });
 
   const beirutDate = searchParams.get("date")?.trim() || null;
   const beirutFrom = searchParams.get("date_from")?.trim() || null;
@@ -307,20 +328,20 @@ export function ArticlesPageClient() {
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
-      <details className="group border border-border-light bg-card p-4 lg:hidden">
-        <summary className="olj-rubric cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
-          Filtres et tri
-        </summary>
-        <div className="mt-4">
-          <FiltersColumn {...filterColumnProps} />
-        </div>
-      </details>
-
-      <aside className="hidden w-[17rem] shrink-0 lg:sticky lg:top-8 lg:block">
+      <aside className="order-2 hidden w-[17rem] shrink-0 lg:sticky lg:top-8 lg:order-1 lg:block">
         <FiltersColumn {...filterColumnProps} />
       </aside>
 
-      <div className="min-w-0 flex-1 space-y-5 pb-24">
+      <div className="order-1 min-w-0 flex-1 space-y-5 pb-36 lg:order-2">
+        <details className="group rounded-xl border border-border/60 bg-card p-3 lg:hidden">
+          <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+            Filtres et tri
+          </summary>
+          <div className="mt-3 border-t border-border/40 pt-3">
+            <FiltersColumn {...filterColumnProps} />
+          </div>
+        </details>
+
         <header>
           <h1 className="font-[family-name:var(--font-serif)] text-[22px] font-semibold leading-tight sm:text-[24px]">
             Articles
@@ -498,6 +519,69 @@ export function ArticlesPageClient() {
           </details>
         </header>
 
+        <section
+          className="rounded-xl border border-border/55 bg-muted/10 px-3 py-3 sm:px-4"
+          aria-label="Recherche sémantique"
+        >
+          <p className="text-[11px] font-semibold text-foreground">Recherche sémantique</p>
+          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+            Par proximité vectorielle sur les articles récents (serveur pgvector + Cohere). Les filtres pays
+            / types ci-dessus sont repris si vous les avez définis.
+          </p>
+          <form
+            className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = semanticQuery.trim();
+              if (q.length < 2) return;
+              semanticMutation.mutate(q);
+            }}
+          >
+            <input
+              type="search"
+              value={semanticQuery}
+              onChange={(e) => setSemanticQuery(e.target.value)}
+              placeholder="Ex. : tensions commerciales Chine, médias arabes…"
+              className="olj-focus min-h-[2.5rem] w-full flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60"
+              minLength={2}
+              aria-label="Requête en langage naturel"
+            />
+            <button
+              type="submit"
+              disabled={semanticMutation.isPending || semanticQuery.trim().length < 2}
+              className="olj-btn-secondary shrink-0 px-4 py-2 text-[12px] disabled:opacity-45"
+            >
+              {semanticMutation.isPending ? "Recherche…" : "Chercher"}
+            </button>
+          </form>
+          {semanticMutation.isError && (
+            <p className="mt-2 text-[11px] text-accent" role="alert">
+              {semanticMutation.error instanceof Error
+                ? semanticMutation.error.message
+                : "Recherche indisponible (clé API, pgvector ou périmètre)."}
+            </p>
+          )}
+          {semanticHits && semanticHits.length > 0 ? (
+            <ul className="mt-3 space-y-1.5 border-t border-border/40 pt-3 text-[12px]">
+              {semanticHits.map((h) => (
+                <li key={h.article_id}>
+                  <Link
+                    href={`/articles/${h.article_id}`}
+                    className="olj-link-action font-medium text-foreground hover:text-accent"
+                  >
+                    {h.title_fr?.trim() || "Sans titre"}
+                  </Link>
+                  <span className="ml-2 tabular-nums text-[10px] text-muted-foreground">
+                    · {h.distance.toFixed(3)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : semanticHits && semanticHits.length === 0 && !semanticMutation.isPending ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">Aucun résultat proche.</p>
+          ) : null}
+        </section>
+
         {error && (
           <p className="olj-alert-destructive px-3 py-2">
             {error instanceof Error ? error.message : "Erreur de chargement"}
@@ -537,36 +621,13 @@ export function ArticlesPageClient() {
         )}
       </div>
 
-      {selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/98 shadow-[0_-6px_24px_rgba(27,26,26,0.06)] backdrop-blur-sm">
-          <div className="mx-auto flex max-w-[80rem] flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="font-[family-name:var(--font-serif)] text-[20px] font-semibold tabular-nums text-foreground">
-                {selected.size}
-              </span>
-              <span className="text-[13px] text-muted-foreground">
-                article{selected.size > 1 ? "s" : ""} sélectionné
-                {selected.size > 1 ? "s" : ""}
-              </span>
-              <button
-                type="button"
-                onClick={() => clearSelection()}
-                className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              >
-                Effacer
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={goToReview}
-              disabled={selected.size < 1 || selected.size > 10}
-              className="olj-btn-primary disabled:opacity-40"
-            >
-              Générer la revue ({selected.size})
-            </button>
-          </div>
-        </div>
-      )}
+      <SelectionActionDock
+        selectionCount={selected.size}
+        onClear={clearSelection}
+        primaryLabel={`Générer la revue (${selected.size})`}
+        onPrimary={() => goToReview()}
+        primaryDisabled={selected.size < 1 || selected.size > 10}
+      />
     </div>
   );
 }

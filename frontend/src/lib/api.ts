@@ -8,6 +8,7 @@ import type {
   AppStatus,
   Article,
   ArticleListResponse,
+  SemanticSearchResponse,
   ClusterArticlesResponse,
   ClusterFallbackRow,
   ClusterListResponse,
@@ -278,6 +279,29 @@ export const api = {
     request<ArticleListResponse>("/api/articles/by-ids", {
       method: "POST",
       body: JSON.stringify({ ids }),
+    }),
+
+  /** Recherche par similarité (pgvector + Cohere). Échoue si clé / infra indisponibles. */
+  semanticArticleSearch: (
+    body: {
+      query: string;
+      limit?: number;
+      hours?: number;
+      country_codes?: string[];
+      article_types?: string[];
+      topic_ids?: string[];
+    },
+    signal?: AbortSignal,
+  ) =>
+    request<SemanticSearchResponse>("/api/articles/search/semantic", {
+      method: "POST",
+      body: JSON.stringify({
+        limit: 20,
+        hours: 336,
+        ...body,
+      }),
+      signal,
+      timeoutMs: 90_000,
     }),
 
   articleById: (articleId: string) =>

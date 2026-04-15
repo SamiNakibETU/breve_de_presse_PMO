@@ -159,12 +159,29 @@ function TopicArticleCard({
       : null;
   const badge = analysisQueueBadge(preview);
 
+  const onCardActivate = () => {
+    void prefetchArticle(preview.id);
+    openArticle(preview.id);
+  };
+
   return (
     <div
+      tabIndex={0}
+      onClick={(e) => {
+        const el = e.target as HTMLElement;
+        if (el.closest("input,button,a")) return;
+        onCardActivate();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onCardActivate();
+        }
+      }}
       className={cn(
-        "group relative rounded-lg border px-4 py-3.5",
+        "group relative cursor-pointer rounded-lg border px-4 py-3.5 outline-none",
         "transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)]",
-        "hover:shadow-low hover:-translate-y-px",
+        "hover:shadow-low hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2",
         selected
           ? "border-accent/35 bg-accent-tint/40"
           : "border-border bg-card hover:border-border/80",
@@ -174,9 +191,10 @@ function TopicArticleCard({
       <div className="flex items-start gap-2.5">
         <input
           type="checkbox"
-          className="olj-focus mt-[3px] size-[14px] shrink-0"
+          className="olj-focus relative z-[1] mt-[3px] size-[14px] shrink-0"
           checked={selected}
           onChange={(e) => onToggle(e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
           aria-label={`Inclure ${title}`}
           style={{ accentColor: "var(--color-accent)" }}
         />

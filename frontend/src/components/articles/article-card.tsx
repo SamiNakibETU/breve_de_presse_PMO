@@ -61,22 +61,38 @@ export const ArticleCard = memo(function ArticleCard({
   const date     = article.published_at ? formatPublishedAtFr(article.published_at, "short") : null;
   const pertinence = relevancePct(article);
   const hasImage   = Boolean(article.image_url);
-  const hasSummaryOrAnalysis = Boolean(article.summary_fr || article.analysis_bullets_fr?.length);
 
   void topicLabelsFr; // passed by parent, used by reader modal via API
+
+  const openReader = () => {
+    void prefetchArticle(article.id);
+    openArticle(article.id);
+  };
 
   return (
     <article
       className={cn(
-        "group relative rounded-lg border bg-card transition-all",
+        "group relative cursor-pointer rounded-lg border bg-card transition-all outline-none",
         "[transition-timing-function:var(--ease-out-expo)] [transition-duration:var(--duration-fast)]",
-        "hover:shadow-mid hover:-translate-y-px",
+        "hover:shadow-mid hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2",
         selected
           ? "border-accent/40 bg-accent-tint/40 ring-1 ring-accent/30"
           : "border-border hover:border-border/80",
         variant === "list" ? "py-4" : "",
       )}
       onMouseEnter={() => prefetchArticle(article.id)}
+      onClick={(e) => {
+        const el = e.target as HTMLElement;
+        if (el.closest("button,a")) return;
+        openReader();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openReader();
+        }
+      }}
+      tabIndex={0}
     >
       {/* Checkbox sélection */}
       <button
@@ -196,18 +212,16 @@ export const ArticleCard = memo(function ArticleCard({
         </p>
 
         {/* Bouton Lire → reader modal */}
-        {hasSummaryOrAnalysis && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              openArticle(article.id);
-            }}
-            className="olj-btn-secondary mt-2.5 px-2.5 py-1 text-[10px]"
-          >
-            Lire
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            openReader();
+          }}
+          className="olj-btn-secondary mt-2.5 px-2.5 py-1 text-[10px]"
+        >
+          Lire
+        </button>
       </div>
     </article>
   );

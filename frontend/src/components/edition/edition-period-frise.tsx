@@ -525,10 +525,8 @@ function FriseTimelineCard({
               <rect width="100%" height="100%" fill={`url(#${legendPatternId})`} opacity={0.65} />
             </svg>
           </span>
-          <span>
-            Zone hachurée :{" "}
-            <span className="text-foreground-body">fenêtre de collecte</span> de l&apos;édition (articles
-            retenus entre les bornes).
+          <span className="text-foreground-body">
+            Fenêtre de collecte de l&apos;édition : articles retenus entre les bornes affichées sur la frise.
           </span>
         </p>
       </div>

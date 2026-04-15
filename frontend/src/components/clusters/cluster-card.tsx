@@ -162,7 +162,7 @@ export function ClusterCard({ cluster }: { cluster: TopicCluster }) {
         {/* VOIX ÉDITORIALES */}
         <div className="mt-3.5 flex min-h-0 flex-1 flex-col space-y-3">
           {first?.thesis.trim() ? (
-            <div className="rounded-lg bg-surface-warm/30 px-3.5 py-2.5">
+            <div className="rounded-lg border border-border/40 bg-muted/15 px-3.5 py-2.5">
               <p
                 className="font-[family-name:var(--font-serif)] text-[13px] leading-relaxed text-foreground-body line-clamp-4 italic"
                 title={first.thesis}

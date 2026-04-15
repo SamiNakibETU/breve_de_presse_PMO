@@ -29,6 +29,8 @@ import { ComposeHeader } from "@/components/composition/ComposeHeader";
 import { ComposeSelectionPanel } from "@/components/composition/ComposeSelectionPanel";
 import { ComposeActions } from "@/components/composition/ComposeActions";
 import { ComposeTopicsPanel } from "@/components/composition/ComposeTopicsPanel";
+import { ComposeSnapshotHistory } from "@/components/composition/ComposeSnapshotHistory";
+import { appendComposeSnapshot } from "@/lib/compose-snapshots";
 import { formatEditionCalendarTitleFr } from "@/lib/dates-display-fr";
 
 // ---------------------------------------------------------------------------
@@ -158,9 +160,25 @@ export default function ComposePage() {
       });
       return api.editionGenerateAll(editionId);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["edition", date] });
-      void qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["edition", date] });
+      await qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
+      if (!editionId) return;
+      await qc.refetchQueries({ queryKey: ["editionTopics", editionId, "compose"] });
+      const topicsList = qc.getQueryData<EditionTopic[]>(["editionTopics", editionId, "compose"]);
+      const sel = qc.getQueryData<EditionSelectionsResponse>(["editionSelections", editionId]);
+      if (!topicsList?.length) return;
+      const entries = topicsList
+        .filter((t) => (t.generated_text ?? "").trim().length > 0)
+        .map((t) => ({
+          topicId: t.id,
+          title: t.title_final ?? t.title_proposed,
+          articleIds: [...(sel?.topics[t.id] ?? [])],
+          generatedText: (t.generated_text ?? "").trim(),
+        }));
+      if (entries.length > 0) {
+        appendComposeSnapshot({ editionId, editionDate: date, topics: entries });
+      }
     },
   });
 
@@ -172,12 +190,37 @@ export default function ComposePage() {
         compose_instructions_fr: stringifyComposeInstructions(composeInstructions),
       });
       const sel = qc.getQueryData<EditionSelectionsResponse>(["editionSelections", editionId]);
-      const ordered = sel?.topics[topicId] ?? [];
-      return api.editionTopicGenerate(editionId, topicId, ordered.length >= 2 ? ordered : null, suffix);
+      const ordered = [...(sel?.topics[topicId] ?? [])];
+      const res = await api.editionTopicGenerate(
+        editionId,
+        topicId,
+        ordered.length >= 2 ? ordered : null,
+        suffix,
+      );
+      return { res, topicId, orderedArticleIds: ordered };
     },
-    onSuccess: () => {
+    onSuccess: (payload: { res: { generated_text?: string | null }; topicId: string; orderedArticleIds: string[] } | undefined) => {
       void qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
       void qc.invalidateQueries({ queryKey: ["edition", date] });
+      if (!editionId || !payload) return;
+      const { res, topicId, orderedArticleIds } = payload;
+      const text = res.generated_text?.trim();
+      if (!text) return;
+      const topicsList = qc.getQueryData<EditionTopic[]>(["editionTopics", editionId, "compose"]);
+      const topicMeta = topicsList?.find((t) => t.id === topicId);
+      const title = topicMeta?.title_final ?? topicMeta?.title_proposed ?? "Sujet";
+      appendComposeSnapshot({
+        editionId,
+        editionDate: date,
+        topics: [
+          {
+            topicId,
+            title,
+            articleIds: orderedArticleIds,
+            generatedText: text,
+          },
+        ],
+      });
     },
     onSettled: () => setRegeneratingTopicId(null),
   });
@@ -359,7 +402,7 @@ export default function ComposePage() {
 
   // ---- Render ----
   return (
-    <div className="mx-auto max-w-4xl space-y-10">
+    <div className="mx-auto max-w-5xl space-y-12 pb-8">
       <ComposeHeader
         date={date}
         titleFr={editionTitleLine(date)}
@@ -371,6 +414,8 @@ export default function ComposePage() {
         ]}
         hasSelection={selectedIds.size > 0}
       />
+
+      <ComposeSnapshotHistory editionId={editionId} />
 
       <ComposeSelectionPanel
         date={date}

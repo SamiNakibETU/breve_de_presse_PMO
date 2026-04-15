@@ -649,58 +649,46 @@ export default function EditionSommairePage() {
 
   const labelsFr = coverageQ.data?.labels_fr ?? null;
 
-  const composeHref = date ? `/edition/${date}/compose` : "#";
-
   return (
     <div className="space-y-10">
       <header className="mx-auto max-w-4xl border-b border-border pb-5">
-        {/* Onglets internes du flux éditorial */}
-        <div className="mb-5 flex items-center gap-1 border-b border-border/50 text-[13px]">
-          <span className="border-b-2 border-accent px-3 py-2 font-semibold text-foreground">
-            Sommaire
-          </span>
-          <Link
-            href={composeHref}
-            className="px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Composition
-          </Link>
-          <div className="ml-auto flex flex-wrap items-center gap-3 pb-1">
-            {isMonday && (
-              <button
-                type="button"
-                onClick={() => setMondayFullWeekend((v) => !v)}
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${mondayFullWeekend ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
-              >
-                <span
-                  className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${mondayFullWeekend ? "border-accent bg-accent" : "border-border bg-muted"}`}
-                >
-                  <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${mondayFullWeekend ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
-                </span>
-                {mondayFullWeekend ? "Édition week-end" : "Lundi seul"}
-              </button>
-            )}
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-border/50 pb-3">
+          {isMonday && (
             <button
               type="button"
-              onClick={() => setShowAfternoonRefresh((v) => !v)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${showAfternoonRefresh ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
+              onClick={() => setMondayFullWeekend((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${mondayFullWeekend ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
             >
               <span
-                className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${showAfternoonRefresh ? "border-accent bg-accent" : "border-border bg-muted"}`}
+                className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${mondayFullWeekend ? "border-accent bg-accent" : "border-border bg-muted"}`}
               >
-                <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
+                <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${mondayFullWeekend ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
               </span>
-              {showAfternoonRefresh ? "Actualisé 18h" : "Sans actualisation"}
+              {mondayFullWeekend ? "Édition week-end" : "Lundi seul"}
             </button>
-          </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowAfternoonRefresh((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${showAfternoonRefresh ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
+          >
+            <span
+              className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${showAfternoonRefresh ? "border-accent bg-accent" : "border-border bg-muted"}`}
+            >
+              <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
+            </span>
+            {showAfternoonRefresh ? "Actualisé 18h" : "Sans actualisation"}
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <p className="olj-rubric">Édition</p>
           <p className="max-w-md text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
-            Mise à jour complète du corpus : bouton{" "}
-            <span className="font-medium text-foreground-body">Actualiser</span> dans le bandeau
-            supérieur.
+            Mise à jour complète du corpus :{" "}
+            <Link href="/regie/pipeline" className="olj-link-action font-medium">
+              Régie (collecte)
+            </Link>
+            .
           </p>
         </div>
         <div className="mt-3 w-full">
@@ -745,9 +733,11 @@ export default function EditionSommairePage() {
                 className="rounded-md bg-muted/40 px-2.5 py-1.5 text-foreground-body"
                 role="status"
               >
-                Mise à jour en cours sur le serveur ; le bouton{" "}
-                <span className="font-medium text-foreground-body">Actualiser</span> du bandeau est
-                indisponible jusqu’à la fin.
+                Mise à jour en cours sur le serveur — consultez l&apos;état dans{" "}
+                <Link href="/regie/pipeline" className="olj-link-action font-medium">
+                  Régie
+                </Link>
+                .
               </p>
             ) : null}
             {pipeline?.running ? (
@@ -805,82 +795,80 @@ export default function EditionSommairePage() {
         ) : null}
         {/* Bloc actions pipeline : action principale + regroupement dans « avancé » */}
         {editionId && pipeline && (
-          <div className="mt-4 space-y-3 border-t border-border/50 pt-3">
-            <div>
-              <button
-                type="button"
-                className="olj-btn-primary px-3.5 py-2 text-[12px] disabled:opacity-45"
-                disabled={pipeline.running !== null}
-                title="Analyse LLM (thèse, structure, points clés) sur le corpus de cette édition."
-                onClick={() =>
-                  pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", { editionId })
-                }
-              >
-                {pipeline.running?.key === "articleAnalysis"
-                  ? "Analyse en cours…"
-                  : "Analyser les articles"}
-              </button>
-              <p className="mt-1.5 max-w-xl text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
-                Action principale : enrichit chaque article (thèses, analyse) pour le sommaire et la
-                composition.
-              </p>
-            </div>
-
-            <details className="rounded-lg border border-border/55 bg-muted/10 px-3 py-2 sm:px-3.5">
-              <summary className="cursor-pointer list-none text-[11px] font-semibold text-foreground-body marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
-                <span className="underline decoration-border/50 underline-offset-2">
-                  Regroupement & sujets (avancé)
-                </span>
-              </summary>
-              <div className="mt-2 space-y-2 border-t border-border/40 pt-2.5">
-                <p className="text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
-                  <span className="font-medium text-foreground-body">Identifier les sujets</span> : détecte
-                  des sujets à partir des regroupements (clusters) déjà calculés pour cette édition.{" "}
-                  <span className="font-medium text-foreground-body">Recalculer…</span> : relance tout le
-                  chaînage (pertinence → embeddings → clusters → libellés → sujets), plus long et plus
-                  coûteux.
+          <div className="mt-3 space-y-2 border-t border-border/50 pt-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  className="olj-btn-primary px-3.5 py-2 text-[12px] disabled:opacity-45"
+                  disabled={pipeline.running !== null}
+                  title="Analyse LLM (thèse, structure, points clés) sur le corpus de cette édition."
+                  onClick={() =>
+                    pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", { editionId })
+                  }
+                >
+                  {pipeline.running?.key === "articleAnalysis"
+                    ? "Analyse en cours…"
+                    : "Analyser les articles"}
+                </button>
+                <p className="mt-1 max-w-xl text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+                  Enrichit les textes (thèses, analyse) pour le sommaire et la composition.
                 </p>
-                {detectionStatus !== "running" &&
-                  (detectionStatus === "pending" ||
-                    detectionStatus === "failed" ||
-                    (detectionStatus === "done" && topics.length === 0)) && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-                      disabled={detectMutation.isPending || pipeline.running !== null}
-                      title="Détection de sujets sur les clusters existants (sans refaire tout le scoring)."
-                      onClick={() => detectMutation.mutate()}
-                    >
-                      {detectMutation.isPending ? "Traitement…" : "Identifier les sujets"}
-                    </button>
-                    <button
-                      type="button"
-                      className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-                      disabled={pipeline.running !== null || detectMutation.isPending}
-                      title="Pertinence → embeddings → clusters → libellés → détection des sujets."
-                      onClick={() =>
-                        pipeline.startSequentialChain(
-                          [
-                            "relevance_scoring",
-                            "embedding_only",
-                            "clustering_only",
-                            "cluster_labelling",
-                            "topic_detection",
-                          ],
-                          "Relance analyse complète",
-                          { editionId },
-                        )
-                      }
-                    >
-                      {pipeline.running?.key === "sequentialChain"
-                        ? "Traitement…"
-                        : "Recalculer (scoring → clusters → sujets)"}
-                    </button>
-                  </div>
-                )}
               </div>
-            </details>
+              <details className="min-w-0 flex-1 rounded-lg border border-border/55 bg-muted/10 px-3 py-1.5 sm:max-w-md sm:px-3.5 sm:py-2">
+                <summary className="cursor-pointer list-none text-[11px] font-semibold text-foreground-body marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
+                  <span className="underline decoration-border/50 underline-offset-2">
+                    Regroupements & sujets (avancé)
+                  </span>
+                </summary>
+                <div className="mt-2 space-y-2 border-t border-border/40 pt-2">
+                  <p className="text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+                    <span className="font-medium text-foreground-body">Identifier les sujets</span> sur les
+                    clusters existants. <span className="font-medium text-foreground-body">Recalculer</span>{" "}
+                    : chaîne complète (plus long, plus coûteux).
+                  </p>
+                  {detectionStatus !== "running" &&
+                    (detectionStatus === "pending" ||
+                      detectionStatus === "failed" ||
+                      (detectionStatus === "done" && topics.length === 0)) && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                        disabled={detectMutation.isPending || pipeline.running !== null}
+                        title="Détection de sujets sur les clusters existants (sans refaire tout le scoring)."
+                        onClick={() => detectMutation.mutate()}
+                      >
+                        {detectMutation.isPending ? "Traitement…" : "Identifier les sujets"}
+                      </button>
+                      <button
+                        type="button"
+                        className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                        disabled={pipeline.running !== null || detectMutation.isPending}
+                        title="Pertinence → embeddings → clusters → libellés → détection des sujets."
+                        onClick={() =>
+                          pipeline.startSequentialChain(
+                            [
+                              "relevance_scoring",
+                              "embedding_only",
+                              "clustering_only",
+                              "cluster_labelling",
+                              "topic_detection",
+                            ],
+                            "Relance analyse complète",
+                            { editionId },
+                          )
+                        }
+                      >
+                        {pipeline.running?.key === "sequentialChain"
+                          ? "Traitement…"
+                          : "Recalculer (scoring → clusters → sujets)"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
           </div>
         )}
       </header>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
+import { formatIsoCalendarDayLongFr } from "@/lib/dates-display-fr";
 import { ReadinessIndicator, type ReadinessLevel } from "./ReadinessIndicator";
 import { TopicGeneratedProse } from "./TopicGeneratedProse";
 
@@ -111,8 +112,9 @@ export function ComposeTopicsPanel({
 
           return (
             <article
+              id={`compose-topic-${t.id}`}
               key={t.id}
-              className="rounded-2xl border border-border/55 bg-card p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-6"
+              className="scroll-mt-28 rounded-2xl border border-border/55 bg-card p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-6"
             >
               <div className="flex flex-col gap-4 border-b border-border/40 pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                 <div className="min-w-0">
@@ -167,7 +169,11 @@ export function ComposeTopicsPanel({
                     Pistes (non sélectionnées)
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Pertinence et complétude de traduction — ouvrir pour décider au{" "}
+                    Corpus du sommaire :{" "}
+                    <span className="font-medium text-foreground-body">
+                      {formatIsoCalendarDayLongFr(date)}
+                    </span>
+                    . Pertinence et traduction — ouvrir une fiche ou cocher au{" "}
                     <Link href={`/edition/${date}`} className="olj-link-action">
                       sommaire
                     </Link>

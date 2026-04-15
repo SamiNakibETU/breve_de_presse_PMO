@@ -38,23 +38,41 @@ function humanizeTopicId(id: string): string {
     .join(" ");
 }
 
-/** Libellé de séparateur pour une clé `root1|root2`. */
+function topicLabelsForGroupKey(
+  groupKey: string | null,
+  labelsFr: Record<string, string> | null | undefined,
+): string[] {
+  if (!groupKey) {
+    return ["Sans thème OLJ assigné"];
+  }
+  return groupKey
+    .split("|")
+    .map((raw) => {
+      const id = raw.trim();
+      if (!id) return "";
+      const mapped = labelsFr?.[id]?.trim();
+      if (mapped) return mapped;
+      const withUnderscore = id.replace(/\./g, "_");
+      const mapped2 = labelsFr?.[withUnderscore]?.trim();
+      return mapped2 || humanizeTopicId(id);
+    })
+    .filter(Boolean);
+}
+
+/** Libellés courts pour affichage en pastilles (liste Articles). */
+export function oljTopicGroupChipLabels(
+  groupKey: string | null,
+  labelsFr: Record<string, string> | null | undefined,
+): string[] {
+  return topicLabelsForGroupKey(groupKey, labelsFr);
+}
+
+/** Libellé de séparateur pour une clé `root1|root2` (texte brut, ex. export). */
 export function oljTopicGroupSeparatorLabel(
   groupKey: string | null,
   labelsFr: Record<string, string> | null | undefined,
 ): string {
-  if (!groupKey) {
-    return "Sans thème OLJ assigné";
-  }
-  const parts = groupKey.split("|").map((raw) => {
-    const id = raw.trim();
-    if (!id) return "";
-    const mapped = labelsFr?.[id]?.trim();
-    if (mapped) return mapped;
-    const withUnderscore = id.replace(/\./g, "_");
-    const mapped2 = labelsFr?.[withUnderscore]?.trim();
-    return mapped2 || humanizeTopicId(id);
-  });
-  const joined = parts.filter(Boolean).join(" · ");
+  const parts = topicLabelsForGroupKey(groupKey, labelsFr);
+  const joined = parts.join(" · ");
   return joined ? `Thème · ${joined}` : "Thème · (non renseigné)";
 }

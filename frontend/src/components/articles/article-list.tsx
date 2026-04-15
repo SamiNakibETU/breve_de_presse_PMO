@@ -4,7 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import type { Article } from "@/lib/types";
 import {
   oljTopicGroupKey,
-  oljTopicGroupSeparatorLabel,
+  oljTopicGroupChipLabels,
 } from "@/lib/olj-topic-group";
 import { ArticleCard } from "./article-card";
 
@@ -99,14 +99,25 @@ export function ArticleList({
     const curr = oljTopicGroupKey(a);
     const prev = i > 0 ? oljTopicGroupKey(sortedArticles[i - 1]!) : null;
     if (i > 0 && curr !== prev) {
+      const chips = oljTopicGroupChipLabels(curr, topicLabelsFr);
       cells.push(
         <div
           key={`sep-${a.id}-${i}`}
           className="col-span-2 border-t border-border-light pt-4"
         >
-          <p className="max-w-4xl text-[12px] font-semibold leading-snug text-foreground-body">
-            {oljTopicGroupSeparatorLabel(curr, topicLabelsFr)}
-          </p>
+          <div className="flex max-w-4xl flex-wrap items-center gap-1.5 gap-y-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Thème
+            </span>
+            {chips.map((label, chipIdx) => (
+              <span
+                key={`${a.id}-${i}-chip-${chipIdx}`}
+                className="rounded-full border border-border/55 bg-muted/15 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-foreground-body"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         </div>,
       );
     }

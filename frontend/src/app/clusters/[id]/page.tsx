@@ -7,6 +7,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { displayClusterTitle } from "@/lib/cluster-display";
 import { reviewPagePath } from "@/lib/review-url";
+import { SelectionActionDock } from "@/components/layout/selection-action-dock";
 import { countryLabelFr } from "@/lib/country-labels-fr";
 import { formatPublishedAtFr } from "@/lib/dates-display-fr";
 import { useArticleReader } from "@/contexts/article-reader";
@@ -27,13 +28,33 @@ function ClusterArticleItem({
   const { openArticle, prefetchArticle } = useArticleReader();
   const hasBullets = a.analysis_bullets_fr && a.analysis_bullets_fr.length > 0;
 
+  const openReader = () => {
+    void prefetchArticle(a.id);
+    openArticle(a.id);
+  };
+
   return (
     <li
-      className="group flex gap-3 rounded-lg border border-border/60 bg-card px-4 py-3.5 transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:border-border hover:shadow-low hover:-translate-y-px"
+      tabIndex={0}
+      onClick={(e) => {
+        const el = e.target as HTMLElement;
+        if (el.closest("button,a")) return;
+        openReader();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openReader();
+        }
+      }}
+      className="group flex cursor-pointer gap-3 rounded-lg border border-border/60 bg-card px-4 py-3.5 outline-none transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:border-border hover:shadow-low hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2"
     >
       <button
         type="button"
-        onClick={onToggle}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
         aria-label={selected ? "Désélectionner" : "Sélectionner"}
         className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center border transition-colors"
         style={{
@@ -49,7 +70,7 @@ function ClusterArticleItem({
         )}
       </button>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 cursor-pointer">
         {/* Thèse */}
         {a.thesis_summary_fr && (
           <p className="mb-1.5 font-[family-name:var(--font-serif)] text-[14px] italic leading-relaxed text-foreground-body">
@@ -62,7 +83,10 @@ function ClusterArticleItem({
           type="button"
           className="text-left font-[family-name:var(--font-serif)] text-[14px] font-semibold leading-snug text-foreground transition-colors hover:text-accent [transition-duration:var(--duration-fast)]"
           onMouseEnter={() => prefetchArticle(a.id)}
-          onClick={() => openArticle(a.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            openArticle(a.id);
+          }}
         >
           {a.title_fr || a.title_original}
         </button>
@@ -103,7 +127,10 @@ function ClusterArticleItem({
             type="button"
             className="olj-btn-secondary px-3 py-1 text-[11px]"
             onMouseEnter={() => prefetchArticle(a.id)}
-            onClick={() => openArticle(a.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              openArticle(a.id);
+            }}
           >
             Lire
           </button>
@@ -186,7 +213,7 @@ export default function ClusterDetailPage() {
   }, [data]);
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-8 pb-36">
       {/* Header */}
       <header className="space-y-4">
         <Link
@@ -302,32 +329,13 @@ export default function ClusterDetailPage() {
           );
         })}
 
-      {/* Barre sticky sélection */}
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-background/95 px-5 py-4 backdrop-blur-sm sm:px-6">
-          <div className="mx-auto flex max-w-[960px] items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[13px] text-foreground-body">
-                {selectedIds.size} article{selectedIds.size > 1 ? "s" : ""} sélectionné{selectedIds.size > 1 ? "s" : ""}
-              </span>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="olj-link-action text-[11px] text-muted-foreground"
-              >
-                Tout effacer
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={goToReview}
-              className="olj-btn-primary rounded-lg px-6 py-2.5 text-[13px]"
-            >
-              Générer la revue →
-            </button>
-          </div>
-        </div>
-      )}
+      <SelectionActionDock
+        selectionCount={selectedIds.size}
+        onClear={clearSelection}
+        primaryLabel={`Générer la revue (${selectedIds.size})`}
+        onPrimary={() => goToReview()}
+        primaryDisabled={selectedIds.size < 1 || selectedIds.size > 10}
+      />
     </div>
   );
 }
