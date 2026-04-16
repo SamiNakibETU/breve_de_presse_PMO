@@ -262,11 +262,13 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
           </div>
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-3.5">
             <div className="min-w-0 flex-1">
-              <p className="text-center text-[12px] text-muted-foreground sm:text-left">
+              <p className="text-center text-[12px] leading-snug text-muted-foreground sm:text-left">
+                <span className="font-medium text-foreground">Sommaire</span>
+                {" — "}
                 <span className="tabular-nums font-semibold text-foreground">
                   {selectionCount}
                 </span>{" "}
-                article{selectionCount > 1 ? "s" : ""} sélectionné
+                article{selectionCount > 1 ? "s" : ""} retenu
                 {selectionCount > 1 ? "s" : ""}
                 {topicCountWithSelection > 0 ? (
                   <>
@@ -275,9 +277,13 @@ export function EditionSelectionStickyBar({ editionDate }: Props) {
                     <span className="tabular-nums font-semibold text-foreground">
                       {topicCountWithSelection}
                     </span>{" "}
-                    sujet{topicCountWithSelection > 1 ? "s" : ""}
+                    grand{topicCountWithSelection > 1 ? "s" : ""} sujet
+                    {topicCountWithSelection > 1 ? "s" : ""}
                   </>
                 ) : null}
+              </p>
+              <p className="mt-0.5 text-center text-[10px] text-muted-foreground/90 sm:text-left">
+                Sommaire : coches · lecteur : « Inclure au sommaire ».
               </p>
               <button
                 type="button"

@@ -332,7 +332,33 @@ export default function ComposePage() {
       if (cur.includes(articleId)) return;
       await api.editionTopicSelection(editionId, topicId, [...cur, articleId]);
     },
-    onSuccess: async () => {
+    onMutate: async ({ topicId, articleId }) => {
+      if (!editionId) return undefined;
+      await qc.cancelQueries({ queryKey: ["editionSelections", editionId] });
+      const previous = qc.getQueryData<EditionSelectionsResponse>([
+        "editionSelections",
+        editionId,
+      ]);
+      if (!previous) return undefined;
+      const cur = previous.topics[topicId] ?? [];
+      if (cur.includes(articleId)) return { previous } as const;
+      const next: EditionSelectionsResponse = {
+        ...previous,
+        topics: {
+          ...previous.topics,
+          [topicId]: [...cur, articleId],
+        },
+      };
+      qc.setQueryData(["editionSelections", editionId], next);
+      useSelectionStore.getState().hydrateFromServer(editionId, next);
+      return { previous } as const;
+    },
+    onError: (_e, _v, ctx) => {
+      if (!editionId || !ctx?.previous) return;
+      qc.setQueryData(["editionSelections", editionId], ctx.previous);
+      useSelectionStore.getState().hydrateFromServer(editionId, ctx.previous);
+    },
+    onSettled: async () => {
       await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
       await qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
     },

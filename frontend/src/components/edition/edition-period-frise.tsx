@@ -148,7 +148,7 @@ function FriseInfoCard({ currentIso, windowStart, windowEnd }: InfoCardProps) {
 
   return (
     <div
-      className="mx-auto flex w-full max-w-[min(100%,280px)] shrink-0 flex-col items-center justify-center bg-white px-5 py-5 lg:mx-0 lg:min-w-[200px] lg:max-w-[260px]"
+      className="mx-auto flex w-full max-w-[min(100%,280px)] shrink-0 flex-col items-center justify-center bg-white px-5 py-5 md:mx-0 md:min-w-[200px] md:max-w-[260px]"
       style={{ boxShadow: "0 0 16.2px 6px rgba(0,0,0,0.11)", borderRadius: "var(--radius-card, 18px)" }}
     >
       {/* Titre édition */}
@@ -671,7 +671,7 @@ export const EditionPeriodFrise = function EditionPeriodFrise({
 
   return (
     <nav className="w-full min-w-0 max-w-full space-y-3" aria-label="Navigation temporelle de l'édition">
-      <div className="flex min-w-0 flex-col items-stretch gap-4 lg:flex-row lg:gap-3">
+      <div className="flex min-w-0 flex-col items-stretch gap-4 md:flex-row md:items-stretch md:gap-3">
         <FriseInfoCard
           currentIso={currentIso}
           windowStart={editionWindow?.start}

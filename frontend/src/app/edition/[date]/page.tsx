@@ -62,9 +62,8 @@ function EditionSommaireSkeleton() {
 }
 
 /** Seuil 16h UTC ≈ 18h Paris (heure d'été) — articles de l'actualisation 18h */
-/** Seuil UTC pour le toggle "actualisation 16h" : articles arrivés après cette heure = refresh 16h.
- *  Pipeline PM tourne à 16h UTC (18h Paris / 19h Beyrouth) ; on coupe à 13h UTC (mi-journée Beyrouth). */
-const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 13;
+/** Seuil UTC : articles collectés après cette heure (jour calendaire de l’édition) = actualisation 18h (pipeline PM ~16h UTC). */
+const AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR = 16;
 
 export default function EditionSommairePage() {
   const params = useParams();
@@ -131,6 +130,19 @@ export default function EditionSommairePage() {
     const d = new Date(`${date}T${String(AFTERNOON_REFRESH_THRESHOLD_UTC_HOUR).padStart(2, "0")}:00:00Z`);
     return Number.isNaN(d.getTime()) ? null : d;
   }, [date]);
+
+  /** Nombre d’articles (dans l’aperçu chargé) après le seuil — pour feedback visuel du filtre. */
+  const afternoonRefreshArticleCount = useMemo(() => {
+    if (!afternoonThreshold || !topicsQ.data) return 0;
+    let n = 0;
+    for (const t of topicsQ.data) {
+      for (const p of t.article_previews ?? []) {
+        if (!p.collected_at) continue;
+        if (new Date(p.collected_at) > afternoonThreshold) n += 1;
+      }
+    }
+    return n;
+  }, [topicsQ.data, afternoonThreshold]);
 
   /**
    * Seuil lundi "édition lundi seul" : dimanche 09h Beyrouth = 06h UTC.
@@ -503,14 +515,22 @@ export default function EditionSommairePage() {
           <button
             type="button"
             onClick={() => setShowAfternoonRefresh((v) => !v)}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${showAfternoonRefresh ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
+            className={`inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all [transition-duration:var(--duration-fast)] ${showAfternoonRefresh ? "border-accent/30 bg-accent/6 text-accent" : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
+            title="Filtre d’affichage : masque les textes collectés après 16h UTC le jour de l’édition (lot type actualisation 18h Paris) lorsque désactivé."
           >
             <span
               className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors ${showAfternoonRefresh ? "border-accent bg-accent" : "border-border bg-muted"}`}
             >
               <span className={`pointer-events-none mt-[1px] inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${showAfternoonRefresh ? "translate-x-[13px]" : "translate-x-[1px]"}`} />
             </span>
-            {showAfternoonRefresh ? "Actualisé 18h" : "Sans actualisation"}
+            <span>
+              {showAfternoonRefresh ? "Avec actualisation 18h" : "Sans actualisation 18h"}
+              {afternoonRefreshArticleCount > 0 ? (
+                <span className="ml-1.5 tabular-nums text-[10px] font-normal text-muted-foreground">
+                  ({afternoonRefreshArticleCount} dans l’aperçu)
+                </span>
+              ) : null}
+            </span>
           </button>
         </div>
 

@@ -21,7 +21,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -30,6 +30,7 @@ import {
   useMemo,
   useRef,
   useState,
+  Suspense,
   type ReactNode,
 } from "react";
 import {
@@ -43,7 +44,7 @@ import {
 import { api } from "@/lib/api";
 import { useSelectionStore } from "@/stores/selection-store";
 import { formatPublishedAtFr } from "@/lib/dates-display-fr";
-import type { Article } from "@/lib/types";
+import type { Article, EditionSelectionsResponse } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
 import {
   decodeHtmlEntities,
@@ -568,23 +569,27 @@ function parseEditionDateFromPathname(pathname: string | null): string | null {
   return m[1];
 }
 
-/** Sur le sommaire d’édition : inclure / retirer l’article affiché des sélections (sujet ou hors-sujet). */
+/** Sommaire ou liste Articles avec `edition_id` : inclure / retirer l’article des sélections. */
 function ArticlePaneSommaireSelection({
   articleId,
 }: {
   articleId: string;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const editionDate = parseEditionDateFromPathname(pathname);
+  const editionIdFromQuery =
+    searchParams.get("edition_id")?.trim().replace(/^"|"$/g, "") || null;
   const qc = useQueryClient();
 
-  const editionQ = useQuery({
+  const editionByDateQ = useQuery({
     queryKey: ["edition", editionDate ?? ""] as const,
     queryFn: () => api.editionByDate(editionDate!),
-    enabled: Boolean(editionDate),
+    enabled: Boolean(editionDate && !editionIdFromQuery),
     staleTime: 60_000,
   });
-  const editionId = editionQ.data?.id;
+
+  const editionId = editionIdFromQuery ?? editionByDateQ.data?.id;
 
   const topicsQ = useQuery({
     queryKey: ["editionTopics", editionId, "readerSel", 200] as const,
@@ -639,6 +644,44 @@ function ArticlePaneSommaireSelection({
         : [...cur, articleId];
       await api.editionComposePreferences(editionId, { extra_selected_article_ids: next });
     },
+    onMutate: async () => {
+      if (!editionId) return undefined;
+      await qc.cancelQueries({ queryKey: ["editionSelections", editionId] });
+      const previous = qc.getQueryData<EditionSelectionsResponse>([
+        "editionSelections",
+        editionId,
+      ]);
+      if (!previous) return undefined;
+      const server = previous;
+      let next: EditionSelectionsResponse;
+      if (topicIdForArticle) {
+        const cur = server.topics[topicIdForArticle] ?? [];
+        const ids = cur.includes(articleId)
+          ? cur.filter((x) => x !== articleId)
+          : [...cur, articleId];
+        next = {
+          ...server,
+          topics: { ...server.topics, [topicIdForArticle]: ids },
+        };
+      } else {
+        const cur = server.extra_article_ids ?? [];
+        const ids = cur.includes(articleId)
+          ? cur.filter((x) => x !== articleId)
+          : [...cur, articleId];
+        next = {
+          ...server,
+          extra_article_ids: ids,
+        };
+      }
+      qc.setQueryData(["editionSelections", editionId], next);
+      useSelectionStore.getState().hydrateFromServer(editionId, next);
+      return { previous } as const;
+    },
+    onError: (_e, _v, ctx) => {
+      if (!editionId || !ctx?.previous) return;
+      qc.setQueryData(["editionSelections", editionId], ctx.previous);
+      useSelectionStore.getState().hydrateFromServer(editionId, ctx.previous);
+    },
     onSuccess: async () => {
       if (!editionId) return;
       const data = await qc.fetchQuery({
@@ -649,7 +692,21 @@ function ArticlePaneSommaireSelection({
     },
   });
 
-  if (!editionDate || !editionId || editionQ.isError) return null;
+  const hasEditionContext = Boolean(editionIdFromQuery || editionDate);
+  if (!hasEditionContext) return null;
+  if (!editionIdFromQuery && editionDate && editionByDateQ.isPending) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="olj-btn-secondary px-2.5 py-1 text-[11px] opacity-50"
+      >
+        Édition…
+      </button>
+    );
+  }
+  if (!editionIdFromQuery && editionDate && editionByDateQ.isError) return null;
+  if (!editionId) return null;
 
   if (topicsQ.isPending || selectionsQ.isPending) {
     return (
@@ -835,7 +892,9 @@ function ArticlePane({
               >
                 Pleine page
               </Link>
-              <ArticlePaneSommaireSelection articleId={articleId} />
+              <Suspense fallback={null}>
+                <ArticlePaneSommaireSelection articleId={articleId} />
+              </Suspense>
             </div>
           </header>
 

@@ -34,6 +34,20 @@ def _pg_vector_literal(vec: list[float]) -> str:
 
 
 _RRF_K = 60  # constante RRF standard (Cormack et al. 2009)
+# Poids RRF : le plein texte pèse plus que le vecteur (noms propres, entités)
+_W_RRF_FTS = 2.0
+_W_RRF_VEC = 1.0
+
+# Requêtes courtes (ex. noms) : classement FTS uniquement, sans fusion vectorielle
+_FTS_ONLY_MAX_WORDS = 4
+_FTS_ONLY_MAX_CHARS = 100
+
+
+def _prefers_fts_only(query: str) -> bool:
+    s = (query or "").strip()
+    if not s or len(s) > _FTS_ONLY_MAX_CHARS:
+        return False
+    return len(s.split()) <= _FTS_ONLY_MAX_WORDS
 
 
 def _common_where(
@@ -80,8 +94,8 @@ async def _run_fts(
     )
     sql = f"""
     SELECT a.id,
-           ts_rank(to_tsvector('simple', {fts_col}),
-                   plainto_tsquery('simple', :query_text)) AS rank,
+           ts_rank_cd(to_tsvector('simple', {fts_col}),
+                      plainto_tsquery('simple', :query_text)) AS rank,
            a.title_fr,
            a.url,
            a.olj_topic_ids
@@ -123,7 +137,8 @@ async def semantic_search(
     # ── 2. Recherche vectorielle (optionnelle selon disponibilité Cohere) ─
     vec_rows: list[tuple] = []
     vec_ok = False
-    if settings.cohere_api_key:
+    fts_only = _prefers_fts_only(body.query)
+    if settings.cohere_api_key and not fts_only:
         try:
             service = EmbeddingService()
             qvec = await service.embed_query(body.query)
@@ -174,12 +189,12 @@ async def semantic_search(
             and set(meta[aid][2]) & want_topics
         ]
 
-    # Score RRF : 1/(k+rank_v) + 1/(k+rank_t) — 0 si absent d'un côté
+    # Score RRF pondéré : FTS prioritaire sur le vecteur (meilleur sur entités / noms)
     BIG = 10_000
     def rrf(aid: str) -> float:
         rv = rank_vec.get(aid, BIG)
         rt = rank_fts.get(aid, BIG)
-        return 1.0 / (_RRF_K + rv) + 1.0 / (_RRF_K + rt)
+        return _W_RRF_VEC * (1.0 / (_RRF_K + rv)) + _W_RRF_FTS * (1.0 / (_RRF_K + rt))
 
     all_ids.sort(key=rrf, reverse=True)
 
