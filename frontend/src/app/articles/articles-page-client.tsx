@@ -1,12 +1,12 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
   ArticleFilters,
   ArticleFilterNavLinks,
+  ArticlesMobileFilterRow,
   type Filters,
 } from "@/components/articles/article-filters";
 import { ArticleList } from "@/components/articles/article-list";
@@ -153,6 +153,7 @@ export function ArticlesPageClient() {
   const [groupByOljTheme, setGroupByOljTheme] = useState(true);
   const [semanticQuery, setSemanticQuery] = useState("");
   const [semanticHits, setSemanticHits] = useState<SemanticSearchHit[] | null>(null);
+  const [semanticQueryCommitted, setSemanticQueryCommitted] = useState("");
 
   const semanticMutation = useMutation({
     mutationFn: (q: string) =>
@@ -163,8 +164,9 @@ export function ArticlesPageClient() {
         country_codes: filters.countries.length ? filters.countries : undefined,
         article_types: filters.types.length ? filters.types : undefined,
       }),
-    onSuccess: (res) => {
+    onSuccess: (res, q) => {
       setSemanticHits(res.hits);
+      setSemanticQueryCommitted(q.trim());
     },
     onError: () => {
       setSemanticHits(null);
@@ -283,6 +285,32 @@ export function ArticlesPageClient() {
     () => data?.pages.flatMap((p) => p.articles) ?? [],
     [data],
   );
+
+  const semanticIds = useMemo(
+    () =>
+      semanticHits && semanticHits.length > 0
+        ? semanticHits.map((h) => h.article_id)
+        : null,
+    [semanticHits],
+  );
+
+  const semanticArticlesQ = useQuery({
+    queryKey: ["articlesByIdsSemantic", (semanticIds ?? []).join(",")] as const,
+    queryFn: () => api.articlesByIds(semanticIds!),
+    enabled: Boolean(semanticIds && semanticIds.length > 0),
+    staleTime: 30_000,
+  });
+
+  const semanticArticlesOrdered = useMemo((): Article[] => {
+    const rows = semanticArticlesQ.data?.articles;
+    if (!rows?.length || !semanticIds) return [];
+    const byId = new Map(rows.map((a) => [a.id, a]));
+    return semanticIds.map((id) => byId.get(id)).filter((a): a is Article => Boolean(a));
+  }, [semanticArticlesQ.data?.articles, semanticIds]);
+
+  const semanticListActive = Boolean(semanticIds && semanticIds.length > 0);
+  const listArticles = semanticListActive ? semanticArticlesOrdered : articles;
+  const listLoading = semanticListActive ? semanticArticlesQ.isPending : isPending;
 
   const total = data?.pages[0]?.total ?? 0;
   const countsByCountry = data?.pages[0]?.counts_by_country ?? null;
@@ -561,23 +589,7 @@ export function ArticlesPageClient() {
                 : "Recherche indisponible (clé API, pgvector ou périmètre)."}
             </p>
           )}
-          {semanticHits && semanticHits.length > 0 ? (
-            <ul className="mt-3 space-y-1.5 border-t border-border/40 pt-3 text-[12px]">
-              {semanticHits.map((h) => (
-                <li key={h.article_id}>
-                  <Link
-                    href={`/articles/${h.article_id}`}
-                    className="olj-link-action font-medium text-foreground hover:text-accent"
-                  >
-                    {h.title_fr?.trim() || "Sans titre"}
-                  </Link>
-                  <span className="ml-2 tabular-nums text-[10px] text-muted-foreground">
-                    · {h.distance.toFixed(3)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : semanticHits && semanticHits.length === 0 && !semanticMutation.isPending ? (
+          {semanticHits && semanticHits.length === 0 && !semanticMutation.isPending ? (
             <p className="mt-2 text-[11px] text-muted-foreground">Aucun résultat proche.</p>
           ) : null}
         </section>
@@ -588,26 +600,55 @@ export function ArticlesPageClient() {
           </p>
         )}
 
-        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-foreground-body">
-          <input
-            type="checkbox"
-            className="olj-focus size-[14px] rounded-sm border-border"
-            checked={groupByOljTheme}
-            onChange={(e) => setGroupByOljTheme(e.target.checked)}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+          <ArticlesMobileFilterRow
+            statusFilter={statusFilter}
+            sortBy={sortBy}
+            onStatusChange={setStatusFilter}
+            onSortChange={setSortBy}
+            statusOptions={STATUS_NAV}
+            sortOptions={sortNav}
           />
-          Grouper par thème OLJ
-        </label>
+          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-foreground-body lg:ml-auto">
+            <input
+              type="checkbox"
+              className="olj-focus size-[14px] rounded-sm border-border"
+              checked={groupByOljTheme}
+              onChange={(e) => setGroupByOljTheme(e.target.checked)}
+            />
+            Grouper par thème OLJ
+          </label>
+        </div>
+
+        {semanticListActive ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 text-[12px] text-foreground-body">
+            <p className="min-w-0 flex-1 leading-snug">
+              <span className="font-semibold text-foreground">Recherche</span> — « {semanticQueryCommitted} » ·{" "}
+              {semanticArticlesOrdered.length} résultat{semanticArticlesOrdered.length !== 1 ? "s" : ""}
+            </p>
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-border/60 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
+              onClick={() => {
+                setSemanticHits(null);
+                setSemanticQueryCommitted("");
+              }}
+            >
+              Revenir à la liste
+            </button>
+          </div>
+        ) : null}
 
         <ArticleList
-          articles={articles}
+          articles={listArticles}
           selected={selected}
           onToggle={toggle}
-          loading={isPending}
+          loading={listLoading}
           topicLabelsFr={oljLabelsQ.data?.labels_fr ?? null}
           groupByOljTheme={groupByOljTheme}
         />
 
-        {hasNextPage && (
+        {hasNextPage && !semanticListActive && (
           <div className="flex justify-center pt-2">
             <button
               type="button"

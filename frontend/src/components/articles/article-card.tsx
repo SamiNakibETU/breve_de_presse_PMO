@@ -77,7 +77,7 @@ export const ArticleCard = memo(function ArticleCard({
         "hover:shadow-mid hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2",
         selected
           ? "border-accent/40 bg-accent-tint/40 ring-1 ring-accent/30"
-          : "border-border hover:border-border/80",
+          : "border-border hover:border-accent/25 hover:border-border/80",
         variant === "list" ? "py-4" : "",
       )}
       onMouseEnter={() => prefetchArticle(article.id)}

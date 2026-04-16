@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 type EditionMetaStripProps = {
@@ -5,6 +6,8 @@ type EditionMetaStripProps = {
   titleAttr?: string | null;
   statsSummary: string | null;
   vigieHint: string | null;
+  /** Ex. bouton « Période personnalisée », aligné avec le bloc corpus. */
+  corpusCompanion?: ReactNode;
 };
 
 /**
@@ -15,6 +18,7 @@ export function EditionMetaStrip({
   titleAttr,
   statsSummary,
   vigieHint,
+  corpusCompanion,
 }: EditionMetaStripProps) {
   if (!windowCompact && !statsSummary) {
     return null;
@@ -41,14 +45,23 @@ export function EditionMetaStrip({
           ) : null}
         </div>
         {statsSummary ? (
-          <div className="min-w-0 sm:text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:text-right">
-              Corpus du sommaire
-            </p>
-            <p className="mt-0.5 font-[family-name:var(--font-serif)] text-[15px] font-medium tabular-nums leading-snug text-foreground sm:text-right">
-              {statsSummary}
-            </p>
+          <div className="min-w-0">
+            <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              {corpusCompanion ? (
+                <div className="flex shrink-0 items-center">{corpusCompanion}</div>
+              ) : null}
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Corpus du sommaire
+                </p>
+                <p className="mt-0.5 font-[family-name:var(--font-serif)] text-[15px] font-medium tabular-nums leading-snug text-foreground">
+                  {statsSummary}
+                </p>
+              </div>
+            </div>
           </div>
+        ) : corpusCompanion ? (
+          <div className="flex justify-end">{corpusCompanion}</div>
         ) : null}
       </div>
       <div className="mt-3 border-t border-border/20 pt-2">

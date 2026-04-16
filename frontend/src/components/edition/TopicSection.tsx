@@ -3,7 +3,7 @@
 /**
  * TopicSection — Sujet dans le sommaire d'édition.
  *
- * Colonne gauche (sticky en mode summary) :
+ * Colonne gauche (sujet + angles) :
  *   SUJET N                   ← section label
  *   ══════════════════════════ ← rule-strong
  *   Titre éditorial           ← serif semibold
@@ -385,10 +385,7 @@ export function TopicSection({
       )}>
         {/* ── COLONNE GAUCHE ───────────────────────────────── */}
         <div className="min-w-0">
-          <div className={cn(
-            "space-y-4",
-            mode === "summary" && "lg:sticky lg:top-28 lg:z-10",
-          )}>
+          <div className="space-y-4">
             {/* Label sujet */}
             <SectionLabel>Sujet {displayRank}</SectionLabel>
 

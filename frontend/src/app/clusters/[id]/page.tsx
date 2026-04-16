@@ -47,7 +47,7 @@ function ClusterArticleItem({
           openReader();
         }
       }}
-      className="group flex cursor-pointer gap-3 rounded-lg border border-border/60 bg-card px-4 py-3.5 outline-none transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:border-border hover:shadow-low hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2"
+      className="group flex cursor-pointer gap-3 rounded-lg border border-border/60 bg-card px-4 py-3.5 outline-none transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:border-accent/25 hover:shadow-mid hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2"
     >
       <button
         type="button"

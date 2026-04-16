@@ -526,7 +526,10 @@ function FriseTimelineCard({
             </svg>
           </span>
           <span className="text-foreground-body">
-            Fenêtre de collecte de l&apos;édition : articles retenus entre les bornes affichées sur la frise.
+            Fenêtre de collecte de l&apos;édition{" "}
+            <span className="text-muted-foreground">
+              (articles retenus entre les bornes affichées sur la frise).
+            </span>
           </span>
         </p>
       </div>

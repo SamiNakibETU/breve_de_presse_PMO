@@ -607,6 +607,15 @@ class Settings(BaseSettings):
         default=True,
         description="Activer la cascade scraping enrichie (hubs)",
     )
+    hub_cascade_soft_min_words: int = Field(
+        default=280,
+        ge=150,
+        le=900,
+        description=(
+            "Si le corps dépasse déjà le seuil strict (caractères / mots) mais reste sous ce nombre de mots, "
+            "relancer quand même extract_with_cascade et conserver le texte le plus long (moins de contenus tronqués)."
+        ),
+    )
     store_full_translation_fr: bool = Field(
         default=True,
         description="Si true : demander et persister content_translated_fr (corps FR complet, coût tokens)",

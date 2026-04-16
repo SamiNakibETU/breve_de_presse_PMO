@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useEffect, useRef, useState } from "react";
-import { CustomPeriodSelector } from "@/components/edition/custom-period-selector";
+import { CustomPeriodForm } from "@/components/edition/custom-period-form";
+import { CUSTOM_PERIOD_TRIGGER_CLASS } from "@/components/edition/custom-period-selector";
 import { EditionDateRailNew } from "@/components/edition/edition-date-rail-new";
 import { EditionMetaStrip } from "@/components/edition/edition-meta-strip";
 import { EditionThemesView } from "@/components/edition/edition-themes-view";
@@ -206,6 +207,7 @@ export default function EditionSommairePage() {
   const [showAfternoonRefresh, setShowAfternoonRefresh] = useState(true);
   /** Lundi : true = grosse édition week-end (ven 18h → lun 9h), false = édition lundi seul (dim 8h → lun 9h) */
   const [mondayFullWeekend, setMondayFullWeekend] = useState(true);
+  const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
 
   const statsQ = useQuery({
     queryKey: ["stats"] as const,
@@ -331,6 +333,19 @@ export default function EditionSommairePage() {
     return filtered;
   }, [topicsQ.data, showAfternoonRefresh, afternoonThreshold, isMonday, mondayFullWeekend, mondaySingleDayThreshold]);
   const hasTopicFeed = detectionStatus === "done" && topics.length > 0;
+
+  /** Échantillon sommaire : au moins un texte sans analyse complète, ou corpus présent sans sujets encore. */
+  const needsArticleAnalysis = useMemo(() => {
+    const corpus = editionQ.data?.corpus_article_count ?? 0;
+    if (corpus === 0) return false;
+    if (topics.length === 0) return true;
+    for (const t of topics) {
+      for (const p of t.article_previews ?? []) {
+        if ((p.analysis_display_state ?? "pending") !== "complete") return true;
+      }
+    }
+    return false;
+  }, [editionQ.data?.corpus_article_count, topics]);
 
   const clustersFallbackQ = useQuery({
     queryKey: ["editionClustersFallback", editionId] as const,
@@ -710,21 +725,48 @@ export default function EditionSommairePage() {
         </div>
 
         {edition ? (
-          <EditionMetaStrip
-            windowCompact={
-              edition.window_start && edition.window_end
-                ? null
-                : editionWindowCompact
-            }
-            titleAttr={
-              edition.window_start && edition.window_end ? null : editionWindowLabel
-            }
-            statsSummary={`${stats.articles} article${stats.articles > 1 ? "s" : ""} · ${stats.countries} pays · ${stats.developments} sujet${stats.developments > 1 ? "s" : ""} au sommaire (max. ${edition.target_topics_max})`}
-            vigieHint={vigieGlobaleHint}
-          />
+          <>
+            <EditionMetaStrip
+              windowCompact={
+                edition.window_start && edition.window_end
+                  ? null
+                  : editionWindowCompact
+              }
+              titleAttr={
+                edition.window_start && edition.window_end ? null : editionWindowLabel
+              }
+              statsSummary={`${stats.articles} article${stats.articles > 1 ? "s" : ""} · ${stats.countries} pays · ${stats.developments} sujet${stats.developments > 1 ? "s" : ""} au sommaire (max. ${edition.target_topics_max})`}
+              vigieHint={vigieGlobaleHint}
+              corpusCompanion={
+                !customPeriodOpen ? (
+                  <button
+                    type="button"
+                    className={CUSTOM_PERIOD_TRIGGER_CLASS}
+                    onClick={() => setCustomPeriodOpen(true)}
+                  >
+                    <span className="text-[13px]" aria-hidden>
+                      +
+                    </span>
+                    Période personnalisée
+                  </button>
+                ) : null
+              }
+            />
+            {!customPeriodOpen ? (
+              <p className="mt-2 max-w-lg text-[10px] leading-snug text-muted-foreground">
+                Crée une édition sur des dates libres, lance l&apos;analyse puis ouvre automatiquement le{" "}
+                <strong className="font-medium text-foreground-body">sommaire du jour de fin</strong> (URL{" "}
+                <code className="rounded bg-muted/50 px-0.5 text-[9px]">/edition/AAAA-MM-JJ</code>
+                ). Retrouvez-la comme n&apos;importe quelle édition via le calendrier ou le rail de dates.
+              </p>
+            ) : null}
+            {customPeriodOpen ? (
+              <div className="mt-3">
+                <CustomPeriodForm onClose={() => setCustomPeriodOpen(false)} />
+              </div>
+            ) : null}
+          </>
         ) : null}
-
-        <CustomPeriodSelector className="mt-3" />
 
         {date ? (
           <div className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
@@ -793,84 +835,6 @@ export default function EditionSommairePage() {
         {detectionMessage ? (
           <p className="mt-3 text-[12px] text-muted-foreground">{detectionMessage}</p>
         ) : null}
-        {/* Bloc actions pipeline : action principale + regroupement dans « avancé » */}
-        {editionId && pipeline && (
-          <div className="mt-3 space-y-2 border-t border-border/50 pt-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
-              <div className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  className="olj-btn-primary px-3.5 py-2 text-[12px] disabled:opacity-45"
-                  disabled={pipeline.running !== null}
-                  title="Analyse LLM (thèse, structure, points clés) sur le corpus de cette édition."
-                  onClick={() =>
-                    pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", { editionId })
-                  }
-                >
-                  {pipeline.running?.key === "articleAnalysis"
-                    ? "Analyse en cours…"
-                    : "Analyser les articles"}
-                </button>
-                <p className="mt-1 max-w-xl text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
-                  Enrichit les textes (thèses, analyse) pour le sommaire et la composition.
-                </p>
-              </div>
-              <details className="min-w-0 flex-1 rounded-lg border border-border/55 bg-muted/10 px-3 py-1.5 sm:max-w-md sm:px-3.5 sm:py-2">
-                <summary className="cursor-pointer list-none text-[11px] font-semibold text-foreground-body marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
-                  <span className="underline decoration-border/50 underline-offset-2">
-                    Regroupements & sujets (avancé)
-                  </span>
-                </summary>
-                <div className="mt-2 space-y-2 border-t border-border/40 pt-2">
-                  <p className="text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
-                    <span className="font-medium text-foreground-body">Identifier les sujets</span> sur les
-                    clusters existants. <span className="font-medium text-foreground-body">Recalculer</span>{" "}
-                    : chaîne complète (plus long, plus coûteux).
-                  </p>
-                  {detectionStatus !== "running" &&
-                    (detectionStatus === "pending" ||
-                      detectionStatus === "failed" ||
-                      (detectionStatus === "done" && topics.length === 0)) && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-                        disabled={detectMutation.isPending || pipeline.running !== null}
-                        title="Détection de sujets sur les clusters existants (sans refaire tout le scoring)."
-                        onClick={() => detectMutation.mutate()}
-                      >
-                        {detectMutation.isPending ? "Traitement…" : "Identifier les sujets"}
-                      </button>
-                      <button
-                        type="button"
-                        className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
-                        disabled={pipeline.running !== null || detectMutation.isPending}
-                        title="Pertinence → embeddings → clusters → libellés → détection des sujets."
-                        onClick={() =>
-                          pipeline.startSequentialChain(
-                            [
-                              "relevance_scoring",
-                              "embedding_only",
-                              "clustering_only",
-                              "cluster_labelling",
-                              "topic_detection",
-                            ],
-                            "Relance analyse complète",
-                            { editionId },
-                          )
-                        }
-                      >
-                        {pipeline.running?.key === "sequentialChain"
-                          ? "Traitement…"
-                          : "Recalculer (scoring → clusters → sujets)"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </details>
-            </div>
-          </div>
-        )}
       </header>
 
       {err && (
@@ -942,19 +906,96 @@ export default function EditionSommairePage() {
                       Proposition éditoriale pour la date affichée : ordre, coches et textes générés alimentent la
                       rédaction, l’export et le bandeau de sélection en bas d’écran.
                     </p>
+                    {editionId && pipeline && needsArticleAnalysis ? (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          className="rounded-md border border-border/60 bg-background px-2.5 py-1 text-[10px] font-medium text-foreground transition-colors hover:border-accent/35 hover:bg-accent/5 disabled:opacity-45"
+                          disabled={pipeline.running !== null}
+                          title="Analyse LLM (thèse, structure, points clés) sur le corpus de cette édition."
+                          onClick={() =>
+                            pipeline.startRun("articleAnalysis", "Analyse détaillée des articles", {
+                              editionId,
+                            })
+                          }
+                        >
+                          {pipeline.running?.key === "articleAnalysis"
+                            ? "Analyse en cours…"
+                            : "Analyser les articles (LLM)"}
+                        </button>
+                        <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+                          Proposé tant que des textes du sommaire n’ont pas encore d’analyse complète sur l’échantillon
+                          affiché.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-foreground">Regroupements (complément)</p>
+                    <p className="text-[13px] font-semibold text-foreground">Regroupements & Panorama</p>
                     <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                      Regroupements thématiques sur un corpus plus large (utile pour comparer des angles). Ce n’est pas
-                      le sommaire publié ; pour la vue globale et les volumes, utiliser{" "}
+                      Les volumes et regroupements larges sont sur{" "}
                       <Link href="/panorama" className="olj-link-action">
                         Panorama
                       </Link>
-                      .
+                      . Les actions techniques (sujets, scoring, clusters) sont regroupées ci-dessous.
                     </p>
                   </div>
                 </div>
+                {editionId && pipeline ? (
+                  <details className="mt-4 rounded-lg border border-border/55 bg-background/60 px-3 py-2 sm:px-3.5 sm:py-2.5">
+                    <summary className="cursor-pointer list-none text-[11px] font-semibold text-foreground-body marker:content-none [&::-webkit-details-marker]:hidden">
+                      <span className="underline decoration-border/50 underline-offset-2">
+                        Regroupements & sujets (avancé)
+                      </span>
+                    </summary>
+                    <div className="mt-2 space-y-2 border-t border-border/40 pt-2">
+                      <p className="text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+                        <span className="font-medium text-foreground-body">Identifier les sujets</span> sur les
+                        clusters existants. <span className="font-medium text-foreground-body">Recalculer</span> : chaîne
+                        complète (plus long, plus coûteux).
+                      </p>
+                      {detectionStatus !== "running" &&
+                        (detectionStatus === "pending" ||
+                          detectionStatus === "failed" ||
+                          (detectionStatus === "done" && topics.length === 0)) && (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                            disabled={detectMutation.isPending || pipeline.running !== null}
+                            title="Détection de sujets sur les clusters existants (sans refaire tout le scoring)."
+                            onClick={() => detectMutation.mutate()}
+                          >
+                            {detectMutation.isPending ? "Traitement…" : "Identifier les sujets"}
+                          </button>
+                          <button
+                            type="button"
+                            className="olj-btn-secondary px-3 py-1.5 text-[11px] disabled:opacity-45"
+                            disabled={pipeline.running !== null || detectMutation.isPending}
+                            title="Pertinence → embeddings → clusters → libellés → détection des sujets."
+                            onClick={() =>
+                              pipeline.startSequentialChain(
+                                [
+                                  "relevance_scoring",
+                                  "embedding_only",
+                                  "clustering_only",
+                                  "cluster_labelling",
+                                  "topic_detection",
+                                ],
+                                "Relance analyse complète",
+                                { editionId },
+                              )
+                            }
+                          >
+                            {pipeline.running?.key === "sequentialChain"
+                              ? "Traitement…"
+                              : "Recalculer (scoring → clusters → sujets)"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                ) : null}
               </div>
               {hasTopicFeed ? (
                 <section>

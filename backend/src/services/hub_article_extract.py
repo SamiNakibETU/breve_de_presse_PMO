@@ -397,6 +397,17 @@ async def extract_hub_article_page(
                 body = best3
             body = merge_longest_body_with_jsonld(html_scroll, body)
 
+    wc_body = len((body or "").split())
+    soft_marginally_short = (
+        bool(body)
+        and is_substantial_article_body(
+            body,
+            min_chars=min_chars,
+            min_words=min_words_fetch,
+        )
+        and wc_body < int(settings.hub_cascade_soft_min_words)
+    )
+
     if settings.enhanced_scraper_enabled and (
         not body
         or not is_substantial_article_body(
@@ -404,6 +415,7 @@ async def extract_hub_article_page(
             min_chars=min_chars,
             min_words=min_words_fetch,
         )
+        or soft_marginally_short
     ):
         from src.services.enhanced_scraper import extract_with_cascade
 

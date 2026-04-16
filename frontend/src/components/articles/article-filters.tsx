@@ -279,6 +279,60 @@ export function ArticleFilters({
   );
 }
 
+const MOBILE_CHIP_ON =
+  "border-foreground bg-foreground text-background shadow-[0_1px_0_rgba(0,0,0,0.04)]";
+const MOBILE_CHIP_OFF =
+  "border-border/55 bg-background text-muted-foreground hover:border-border hover:text-foreground";
+
+/** Filtres statut + tri en pastilles horizontales (mobile / étroit). */
+export function ArticlesMobileFilterRow({
+  statusFilter,
+  sortBy,
+  onStatusChange,
+  onSortChange,
+  statusOptions,
+  sortOptions,
+}: {
+  statusFilter: string;
+  sortBy: string;
+  onStatusChange: (key: string) => void;
+  onSortChange: (key: string) => void;
+  statusOptions: readonly { key: string; label: string }[];
+  sortOptions: readonly { key: string; label: string; title?: string }[];
+}) {
+  return (
+    <div className="lg:hidden w-full min-w-0 rounded-lg border border-border/50 bg-muted/10 px-2 py-2">
+      <div className="olj-scrollbar-none flex gap-1.5 overflow-x-auto pb-0.5">
+        {statusOptions.map(({ key, label }) => (
+          <button
+            key={`mob-st-${key}`}
+            type="button"
+            onClick={() => onStatusChange(key)}
+            className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors [transition-duration:var(--duration-fast)] ${statusFilter === key ? MOBILE_CHIP_ON : MOBILE_CHIP_OFF}`}
+          >
+            {label}
+          </button>
+        ))}
+        <span
+          className="mx-0.5 w-px shrink-0 self-stretch bg-border/60"
+          aria-hidden
+        />
+        {sortOptions.map(({ key, label, title }) => (
+          <button
+            key={`mob-so-${key}`}
+            type="button"
+            title={title}
+            onClick={() => onSortChange(key)}
+            className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors [transition-duration:var(--duration-fast)] ${sortBy === key ? MOBILE_CHIP_ON : MOBILE_CHIP_OFF}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Statut et tri compacts (barre latérale). */
 export function ArticleFilterNavLinks({
   statusFilter,

@@ -49,20 +49,41 @@ function ThemeArticleRow({
 }) {
   const { openArticle, prefetchArticle } = useArticleReader();
   const title = article.title.trim() || "Sans titre";
+  const openReader = () => {
+    void prefetchArticle(article.id);
+    openArticle(article.id);
+  };
   return (
-    <div className="px-3 py-3 text-[12px] sm:px-4">
-      <div className="flex items-start gap-3">
+    <div
+      tabIndex={0}
+      className="group px-3 py-3 text-[12px] transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:bg-muted/25 hover:shadow-[inset_0_0_0_1px_var(--color-border)] sm:px-4"
+      onClick={(e) => {
+        const el = e.target as HTMLElement;
+        if (el.closest("input,button")) return;
+        openReader();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openReader();
+        }
+      }}
+    >
+      <div className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
-          className="olj-focus mt-1 size-[15px] shrink-0 border-border"
+          className="olj-focus relative z-[1] mt-1 size-[15px] shrink-0 border-border"
           checked={selected}
           onChange={(e) => onToggle(e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
           aria-label={`Inclure ${title}`}
         />
         <div className="min-w-0 flex-1">
           <span className="text-muted-foreground">{article.source}</span>
           <span className="text-muted-foreground"> · </span>
-          <span className="font-medium leading-snug text-foreground">{title}</span>
+          <span className="font-medium leading-snug text-foreground group-hover:text-accent">
+            {title}
+          </span>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <button
@@ -70,7 +91,10 @@ function ThemeArticleRow({
             className="olj-btn-secondary px-2 py-0.5 text-[10px]"
             onMouseEnter={() => prefetchArticle(article.id)}
             onFocus={() => prefetchArticle(article.id)}
-            onClick={() => openArticle(article.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              openArticle(article.id);
+            }}
           >
             Lire
           </button>
@@ -214,7 +238,7 @@ export function EditionThemesView({
             <li
               key={row.cluster_id}
               className={cn(
-                "overflow-hidden rounded-lg border border-border bg-card",
+                "overflow-hidden rounded-lg border border-border bg-card transition-all [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-out-expo)] hover:border-border/80 hover:shadow-low",
                 multi && "ring-1 ring-[#c8102e]/15",
               )}
             >

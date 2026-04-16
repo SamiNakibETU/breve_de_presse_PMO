@@ -19,13 +19,15 @@
  *   Métadonnées techniques (tonalité, cadrage, angle)
  */
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -39,6 +41,7 @@ import {
   relevanceBandLabelFr,
 } from "@/lib/article-relevance-display";
 import { api } from "@/lib/api";
+import { useSelectionStore } from "@/stores/selection-store";
 import { formatPublishedAtFr } from "@/lib/dates-display-fr";
 import type { Article } from "@/lib/types";
 import { REGION_FLAG_EMOJI } from "@/lib/region-flag-emoji";
@@ -539,6 +542,130 @@ function ArticleTab({
   );
 }
 
+function parseEditionDateFromPathname(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const m = /^\/edition\/(\d{4}-\d{2}-\d{2})(?:\/|$)/.exec(pathname);
+  if (!m?.[1]) return null;
+  if (pathname.includes("/compose")) return null;
+  return m[1];
+}
+
+/** Sur le sommaire d’édition : inclure / retirer l’article affiché des sélections (sujet ou hors-sujet). */
+function ArticlePaneSommaireSelection({
+  articleId,
+}: {
+  articleId: string;
+}) {
+  const pathname = usePathname();
+  const editionDate = parseEditionDateFromPathname(pathname);
+  const qc = useQueryClient();
+
+  const editionQ = useQuery({
+    queryKey: ["edition", editionDate ?? ""] as const,
+    queryFn: () => api.editionByDate(editionDate!),
+    enabled: Boolean(editionDate),
+    staleTime: 60_000,
+  });
+  const editionId = editionQ.data?.id;
+
+  const topicsQ = useQuery({
+    queryKey: ["editionTopics", editionId, "readerSel", 200] as const,
+    queryFn: () =>
+      api.editionTopics(editionId!, {
+        includeArticlePreviews: true,
+        maxArticlePreviewsPerTopic: 200,
+      }),
+    enabled: Boolean(editionId),
+    staleTime: 15_000,
+  });
+
+  const selectionsQ = useQuery({
+    queryKey: ["editionSelections", editionId] as const,
+    queryFn: () => api.editionSelections(editionId!),
+    enabled: Boolean(editionId),
+    staleTime: 15_000,
+  });
+
+  const topicIdForArticle = useMemo(() => {
+    for (const t of topicsQ.data ?? []) {
+      if ((t.article_previews ?? []).some((p) => p.id === articleId)) return t.id;
+    }
+    return null;
+  }, [topicsQ.data, articleId]);
+
+  const bundle = useSelectionStore((s) => (editionId ? s.byEditionId[editionId] : undefined));
+  const inTopic =
+    topicIdForArticle != null &&
+    (bundle?.topics[topicIdForArticle] ?? selectionsQ.data?.topics[topicIdForArticle] ?? []).includes(
+      articleId,
+    );
+  const inExtra =
+    (bundle?.extra_article_ids ?? selectionsQ.data?.extra_article_ids ?? []).includes(articleId);
+  const selectedSommaire = inTopic || inExtra;
+
+  const toggleMutation = useMutation({
+    mutationFn: async () => {
+      if (!editionId) throw new Error("Édition indisponible");
+      const server = await api.editionSelections(editionId);
+      if (topicIdForArticle) {
+        const cur = server.topics[topicIdForArticle] ?? [];
+        const next = cur.includes(articleId)
+          ? cur.filter((x) => x !== articleId)
+          : [...cur, articleId];
+        await api.editionTopicSelection(editionId, topicIdForArticle, next);
+        return;
+      }
+      const cur = server.extra_article_ids ?? [];
+      const next = cur.includes(articleId)
+        ? cur.filter((x) => x !== articleId)
+        : [...cur, articleId];
+      await api.editionComposePreferences(editionId, { extra_selected_article_ids: next });
+    },
+    onSuccess: async () => {
+      if (!editionId) return;
+      const data = await qc.fetchQuery({
+        queryKey: ["editionSelections", editionId],
+        queryFn: () => api.editionSelections(editionId),
+      });
+      useSelectionStore.getState().hydrateFromServer(editionId, data);
+    },
+  });
+
+  if (!editionDate || !editionId || editionQ.isError) return null;
+
+  if (topicsQ.isPending || selectionsQ.isPending) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="olj-btn-secondary px-2.5 py-1 text-[11px] opacity-50"
+      >
+        Sommaire…
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="olj-btn-secondary px-2.5 py-1 text-[11px] disabled:opacity-45"
+      disabled={toggleMutation.isPending}
+      title={
+        topicIdForArticle
+          ? "Coche ou décoche cet article pour le sujet correspondant dans le sommaire."
+          : "Ajoute ou retire cet article des textes hors sujet (sélection rédaction)."
+      }
+      onClick={() => toggleMutation.mutate()}
+    >
+      {toggleMutation.isPending
+        ? "…"
+        : selectedSommaire
+          ? "Retirer du sommaire"
+          : "Inclure au sommaire"}
+    </button>
+  );
+}
+
 function ArticlePane({
   articleId,
   onClose,
@@ -690,6 +817,7 @@ function ArticlePane({
               >
                 Pleine page
               </Link>
+              <ArticlePaneSommaireSelection articleId={articleId} />
             </div>
           </header>
 
