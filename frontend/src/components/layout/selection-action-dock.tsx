@@ -19,7 +19,7 @@ export function SelectionActionDock({
   if (selectionCount === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 motion-safe:animate-in motion-safe:slide-in-from-bottom-2 motion-safe:fade-in-0 motion-safe:[animation-duration:200ms]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[90] motion-safe:animate-in motion-safe:slide-in-from-bottom-2 motion-safe:fade-in-0 motion-safe:[animation-duration:200ms]">
       <div className="pointer-events-auto mx-auto max-w-[80rem] px-4 pb-3 sm:px-6">
         <div className="rounded-2xl border border-border/70 bg-background/94 shadow-[0_-8px_32px_rgba(0,0,0,0.06)] backdrop-blur-md">
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-3.5">

@@ -24,139 +24,6 @@ import { confirmHeavyPipelineRun } from "@/lib/pipeline-confirm";
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const TOPIC_SUMMARY_PREVIEWS = 6;
 
-/** Tâche de surveillance du bail (intervalle court) ; ne pas l’afficher comme « prochain passage » métier. */
-const SCHEDULER_EXCLUDE_FROM_NEXT_PREVIEW = new Set(["pipeline_lease_stall_watch"]);
-
-/** Chaîne renvoyée par APScheduler (ex. `2026-03-24 06:00:00+00:00`). */
-function parseSchedulerDate(raw: string): Date | null {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const isoLike = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
-  const d = new Date(isoLike);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function schedulerJobTimeZone(jobId: string): "UTC" | "Asia/Beirut" | "Europe/Paris" {
-  if (jobId === "edition_daily_create_beirut") {
-    return "Asia/Beirut";
-  }
-  if (
-    jobId === "daily_pipeline_monday" ||
-    jobId === "daily_pipeline_weekday" ||
-    jobId === "daily_pipeline" ||
-    jobId === "afternoon_refresh_daily" ||
-    jobId === "afternoon_refresh_weekday" ||
-    jobId === "edition_daily_create_paris"
-  ) {
-    return "Europe/Paris";
-  }
-  return "UTC";
-}
-
-function schedulerJobTitleFr(jobId: string, fallbackName: string): string {
-  switch (jobId) {
-    case "daily_pipeline":
-      return "Pipeline quotidien (9h Paris, lun-dim)";
-    case "daily_pipeline_monday":
-      return "Mise a jour week-end (lundi 9h Paris)";
-    case "daily_pipeline_weekday":
-      return "Mise a jour mardi-vendredi (9h Paris)";
-    case "afternoon_refresh_daily":
-      return "Actualisation 18h (tous les jours, Paris)";
-    case "afternoon_refresh_weekday":
-      return "Actualisation 18h (mar.-ven., Paris)";
-    case "edition_daily_create_paris":
-    case "edition_daily_create_beirut":
-      return "Ouverture de l'edition du lendemain";
-    case "pipeline_completion_retry":
-      return "Relance si pipeline incomplet";
-    case "pipeline_lease_stall_watch":
-      return "Surveillance du bail pipeline";
-    default:
-      return fallbackName;
-  }
-}
-
-function formatJobNextRunFr(jobId: string, nextRun: string | null): string {
-  if (!nextRun) {
-    return "Non planifié";
-  }
-  const d = parseSchedulerDate(nextRun);
-  if (!d) {
-    return nextRun;
-  }
-  const tz = schedulerJobTimeZone(jobId);
-  const suffix =
-    tz === "UTC"
-      ? " UTC"
-      : tz === "Asia/Beirut"
-        ? " · heure de Beyrouth"
-        : " · heure de Paris";
-  return (
-    new Intl.DateTimeFormat("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: tz,
-    }).format(d) + suffix
-  );
-}
-
-/** Dernier passage enregistré côté serveur (événement APScheduler, même fuseau que le prochain). */
-function formatJobLastRunFr(
-  jobId: string,
-  lastRunAt: string | null | undefined,
-  lastOk: boolean | null | undefined,
-): string | null {
-  if (lastRunAt == null || lastRunAt === "") {
-    return null;
-  }
-  const d = parseSchedulerDate(lastRunAt);
-  const tz = schedulerJobTimeZone(jobId);
-  const suffix =
-    tz === "UTC"
-      ? " UTC"
-      : tz === "Asia/Beirut"
-        ? " · heure de Beyrouth"
-        : " · heure de Paris";
-  let base: string;
-  if (!d) {
-    base = lastRunAt;
-  } else {
-    base =
-      new Intl.DateTimeFormat("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: tz,
-      }).format(d) + suffix;
-  }
-  if (lastOk === false) {
-    return `${base} · échec`;
-  }
-  return base;
-}
-
-function formatSessionDateTimeFr(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    return iso;
-  }
-  return new Intl.DateTimeFormat("fr-FR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Europe/Paris",
-  }).format(d);
-}
-
 function detectionLabel(s: EditionDetectionStatus | undefined): string | null {
   switch (s) {
     case "done":
@@ -584,55 +451,6 @@ export default function EditionSommairePage() {
     );
   }, [edition?.window_start, edition?.window_end]);
 
-  const schedulerPreview = useMemo(() => {
-    const jobs = statusQ.data?.jobs ?? [];
-    const rows = jobs.map((j) => {
-      const d = parseSchedulerDate(j.next_run ?? "");
-      const lastAt = j.last_run_at ?? null;
-      const lastOk = j.last_run_ok ?? null;
-      const lastTs = lastAt ? parseSchedulerDate(lastAt)?.getTime() : null;
-      return {
-        id: j.id,
-        title: schedulerJobTitleFr(j.id, j.name),
-        ts: d?.getTime() ?? Number.POSITIVE_INFINITY,
-        formattedNext: formatJobNextRunFr(j.id, j.next_run),
-        formattedLast: formatJobLastRunFr(j.id, lastAt, lastOk),
-        lastTs: lastTs ?? null,
-        lastOk,
-      };
-    });
-    rows.sort((a, b) => a.ts - b.ts);
-    const next =
-      rows.find(
-        (r) =>
-          !SCHEDULER_EXCLUDE_FROM_NEXT_PREVIEW.has(r.id) &&
-          r.ts !== Number.POSITIVE_INFINITY,
-      ) ?? null;
-    let recentServerRun: {
-      lastTs: number;
-      title: string;
-      formattedLast: string;
-      lastOk: boolean | null;
-    } | null = null;
-    for (const r of rows) {
-      if (r.lastTs == null) {
-        continue;
-      }
-      if (!recentServerRun || r.lastTs > recentServerRun.lastTs) {
-        const fl = r.formattedLast;
-        if (fl) {
-          recentServerRun = {
-            lastTs: r.lastTs,
-            title: r.title,
-            formattedLast: fl,
-            lastOk: r.lastOk,
-          };
-        }
-      }
-    }
-    return { rows, next, recentServerRun };
-  }, [statusQ.data?.jobs]);
-
   const detectMutation = useMutation({
     mutationFn: () => api.editionDetectTopics(editionId!),
     onSuccess: async () => {
@@ -752,14 +570,6 @@ export default function EditionSommairePage() {
                 ) : null
               }
             />
-            {!customPeriodOpen ? (
-              <p className="mt-2 max-w-lg text-[10px] leading-snug text-muted-foreground">
-                Crée une édition sur des dates libres, lance l&apos;analyse puis ouvre automatiquement le{" "}
-                <strong className="font-medium text-foreground-body">sommaire du jour de fin</strong> (URL{" "}
-                <code className="rounded bg-muted/50 px-0.5 text-[9px]">/edition/AAAA-MM-JJ</code>
-                ). Retrouvez-la comme n&apos;importe quelle édition via le calendrier ou le rail de dates.
-              </p>
-            ) : null}
             {customPeriodOpen ? (
               <div className="mt-3">
                 <CustomPeriodForm onClose={() => setCustomPeriodOpen(false)} />
@@ -790,45 +600,6 @@ export default function EditionSommairePage() {
                 {pipeline.running.label}…
               </p>
             ) : null}
-            <details className="group pt-0.5">
-              <summary className="cursor-pointer list-none py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
-                <span className="underline decoration-border/60 underline-offset-2 group-open:no-underline">
-                  Planification et journaux (régie)
-                </span>
-              </summary>
-              <div className="mt-1.5 space-y-1.5 pl-0.5 text-[10px]">
-                {statusQ.isError ? (
-                  <p className="olj-alert-destructive px-2 py-1.5 text-[11px]">
-                    Statut automatique indisponible.
-                  </p>
-                ) : statusQ.isPending ? (
-                  <p>Chargement des horaires…</p>
-                ) : schedulerPreview.next ? (
-                  <p>
-                    <span className="font-medium text-foreground">Prochain passage automatique :</span>{" "}
-                    {schedulerPreview.next.formattedNext} ({schedulerPreview.next.title}).
-                  </p>
-                ) : null}
-                <p>
-                  Détail des tâches et journaux :{" "}
-                  <Link href="/regie/pipeline" className="olj-link-action font-medium">
-                    Régie (collecte)
-                  </Link>
-                  {" · "}
-                  <Link href="/regie/logs" className="olj-link-action font-medium">
-                    Journaux
-                  </Link>
-                  .
-                </p>
-                {pipeline?.lastRun ? (
-                  <p>
-                    Dernière mise à jour (cette session) : {formatSessionDateTimeFr(pipeline.lastRun.at)} ·{" "}
-                    {pipeline.lastRun.label}
-                    {pipeline.lastRun.ok ? "" : " · erreur"}.
-                  </p>
-                ) : null}
-              </div>
-            </details>
           </div>
         ) : null}
 
@@ -892,14 +663,16 @@ export default function EditionSommairePage() {
 
           {!fullyEmpty && (
             <div className="mx-auto mt-6 max-w-4xl space-y-14">
-              <div
-                className="rounded-xl border border-border/50 bg-muted/10 p-4 sm:p-5"
+              <details
+                className="group rounded-xl border border-border/50 bg-muted/10 p-3 sm:p-4"
                 aria-label="Rôles des deux zones du sommaire"
               >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Lecture du sommaire
-                </p>
-                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <summary className="cursor-pointer list-none text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-foreground">
+                  <span className="underline decoration-border/50 underline-offset-[3px] group-open:no-underline">
+                    Lecture du sommaire (aide)
+                  </span>
+                </summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:gap-4">
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-foreground">Grands sujets (cette édition)</p>
                     <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
@@ -996,7 +769,7 @@ export default function EditionSommairePage() {
                     </div>
                   </details>
                 ) : null}
-              </div>
+              </details>
               {hasTopicFeed ? (
                 <section>
                   <h2 className="olj-rubric olj-rule mb-2">Grands sujets</h2>
