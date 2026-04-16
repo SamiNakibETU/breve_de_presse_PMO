@@ -322,6 +322,22 @@ export default function ComposePage() {
     },
   });
 
+  const addPisteMutation = useMutation({
+    mutationFn: async ({ topicId, articleId }: { topicId: string; articleId: string }) => {
+      if (!editionId) throw new Error("Édition introuvable");
+      const bundle =
+        qc.getQueryData<EditionSelectionsResponse>(["editionSelections", editionId]) ??
+        selectionsQ.data;
+      const cur = bundle?.topics[topicId] ?? [];
+      if (cur.includes(articleId)) return;
+      await api.editionTopicSelection(editionId, topicId, [...cur, articleId]);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["editionSelections", editionId] });
+      await qc.invalidateQueries({ queryKey: ["editionTopics", editionId] });
+    },
+  });
+
   // ---- Derived state ----
   const topics = useMemo(() => {
     const list = topicsQ.data ?? [];
@@ -402,7 +418,7 @@ export default function ComposePage() {
 
   // ---- Render ----
   return (
-    <div className="mx-auto max-w-5xl space-y-12 pb-8">
+    <div className="mx-auto max-w-5xl space-y-8 pb-8 sm:space-y-10">
       <ComposeHeader
         date={date}
         titleFr={editionTitleLine(date)}
@@ -484,6 +500,10 @@ export default function ComposePage() {
           void genTopicMutation.mutateAsync({ topicId });
         }}
         onCopyTopic={(t) => void copyTopic(t)}
+        onAddPiste={(topicId, articleId) =>
+          void addPisteMutation.mutateAsync({ topicId, articleId })
+        }
+        addPisteDisabled={addPisteMutation.isPending}
       />
 
       <footer className="space-y-4 border-t border-border-light pt-8">

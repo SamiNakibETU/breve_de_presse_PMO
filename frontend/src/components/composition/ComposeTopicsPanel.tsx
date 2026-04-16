@@ -5,6 +5,7 @@ import type { EditionTopic, TopicArticlePreview } from "@/lib/types";
 import { formatIsoCalendarDayLongFr } from "@/lib/dates-display-fr";
 import { ReadinessIndicator, type ReadinessLevel } from "./ReadinessIndicator";
 import { TopicGeneratedProse } from "./TopicGeneratedProse";
+import { useArticleReader } from "@/contexts/article-reader";
 
 function topicReadiness(ordered: TopicArticlePreview[]): ReadinessLevel {
   if (ordered.length === 0) return "empty";
@@ -53,6 +54,9 @@ interface ComposeTopicsPanelProps {
   generateTopicErrorMessage: string;
   onGenerateTopic: (topicId: string) => void;
   onCopyTopic: (topic: EditionTopic) => void;
+  /** Ajouter un article « piste » à la sélection d'un sujet. */
+  onAddPiste?: (topicId: string, articleId: string) => void;
+  addPisteDisabled?: boolean;
 }
 
 function orderedSelectedPreviews(
@@ -76,13 +80,17 @@ export function ComposeTopicsPanel({
   generateTopicErrorMessage,
   onGenerateTopic,
   onCopyTopic,
+  onAddPiste,
+  addPisteDisabled,
 }: ComposeTopicsPanelProps) {
+  const { openArticle, prefetchArticle } = useArticleReader();
+
   if (isLoadingTopics) {
     return <p className="text-[13px] text-muted-foreground">Chargement des sujets…</p>;
   }
 
   return (
-    <section aria-labelledby="compose-topics-heading" className="space-y-8">
+    <section aria-labelledby="compose-topics-heading" className="space-y-6">
       <h2
         id="compose-topics-heading"
         className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
@@ -114,17 +122,18 @@ export function ComposeTopicsPanel({
             <article
               id={`compose-topic-${t.id}`}
               key={t.id}
-              className="scroll-mt-28 rounded-2xl border border-border/55 bg-card p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-6"
+              className="scroll-mt-28 rounded-2xl border border-border/55 bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.03)] sm:p-5"
             >
-              <div className="flex flex-col gap-4 border-b border-border/40 pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-                <div className="min-w-0">
+              {/* ── Header sujet ── */}
+              <div className="flex flex-col gap-3 border-b border-border/40 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="tabular-nums text-[11px] font-semibold text-muted-foreground">
                       {position}/{topics.length}
                     </span>
                     <ReadinessIndicator level={topicReadiness(orderedForTopic)} />
                   </div>
-                  <h3 className="mt-1 font-[family-name:var(--font-serif)] text-[18px] font-semibold leading-snug text-foreground">
+                  <h3 className="mt-1 font-[family-name:var(--font-serif)] text-[17px] font-semibold leading-snug text-foreground sm:text-[18px]">
                     {title}
                   </h3>
                   <p className="mt-1 text-[11px] text-muted-foreground">
@@ -134,16 +143,16 @@ export function ComposeTopicsPanel({
                       ? ` · ${nSelected} retenu${nSelected > 1 ? "s" : ""}`
                       : " · aucune sélection"}
                   </p>
-                  {nSelected === 1 ? (
-                    <p className="mt-2 text-[11px] text-warning">
-                      Encore un article dans ce sujet pour atteindre le minimum (2) avant génération.
+                  {nSelected === 1 && (
+                    <p className="mt-1.5 text-[11px] text-warning">
+                      Un article de plus (min. 2) pour pouvoir rédiger.
                     </p>
-                  ) : null}
+                  )}
                 </div>
-                <div className="flex flex-shrink-0 flex-wrap gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-end">
                   <button
                     type="button"
-                    className="olj-btn-primary px-3 py-2 text-[12px] disabled:opacity-50"
+                    className="olj-btn-primary px-3 py-1.5 text-[12px] disabled:opacity-50"
                     disabled={isGeneratingTopic || !canGenerate}
                     onClick={() => onGenerateTopic(t.id)}
                   >
@@ -155,54 +164,71 @@ export function ComposeTopicsPanel({
                   </button>
                   <button
                     type="button"
-                    className="olj-btn-secondary px-3 py-2 text-[12px]"
+                    className="olj-btn-secondary px-3 py-1.5 text-[12px]"
                     onClick={() => onCopyTopic(t)}
                   >
-                    {copiedTopicId === t.id ? "Copié" : "Copier"}
+                    {copiedTopicId === t.id ? "Copié ✓" : "Copier"}
                   </button>
                 </div>
               </div>
 
+              {/* ── Pistes (articles non sélectionnés recommandés) ── */}
               {reco.length > 0 && nSelected < 2 ? (
-                <div className="mt-4">
+                <div className="mt-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Pistes (non sélectionnées)
+                    Suggestions
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Corpus du sommaire :{" "}
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                    Corpus du{" "}
                     <span className="font-medium text-foreground-body">
                       {formatIsoCalendarDayLongFr(date)}
                     </span>
-                    . Pertinence et traduction — ouvrir une fiche ou cocher au{" "}
+                    . Cliquez pour lire · « + » pour retenir · ou{" "}
                     <Link href={`/edition/${date}`} className="olj-link-action">
                       sommaire
                     </Link>
                     .
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <ul className="mt-2 space-y-1.5">
                     {reco.map((p) => (
-                      <Link
-                        key={p.id}
-                        href={`/articles/${p.id}`}
-                        className="olj-focus max-w-[min(100%,18rem)] truncate rounded-md border border-border/55 bg-muted/15 px-2 py-1 text-[11px] text-foreground transition-colors hover:border-accent/40 hover:bg-muted/25"
-                        title={shortArticleTitle(p)}
-                      >
-                        <span className="text-muted-foreground">{p.media_name}</span>
-                        <span className="mx-1 text-border">·</span>
-                        <span>{shortArticleTitle(p)}</span>
-                      </Link>
+                      <li key={p.id} className="flex min-w-0 items-center gap-1.5">
+                        {/* Bouton lire */}
+                        <button
+                          type="button"
+                          className="olj-focus min-w-0 flex-1 truncate rounded-md border border-border/55 bg-muted/15 px-2 py-1 text-left text-[11px] text-foreground transition-colors hover:border-accent/40 hover:bg-muted/25"
+                          title={shortArticleTitle(p)}
+                          onMouseEnter={() => prefetchArticle(p.id)}
+                          onClick={() => openArticle(p.id)}
+                        >
+                          <span className="text-muted-foreground">{p.media_name}</span>
+                          <span className="mx-1 text-border">·</span>
+                          <span>{shortArticleTitle(p)}</span>
+                        </button>
+                        {/* Bouton Retenir */}
+                        {onAddPiste && (
+                          <button
+                            type="button"
+                            title="Retenir cet article dans ce sujet"
+                            disabled={addPisteDisabled}
+                            className="shrink-0 rounded-md border border-border/55 bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:bg-accent/5 hover:text-accent disabled:opacity-40"
+                            onClick={() => onAddPiste(t.id, p.id)}
+                          >
+                            +
+                          </button>
+                        )}
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               ) : null}
 
+              {/* ── Texte généré ── */}
               <div className="mt-4">
                 {hasGen ? (
                   <TopicGeneratedProse text={t.generated_text!} variant="compose" />
                 ) : (
-                  <p className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-                    Pas encore de texte — sélectionnez au moins deux articles au sommaire, puis «
-                    Rédiger ».
+                  <p className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-3 text-[12px] leading-relaxed text-muted-foreground">
+                    Sélectionnez au moins deux articles au sommaire ou via les suggestions ci-dessus, puis « Rédiger ».
                   </p>
                 )}
               </div>
