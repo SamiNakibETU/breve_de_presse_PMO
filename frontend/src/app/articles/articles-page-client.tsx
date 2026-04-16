@@ -155,6 +155,15 @@ export function ArticlesPageClient() {
   const [semanticHits, setSemanticHits] = useState<SemanticSearchHit[] | null>(null);
   const [semanticQueryCommitted, setSemanticQueryCommitted] = useState("");
   const [semanticAllTypes, setSemanticAllTypes] = useState(false);
+  const [semanticMeta, setSemanticMeta] = useState<{ fts: number; vec: number } | null>(null);
+
+  const semanticSourceMap = useMemo<Map<string, string>>(() => {
+    const m = new Map<string, string>();
+    for (const h of semanticHits ?? []) {
+      m.set(h.article_id, h.match_source);
+    }
+    return m;
+  }, [semanticHits]);
 
   const semanticMutation = useMutation({
     mutationFn: (q: string) =>
@@ -168,9 +177,11 @@ export function ArticlesPageClient() {
     onSuccess: (res, q) => {
       setSemanticHits(res.hits);
       setSemanticQueryCommitted(q.trim());
+      setSemanticMeta({ fts: res.fts_count, vec: res.vector_count });
     },
     onError: () => {
       setSemanticHits(null);
+      setSemanticMeta(null);
     },
   });
 
@@ -631,16 +642,28 @@ export function ArticlesPageClient() {
 
         {semanticListActive ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 text-[12px] text-foreground-body">
-            <p className="min-w-0 flex-1 leading-snug">
-              <span className="font-semibold text-foreground">Recherche</span> — « {semanticQueryCommitted} » ·{" "}
-              {semanticArticlesOrdered.length} résultat{semanticArticlesOrdered.length !== 1 ? "s" : ""}
-            </p>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="leading-snug">
+                <span className="font-semibold text-foreground">Recherche</span> — « {semanticQueryCommitted} » ·{" "}
+                {semanticArticlesOrdered.length} résultat{semanticArticlesOrdered.length !== 1 ? "s" : ""}
+              </p>
+              {semanticMeta && (
+                <p className="text-[10px] text-muted-foreground">
+                  {semanticMeta.vec > 0 && semanticMeta.fts > 0
+                    ? `Hybride (vectoriel + texte · RRF)`
+                    : semanticMeta.vec > 0
+                      ? `Vectoriel (Cohere)`
+                      : `Recherche texte (PostgreSQL FTS)`}
+                </p>
+              )}
+            </div>
             <button
               type="button"
               className="shrink-0 rounded-md border border-border/60 bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
               onClick={() => {
                 setSemanticHits(null);
                 setSemanticQueryCommitted("");
+                setSemanticMeta(null);
               }}
             >
               Revenir à la liste
@@ -655,6 +678,7 @@ export function ArticlesPageClient() {
           loading={listLoading}
           topicLabelsFr={oljLabelsQ.data?.labels_fr ?? null}
           groupByOljTheme={groupByOljTheme}
+          semanticSourceMap={semanticListActive ? semanticSourceMap : undefined}
         />
 
         {hasNextPage && !semanticListActive && (

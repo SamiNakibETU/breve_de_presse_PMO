@@ -18,11 +18,15 @@ class SemanticSearchHit(BaseModel):
     distance: float
     title_fr: Optional[str] = None
     url: str
+    match_source: str = "vector"  # "vector" | "text" | "hybrid"
+    rrf_score: Optional[float] = None
 
 
 class SemanticSearchResponse(BaseModel):
     hits: list[SemanticSearchHit]
     query: str
+    fts_count: int = 0   # nb de résultats qui viennent du FTS (debug / UI)
+    vector_count: int = 0
 
 
 class SavedSearchCreate(BaseModel):

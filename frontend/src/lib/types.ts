@@ -272,11 +272,16 @@ export interface SemanticSearchHit {
   distance: number;
   title_fr: string | null;
   url: string;
+  /** "vector" | "text" | "hybrid" */
+  match_source: string;
+  rrf_score?: number | null;
 }
 
 export interface SemanticSearchResponse {
   hits: SemanticSearchHit[];
   query: string;
+  fts_count: number;
+  vector_count: number;
 }
 
 export interface ClusterArticlesResponse {

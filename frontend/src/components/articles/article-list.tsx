@@ -15,8 +15,32 @@ interface ArticleListProps {
   loading: boolean;
   /** Libellés FR depuis la taxonomie (API). */
   topicLabelsFr?: Record<string, string> | null;
-  /** Faux = grille continue sans séparateurs par combinaison d’ids. */
+  /** Faux = grille continue sans séparateurs par combinaison d'ids. */
   groupByOljTheme?: boolean;
+  /** Map article_id → match_source ("vector"|"text"|"hybrid") pour les résultats de recherche. */
+  semanticSourceMap?: Map<string, string>;
+}
+
+function MatchSourceBadge({ source }: { source: string }) {
+  if (source === "hybrid") {
+    return (
+      <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-accent">
+        hybride
+      </span>
+    );
+  }
+  if (source === "text") {
+    return (
+      <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+        texte
+      </span>
+    );
+  }
+  return (
+    <span className="rounded bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70">
+      vect.
+    </span>
+  );
 }
 
 export function ArticleList({
@@ -26,6 +50,7 @@ export function ArticleList({
   loading,
   topicLabelsFr = null,
   groupByOljTheme = true,
+  semanticSourceMap,
 }: ArticleListProps) {
   const sortedArticles = useMemo(() => {
     if (!groupByOljTheme) return articles;
@@ -49,17 +74,12 @@ export function ArticleList({
             className="rounded-xl border border-border bg-card p-4 sm:p-5"
             style={{ animationDelay: `${i * 60}ms` }}
           >
-            {/* Skeleton image */}
             <div className="mb-3 h-32 w-full animate-pulse rounded-lg bg-muted/50" />
-            {/* Skeleton type label */}
             <div className="mb-2 h-2.5 w-20 animate-pulse rounded bg-muted/60" />
-            {/* Skeleton title */}
             <div className="mb-1.5 h-4 w-full animate-pulse rounded bg-muted/50" />
             <div className="mb-3 h-4 w-3/4 animate-pulse rounded bg-muted/40" />
-            {/* Skeleton thesis */}
             <div className="mb-1 h-3 w-full animate-pulse rounded bg-muted/30" />
             <div className="h-3 w-5/6 animate-pulse rounded bg-muted/30" />
-            {/* Skeleton meta */}
             <div className="mt-3 h-2.5 w-2/3 animate-pulse rounded bg-muted/25" />
           </div>
         ))}
@@ -75,16 +95,25 @@ export function ArticleList({
     );
   }
 
-  const cardWrap = (a: Article) => (
-    <ArticleCard
-      key={a.id}
-      article={a}
-      selected={selected.has(a.id)}
-      onToggle={onToggle}
-      variant="grid"
-      topicLabelsFr={topicLabelsFr}
-    />
-  );
+  const cardWrap = (a: Article) => {
+    const source = semanticSourceMap?.get(a.id);
+    return (
+      <div key={a.id} className="relative">
+        {source && (
+          <div className="absolute right-2 top-2 z-10">
+            <MatchSourceBadge source={source} />
+          </div>
+        )}
+        <ArticleCard
+          article={a}
+          selected={selected.has(a.id)}
+          onToggle={onToggle}
+          variant="grid"
+          topicLabelsFr={topicLabelsFr}
+        />
+      </div>
+    );
+  };
 
   if (!groupByOljTheme) {
     return (
