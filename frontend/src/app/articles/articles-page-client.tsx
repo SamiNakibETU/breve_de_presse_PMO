@@ -154,15 +154,16 @@ export function ArticlesPageClient() {
   const [semanticQuery, setSemanticQuery] = useState("");
   const [semanticHits, setSemanticHits] = useState<SemanticSearchHit[] | null>(null);
   const [semanticQueryCommitted, setSemanticQueryCommitted] = useState("");
+  const [semanticAllTypes, setSemanticAllTypes] = useState(false);
 
   const semanticMutation = useMutation({
     mutationFn: (q: string) =>
       api.semanticArticleSearch({
         query: q.trim(),
         limit: 20,
-        hours: 336,
+        hours: 720,
         country_codes: filters.countries.length ? filters.countries : undefined,
-        article_types: filters.types.length ? filters.types : undefined,
+        article_types: semanticAllTypes || !filters.types.length ? undefined : filters.types,
       }),
     onSuccess: (res, q) => {
       setSemanticHits(res.hits);
@@ -517,47 +518,30 @@ export function ArticlesPageClient() {
             {total} article{total !== 1 ? "s" : ""} · {articles.length} affiché
             {articles.length !== 1 ? "s" : ""}
           </p>
-          <details className="mt-3 rounded-sm border border-border bg-muted/10 px-3 py-2">
-            <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden hover:text-accent">
-              Aide : période, édition, filtres et traductions
-            </summary>
-            <div className="mt-2 space-y-2 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground">
-              <p>
-                Le filtre « jour Beyrouth » n’est pas la fenêtre d’édition de la revue (veille 18 h → jour J 6 h). Sur la
-                frise, les jours cliquables et la bande horaire reprennent la fenêtre du sommaire pour le jour d’édition
-                de référence (aujourd’hui ou le jour choisi), comme sur Panorama et l’édition du jour. Pour le livrable
-                rédactionnel :{" "}
-                <a href="/panorama" className="font-medium text-accent underline underline-offset-2">
-                  Panorama
-                </a>{" "}
-                ou l’édition datée.
-              </p>
-              <p>
-                Statut et tri : colonne de gauche. Les blocs « Thème · … » suivent la taxonomie OLJ ; décochez le
-                groupement pour une grille continue.
-              </p>
-              <p>
-                Traductions (relu, réessayer) :{" "}
-                <a href="/regie" className="font-medium text-accent underline underline-offset-2">
-                  Régie
-                </a>
-                .
-              </p>
-            </div>
-          </details>
         </header>
 
         <section
           className="rounded-xl border border-border/55 bg-muted/10 px-3 py-3 sm:px-4"
           aria-label="Recherche sémantique"
         >
-          <p className="text-[11px] font-semibold text-foreground">Recherche sémantique</p>
-          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-            Par proximité vectorielle sur les articles récents (serveur pgvector + Cohere). Les filtres pays
-            / types ci-dessus sont repris si vous les avez définis.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold text-foreground">Recherche par thème / sujet</p>
+            {semanticQueryCommitted && (
+              <button
+                type="button"
+                className="text-[10px] font-medium text-muted-foreground underline underline-offset-2 hover:text-accent"
+                onClick={() => {
+                  setSemanticHits(null);
+                  setSemanticQueryCommitted("");
+                  setSemanticQuery("");
+                }}
+              >
+                Effacer
+              </button>
+            )}
+          </div>
           <form
-            className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center"
+            className="mt-2 flex flex-col gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               const q = semanticQuery.trim();
@@ -565,22 +549,33 @@ export function ArticlesPageClient() {
               semanticMutation.mutate(q);
             }}
           >
-            <input
-              type="search"
-              value={semanticQuery}
-              onChange={(e) => setSemanticQuery(e.target.value)}
-              placeholder="Ex. : tensions commerciales Chine, médias arabes…"
-              className="olj-focus min-h-[2.5rem] w-full flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60"
-              minLength={2}
-              aria-label="Requête en langage naturel"
-            />
-            <button
-              type="submit"
-              disabled={semanticMutation.isPending || semanticQuery.trim().length < 2}
-              className="olj-btn-secondary shrink-0 px-4 py-2 text-[12px] disabled:opacity-45"
-            >
-              {semanticMutation.isPending ? "Recherche…" : "Chercher"}
-            </button>
+            <div className="flex gap-2">
+              <input
+                type="search"
+                value={semanticQuery}
+                onChange={(e) => setSemanticQuery(e.target.value)}
+                placeholder="Ex. : Joseph Aoun, crise économique, tensions…"
+                className="olj-focus min-h-[2.25rem] w-full flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/60"
+                minLength={2}
+                aria-label="Requête en langage naturel"
+              />
+              <button
+                type="submit"
+                disabled={semanticMutation.isPending || semanticQuery.trim().length < 2}
+                className="olj-btn-secondary shrink-0 px-4 py-1.5 text-[12px] disabled:opacity-45"
+              >
+                {semanticMutation.isPending ? "…" : "Chercher"}
+              </button>
+            </div>
+            <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground">
+              <input
+                type="checkbox"
+                className="size-[12px] rounded-sm border-border"
+                checked={semanticAllTypes}
+                onChange={(e) => setSemanticAllTypes(e.target.checked)}
+              />
+              Tous types d&apos;articles (pas seulement opinion/analyse)
+            </label>
           </form>
           {semanticMutation.isError && (
             <p className="mt-2 text-[11px] text-accent" role="alert">
@@ -589,8 +584,22 @@ export function ArticlesPageClient() {
                 : "Recherche indisponible (clé API, pgvector ou périmètre)."}
             </p>
           )}
-          {semanticHits && semanticHits.length === 0 && !semanticMutation.isPending ? (
-            <p className="mt-2 text-[11px] text-muted-foreground">Aucun résultat proche.</p>
+          {semanticHits !== null && semanticHits.length === 0 && !semanticMutation.isPending ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Aucun résultat proche.{" "}
+              {!semanticAllTypes && (
+                <button
+                  type="button"
+                  className="font-medium text-accent underline underline-offset-2"
+                  onClick={() => {
+                    setSemanticAllTypes(true);
+                    semanticMutation.mutate(semanticQuery.trim());
+                  }}
+                >
+                  Réessayer avec tous les types.
+                </button>
+              )}
+            </p>
           ) : null}
         </section>
 

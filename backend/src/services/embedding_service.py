@@ -203,10 +203,21 @@ class EmbeddingService:
         if not to_embed:
             return 0
 
-        texts = [
-            f"{a.title_fr or ''} {a.summary_fr or ''}".strip()
-            for a, _ in to_embed
-        ]
+        def _build_embed_text(art: Article) -> str:
+            parts = [art.title_fr or ""]
+            if art.editorial_angle:
+                parts.append(art.editorial_angle)
+            if art.author_thesis_explicit_fr:
+                parts.append(art.author_thesis_explicit_fr[:600])
+            if art.summary_fr:
+                parts.append(art.summary_fr)
+            if art.analysis_bullets_fr:
+                parts.extend(b for b in art.analysis_bullets_fr[:4] if b)
+            if art.framing_prescription:
+                parts.append(art.framing_prescription[:300])
+            return " ".join(p.strip() for p in parts if p.strip())[:8000]
+
+        texts = [_build_embed_text(a) for a, _ in to_embed]
         embeddings = await self.embed_texts(texts)
 
         for (article, h), embedding in zip(to_embed, embeddings):
