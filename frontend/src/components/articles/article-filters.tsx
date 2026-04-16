@@ -118,7 +118,7 @@ export function ArticleFilters({
   }, [countryRows, countryQuery]);
 
   return (
-    <div className="olj-sidebar-filter space-y-5 border-b border-border-light pb-4 lg:border-0 lg:pb-0">
+    <div className="olj-sidebar-filter space-y-5 border-b border-border-light pb-4 xl:border-0 xl:pb-0">
       {activeEditionId ? (
         <div className="rounded-md border border-accent/20 bg-accent/5 px-3 py-2 text-[11px] leading-snug text-foreground-body">
           <span className="font-semibold text-foreground">Édition liée</span>
@@ -144,7 +144,7 @@ export function ArticleFilters({
             className={`${SELECT_FIELD} mt-1.5`}
           />
         </label>
-        <ul className="max-h-[min(14rem,40vh)] space-y-1.5 overflow-y-auto lg:max-h-[min(18rem,50vh)]">
+        <ul className="max-h-[min(14rem,40vh)] space-y-1.5 overflow-y-auto xl:max-h-[min(18rem,50vh)]">
           {countryRowsFiltered.map(({ code, label }) => {
             const on = filters.countries.includes(code);
             const flag = REGION_FLAG_EMOJI[code];
@@ -301,7 +301,7 @@ export function ArticlesMobileFilterRow({
   sortOptions: readonly { key: string; label: string; title?: string }[];
 }) {
   return (
-    <div className="lg:hidden w-full min-w-0 rounded-lg border border-border/50 bg-muted/10 px-2 py-2">
+    <div className="xl:hidden w-full min-w-0 rounded-lg border border-border/50 bg-muted/10 px-2 py-2">
       <div className="olj-scrollbar-none flex gap-1.5 overflow-x-auto pb-0.5">
         {statusOptions.map(({ key, label }) => (
           <button

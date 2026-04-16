@@ -367,13 +367,13 @@ export function ArticlesPageClient() {
   };
 
   return (
-    <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
-      <aside className="order-2 hidden w-[17rem] shrink-0 lg:sticky lg:top-8 lg:order-1 lg:block">
+    <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:gap-10">
+      <aside className="order-2 hidden w-[17rem] shrink-0 xl:sticky xl:top-8 xl:order-1 xl:block">
         <FiltersColumn {...filterColumnProps} />
       </aside>
 
-      <div className="order-1 min-w-0 flex-1 space-y-5 pb-36 lg:order-2">
-        <details className="group rounded-xl border border-border/60 bg-card p-3 lg:hidden">
+      <div className="order-1 min-w-0 flex-1 space-y-5 pb-36 xl:order-2">
+        <details className="group rounded-xl border border-border/60 bg-card p-3 xl:hidden">
           <summary className="cursor-pointer list-none text-[12px] font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
             Filtres et tri
           </summary>
@@ -629,7 +629,7 @@ export function ArticlesPageClient() {
             statusOptions={STATUS_NAV}
             sortOptions={sortNav}
           />
-          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-foreground-body lg:ml-auto">
+          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-foreground-body xl:ml-auto">
             <input
               type="checkbox"
               className="olj-focus size-[14px] rounded-sm border-border"

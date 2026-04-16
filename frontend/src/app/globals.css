@@ -41,11 +41,11 @@
 }
 
 /* Décalage du contenu principal — règle hors @layer, donc priorité sur les utilities Tailwind.
- * --reader-panel-w  : largeur du panneau latéral (desktop)
- * --reader-panel-bh : hauteur du panneau bas (mobile bottom sheet)
+ * --reader-panel-w  : largeur du panneau latéral (desktop ≥ 768px)
+ * --reader-panel-bh : hauteur du panneau bas (mobile bottom sheet < 768px)
  * data-reader-dock="left" : panneau à gauche → padding-left au lieu de padding-right */
 main[data-reader-layout] {
-  padding-right: calc(1.25rem + var(--reader-panel-w, 0px));
+  padding-right: 1.25rem;
   padding-left: 1.25rem;
   padding-bottom: calc(1rem + var(--reader-panel-bh, 0px));
   transition:
@@ -53,15 +53,17 @@ main[data-reader-layout] {
     padding-left 0.2s ease-out,
     padding-bottom 0.2s ease-out;
 }
-main[data-reader-layout][data-reader-dock="left"] {
-  padding-right: 1.25rem;
-  padding-left: calc(1.25rem + var(--reader-panel-w, 0px));
-}
 @media (min-width: 640px) {
   main[data-reader-layout] {
-    padding-right: calc(1.5rem + var(--reader-panel-w, 0px));
+    padding-right: 1.5rem;
     padding-left: 1.5rem;
-    padding-bottom: 5rem; /* sm+ : pas de bottom sheet */
+    padding-bottom: 5rem;
+  }
+}
+/* Décalage latéral réel (panneau côté ≥ 768px) */
+@media (min-width: 768px) {
+  main[data-reader-layout] {
+    padding-right: calc(1.5rem + var(--reader-panel-w, 0px));
   }
   main[data-reader-layout][data-reader-dock="left"] {
     padding-right: 1.5rem;
@@ -69,11 +71,11 @@ main[data-reader-layout][data-reader-dock="left"] {
   }
 }
 
-/* Bottom sheet article reader (mobile only) */
+/* Bottom sheet article reader (mobile < 768px) */
 .reader-drawer {
-  width: var(--reader-draw-w, 520px);
+  width: var(--reader-draw-w, 480px);
 }
-@media (max-width: 639px) {
+@media (max-width: 767px) {
   .reader-drawer {
     width: 100dvw !important;
     height: var(--reader-draw-h, 78dvh) !important;
@@ -81,6 +83,12 @@ main[data-reader-layout][data-reader-dock="left"] {
   }
   .reader-drawer.reader-drawer--collapsed {
     height: 48px !important;
+  }
+}
+/* Cap de sécurité pour les écrans md-xl : le panneau ne peut pas dépasser 50 % du viewport */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .reader-drawer {
+    max-width: clamp(320px, 44vw, 480px);
   }
 }
 

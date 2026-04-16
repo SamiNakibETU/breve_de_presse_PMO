@@ -31,7 +31,7 @@ export default function RootLayout({
           <PipelineGlobalBar />
           <main
             data-reader-layout
-            className="mx-auto min-h-[min(100vh,64rem)] max-w-[80rem] px-5 py-10 pb-16 sm:px-6 sm:pb-20"
+            className="mx-auto min-h-[min(100vh,64rem)] max-w-[80rem] px-4 py-6 pb-16 sm:px-6 sm:py-10 sm:pb-20"
           >
             {children}
           </main>

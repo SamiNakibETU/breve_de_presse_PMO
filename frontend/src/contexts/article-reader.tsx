@@ -66,11 +66,28 @@ export const articleDetailQueryKey = (articleId: string) =>
 const MAX_OPEN_ARTICLES = 5;
 const PANEL_MIN_W = 320;
 const PANEL_MAX_W = 900;
-const PANEL_DEFAULT_W = 520;
+const PANEL_DEFAULT_W = 480;
+/** Seuil en-dessous duquel le lecteur est un bottom-sheet (vs panneau latéral). */
+const MOBILE_BREAKPOINT_PX = 768;
 const MOBILE_SHEET_DEFAULT_H = 78; // % de dvh
 const MOBILE_SHEET_MIN_H    = 30;
 const MOBILE_SHEET_MAX_H    = 96;
 const DOCK_STORAGE_KEY = "olj-article-reader-dock";
+
+/** Largeur maximale autorisée selon le viewport (laisse 45 % min pour le contenu). */
+function viewportCapW(requestedW: number): number {
+  if (typeof window === "undefined") return requestedW;
+  const cap = Math.max(PANEL_MIN_W, Math.floor(window.innerWidth * 0.52));
+  return Math.min(requestedW, cap);
+}
+
+/** Largeur initiale du panneau adaptée au viewport courant. */
+function getInitialPanelWidth(): number {
+  if (typeof window === "undefined") return PANEL_DEFAULT_W;
+  const vw = window.innerWidth;
+  if (vw < MOBILE_BREAKPOINT_PX) return PANEL_DEFAULT_W; // bottom-sheet: ignored
+  return Math.min(PANEL_DEFAULT_W, Math.max(PANEL_MIN_W, Math.floor(vw * 0.4)));
+}
 
 type ReaderDock = "left" | "right";
 
@@ -96,7 +113,7 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_W);
+  const [panelWidth, setPanelWidth] = useState(getInitialPanelWidth);
   const [sheetHeightPct, setSheetHeightPct] = useState(MOBILE_SHEET_DEFAULT_H);
   const [dock, setDock] = useState<ReaderDock>("right");
 
@@ -111,7 +128,7 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
     const scrollY = window.scrollY;
 
     const hasArticles = openIds.length > 0;
-    const isMobile = window.innerWidth < 640;
+    const isMobile = window.innerWidth < MOBILE_BREAKPOINT_PX;
     const isExpandedDesktop = hasArticles && !collapsed && !isMobile;
     const isCollapsedDesktopStrip = hasArticles && collapsed && !isMobile;
     const mainEl = document.querySelector("main[data-reader-layout]");
@@ -140,9 +157,10 @@ export function ArticleReaderProvider({ children }: { children: ReactNode }) {
         document.documentElement.style.setProperty("--reader-panel-bh", "0px");
         document.documentElement.style.setProperty("--reader-draw-w", "48px");
       } else {
-        document.documentElement.style.setProperty("--reader-panel-w", `${panelWidth}px`);
+        const effectiveW = viewportCapW(panelWidth);
+        document.documentElement.style.setProperty("--reader-panel-w", `${effectiveW}px`);
         document.documentElement.style.setProperty("--reader-panel-bh", "0px");
-        document.documentElement.style.setProperty("--reader-draw-w", `${panelWidth}px`);
+        document.documentElement.style.setProperty("--reader-draw-w", `${effectiveW}px`);
       }
     } else {
       document.documentElement.style.setProperty("--reader-panel-w", "0px");
@@ -364,14 +382,14 @@ function ArticleDrawer({
     <div
       className={cn(
         "reader-drawer fixed z-[80] flex flex-col bg-background",
-        /* Desktop — dock droit (défaut) */
+        /* Desktop (≥768px) — dock droit (défaut) */
         dock === "right" &&
-          "sm:inset-y-0 sm:right-0 sm:left-auto sm:border-l sm:border-r-0 sm:border-border sm:shadow-high",
-        /* Desktop — dock gauche */
+          "md:inset-y-0 md:right-0 md:left-auto md:border-l md:border-r-0 md:border-border md:shadow-high",
+        /* Desktop (≥768px) — dock gauche */
         dock === "left" &&
-          "sm:inset-y-0 sm:left-0 sm:right-auto sm:border-r sm:border-l-0 sm:border-border sm:shadow-[4px_0_24px_rgba(0,0,0,0.08)]",
-        /* Mobile: bottom sheet */
-        "max-sm:inset-x-0 max-sm:bottom-0 max-sm:border-t max-sm:border-border max-sm:shadow-[0_-4px_32px_rgba(0,0,0,0.12)]",
+          "md:inset-y-0 md:left-0 md:right-auto md:border-r md:border-l-0 md:border-border md:shadow-[4px_0_24px_rgba(0,0,0,0.08)]",
+        /* Mobile (< 768px): bottom sheet */
+        "max-md:inset-x-0 max-md:bottom-0 max-md:border-t max-md:border-border max-md:shadow-[0_-4px_32px_rgba(0,0,0,0.12)]",
         collapsed && "reader-drawer--collapsed",
       )}
       style={{
@@ -384,7 +402,7 @@ function ArticleDrawer({
     >
       {/* ── Poignée mobile (swipe up/down) ── */}
       <div
-        className="sm:hidden flex h-8 shrink-0 cursor-ns-resize items-center justify-center touch-none"
+        className="md:hidden flex h-8 shrink-0 cursor-ns-resize items-center justify-center touch-none"
         onMouseDown={onResizeHStart}
         onTouchStart={onResizeHStart}
         aria-hidden
@@ -396,7 +414,7 @@ function ArticleDrawer({
       {!collapsed && (
         <div
           className={cn(
-            "max-sm:hidden absolute top-0 z-10 flex h-full w-3 cursor-col-resize items-center justify-center touch-none",
+            "max-md:hidden absolute top-0 z-10 flex h-full w-3 cursor-col-resize items-center justify-center touch-none",
             "bg-gradient-to-r from-transparent via-border/50 to-transparent hover:via-accent/35",
             dock === "right" ? "left-0" : "right-0 bg-gradient-to-l",
           )}
@@ -419,7 +437,7 @@ function ArticleDrawer({
         <button
           type="button"
           onClick={onCloseAll}
-          className="sm:hidden flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
+          className="md:hidden flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
           aria-label="Fermer"
         >
           ✕
@@ -428,7 +446,7 @@ function ArticleDrawer({
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="max-sm:hidden flex w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+          className="max-md:hidden flex w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
           aria-label={collapsed ? "Développer le lecteur" : "Réduire le lecteur en bandeau"}
         >
           {collapsed
@@ -443,7 +461,7 @@ function ArticleDrawer({
         <button
           type="button"
           onClick={onToggleDock}
-          className="max-sm:hidden flex w-10 shrink-0 items-center justify-center text-[12px] text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+          className="max-md:hidden flex w-10 shrink-0 items-center justify-center text-[12px] text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
           title={
             dock === "right"
               ? "Placer le lecteur à gauche de l’écran"
@@ -475,7 +493,7 @@ function ArticleDrawer({
             <button
               type="button"
               onClick={onCloseAll}
-              className="max-sm:hidden flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
+              className="max-md:hidden flex w-10 shrink-0 items-center justify-center text-[11px] text-muted-foreground transition-colors hover:bg-accent/8 hover:text-accent"
               aria-label="Tout fermer"
             >
               ✕
